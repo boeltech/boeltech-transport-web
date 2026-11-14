@@ -1,11 +1,14 @@
+/**
+ * DispatchRunReadyTable — documentos listos en detalle de corrida (`EntityListTable`).
+ *
+ * Folio · Cliente · Estado. Empty → null (host pinta empty del bucket).
+ * Host ya enmarca en Card + border: `framed={false}`. Sin checkboxes.
+ */
+
 import { Badge } from "@shared/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
 } from "@shared/ui/table";
 import type { BillingDispatchRunItem } from "../../domain/billingDispatchRun.types";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
@@ -20,7 +23,11 @@ const copy = dispatchRunsCopy.detail;
 
 /** UUID canónico (36) o seudofolio largo sin serie humana → truncar en Folio. */
 function looksLikeOpaqueId(value: string): boolean {
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  ) {
     return true;
   }
   return value.length > 16 && !/[A-Za-z]+-\d+/.test(value);
@@ -59,35 +66,43 @@ function ReadyStatusCell({ item }: { item: BillingDispatchRunItem }) {
   );
 }
 
+const columns: EntityListColumnDef<BillingDispatchRunItem>[] = [
+  {
+    id: "folio",
+    header: copy.table.folio,
+    kind: "code",
+    className: "font-medium tabular-nums",
+    accessor: (item) => formatFolio(item),
+  },
+  {
+    id: "client",
+    header: copy.table.client,
+    kind: "text",
+    className: "max-w-[16rem]",
+    accessor: (item) => clientDisplayName(item, copy.buckets.clientFallback),
+  },
+  {
+    id: "status",
+    header: copy.table.status,
+    kind: "status",
+    className: "w-[1%] whitespace-nowrap",
+    accessor: (item) => <ReadyStatusCell item={item} />,
+  },
+];
+
 export function DispatchRunReadyTable({
   items,
 }: {
   items: BillingDispatchRunItem[];
 }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>{copy.table.folio}</TableHead>
-          <TableHead>{copy.table.client}</TableHead>
-          <TableHead>{copy.table.status}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {items.map((item) => (
-          <TableRow key={item.id}>
-            <TableCell className="font-medium tabular-nums">
-              {formatFolio(item)}
-            </TableCell>
-            <TableCell className="max-w-[16rem] truncate">
-              {clientDisplayName(item, copy.buckets.clientFallback)}
-            </TableCell>
-            <TableCell className="w-[1%] whitespace-nowrap">
-              <ReadyStatusCell item={item} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <EntityListTable
+      framed={false}
+      density="list"
+      aria-label={copy.buckets.readyTitle}
+      columns={columns}
+      rows={items}
+      getRowId={(row) => row.id}
+    />
   );
 }

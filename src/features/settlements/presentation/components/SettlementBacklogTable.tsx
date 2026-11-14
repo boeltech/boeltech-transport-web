@@ -1,12 +1,12 @@
+/**
+ * SettlementBacklogTable — Por pagar backlog (`EntityListTable` en modo tabla).
+ *
+ * Empleado · Estimado · Periodo(+avisos) · Concepto · Acción.
+ * Empty → null (SettlementsListPage). `framed={false}` (paridad SettlementsTable).
+ * Vista cards sin migrar (no EntityListTable).
+ */
+
 import { Link } from "react-router-dom";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
 import { Card, CardContent, CardHeader } from "@shared/ui/card";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -16,6 +16,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@shared/ui/tooltip";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+} from "@shared/ui/table";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
@@ -110,7 +114,10 @@ function backlogCtaLabel(row: SettlementBacklogRow): string {
  * UI ignores no_client_invoice (D5/D8): payload may still include the code.
  * Los tardíos entran solos al siguiente pago (E11-F3 B.4): sin insignia propia.
  */
-const IGNORED_BACKLOG_WARNINGS = new Set(["no_client_invoice", "late_reimbursement"]);
+const IGNORED_BACKLOG_WARNINGS = new Set([
+  "no_client_invoice",
+  "late_reimbursement",
+]);
 
 /** D10: folio de solape → gasto por definir → anticipo; el resto después. */
 const WARNING_ORDER = [
@@ -149,7 +156,10 @@ function PeriodWarnings({
   const { warnings, employeeId, periodOverlap } = row;
   const visible = warnings
     .filter((w) => !IGNORED_BACKLOG_WARNINGS.has(w))
-    .filter((w) => WARNINGS_WITH_OWN_BADGE.has(w) || genericWarningLabel(w) !== null)
+    .filter(
+      (w) =>
+        WARNINGS_WITH_OWN_BADGE.has(w) || genericWarningLabel(w) !== null,
+    )
     .sort((a, b) => warningRank(a) - warningRank(b));
   if (visible.length === 0) return null;
 
@@ -161,7 +171,10 @@ function PeriodWarnings({
             <li key={warning}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span tabIndex={0} className="inline-flex cursor-help rounded-md">
+                  <span
+                    tabIndex={0}
+                    className="inline-flex cursor-help rounded-md"
+                  >
                     <Badge
                       variant="warning"
                       tone="soft"
@@ -204,7 +217,8 @@ function PeriodWarnings({
                       tone="soft"
                       className="text-xs font-medium"
                     >
-                      {formatPeriodOverlapFolioLabel(periodOverlap) ?? overlapCopy.badge}
+                      {formatPeriodOverlapFolioLabel(periodOverlap) ??
+                        overlapCopy.badge}
                     </Badge>
                   </Link>
                 </TooltipTrigger>
@@ -234,7 +248,10 @@ function PeriodWarnings({
             <li key={warning}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span tabIndex={0} className="inline-flex cursor-help rounded-md">
+                  <span
+                    tabIndex={0}
+                    className="inline-flex cursor-help rounded-md"
+                  >
                     {badge}
                   </span>
                 </TooltipTrigger>
@@ -267,7 +284,10 @@ function PeriodWarnings({
             <li key={warning}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span tabIndex={0} className="inline-flex cursor-help rounded-md">
+                  <span
+                    tabIndex={0}
+                    className="inline-flex cursor-help rounded-md"
+                  >
                     {badge}
                   </span>
                 </TooltipTrigger>
@@ -281,7 +301,11 @@ function PeriodWarnings({
 
         return (
           <li key={warning}>
-            <Badge variant="warning" tone="soft" className="text-xs font-medium">
+            <Badge
+              variant="warning"
+              tone="soft"
+              className="text-xs font-medium"
+            >
               {genericWarningLabel(warning)}
             </Badge>
           </li>
@@ -291,48 +315,86 @@ function PeriodWarnings({
   );
 }
 
-const TABLE_HEADERS = [
-  {
-    key: "employee",
-    label: fieldsCopy.employee,
-    className: "min-w-[220px]",
-  },
-  {
-    key: "estimatedAmount",
-    label: fieldsCopy.estimatedAmount,
-    className: "min-w-[140px] text-right",
-  },
-  {
-    key: "period",
-    label: fieldsCopy.period,
-    className: "min-w-[220px]",
-  },
-  {
-    key: "pendingConcept",
-    label: fieldsCopy.pendingConcept,
-    className: "min-w-[170px]",
-  },
-  {
-    key: "action",
-    label: fieldsCopy.action,
-    className: "min-w-[150px] text-right",
-  },
-] as const;
+function buildTableColumns(opts: {
+  canCreate: boolean;
+  fromState?: { from: string };
+  onNavigateCreate: (path: string) => void;
+}): EntityListColumnDef<SettlementBacklogRow>[] {
+  const { canCreate, fromState, onNavigateCreate } = opts;
 
-function LoadingSkeleton() {
-  return (
-    <TableBody>
-      {Array.from({ length: 4 }).map((_, index) => (
-        <TableRow key={index}>
-          {Array.from({ length: TABLE_HEADERS.length }).map((__, cellIndex) => (
-            <TableCell key={cellIndex}>
-              <Skeleton className="h-4 w-full" />
-            </TableCell>
-          ))}
-        </TableRow>
-      ))}
-    </TableBody>
-  );
+  return [
+    {
+      id: "employee",
+      header: fieldsCopy.employee,
+      kind: "text",
+      className: "min-w-[220px] font-semibold whitespace-nowrap",
+      accessor: (row) => row.employeeFullName,
+    },
+    {
+      id: "estimatedAmount",
+      header: fieldsCopy.estimatedAmount,
+      kind: "status",
+      headerClassName: "text-right",
+      className: "min-w-[140px] text-right",
+      accessor: (row) =>
+        row.estimatedNetAmount != null ? (
+          <span className="font-mono text-base font-bold tabular-nums whitespace-nowrap">
+            {formatMxCurrency(row.estimatedNetAmount)}
+          </span>
+        ) : (
+          <span className="inline-flex justify-end">
+            <OperatorPaymentStatusBadge status="no_template" size="sm" />
+          </span>
+        ),
+    },
+    {
+      id: "period",
+      header: fieldsCopy.period,
+      kind: "status",
+      className: "min-w-[220px]",
+      accessor: (row) => (
+        <div className="space-y-1.5">
+          <BacklogPeriod row={row} />
+          <PeriodWarnings row={row} fromState={fromState} />
+        </div>
+      ),
+    },
+    {
+      id: "pendingConcept",
+      header: fieldsCopy.pendingConcept,
+      kind: "status",
+      className: "min-w-[170px]",
+      accessor: (row) => <RowTypeBadge row={row} />,
+    },
+    {
+      id: "action",
+      header: fieldsCopy.action,
+      kind: "actions",
+      className: "min-w-[150px] w-auto",
+      headerClassName: "min-w-[150px] w-auto text-right",
+      accessor: (row) => {
+        const createPath = resolveBacklogCreatePath(row);
+        if (!canCreate) {
+          return (
+            <span className="text-xs text-muted-foreground">
+              {copy.backlog.readOnly}
+            </span>
+          );
+        }
+        return (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onNavigateCreate(createPath)}
+            data-help-anchor="stl-liquidar-periodo"
+          >
+            {backlogCtaLabel(row)}
+          </Button>
+        );
+      },
+    },
+  ];
 }
 
 export function SettlementBacklogTable({
@@ -433,94 +495,23 @@ export function SettlementBacklogTable({
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="rounded-md border bg-card overflow-x-auto">
-        <Table aria-label={copy.backlog.tableAriaLabel}>
-          <TableHeader>
-            <TableRow>
-              {TABLE_HEADERS.map((header) => (
-                <TableHead key={header.key} className={header.className}>
-                  {header.label}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <LoadingSkeleton />
-        </Table>
-      </div>
-    );
-  }
-
-  // Empty lo resuelve SettlementsListPage (EmptyState XOR checklist/bridge).
-  if (rows.length === 0) return null;
+  const columns = buildTableColumns({
+    canCreate,
+    fromState,
+    onNavigateCreate,
+  });
 
   return (
-    <div className="rounded-md border bg-card overflow-x-auto">
-      <Table aria-label={copy.backlog.tableAriaLabel}>
-        <TableHeader>
-          <TableRow>
-            {TABLE_HEADERS.map((header) => (
-              <TableHead key={header.key} className={header.className}>
-                {header.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => {
-            const createPath = resolveBacklogCreatePath(row);
-
-            return (
-              <TableRow
-                key={`${row.employeeId}-${row.periodStart}-${row.periodEnd}`}
-                className="hover:bg-muted/40"
-              >
-                <TableCell className="min-w-[220px] py-3">
-                  <p className="font-semibold text-foreground whitespace-nowrap">
-                    {row.employeeFullName}
-                  </p>
-                </TableCell>
-                <TableCell className="min-w-[140px] py-3 text-right">
-                  {row.estimatedNetAmount != null ? (
-                    <p className="tabular-nums text-base font-bold text-foreground whitespace-nowrap">
-                      {formatMxCurrency(row.estimatedNetAmount)}
-                    </p>
-                  ) : (
-                    <div className="flex justify-end">
-                      <OperatorPaymentStatusBadge status="no_template" size="sm" />
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell className="min-w-[220px] py-3">
-                  <div className="space-y-1.5">
-                    <BacklogPeriod row={row} />
-                    <PeriodWarnings row={row} fromState={fromState} />
-                  </div>
-                </TableCell>
-                <TableCell className="min-w-[170px] py-3">
-                  <RowTypeBadge row={row} />
-                </TableCell>
-                <TableCell className="min-w-[150px] py-3 text-right">
-                  {canCreate ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onNavigateCreate(createPath)}
-                      data-help-anchor="stl-liquidar-periodo"
-                    >
-                      {backlogCtaLabel(row)}
-                    </Button>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">{copy.backlog.readOnly}</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      aria-label={copy.backlog.tableAriaLabel}
+      columns={columns}
+      rows={[...rows]}
+      getRowId={(row) =>
+        `${row.employeeId}-${row.periodStart}-${row.periodEnd}`
+      }
+      isLoading={isLoading}
+    />
   );
 }

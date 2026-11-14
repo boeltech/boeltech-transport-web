@@ -1,17 +1,18 @@
 /**
- * FinanceInvoiceListTable — listado de facturas del hub Finanzas.
+ * FinanceInvoiceListTable — facturas del hub Finanzas (`EntityListTable`).
+ *
+ * ≤7 cols: Folio · Cliente · Fecha+método · Total · Saldo · Viajes · Estado(+envío).
+ * Empty → null (WorkbenchPageShell). Workbench sin card de List: framed default.
+ * Sin checkboxes (T9: no hay lote en este listado).
  */
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
+import { useMemo } from "react";
 import { Badge } from "@shared/ui/badge";
-import { Skeleton } from "@shared/ui/skeleton";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
+} from "@shared/ui/table";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type {
@@ -24,10 +25,10 @@ import {
   InvoiceEmailDispatchBadge,
   invoicingCopy,
 } from "@features/invoicing";
-import { FINANCE_INVOICES_PAGE_SIZE } from "../config/financeInvoiceListConfig";
 import { FinanceInvoiceStatusBadge } from "../config/financeInvoiceStatusConfig";
 import { financeCopy } from "../copy";
 import { formatFinancePaymentMethodLabel } from "../utils/formatFinancePaymentMethod";
+import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 
 const copy = financeCopy.invoices;
 
@@ -45,38 +46,6 @@ function getListDisplayAmounts(invoice: FinanceInvoiceListItem) {
   });
 }
 
-interface FinanceInvoiceListTableProps {
-  invoices: FinanceInvoiceListItem[];
-  isLoading: boolean;
-  onView: (id: string) => void;
-  /** Portal client: oculta columna Cliente/RFC y usa labels de estado entendibles. */
-  isClientPortal?: boolean;
-}
-
-function getHeaders(isClientPortal: boolean) {
-  const headers: { key: string; label: string; className?: string }[] = [
-    { key: "folio", label: copy.table.folio },
-  ];
-  if (!isClientPortal) {
-    headers.push({ key: "client", label: copy.table.client });
-  }
-  headers.push(
-    { key: "date", label: copy.table.date },
-    { key: "method", label: copy.table.method },
-    { key: "total", label: copy.table.total, className: "text-right" },
-    { key: "balance", label: copy.table.balance, className: "text-right" },
-    {
-      key: "trips",
-      label: isClientPortal ? copy.table.tripsClient : copy.table.trips,
-    },
-  );
-  if (!isClientPortal) {
-    headers.push({ key: "dispatch", label: copy.table.dispatch });
-  }
-  headers.push({ key: "status", label: copy.table.status });
-  return headers;
-}
-
 function statusLabel(
   status: FinanceInvoiceStatus,
   isClientPortal: boolean,
@@ -85,161 +54,174 @@ function statusLabel(
   return copy.statusLabels[status];
 }
 
+interface FinanceInvoiceListTableProps {
+  invoices: FinanceInvoiceListItem[];
+  isLoading: boolean;
+  /** Host legacy; navegación = link primario. */
+  onView: (id: string) => void;
+  /** Portal client: oculta Cliente/RFC y Envío; labels de estado entendibles. */
+  isClientPortal?: boolean;
+}
+
+function TripCodes({ codes }: { codes: string[] }) {
+  if (codes.length === 0) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {codes.slice(0, 2).map((code) => (
+        <Badge key={code} variant="secondary" className="text-xs">
+          {code}
+        </Badge>
+      ))}
+      {codes.length > 2 ? (
+        <Badge variant="secondary" className="text-xs">
+          +{codes.length - 2}
+        </Badge>
+      ) : null}
+    </div>
+  );
+}
+
+function buildColumns(
+  isClientPortal: boolean,
+): EntityListColumnDef<FinanceInvoiceListItem>[] {
+  const columns: EntityListColumnDef<FinanceInvoiceListItem>[] = [
+    {
+      id: "folio",
+      header: copy.table.folio,
+      kind: "primary",
+      accessor: (invoice): EntityListStackedValue => ({
+        primary: (
+          <span className="font-mono tabular-nums">
+            {`${invoice.serie}-${invoice.folio}`}
+          </span>
+        ),
+        secondary: invoice.billingScope ? (
+          <span className="inline-flex flex-wrap items-center gap-1.5 font-sans">
+            <InvoiceBillingScopeBadge scope={invoice.billingScope} />
+            {invoice.billingScope === "split_share" &&
+            invoice.sharePercent != null ? (
+              <span className="text-xs font-normal text-muted-foreground">
+                {splitSharePercentLabel(invoice.sharePercent)}
+              </span>
+            ) : null}
+          </span>
+        ) : undefined,
+      }),
+    },
+  ];
+
+  if (!isClientPortal) {
+    columns.push({
+      id: "client",
+      header: copy.table.client,
+      kind: "stacked",
+      accessor: (invoice): EntityListStackedValue => ({
+        primary: invoice.receiverName,
+        secondary: invoice.receiverRfc,
+      }),
+    });
+  }
+
+  columns.push(
+    {
+      id: "issued",
+      header: copy.table.date,
+      kind: "stacked",
+      accessor: (invoice): EntityListStackedValue => ({
+        primary: formatDate(invoice.issuedAt),
+        secondary: (
+          <Badge variant="outline" className="text-xs font-normal">
+            {formatFinancePaymentMethodLabel(invoice.paymentMethod)}
+          </Badge>
+        ),
+      }),
+    },
+    {
+      id: "total",
+      header: copy.table.total,
+      kind: "money",
+      accessor: (invoice) => invoice.total,
+    },
+    {
+      id: "balance",
+      header: copy.table.balance,
+      kind: "status",
+      headerClassName: "text-right",
+      className: "text-right",
+      accessor: (invoice) => {
+        const { balanceDue } = getListDisplayAmounts(invoice);
+        if (balanceDue > 0) {
+          return (
+            <span className="font-medium font-mono tabular-nums text-destructive">
+              {formatMxCurrency(balanceDue)}
+            </span>
+          );
+        }
+        return (
+          <span className="text-sm text-success">{copy.table.paid}</span>
+        );
+      },
+    },
+    {
+      id: "trips",
+      header: isClientPortal ? copy.table.tripsClient : copy.table.trips,
+      kind: "status",
+      accessor: (invoice) => <TripCodes codes={invoice.tripCodes} />,
+    },
+    {
+      id: "status",
+      header: copy.table.status,
+      kind: "status",
+      accessor: (invoice) => (
+        <div className="flex flex-col items-start gap-1">
+          {isClientPortal ? (
+            <Badge variant="secondary" className="text-xs font-normal">
+              {statusLabel(invoice.status, true)}
+            </Badge>
+          ) : (
+            <FinanceInvoiceStatusBadge status={invoice.status} />
+          )}
+          {!isClientPortal ? (
+            <InvoiceEmailDispatchBadge
+              status={invoice.status}
+              dispatchSentAt={invoice.dispatchSentAt}
+              autoDispatchLastItemStatus={
+                invoice.autoDispatch?.lastItemStatus
+              }
+            />
+          ) : null}
+        </div>
+      ),
+    },
+  );
+
+  return columns;
+}
+
 export function FinanceInvoiceListTable({
   invoices,
   isLoading,
-  onView,
+  onView: _onView,
   isClientPortal = false,
 }: FinanceInvoiceListTableProps) {
-  const headers = getHeaders(isClientPortal);
-
-  if (isLoading) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {headers.map((header) => (
-                <TableHead key={header.key} className={header.className}>
-                  {header.label}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.from({ length: FINANCE_INVOICES_PAGE_SIZE }).map(
-              (_, index) => (
-                <TableRow key={index}>
-                  {headers.map((header) => (
-                    <TableCell key={header.key}>
-                      <Skeleton className="h-4 w-20" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ),
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  }
-
-  // WorkbenchPageShell owns empty (EmptyState); avoid a second empty in the table.
-  if (invoices.length === 0) {
-    return null;
-  }
+  const fromState = useInvoiceQueueFromState();
+  const columns = useMemo(
+    () => buildColumns(isClientPortal),
+    [isClientPortal],
+  );
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {headers.map((header) => (
-              <TableHead key={header.key} className={header.className}>
-                {header.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {invoices.map((invoice) => (
-            <TableRow
-              key={invoice.id}
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => onView(invoice.id)}
-            >
-              <TableCell className="font-medium font-mono">
-                <div className="space-y-1">
-                  <div>{`${invoice.serie}-${invoice.folio}`}</div>
-                  {invoice.billingScope ? (
-                    <div className="flex flex-wrap items-center gap-1.5 font-sans">
-                      <InvoiceBillingScopeBadge scope={invoice.billingScope} />
-                      {invoice.billingScope === "split_share" &&
-                      invoice.sharePercent != null ? (
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {splitSharePercentLabel(invoice.sharePercent)}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              </TableCell>
-              {!isClientPortal ? (
-                <TableCell>
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium">
-                      {invoice.receiverName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {invoice.receiverRfc}
-                    </p>
-                  </div>
-                </TableCell>
-              ) : null}
-              <TableCell className="text-sm">
-                {formatDate(invoice.issuedAt)}
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline" className="text-xs">
-                  {formatFinancePaymentMethodLabel(invoice.paymentMethod)}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right font-medium">
-                {formatMxCurrency(invoice.total)}
-              </TableCell>
-              <TableCell className="text-right">
-                {(() => {
-                  const { balanceDue } = getListDisplayAmounts(invoice);
-                  if (balanceDue > 0) {
-                    return (
-                      <span className="font-medium text-destructive">
-                        {formatMxCurrency(balanceDue)}
-                      </span>
-                    );
-                  }
-                  return (
-                    <span className="text-sm text-success">{copy.table.paid}</span>
-                  );
-                })()}
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {invoice.tripCodes.slice(0, 2).map((code) => (
-                    <Badge key={code} variant="secondary" className="text-xs">
-                      {code}
-                    </Badge>
-                  ))}
-                  {invoice.tripCodes.length > 2 ? (
-                    <Badge variant="secondary" className="text-xs">
-                      +{invoice.tripCodes.length - 2}
-                    </Badge>
-                  ) : null}
-                </div>
-              </TableCell>
-              {isClientPortal ? null : (
-                <TableCell>
-                  <InvoiceEmailDispatchBadge
-                    status={invoice.status}
-                    dispatchSentAt={invoice.dispatchSentAt}
-                    autoDispatchLastItemStatus={
-                      invoice.autoDispatch?.lastItemStatus
-                    }
-                  />
-                </TableCell>
-              )}
-              <TableCell>
-                {isClientPortal ? (
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    {statusLabel(invoice.status, true)}
-                  </Badge>
-                ) : (
-                  <FinanceInvoiceStatusBadge status={invoice.status} />
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      density="list"
+      aria-label={copy.entityLabelPlural}
+      columns={columns}
+      rows={invoices}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      primaryTo={(invoice) => `/invoices/${invoice.id}`}
+      primaryState={() => fromState}
+    />
   );
 }

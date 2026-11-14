@@ -1,24 +1,24 @@
-import { Link } from "react-router-dom";
+/**
+ * FinanceCobrosInvoiceTable — bandeja Cobros con factura (`EntityListTable`).
+ *
+ * Checkbox de lote (T9 ya existía) · Folio · Cliente · Emisión · Viajes ·
+ * Total · Saldo. Empty → null (WorkbenchPageShell). Workbench: framed default.
+ */
+
+import { useMemo } from "react";
 import { Badge } from "@shared/ui/badge";
 import { Checkbox } from "@shared/ui/checkbox";
-import { Skeleton } from "@shared/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { formatDate } from "@shared/utils/dateUtils";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { FinanceInvoiceListItem } from "@features/finance/domain";
 import { financeCopy } from "../copy";
 import { isCobrosInvoiceSelectable } from "../utils/cobrosSelection";
 import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 
 const copy = financeCopy.cobros;
-const SKELETON_ROWS = 8;
 
 function invoiceFolio(invoice: FinanceInvoiceListItem): string {
   return `${invoice.serie}-${invoice.folio}`;
@@ -44,20 +44,6 @@ function TripCodes({ codes }: { codes: string[] }) {
   );
 }
 
-function ClientCell({ invoice }: { invoice: FinanceInvoiceListItem }) {
-  const name = invoice.receiverName?.trim();
-  return (
-    <div className="min-w-0">
-      <p className="truncate text-sm">{name || invoice.receiverRfc}</p>
-      {name ? (
-        <p className="font-mono text-xs text-muted-foreground">
-          {invoice.receiverRfc}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 interface FinanceCobrosInvoiceTableProps {
   invoices: FinanceInvoiceListItem[];
   selected: Record<string, boolean>;
@@ -66,6 +52,104 @@ interface FinanceCobrosInvoiceTableProps {
   isLoading?: boolean;
   onToggle: (invoice: FinanceInvoiceListItem, checked: boolean) => void;
   onTogglePage: (checked: boolean) => void;
+}
+
+function buildColumns(opts: {
+  selected: Record<string, boolean>;
+  anchorRfc: string | null;
+  selectAllState: boolean | "indeterminate";
+  selectableOnPageLength: number;
+  onToggle: (invoice: FinanceInvoiceListItem, checked: boolean) => void;
+  onTogglePage: (checked: boolean) => void;
+}): EntityListColumnDef<FinanceInvoiceListItem>[] {
+  const {
+    selected,
+    anchorRfc,
+    selectAllState,
+    selectableOnPageLength,
+    onToggle,
+    onTogglePage,
+  } = opts;
+
+  return [
+    {
+      id: "select",
+      header: (
+        <Checkbox
+          checked={selectAllState}
+          onCheckedChange={(checked) => onTogglePage(checked === true)}
+          aria-label={copy.selectAllAria}
+          disabled={selectableOnPageLength === 0}
+        />
+      ) as unknown as string,
+      kind: "text",
+      className: "w-10",
+      headerClassName: "w-10",
+      accessor: (invoice) => {
+        const folio = invoiceFolio(invoice);
+        const selectable = isCobrosInvoiceSelectable(invoice, anchorRfc);
+        return (
+          <span data-no-row-nav="" onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={Boolean(selected[invoice.id])}
+              disabled={!selectable}
+              onCheckedChange={(checked) =>
+                onToggle(invoice, checked === true)
+              }
+              aria-label={
+                selectable
+                  ? copy.selectInvoice(folio)
+                  : copy.selectInvoiceDisabled(folio)
+              }
+            />
+          </span>
+        );
+      },
+    },
+    {
+      id: "invoice",
+      header: copy.columns.invoice,
+      kind: "primary",
+      accessor: (invoice) => invoiceFolio(invoice),
+    },
+    {
+      id: "client",
+      header: copy.columns.client,
+      kind: "stacked",
+      accessor: (invoice): EntityListStackedValue => {
+        const name = invoice.receiverName?.trim();
+        return {
+          primary: name || invoice.receiverRfc,
+          secondary: name ? invoice.receiverRfc : undefined,
+        };
+      },
+    },
+    {
+      id: "issuedAt",
+      header: copy.columns.issuedAt,
+      kind: "date",
+      accessor: (invoice) => invoice.issuedAt,
+    },
+    {
+      id: "trips",
+      header: copy.columns.trips,
+      kind: "status",
+      accessor: (invoice) => <TripCodes codes={invoice.tripCodes} />,
+    },
+    {
+      id: "total",
+      header: copy.columns.total,
+      kind: "money",
+      accessor: (invoice) => invoice.total,
+    },
+    {
+      id: "balance",
+      header: copy.columns.balance,
+      kind: "money",
+      className: "font-semibold",
+      accessor: (invoice) => invoice.balanceDue,
+    },
+  ];
 }
 
 export function FinanceCobrosInvoiceTable({
@@ -96,59 +180,25 @@ export function FinanceCobrosInvoiceTable({
     Boolean(anchorRfc) &&
     invoices.some((invoice) => !isCobrosInvoiceSelectable(invoice, anchorRfc));
 
-  if (isLoading) {
-    return (
-      <>
-        <div className="hidden md:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10" />
-                <TableHead>{copy.columns.invoice}</TableHead>
-                <TableHead>{copy.columns.client}</TableHead>
-                <TableHead>{copy.columns.issuedAt}</TableHead>
-                <TableHead>{copy.columns.trips}</TableHead>
-                <TableHead className="text-right">{copy.columns.total}</TableHead>
-                <TableHead className="text-right">{copy.columns.balance}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: SKELETON_ROWS }).map((_, index) => (
-                <TableRow key={index}>
-                  <TableCell>
-                    <Skeleton className="h-4 w-4" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-20" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-36" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="ml-auto h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="ml-auto h-4 w-16" />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        <div className="space-y-3 md:hidden">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-20 w-full" />
-          ))}
-        </div>
-      </>
-    );
-  }
+  const columns = useMemo(
+    () =>
+      buildColumns({
+        selected,
+        anchorRfc,
+        selectAllState,
+        selectableOnPageLength: selectableOnPage.length,
+        onToggle,
+        onTogglePage,
+      }),
+    [
+      selected,
+      anchorRfc,
+      selectAllState,
+      selectableOnPage.length,
+      onToggle,
+      onTogglePage,
+    ],
+  );
 
   return (
     <>
@@ -157,135 +207,21 @@ export function FinanceCobrosInvoiceTable({
           {copy.sameRfcOnlyHint}
         </p>
       ) : null}
-      <div className="hidden md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={selectAllState}
-                  onCheckedChange={(checked) => onTogglePage(checked === true)}
-                  aria-label={copy.selectAllAria}
-                  disabled={selectableOnPage.length === 0}
-                />
-              </TableHead>
-              <TableHead>{copy.columns.invoice}</TableHead>
-              <TableHead>{copy.columns.client}</TableHead>
-              <TableHead>{copy.columns.issuedAt}</TableHead>
-              <TableHead>{copy.columns.trips}</TableHead>
-              <TableHead className="text-right">{copy.columns.total}</TableHead>
-              <TableHead className="text-right">{copy.columns.balance}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {invoices.map((invoice) => {
-              const folio = invoiceFolio(invoice);
-              const isChecked = Boolean(selected[invoice.id]);
-              const selectable = isCobrosInvoiceSelectable(invoice, anchorRfc);
-              return (
-                <TableRow
-                  key={invoice.id}
-                  className={selectable ? undefined : "opacity-60"}
-                >
-                  <TableCell>
-                    <Checkbox
-                      checked={isChecked}
-                      disabled={!selectable}
-                      onCheckedChange={(checked) =>
-                        onToggle(invoice, checked === true)
-                      }
-                      aria-label={
-                        selectable
-                          ? copy.selectInvoice(folio)
-                          : copy.selectInvoiceDisabled(folio)
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <Link
-                      to={`/invoices/${invoice.id}`}
-                      state={fromState}
-                      className="text-primary hover:underline"
-                    >
-                      {folio}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <ClientCell invoice={invoice} />
-                  </TableCell>
-                  <TableCell>{formatDate(invoice.issuedAt)}</TableCell>
-                  <TableCell>
-                    <TripCodes codes={invoice.tripCodes} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatMxCurrency(invoice.total)}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
-                    {formatMxCurrency(invoice.balanceDue)}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="divide-y md:hidden">
-        <div className="flex items-center gap-3 py-3">
-          <Checkbox
-            checked={selectAllState}
-            onCheckedChange={(checked) => onTogglePage(checked === true)}
-            aria-label={copy.selectAllAria}
-            disabled={selectableOnPage.length === 0}
-          />
-          <span className="text-sm font-medium">{copy.selectAllAria}</span>
-        </div>
-        {invoices.map((invoice) => {
-          const folio = invoiceFolio(invoice);
-          const selectable = isCobrosInvoiceSelectable(invoice, anchorRfc);
-          return (
-            <div
-              key={invoice.id}
-              className={`flex items-start gap-3 py-3 ${selectable ? "" : "opacity-60"}`}
-            >
-              <div className="pt-1">
-                <Checkbox
-                  checked={Boolean(selected[invoice.id])}
-                  disabled={!selectable}
-                  onCheckedChange={(checked) =>
-                    onToggle(invoice, checked === true)
-                  }
-                  aria-label={
-                    selectable
-                      ? copy.selectInvoice(folio)
-                      : copy.selectInvoiceDisabled(folio)
-                  }
-                />
-              </div>
-              <div className="min-w-0 flex-1 space-y-1">
-                <Link
-                  to={`/invoices/${invoice.id}`}
-                  state={fromState}
-                  className="font-medium text-primary hover:underline"
-                >
-                  {folio}
-                </Link>
-                <ClientCell invoice={invoice} />
-                <p className="text-xs text-muted-foreground">
-                  {copy.columns.issuedAt}: {formatDate(invoice.issuedAt)}
-                </p>
-                <TripCodes codes={invoice.tripCodes} />
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-xs text-muted-foreground">{copy.columns.balance}</p>
-                <p className="font-semibold tabular-nums">
-                  {formatMxCurrency(invoice.balanceDue)}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <EntityListTable
+        density="list"
+        aria-label={copy.entityLabelPlural}
+        columns={columns}
+        rows={invoices}
+        getRowId={(row) => row.id}
+        isLoading={isLoading}
+        primaryTo={(invoice) => `/invoices/${invoice.id}`}
+        primaryState={() => fromState}
+        getRowClassName={(invoice) =>
+          isCobrosInvoiceSelectable(invoice, anchorRfc)
+            ? undefined
+            : "opacity-60"
+        }
+      />
     </>
   );
 }
