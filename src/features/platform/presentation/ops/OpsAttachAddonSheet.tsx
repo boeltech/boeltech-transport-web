@@ -12,6 +12,7 @@ import { platformApi } from "../../infrastructure/platformApi";
 import {
   useMutatePlatformTenantEntitlement,
   usePlatformModules,
+  usePlatformTenantEntitlements,
 } from "../../application/hooks/usePlatformBilling";
 import {
   attachPlatformAddonSchema,
@@ -45,6 +46,7 @@ interface OpsAttachAddonSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialModuleCode?: string | null;
+  onAttached?: () => void;
 }
 
 export function OpsAttachAddonSheet({
@@ -52,10 +54,21 @@ export function OpsAttachAddonSheet({
   open,
   onOpenChange,
   initialModuleCode = null,
+  onAttached,
 }: OpsAttachAddonSheetProps) {
   const copy = opsCopy.preview;
   const { toast } = useToast();
   const { data: modules = [], isLoading: modulesLoading } = usePlatformModules();
+  const { data: entitlements } = usePlatformTenantEntitlements(
+    tenant?.id ?? "",
+    { enabled: open },
+  );
+  const directCodes = new Set(
+    entitlements?.directEntitlements.map((item) => item.moduleCode) ?? [],
+  );
+  const effectiveCodes = new Set(entitlements?.effectiveModuleCodes ?? []);
+  const moduleName = (code: string) =>
+    modules.find((mod) => mod.code === code)?.name ?? code;
   const [preview, setPreview] =
     useState<PlatformEntitlementMutationPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -69,9 +82,13 @@ export function OpsAttachAddonSheet({
   const moduleCode = form.watch("moduleCode");
 
   const mutate = useMutatePlatformTenantEntitlement({
-    onSuccess: () => {
-      toast({ title: copy.applyAddonSuccess, variant: "success" });
+    onSuccess: (_result, variables) => {
+      toast({
+        title: copy.applyAddonSuccess(moduleName(variables.payload.moduleCode)),
+        variant: "success",
+      });
       onOpenChange(false);
+      onAttached?.();
     },
     onError: (error) => {
       toast({
@@ -173,11 +190,23 @@ export function OpsAttachAddonSheet({
                 <OpsSelectValue placeholder={copy.moduleLabel} />
               </OpsSelectTrigger>
               <OpsSelectContent>
-                {modules.map((mod) => (
-                  <OpsSelectItem key={mod.code} value={mod.code}>
-                    {mod.name} ({mod.code})
-                  </OpsSelectItem>
-                ))}
+                {modules.map((mod) => {
+                  const status = directCodes.has(mod.code)
+                    ? copy.moduleActive
+                    : effectiveCodes.has(mod.code)
+                      ? copy.moduleIncluded
+                      : null;
+                  return (
+                    <OpsSelectItem
+                      key={mod.code}
+                      value={mod.code}
+                      disabled={status !== null}
+                    >
+                      {mod.name} ({mod.code})
+                      {status ? ` · ${status}` : null}
+                    </OpsSelectItem>
+                  );
+                })}
               </OpsSelectContent>
             </OpsSelect>
             <OpsFieldError
@@ -206,7 +235,7 @@ export function OpsAttachAddonSheet({
                 </p>
                 <p>
                   {preview.modulesGained.length
-                    ? preview.modulesGained.join(", ")
+                    ? preview.modulesGained.map(moduleName).join(", ")
                     : copy.none}
                 </p>
               </div>
@@ -216,7 +245,7 @@ export function OpsAttachAddonSheet({
                 </p>
                 <p>
                   {preview.modulesLost.length
-                    ? preview.modulesLost.join(", ")
+                    ? preview.modulesLost.map(moduleName).join(", ")
                     : copy.none}
                 </p>
               </div>

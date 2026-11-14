@@ -614,7 +614,6 @@ export const platformCopy = {
       },
       actions: {
         manageSubscription: "Gestionar suscripción",
-        manageEntitlements: "Módulos",
         grantStampPack: "Acreditar prepago",
         viewCollections: "Cobros",
         viewHistory: "Historial",
@@ -622,7 +621,6 @@ export const platformCopy = {
         suspend: "Suspender",
         reactivate: "Reactivar",
         cancel: "Cancelar cuenta",
-        manageEntitlementsFromCapacity: "Gestionar módulos",
       },
       suspendedAt: (date: string) => `Suspendida el ${date}`,
     },
@@ -798,57 +796,6 @@ export const platformCopy = {
       submitting: "Guardando…",
       success: "Cambios guardados",
       error: "No se pudieron guardar los cambios",
-    },
-    entitlements: {
-      title: "Módulos contratados",
-      description:
-        "Activa o revoca complementos y packs. Los packs expanden sus módulos incluidos automáticamente.",
-      loading: "Cargando catálogo…",
-      empty: "No hay módulos en el catálogo comercial.",
-      packBadge: "Pack",
-      includesMembers: (count: number) =>
-        count === 1 ? "Incluye 1 módulo" : `Incluye ${count} módulos`,
-      levelBadge: (level: string) => `Indicador ${level}`,
-      effectiveCount: (count: number) =>
-        count === 1 ? "1 módulo efectivo" : `${count} módulos efectivos`,
-      success: "Módulos actualizados",
-      error: "No se pudo actualizar el módulo",
-      readOnlyHint: "Tu rol es de soporte: solo lectura de módulos.",
-      previewPrice: (amount: string, tier: "ea" | "ga") =>
-        tier === "ea"
-          ? `Precio al activar: ${amount} (acceso anticipado)`
-          : `Precio al activar: ${amount}`,
-      lockedPrice: (amount: string) => `Precio bloqueado: ${amount}/mes`,
-    },
-    commercial: {
-      title: "Módulos contratados",
-      description: "Complementos activos y desglose del total estimado.",
-      loading: "Cargando desglose…",
-      unavailable: "Desglose no disponible.",
-      manageCta: "Gestionar módulos",
-      noModules: {
-        title: "Sin complementos adicionales",
-        description:
-          "El plan base incluye la operación. Los complementos contratados aparecerán aquí.",
-      },
-      totalsSection: "Desglose del mes",
-      eaBadge: "Acceso anticipado",
-      perMonth: "/mes",
-      kindLabels: {
-        addon: "Complemento",
-        pack: "Pack",
-        minipack: "Mini-pack",
-      } as Record<string, string>,
-      totals: {
-        plan: "Plan",
-        modules: "Complementos",
-        overage: "Excedente de timbres",
-        subtotal: "Subtotal estimado",
-        iva: "IVA (16%)",
-        estimatedTotal: "Total estimado (con IVA)",
-      },
-      disclaimer:
-        "Precios de lista mensuales sin IVA en líneas; el total incluye IVA. El cobro y la factura los gestiona Boeltech fuera del producto.",
     },
     suspend: {
       suspendTitle: "Suspender empresa",

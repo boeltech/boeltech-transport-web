@@ -28,11 +28,15 @@ export const usePlatformTenantStampUsage = (tenantId: string) =>
     staleTime: 30_000,
   });
 
-export const usePlatformTenantEntitlements = (tenantId: string) =>
+/** El GET registra auditoría en cada lectura: montar solo donde se muestra. */
+export const usePlatformTenantEntitlements = (
+  tenantId: string,
+  options?: { enabled?: boolean },
+) =>
   useQuery({
     queryKey: platformQueryKeys.tenantEntitlements(tenantId),
     queryFn: () => platformApi.getTenantEntitlements(tenantId),
-    enabled: !!tenantId,
+    enabled: !!tenantId && (options?.enabled ?? true),
     staleTime: 30_000,
   });
 
@@ -124,6 +128,11 @@ export const useMutatePlatformTenantEntitlement = (
       queryClient.invalidateQueries({
         queryKey: platformQueryKeys.tenantSubscription(variables.tenantId),
       });
+      queryClient.invalidateQueries({
+        queryKey: platformQueryKeys.tenantDetail(variables.tenantId),
+      });
+      queryClient.invalidateQueries({ queryKey: platformQueryKeys.tenantLists() });
+      queryClient.invalidateQueries({ queryKey: platformQueryKeys.auditLog() });
       onSuccess?.(result, variables, ...rest);
     },
     ...restOptions,

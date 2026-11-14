@@ -218,6 +218,61 @@ export const opsCopy = {
       retry: "Reintentar",
     },
     notFound: "Empresa no encontrada",
+    modules: {
+      title: "Complementos contratados",
+      description:
+        "Complementos y packs contratados directamente. Precio mensual congelado al activar, sin IVA.",
+      add: "Agregar complemento",
+      loading: "Cargando complementos…",
+      error: {
+        title: "No se pudieron cargar los complementos",
+        description: "Intenta de nuevo en unos segundos.",
+        retry: "Reintentar",
+      },
+      empty: {
+        title: "Sin complementos",
+        description:
+          "La empresa opera solo con su plan. Los complementos contratados aparecerán aquí.",
+      },
+      columns: {
+        module: "Complemento",
+        kind: "Tipo",
+        activatedAt: "Desde",
+        price: "Precio mensual",
+        actions: "Acción",
+      },
+      kindLabels: {
+        addon: "Complemento",
+        pack: "Pack",
+        minipack: "Mini-pack",
+      } as Record<string, string>,
+      tierLabels: {
+        ea: "Acceso anticipado",
+        ga: "Disponibilidad general",
+      },
+      retired: "Retirado del catálogo",
+      includes: (names: string) => `Incluye: ${names}`,
+      total: "Total mensual de complementos",
+      profitabilityLevel: "Indicador interno de margen",
+      remove: "Quitar",
+      removeAria: (name: string) => `Quitar ${name}`,
+      removeDialog: {
+        title: "Quitar complemento",
+        description: (name: string) =>
+          `Se quitará «${name}» de la empresa. Su ERP puede tardar hasta 2 minutos en reflejarlo.`,
+        lockedPrice: "Precio mensual congelado",
+        modulesLost: "Módulos que deja de tener",
+        loadingPreview: "Calculando impacto…",
+        previewFailedTitle: "No se pudo calcular el impacto",
+        previewFailedHint:
+          "Puedes quitarlo de todos modos; revisa Auditoría después.",
+        cancel: "Cancelar",
+        confirm: "Quitar complemento",
+        confirming: "Quitando…",
+        success: (name: string) => `Complemento quitado: ${name}`,
+        error: "No se pudo quitar el complemento",
+      },
+    },
   },
   preview: {
     changePlanTitle: "Cambiar plan",
@@ -237,7 +292,9 @@ export const opsCopy = {
     loadingPreview: "Calculando impacto…",
     previewError: "No se pudo calcular el impacto",
     applySuccess: "Plan actualizado",
-    applyAddonSuccess: "Complemento actualizado",
+    applyAddonSuccess: (name: string) => `Complemento activado: ${name}`,
+    moduleActive: "ya activo",
+    moduleIncluded: "ya incluido",
     applyError: "No se pudo aplicar el cambio",
     currentPlan: "Plan actual",
     targetPlan: "Plan destino",

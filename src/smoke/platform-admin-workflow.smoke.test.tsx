@@ -484,6 +484,8 @@ describe("smoke platform admin workflow (Ops)", () => {
       await screen.findByRole("heading", { name: "Transporte Demo" }),
     ).toBeInTheDocument();
 
+    expect(mockGetTenantEntitlements).not.toHaveBeenCalled();
+
     await user.click(
       screen.getByRole("tab", { name: opsCopy.hub.tabs.suscripcion }),
     );
@@ -491,6 +493,19 @@ describe("smoke platform admin workflow (Ops)", () => {
     expect(
       await screen.findByTestId("ops-tenant-subscription"),
     ).toBeInTheDocument();
+    const modulesPanel = await screen.findByTestId("ops-tenant-modules");
+    expect(
+      await within(modulesPanel).findByText("Rastreo GPS en tiempo real"),
+    ).toBeInTheDocument();
+    expect(
+      within(modulesPanel).getByText(opsCopy.hub.modules.tierLabels.ea),
+    ).toBeInTheDocument();
+    expect(
+      within(modulesPanel).getByRole("button", {
+        name: opsCopy.hub.modules.removeAria("Rastreo GPS en tiempo real"),
+      }),
+    ).toBeInTheDocument();
+    expect(mockGetTenantEntitlements).toHaveBeenCalledWith(TENANT_ID);
     expect(
       await screen.findByText(formatBillingPriceCents(MOTRIZ_CARGO_CENTS)),
     ).toBeInTheDocument();

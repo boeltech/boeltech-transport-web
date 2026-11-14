@@ -23,6 +23,7 @@ import { OpsTenantSaasArPanel } from "./OpsTenantSaasArPanel";
 import { OpsTenantHealthPanel } from "./OpsTenantHealthPanel";
 import { OpsTenantFiscalPolicyPanel } from "./OpsTenantFiscalPolicyPanel";
 import { OpsTenantSubscriptionPanel } from "./OpsTenantSubscriptionPanel";
+import { OpsTenantModulesPanel } from "./OpsTenantModulesPanel";
 import { OpsTenantUsagePanel } from "./OpsTenantUsagePanel";
 import { OpsTenantActivationPanel } from "./OpsTenantActivationPanel";
 import { OpsTenantActivityPanel } from "./OpsTenantActivityPanel";
@@ -473,7 +474,17 @@ export function PlatformTenantHubPage() {
           </>
         ) : null}
         {activeTab === TAB.suscripcion ? (
-          <OpsTenantSubscriptionPanel tenantId={tenant.id} />
+          <>
+            <OpsTenantSubscriptionPanel tenantId={tenant.id} />
+            <OpsTenantModulesPanel
+              tenantId={tenant.id}
+              canMutate={canMutate}
+              onAddAddon={() => {
+                setPreviewModuleCode(null);
+                setAttachOpen(true);
+              }}
+            />
+          </>
         ) : null}
         {activeTab === TAB.uso ? (
           <OpsTenantUsagePanel
@@ -538,6 +549,7 @@ export function PlatformTenantHubPage() {
         open={attachOpen}
         onOpenChange={setAttachOpen}
         initialModuleCode={previewModuleCode}
+        onAttached={() => setActiveTab(TAB.suscripcion)}
       />
     </div>
   );
