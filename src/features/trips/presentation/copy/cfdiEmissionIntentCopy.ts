@@ -166,7 +166,9 @@ export const cfdiEmissionIntentCopy = {
     approveBody:
       "El viaje pasará a Sin factura. No emitirá CFDI ni Carta Porte.",
     cashFreeze:
-      "No se puede pasar a Con factura mientras haya abonos activos. Anula los abonos primero.",
+      "No se puede pasar a Con factura mientras haya abonos activos.",
+    cashFreezeHint:
+      "En Costos, en Cobro sin factura, usa Anular en cada abono activo del Historial de abonos.",
     history: "Historial",
     historyTitle: "Historial de Factura del viaje",
     historyEmpty: "Aún no hay una solicitud de Sin factura en este viaje.",

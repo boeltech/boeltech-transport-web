@@ -7,6 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { Button } from "@shared/ui/button";
 import { tripDetailCopy } from "../copy";
+import { cfdiEmissionIntentCopy } from "../copy/cfdiEmissionIntentCopy";
 import { resolveFiscalAttentionAlertSlot } from "../helpers/resolveFiscalAttentionAlertSlot";
 import { applyOpenAssignFleetSearchParams } from "./tripDetailAssignFleetParams";
 
@@ -80,6 +81,29 @@ describe("TripDetailPage alerts — D6 Asignar flota", () => {
     expect(
       screen.getByRole("button", { name: assignFleetLabel }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("TripDetailPage alerts — D7=A cash freeze (sin CTA Historial)", () => {
+  it("muestra title + hint literales y no expone botón Historial", () => {
+    const g = cfdiEmissionIntentCopy.governance;
+    render(
+      <DetailAlertCard
+        severity="warning"
+        icon={<Receipt className="h-5 w-5" />}
+        title={g.cashFreeze}
+      >
+        <p>{g.cashFreezeHint}</p>
+      </DetailAlertCard>,
+    );
+
+    expect(screen.getByText(g.cashFreeze)).toBeInTheDocument();
+    expect(screen.getByText(g.cashFreezeHint)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: g.history }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/\befectivo\b/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/congelado/i)).not.toBeInTheDocument();
   });
 });
 

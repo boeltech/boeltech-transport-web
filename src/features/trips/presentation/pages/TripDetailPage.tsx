@@ -983,28 +983,9 @@ export function TripDetailPage() {
             severity="warning"
             icon={<AlertCircle className="h-5 w-5" />}
             title={cfdiEmissionIntentCopy.governance.cashFreeze}
-            action={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSearchParams(
-                    (prev) => {
-                      const next = new URLSearchParams(prev);
-                      next.set("tab", "costs");
-                      // Deep-link al historial de abonos (D7=A); scroll en CostsTab.
-                      next.set("focus", "operational-cash");
-                      return next;
-                    },
-                    { replace: true },
-                  );
-                }}
-              >
-                {cfdiEmissionIntentCopy.governance.history}
-              </Button>
-            }
-          />,
+          >
+            <p>{cfdiEmissionIntentCopy.governance.cashFreezeHint}</p>
+          </DetailAlertCard>,
         );
       }
     }

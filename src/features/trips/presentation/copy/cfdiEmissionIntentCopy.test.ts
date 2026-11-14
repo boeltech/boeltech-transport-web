@@ -40,16 +40,22 @@ describe("cfdiEmissionIntentCopy — Factura del viaje (D3′)", () => {
     expect(blob).not.toMatch(/\bREP\b/);
   });
 
-  it("D7=A: cashFreeze es copy A sin «congelado» ambiguo", () => {
-    expect(cfdiEmissionIntentCopy.governance.cashFreeze).toBe(
-      "No se puede pasar a Con factura mientras haya abonos activos. Anula los abonos primero.",
+  it("D7=A: cashFreeze title + hint sin CTA ni «congelado» / efectivo canal", () => {
+    const g = cfdiEmissionIntentCopy.governance;
+    expect(g.cashFreeze).toBe(
+      "No se puede pasar a Con factura mientras haya abonos activos.",
     );
-    expect(cfdiEmissionIntentCopy.governance.cashFreeze).not.toMatch(
-      /congelado/i,
+    expect(g.cashFreezeHint).toBe(
+      "En Costos, en Cobro sin factura, usa Anular en cada abono activo del Historial de abonos.",
     );
-    expect(cfdiEmissionIntentCopy.governance.cashFreeze).not.toMatch(
-      /Cobro en efectivo/i,
-    );
+    expect(g.cashFreezeHint).toMatch(/Costos/);
+    expect(g.cashFreezeHint).toMatch(/Cobro sin factura/);
+    expect(g.cashFreezeHint).toMatch(/Anular/);
+    expect(g.cashFreezeHint).toMatch(/Historial de abonos/);
+    const freezeBlob = `${g.cashFreeze}\n${g.cashFreezeHint}`;
+    expect(freezeBlob).not.toMatch(/congelado/i);
+    expect(freezeBlob).not.toMatch(/\befectivo\b/i);
+    expect(freezeBlob).not.toMatch(/Cobro en efectivo/i);
   });
 
   it("dialog bodies: un description por caso; regularize no reusa copy Sin", () => {
