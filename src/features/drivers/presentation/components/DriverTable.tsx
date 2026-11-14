@@ -1,23 +1,21 @@
 /**
- * DriverTable
- * Clean Architecture - Presentation Layer (Components)
+ * DriverTable — listado Operate (`EntityListTable`, SoT §7 T1–T10).
  *
- * Componente de tabla para listar conductores.
- * Homologado con TripTable y VehicleTable.
- *
- * Ubicación: src/features/drivers/presentation/components/DriverTable.tsx
+ * 7 cols: Conductor · Teléfono · Sucursal · Licencia · Vencimiento ·
+ * Viajes · Estado · ⋯. Sort local vía page (API `DriverSortOptions`).
+ * Empty → null (ListPageShell). `framed={false}`.
  */
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
-import { Skeleton } from "@shared/ui/skeleton";
 import { AlertTriangle } from "lucide-react";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListSortState,
+  type EntityListStackedValue,
+} from "@shared/ui/table";
+import { Badge } from "@shared/ui/badge";
+import { formatDate, isExpiringSoon } from "@shared/utils/dateUtils";
+import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 import type { DriverListItem } from "../../domain";
 import {
   LICENSE_TYPE_LABELS,
@@ -27,277 +25,225 @@ import {
   getDriverPrimaryLicenseNumber,
 } from "../../domain";
 import { DriverStatusBadge } from "../config/driverStatusConfig";
-import { DriverActions } from "./DriverActions";
-import { formatDate, isExpiringSoon } from "@shared/utils/dateUtils";
 import { employeePrimaryContactDisplay } from "../helpers/employeePrimaryContactDisplay";
-import { formatBranchLabel } from "@shared/utils/branchSelectUtils";
 import { driversCopy } from "../copy";
-import { Badge } from "@shared/ui/badge";
+import { DriverActions } from "./DriverActions";
 
 const listCopy = driversCopy.list.table;
 const jurisdictionCopy = driversCopy.list.jurisdiction;
 const rfcMissingChip = driversCopy.detail.alert.rfcMissing.chip;
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface DriverTableProps {
+export interface DriverTableProps {
   drivers: DriverListItem[];
   isLoading: boolean;
+  /** Href del detalle (link primario + fila). */
+  primaryTo: (driver: DriverListItem) => string;
+  /** Cola del listado (`location.state.from`). */
+  primaryState?: (driver: DriverListItem) => unknown;
+  sort: EntityListSortState;
+  onSortChange: (next: EntityListSortState) => void;
   onView: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 }
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-const TABLE_HEADERS = [
-  { key: "name", label: "Nombre" },
-  { key: "phone", label: "Teléfono" },
-  { key: "branch", label: listCopy.branch },
-  { key: "license", label: "Licencia" },
-  { key: "expiration", label: "Vencimiento" },
-  { key: "trips", label: "Viajes", className: "text-right" },
-  { key: "status", label: "Estado" },
-  { key: "actions", label: "", className: "w-12" },
-];
-
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
-
-function TableHeaderRow() {
-  return (
-    <TableHeader>
-      <TableRow>
-        {TABLE_HEADERS.map((header) => (
-          <TableHead key={header.key} className={header.className}>
-            {header.label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
-  );
+function licenseJurisdictionLabel(
+  driver: DriverListItem,
+): string | null {
+  const jurisdiction = getDriverLicenseJurisdiction(driver);
+  if (jurisdiction === "both") return jurisdictionCopy.both;
+  if (jurisdiction === "federal") return jurisdictionCopy.federal;
+  if (jurisdiction === "state") return jurisdictionCopy.state;
+  return null;
 }
 
-function LoadingSkeleton() {
-  return (
-    <TableBody>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <TableRow key={i}>
-          <TableCell>
-            <div className="space-y-1">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-40" />
-            </div>
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-28" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-12 ml-auto" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-6 w-16" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-8 w-8" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  );
-}
+function buildColumns(
+  props: Pick<DriverTableProps, "onView" | "onEdit" | "onDelete">,
+): EntityListColumnDef<DriverListItem>[] {
+  const { onView, onEdit, onDelete } = props;
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+  return [
+    {
+      id: "name",
+      header: listCopy.name,
+      kind: "primary",
+      sortable: true,
+      sortField: "employee_name",
+      accessor: (driver): EntityListStackedValue => {
+        const fullName = `${driver.employee.firstName} ${driver.employee.lastName}`;
+        const rfcMissing = !driver.employee.rfc?.trim();
+        return {
+          primary: rfcMissing ? (
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              <span>{fullName}</span>
+              <Badge
+                variant="warning"
+                tone="soft"
+                className="text-[10px] font-normal"
+              >
+                {rfcMissingChip}
+              </Badge>
+            </span>
+          ) : (
+            fullName
+          ),
+          secondary: driver.employee.email || undefined,
+        };
+      },
+    },
+    {
+      id: "phone",
+      header: listCopy.phone,
+      kind: "meta",
+      headerClassName: "hidden md:table-cell",
+      className: "hidden md:table-cell",
+      accessor: (driver) =>
+        employeePrimaryContactDisplay(driver.employee) ?? null,
+    },
+    {
+      id: "branch",
+      header: listCopy.branch,
+      kind: "meta",
+      headerClassName: "hidden lg:table-cell",
+      className: "hidden lg:table-cell",
+      accessor: (driver) =>
+        formatBranchLabel(
+          driver.branchName ?? driver.employee.branchName,
+          driver.branchCode ?? driver.employee.branchCode,
+        ),
+    },
+    {
+      id: "license",
+      header: listCopy.license,
+      kind: "stacked",
+      headerClassName: "hidden md:table-cell",
+      className: "hidden md:table-cell",
+      accessor: (driver): EntityListStackedValue => {
+        const number = getDriverPrimaryLicenseNumber(driver);
+        const jurisdictionLabel = licenseJurisdictionLabel(driver);
+        const categoryLabel = getDriverPrimaryCategoryLabel(
+          driver,
+          LICENSE_TYPE_LABELS,
+        );
+        if (!number) {
+          return { primary: undefined };
+        }
+        return {
+          primary: jurisdictionLabel ? (
+            <span className="inline-flex flex-wrap items-center gap-1.5 font-mono text-[13px]">
+              <span>{number}</span>
+              <Badge
+                variant="outline"
+                className="font-sans text-[10px] font-normal"
+              >
+                {jurisdictionLabel}
+              </Badge>
+            </span>
+          ) : (
+            <span className="font-mono text-[13px]">{number}</span>
+          ),
+          secondary: categoryLabel || undefined,
+        };
+      },
+    },
+    {
+      id: "expiration",
+      header: listCopy.expiration,
+      kind: "meta",
+      sortable: true,
+      sortField: "license_expiry",
+      headerClassName: "hidden lg:table-cell",
+      className: "hidden lg:table-cell",
+      accessor: (driver) => {
+        const expiry = getDriverPrimaryLicenseExpiry(driver);
+        if (!expiry) return null;
+        const expired = driver.isLicenseExpired;
+        const expiringSoon = isExpiringSoon(expiry);
+        return (
+          <span className="inline-flex items-center gap-2">
+            <span
+              className={
+                expired
+                  ? "text-destructive"
+                  : expiringSoon
+                    ? "text-warning"
+                    : undefined
+              }
+            >
+              {formatDate(expiry)}
+            </span>
+            {(expiringSoon || expired) && (
+              <AlertTriangle
+                className={`h-4 w-4 ${
+                  expired ? "text-destructive" : "text-warning"
+                }`}
+              />
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      id: "trips",
+      header: listCopy.trips,
+      kind: "number",
+      sortable: true,
+      sortField: "total_trips",
+      headerClassName: "hidden xl:table-cell",
+      className: "hidden xl:table-cell",
+      accessor: (driver) => driver.totalTrips ?? 0,
+    },
+    {
+      id: "status",
+      header: listCopy.status,
+      kind: "status",
+      sortable: true,
+      sortField: "status",
+      accessor: (driver) => (
+        <DriverStatusBadge status={driver.status} size="sm" showIcon />
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (driver) => (
+        <DriverActions
+          driver={driver}
+          onView={onView}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ),
+    },
+  ];
+}
 
 export function DriverTable({
   drivers,
   isLoading,
+  primaryTo,
+  primaryState,
+  sort,
+  onSortChange,
   onView,
   onEdit,
   onDelete,
 }: DriverTableProps) {
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeaderRow />
-          <LoadingSkeleton />
-        </Table>
-      </div>
-    );
-  }
+  const columns = buildColumns({ onView, onEdit, onDelete });
 
-  // ListPageShell owns empty; avoid a second EmptyState when items=[] (D5).
-  if (drivers.length === 0) {
-    return null;
-  }
-
-  // Data table
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeaderRow />
-        <TableBody>
-          {drivers.map((driver) => {
-            const primaryLicenseExpiry = getDriverPrimaryLicenseExpiry(driver);
-            const primaryLicenseNumber = getDriverPrimaryLicenseNumber(driver);
-            const categoryLabel = getDriverPrimaryCategoryLabel(
-              driver,
-              LICENSE_TYPE_LABELS,
-            );
-            const jurisdiction = getDriverLicenseJurisdiction(driver);
-            const jurisdictionLabel =
-              jurisdiction === "both"
-                ? jurisdictionCopy.both
-                : jurisdiction === "federal"
-                  ? jurisdictionCopy.federal
-                  : jurisdiction === "state"
-                    ? jurisdictionCopy.state
-                    : null;
-            const expiringSoon = primaryLicenseExpiry
-              ? isExpiringSoon(primaryLicenseExpiry)
-              : false;
-            const expired = driver.isLicenseExpired;
-            const rfcMissing = !driver.employee.rfc?.trim();
-
-            return (
-              <TableRow
-                key={driver.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => onView(driver.id)}
-              >
-                {/* Nombre */}
-                <TableCell>
-                  <div className="space-y-0.5">
-                    <p className="font-medium">
-                      {`${driver.employee.firstName} ${driver.employee.lastName}`}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {driver.employee.email}
-                    </p>
-                    {rfcMissing ? (
-                      <Badge
-                        variant="warning"
-                        tone="soft"
-                        className="mt-1 text-[10px] font-normal"
-                      >
-                        {rfcMissingChip}
-                      </Badge>
-                    ) : null}
-                  </div>
-                </TableCell>
-
-                {/* Teléfono */}
-                <TableCell>
-                  {employeePrimaryContactDisplay(driver.employee) ?? "—"}
-                </TableCell>
-
-                <TableCell className="text-muted-foreground">
-                  {formatBranchLabel(
-                    driver.branchName ?? driver.employee.branchName,
-                    driver.branchCode ?? driver.employee.branchCode,
-                  ) ?? "—"}
-                </TableCell>
-
-                {/* Licencia */}
-                <TableCell className="font-mono">
-                  {primaryLicenseNumber ? (
-                    <div className="space-y-0.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span>{primaryLicenseNumber}</span>
-                        {jurisdictionLabel ? (
-                          <Badge
-                            variant="outline"
-                            className="font-sans text-[10px] font-normal"
-                          >
-                            {jurisdictionLabel}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      {categoryLabel ? (
-                        <p className="text-xs font-sans text-muted-foreground">
-                          {categoryLabel}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-
-                {/* Vencimiento */}
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={
-                        expired
-                          ? "text-destructive"
-                          : expiringSoon
-                            ? "text-warning"
-                            : ""
-                      }
-                    >
-                      {primaryLicenseExpiry
-                        ? formatDate(primaryLicenseExpiry)
-                        : "—"}
-                    </span>
-                    {(expiringSoon || expired) && (
-                      <AlertTriangle
-                        className={`h-4 w-4 ${
-                          expired
-                            ? "text-destructive"
-                            : "text-warning"
-                        }`}
-                      />
-                    )}
-                  </div>
-                </TableCell>
-
-                {/* Viajes */}
-                <TableCell className="text-right">
-                  {driver.totalTrips ?? 0}
-                </TableCell>
-
-                {/* Estado */}
-                <TableCell>
-                  <DriverStatusBadge
-                    status={driver.status}
-                    size="sm"
-                    showIcon
-                  />
-                </TableCell>
-
-                {/* Acciones */}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DriverActions
-                    driver={driver}
-                    onView={onView}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      columns={columns}
+      rows={drivers}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      primaryTo={primaryTo}
+      primaryState={primaryState}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
   );
 }

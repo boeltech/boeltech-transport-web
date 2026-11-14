@@ -3,7 +3,6 @@
  * ListPageShell + filtros ventana 30/15/7 · tipo · estado.
  */
 import { useCallback, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { FileWarning } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
@@ -13,7 +12,6 @@ import {
   DOCUMENT_EXPIRY_DEFAULT_WITHIN_DAYS,
   DOCUMENT_EXPIRY_WITHIN_DAYS_OPTIONS,
   type DocumentExpiryDocTypeValue,
-  type DocumentExpiryItem,
   type DocumentExpiryStatusValue,
   type DocumentExpiryWithinDays,
 } from "../../domain";
@@ -23,7 +21,6 @@ import {
 } from "../components";
 import { fleetDocumentsCopy } from "../copy";
 import { countFleetDocumentsPanelFilters } from "../utils/countFleetDocumentsPanelFilters";
-import { navigateToDocumentExpiryDetail } from "../utils/documentExpiryNavigation";
 
 const copy = fleetDocumentsCopy;
 
@@ -53,7 +50,6 @@ function isForbiddenError(error: unknown): boolean {
 }
 
 export function FleetDocumentsListPage() {
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const filters = useListingFilters<"withinDays" | "docType" | "status">({
@@ -115,13 +111,6 @@ export function FleetDocumentsListPage() {
 
   const items = useMemo(() => data?.data ?? [], [data?.data]);
 
-  const handleOpen = useCallback(
-    (item: DocumentExpiryItem) => {
-      navigateToDocumentExpiryDetail(item, navigate);
-    },
-    [navigate],
-  );
-
   const handleWithinDaysChange = useCallback(
     (days: DocumentExpiryWithinDays) => {
       filters.setFilter(
@@ -179,11 +168,7 @@ export function FleetDocumentsListPage() {
         description: copy.page.emptyDescription,
       }}
       renderTable={() => (
-        <FleetDocumentsTable
-          items={items}
-          isLoading={isLoading}
-          onOpen={handleOpen}
-        />
+        <FleetDocumentsTable items={items} isLoading={isLoading} />
       )}
     />
   );

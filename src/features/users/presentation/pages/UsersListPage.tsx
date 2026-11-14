@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Search, UserPlus } from "lucide-react";
 import { ROLE_LABELS, type UserRole } from "@shared/constants/roles";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import type { EntityListSortState } from "@shared/ui/table";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import {
@@ -21,6 +22,7 @@ import type { ActiveFilterChip } from "@shared/ui/listing";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
   USER_STATUS_LABELS,
+  type UserListItem,
   type UserSortOptions,
   type UserStatusType,
 } from "../../domain";
@@ -35,7 +37,6 @@ import {
   UserPlanLimitNotice,
   UserTable,
   invitationsPendingQueryKey,
-  type UserSortableColumn,
 } from "../components";
 import { AdminUsersOrientationAlert } from "../components/AdminUsersOrientationAlert";
 import { usersCopy } from "../copy/usersCopy";
@@ -47,6 +48,15 @@ import {
 } from "../utils/userWayfinding";
 
 const copy = usersCopy.list;
+
+const SORTABLE_FIELDS = new Set<UserSortOptions["field"]>([
+  "first_name",
+  "email",
+  "role",
+  "status",
+  "last_login",
+  "created_at",
+]);
 
 export function UsersListPage() {
   const navigate = useNavigate();
@@ -97,6 +107,10 @@ export function UsersListPage() {
     field: "created_at",
     direction: "desc",
   });
+  const tableSort: EntityListSortState = {
+    field: sort.field,
+    direction: sort.direction,
+  };
   const [addUserSheetOpen, setAddUserSheetOpen] = useState(false);
   const openAddUserSheet = useCallback(() => setAddUserSheetOpen(true), []);
   const canCreate = hasPermission("users", "create");
@@ -120,12 +134,13 @@ export function UsersListPage() {
   }, [canCreate, createQuery, openAddUserSheet, setSearchParams]);
 
   const handleSortChange = useCallback(
-    (field: UserSortableColumn) => {
-      setSort((prev) => {
-        if (prev.field === field) {
-          return { field, direction: prev.direction === "asc" ? "desc" : "asc" };
-        }
-        return { field, direction: "asc" };
+    (next: EntityListSortState) => {
+      if (!SORTABLE_FIELDS.has(next.field as UserSortOptions["field"])) {
+        return;
+      }
+      setSort({
+        field: next.field as UserSortOptions["field"],
+        direction: next.direction,
       });
       filters.setPage(1);
     },
@@ -183,6 +198,13 @@ export function UsersListPage() {
     },
     [fromState, navigate],
   );
+
+  const primaryTo = useCallback(
+    (user: UserListItem) => `/users/${user.id}`,
+    [],
+  );
+
+  const primaryState = useCallback(() => fromState, [fromState]);
 
   const handleRefresh = useCallback(async () => {
     await refetch();
@@ -336,11 +358,11 @@ export function UsersListPage() {
           <UserTable
             users={users}
             isLoading={isLoading}
-            onView={handleView}
-            onStatusChange={canUpdateStatus ? handleStatusChange : undefined}
-            sortField={sort.field}
-            sortDirection={sort.direction}
+            primaryTo={primaryTo}
+            primaryState={primaryState}
+            sort={tableSort}
             onSortChange={handleSortChange}
+            onStatusChange={canUpdateStatus ? handleStatusChange : undefined}
           />
         )}
         renderCards={() =>

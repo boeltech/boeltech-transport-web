@@ -1,160 +1,145 @@
-import { useNavigate } from "react-router-dom";
-import { useListQueueFromState } from "@shared/utils/listQueueFrom";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
+/**
+ * BranchTable — listado Operate (`EntityListTable`, SoT §7 T1–T10).
+ *
+ * 5 cols: Código · Nombre · Ciudad · Contacto · Estado · ⋯.
+ * Sort URL `sortBy`/`sortOrder` (page). Empty → null. `framed={false}`.
+ */
+
 import { Badge } from "@shared/ui/badge";
-import { Skeleton } from "@shared/ui/skeleton";
-import { cn } from "@shared/lib/utils/cn";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListSortState,
+  type EntityListStackedValue,
+} from "@shared/ui/table";
 import type { BranchListItem } from "../../domain";
 import { BranchStatusBadge } from "../config/branchStatusConfig";
 import { formatBranchListLocation } from "../utils/branchAddressFormatters";
 import { branchesCopy } from "../copy/branchesCopy";
 import { BranchActions } from "./BranchActions";
 
-interface BranchTableProps {
+const columnsCopy = branchesCopy.list.columns;
+
+export interface BranchTableProps {
   branches: BranchListItem[];
   isLoading: boolean;
   showDeleted?: boolean;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-  onSort?: (field: string) => void;
+  /** Href del detalle (link primario + fila). */
+  primaryTo: (branch: BranchListItem) => string;
+  /** Cola del listado (`location.state.from`). */
+  primaryState?: (branch: BranchListItem) => { from: string };
+  sort: EntityListSortState;
+  onSortChange: (next: EntityListSortState) => void;
+}
+
+function buildColumns(
+  props: Pick<
+    BranchTableProps,
+    "showDeleted" | "primaryState"
+  >,
+): EntityListColumnDef<BranchListItem>[] {
+  const { showDeleted = false, primaryState } = props;
+
+  return [
+    {
+      id: "code",
+      header: columnsCopy.code,
+      kind: "code",
+      sortable: true,
+      sortField: "code",
+      accessor: (branch) => branch.code,
+    },
+    {
+      id: "name",
+      header: columnsCopy.name,
+      kind: "primary",
+      sortable: true,
+      sortField: "name",
+      accessor: (branch): EntityListStackedValue => ({
+        primary: branch.isMain ? (
+          <span className="inline-flex flex-wrap items-center gap-1.5">
+            <span>{branch.name}</span>
+            <Badge
+              variant="outline"
+              className="border-warning/40 text-xs font-normal text-warning-soft-foreground"
+            >
+              {branchesCopy.card.mainBadge}
+            </Badge>
+          </span>
+        ) : (
+          branch.name
+        ),
+      }),
+    },
+    {
+      id: "city",
+      header: columnsCopy.city,
+      kind: "meta",
+      sortable: true,
+      sortField: "city",
+      headerClassName: "hidden md:table-cell",
+      className: "hidden md:table-cell",
+      accessor: (branch) =>
+        formatBranchListLocation(branch.city, branch.state) || null,
+    },
+    {
+      id: "contact",
+      header: columnsCopy.contact,
+      kind: "meta",
+      headerClassName: "hidden lg:table-cell",
+      className: "hidden lg:table-cell",
+      accessor: (branch) => branch.phone || null,
+    },
+    {
+      id: "status",
+      header: columnsCopy.status,
+      kind: "status",
+      sortable: true,
+      sortField: "status",
+      accessor: (branch) => (
+        <BranchStatusBadge status={branch.status} size="sm" showIcon />
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (branch) => (
+        <BranchActions
+          branchId={branch.id}
+          branchName={branch.name}
+          fromState={primaryState?.(branch)}
+          isActive={!showDeleted && branch.isActive}
+          isMain={branch.isMain}
+        />
+      ),
+    },
+  ];
 }
 
 export function BranchTable({
   branches,
   isLoading,
   showDeleted = false,
-  sortBy,
-  sortOrder,
-  onSort,
+  primaryTo,
+  primaryState,
+  sort,
+  onSortChange,
 }: BranchTableProps) {
-  const navigate = useNavigate();
-  const fromState = useListQueueFromState();
-  const columns = branchesCopy.list.columns;
-
-  const handleRowClick = (branchId: string) => {
-    navigate(`/branches/${branchId}`, { state: fromState });
-  };
-
-  const handleSort = (field: string) => {
-    onSort?.(field);
-  };
-
-  const renderSortableHeader = (
-    field: string,
-    label: string,
-    className?: string,
-  ) => {
-    const isActive = sortBy === field;
-    const isAsc = sortOrder === "asc";
-
-    return (
-      <TableHead
-        className={cn(
-          onSort ? "cursor-pointer select-none hover:bg-muted/50" : undefined,
-          className,
-        )}
-        onClick={onSort ? () => handleSort(field) : undefined}
-      >
-        <div className="flex items-center gap-1">
-          {label}
-          {onSort && isActive ? (
-            <span className="text-xs">{isAsc ? "↑" : "↓"}</span>
-          ) : null}
-        </div>
-      </TableHead>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{columns.code}</TableHead>
-              <TableHead>{columns.name}</TableHead>
-              <TableHead>{columns.city}</TableHead>
-              <TableHead>{columns.contact}</TableHead>
-              <TableHead>{columns.status}</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.from({ length: 5 }).map((_, index) => (
-              <TableRow key={index}>
-                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-8 w-8" /></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  }
+  const columns = buildColumns({ showDeleted, primaryState });
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {renderSortableHeader("code", columns.code)}
-            {renderSortableHeader("name", columns.name)}
-            {renderSortableHeader("city", columns.city)}
-            <TableHead>{columns.contact}</TableHead>
-            {renderSortableHeader("status", columns.status)}
-            <TableHead className="w-12" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {branches.map((branch) => (
-            <TableRow
-              key={branch.id}
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => handleRowClick(branch.id)}
-            >
-              <TableCell className="font-medium">{branch.code}</TableCell>
-              <TableCell>
-                {branch.name}
-                {branch.isMain ? (
-                  <Badge
-                    variant="outline"
-                    className="ml-2 border-warning/40 text-xs text-warning-soft-foreground"
-                  >
-                    {branchesCopy.card.mainBadge}
-                  </Badge>
-                ) : null}
-              </TableCell>
-              <TableCell>
-                {formatBranchListLocation(branch.city, branch.state) || "—"}
-              </TableCell>
-              <TableCell>{branch.phone || "—"}</TableCell>
-              <TableCell>
-                <BranchStatusBadge status={branch.status} size="sm" showIcon />
-              </TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                <BranchActions
-                  branchId={branch.id}
-                  branchName={branch.name}
-                  fromState={fromState}
-                  isActive={!showDeleted && branch.isActive}
-                  isMain={branch.isMain}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      columns={columns}
+      rows={branches}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      primaryTo={primaryTo}
+      primaryState={primaryState}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
   );
 }

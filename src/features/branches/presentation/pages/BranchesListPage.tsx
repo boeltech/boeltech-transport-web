@@ -9,6 +9,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Building2, Download, Plus, Search } from "lucide-react";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import type { EntityListSortState } from "@shared/ui/table";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
@@ -17,6 +18,7 @@ import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { formatDate } from "@shared/utils/dateUtils";
 import {
   BRANCH_STATUS_LABELS,
+  type BranchListItem,
   type BranchQueryParams,
   type BranchSortOptions,
   type BranchStatusType,
@@ -36,6 +38,12 @@ import { branchesCopy } from "../copy/branchesCopy";
 import { countBranchPanelFilters } from "../utils/branchListFilters";
 
 const DEFAULT_SORT_FIELD: BranchSortOptions["field"] = "name";
+const SORTABLE_FIELDS = new Set<BranchSortOptions["field"]>([
+  "code",
+  "name",
+  "city",
+  "status",
+]);
 const copy = branchesCopy.list;
 
 export function BranchesListPage() {
@@ -69,6 +77,10 @@ export function BranchesListPage() {
     (searchParams.get("sortBy") as BranchSortOptions["field"] | null) ??
     DEFAULT_SORT_FIELD;
   const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
+  const tableSort: EntityListSortState = {
+    field: sortBy,
+    direction: sortOrder,
+  };
   const activePanelFilterCount = countBranchPanelFilters({
     status: statusFilter,
     isMain: mainFilter,
@@ -148,18 +160,22 @@ export function BranchesListPage() {
     filters.setPage(1);
   }, [filters]);
 
+  const primaryTo = useCallback(
+    (branch: BranchListItem) => `/branches/${branch.id}`,
+    [],
+  );
+
+  const primaryState = useCallback(() => fromState, [fromState]);
+
   const handleSortChange = useCallback(
-    (field: string) => {
+    (next: EntityListSortState) => {
+      if (!SORTABLE_FIELDS.has(next.field as BranchSortOptions["field"])) {
+        return;
+      }
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev);
-        const currentSortBy = params.get("sortBy") || DEFAULT_SORT_FIELD;
-        const currentOrder = params.get("sortOrder") || "asc";
-        if (currentSortBy === field) {
-          params.set("sortOrder", currentOrder === "asc" ? "desc" : "asc");
-        } else {
-          params.set("sortBy", field);
-          params.set("sortOrder", "asc");
-        }
+        params.set("sortBy", next.field);
+        params.set("sortOrder", next.direction);
         params.set("page", "1");
         return params;
       });
@@ -321,9 +337,10 @@ export function BranchesListPage() {
             branches={branches}
             isLoading={isLoading}
             showDeleted={showDeleted}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSort={handleSortChange}
+            primaryTo={primaryTo}
+            primaryState={primaryState}
+            sort={tableSort}
+            onSortChange={handleSortChange}
           />
         )}
         renderCards={() =>

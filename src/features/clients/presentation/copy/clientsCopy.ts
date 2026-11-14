@@ -9,7 +9,7 @@ export const clientsCopy = {
   },
 
   actions: {
-    create: "Nuevo Cliente",
+    create: "Nuevo cliente",
     import: "Importar",
     importAria: "Importar clientes desde archivo",
     clearFilters: "Limpiar filtros",

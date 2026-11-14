@@ -10,13 +10,20 @@ import { useListingFilters, useToast } from "@shared/hooks";
 import { ROLES } from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import type { EntityListSortState } from "@shared/ui/table";
 import { Button } from "@shared/ui/button";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { Plus, Users, FileUp } from "lucide-react";
 
 import { MasterImportWizard } from "@features/imports";
 import { useHelpEmptySupport } from "@features/help-center";
 import { useClients } from "../../application";
-import type { ClientFilters, ClientType, PaymentTerms } from "../../domain";
+import type {
+  ClientFilters,
+  ClientListItem,
+  ClientType,
+  PaymentTerms,
+} from "../../domain";
 import {
   ClientTable,
   ClientCard,
@@ -33,9 +40,11 @@ import {
 const copy = clientsCopy;
 const CLIENTS_PATH = "/clients";
 
+const SORTABLE_FIELDS = new Set(["client_code", "legal_name", "type"]);
 
 export function ClientsListPage() {
   const navigate = useNavigate();
+  const fromState = useListQueueFromState();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const role = useRole();
@@ -61,6 +70,10 @@ export function ClientsListPage() {
   const statusFilter = listing.filters.status;
   const sortBy = searchParams.get("sortBy") || "legal_name";
   const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
+  const tableSort: EntityListSortState = {
+    field: sortBy,
+    direction: sortOrder,
+  };
   const activePanelFilterCount = countClientPanelFilters({
     type: typeFilter,
     paymentTerms: paymentTermsFilter,
@@ -93,18 +106,20 @@ export function ClientsListPage() {
     !listing.hasFilters,
   );
 
+  const primaryTo = useCallback(
+    (client: ClientListItem) => `/clients/${client.id}`,
+    [],
+  );
+
+  const primaryState = useCallback(() => fromState, [fromState]);
+
   const handleSortChange = useCallback(
-    (field: string) => {
+    (next: EntityListSortState) => {
+      if (!SORTABLE_FIELDS.has(next.field)) return;
       setSearchParams((prev) => {
         const params = new URLSearchParams(prev);
-        const currentSortBy = params.get("sortBy") || "legal_name";
-        const currentOrder = params.get("sortOrder") || "asc";
-        if (currentSortBy === field) {
-          params.set("sortOrder", currentOrder === "asc" ? "desc" : "asc");
-        } else {
-          params.set("sortBy", field);
-          params.set("sortOrder", "asc");
-        }
+        params.set("sortBy", next.field);
+        params.set("sortOrder", next.direction);
         params.set("page", "1");
         return params;
       });
@@ -192,9 +207,10 @@ export function ClientsListPage() {
           <ClientTable
             clients={clients}
             isLoading={isLoading}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSort={handleSortChange}
+            primaryTo={primaryTo}
+            primaryState={primaryState}
+            sort={tableSort}
+            onSortChange={handleSortChange}
           />
         )}
         renderCards={() =>

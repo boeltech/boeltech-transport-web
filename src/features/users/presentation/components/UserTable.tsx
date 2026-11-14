@@ -1,177 +1,150 @@
+/**
+ * UserTable — listado Operate (`EntityListTable`, SoT §7 T1–T10).
+ *
+ * 6 cols: Nombre · Correo · Rol · Estado · Último acceso · Alta · ⋯.
+ * Sort local (page). Empty → null. `framed={false}`.
+ */
+
 import { ROLE_LABELS } from "@shared/constants/roles";
-import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
-import { cn } from "@shared/lib/utils/cn";
+import { formatDateTime } from "@shared/utils/dateUtils";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListSortState,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { Skeleton } from "@shared/ui/skeleton";
-import type { UserListItem, UserSortOptions, UserStatusType } from "../../domain";
+import type {
+  UserListItem,
+  UserSortOptions,
+  UserStatusType,
+} from "../../domain";
 import { usersCopy } from "../copy/usersCopy";
 import { UserActions } from "./UserActions";
 import { UserStatusBadge } from "../config/userStatusConfig";
 
-const columns = usersCopy.list.columns;
+const columnsCopy = usersCopy.list.columns;
 
+/** @deprecated Prefer EntityListSortState.field tipado desde la page. */
 export type UserSortableColumn = UserSortOptions["field"];
 
-interface UserTableProps {
+export interface UserTableProps {
   users: UserListItem[];
   isLoading: boolean;
-  onView?: (id: string) => void;
+  /** Href del detalle (link primario + fila). */
+  primaryTo: (user: UserListItem) => string;
+  /** Cola del listado (`location.state.from`). */
+  primaryState?: (user: UserListItem) => unknown;
+  sort: EntityListSortState;
+  onSortChange: (next: EntityListSortState) => void;
   onStatusChange?: (id: string, status: UserStatusType) => void;
-  sortField?: UserSortableColumn;
-  sortDirection?: "asc" | "desc";
-  onSortChange?: (field: UserSortableColumn) => void;
+}
+
+function buildColumns(
+  props: Pick<UserTableProps, "onStatusChange">,
+): EntityListColumnDef<UserListItem>[] {
+  const { onStatusChange } = props;
+
+  return [
+    {
+      id: "name",
+      header: columnsCopy.name,
+      kind: "primary",
+      sortable: true,
+      sortField: "first_name",
+      accessor: (user): EntityListStackedValue => ({
+        primary: `${user.firstName} ${user.lastName}`.trim(),
+      }),
+    },
+    {
+      id: "email",
+      header: columnsCopy.email,
+      kind: "meta",
+      sortable: true,
+      sortField: "email",
+      headerClassName: "hidden md:table-cell",
+      className: "hidden md:table-cell",
+      accessor: (user) => user.email,
+    },
+    {
+      id: "role",
+      header: columnsCopy.role,
+      kind: "meta",
+      sortable: true,
+      sortField: "role",
+      headerClassName: "hidden lg:table-cell",
+      className: "hidden lg:table-cell",
+      accessor: (user) => ROLE_LABELS[user.role] ?? user.role,
+    },
+    {
+      id: "status",
+      header: columnsCopy.status,
+      kind: "status",
+      sortable: true,
+      sortField: "status",
+      accessor: (user) => (
+        <UserStatusBadge status={user.status} size="sm" showIcon />
+      ),
+    },
+    {
+      id: "lastLogin",
+      header: columnsCopy.lastLogin,
+      kind: "meta",
+      sortable: true,
+      sortField: "last_login",
+      headerClassName: "hidden lg:table-cell",
+      className: "hidden lg:table-cell",
+      accessor: (user) => formatDateTime(user.lastLogin),
+    },
+    {
+      id: "createdAt",
+      header: columnsCopy.createdAt,
+      kind: "meta",
+      sortable: true,
+      sortField: "created_at",
+      headerClassName: "hidden xl:table-cell",
+      className: "hidden xl:table-cell",
+      // Mismo formato que Último acceso (`formatDateTime` es-MX + CDMX).
+      accessor: (user) => formatDateTime(user.createdAt),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (user) => (
+        <UserActions
+          userId={user.id}
+          userName={`${user.firstName} ${user.lastName}`.trim()}
+          status={user.status}
+          onStatusChange={onStatusChange}
+        />
+      ),
+    },
+  ];
 }
 
 export function UserTable({
   users,
   isLoading,
-  onView,
-  onStatusChange,
-  sortField,
-  sortDirection,
+  primaryTo,
+  primaryState,
+  sort,
   onSortChange,
+  onStatusChange,
 }: UserTableProps) {
-  const handleSort = (field: UserSortableColumn) => {
-    onSortChange?.(field);
-  };
-
-  const renderSortableHead = (field: UserSortableColumn, label: string, className?: string) => {
-    const active = sortField === field;
-    const asc = sortDirection === "asc";
-    return (
-      <TableHead
-        className={cn(
-          onSortChange ? "cursor-pointer select-none hover:bg-muted/50" : undefined,
-          className,
-        )}
-        onClick={onSortChange ? () => handleSort(field) : undefined}
-      >
-        <div className="flex items-center gap-1">
-          {label}
-          {active && onSortChange ? <span className="text-xs tabular-nums">{asc ? "↑" : "↓"}</span> : null}
-        </div>
-      </TableHead>
-    );
-  };
-  if (isLoading) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {renderSortableHead("first_name", columns.name)}
-              {renderSortableHead("email", columns.email, "hidden md:table-cell")}
-              {renderSortableHead("role", columns.role, "hidden lg:table-cell")}
-              {renderSortableHead("status", columns.status)}
-              {renderSortableHead(
-                "last_login",
-                columns.lastLogin,
-                "hidden lg:table-cell",
-              )}
-              {renderSortableHead(
-                "created_at",
-                columns.createdAt,
-                "hidden xl:table-cell",
-              )}
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.from({ length: 6 }).map((_, index) => (
-              <TableRow key={index}>
-                <TableCell>
-                  <Skeleton className="h-4 w-40" />
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <Skeleton className="h-4 w-48" />
-                </TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  <Skeleton className="h-4 w-24" />
-                </TableCell>
-                <TableCell>
-                  <Skeleton className="h-5 w-24" />
-                </TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  <Skeleton className="h-4 w-36" />
-                </TableCell>
-                <TableCell className="hidden xl:table-cell">
-                  <Skeleton className="h-4 w-24" />
-                </TableCell>
-                <TableCell>
-                  <Skeleton className="h-8 w-8" />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  }
+  const columns = buildColumns({ onStatusChange });
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {renderSortableHead("first_name", columns.name)}
-            {renderSortableHead("email", columns.email, "hidden md:table-cell")}
-            {renderSortableHead("role", columns.role, "hidden lg:table-cell")}
-            {renderSortableHead("status", columns.status)}
-            {renderSortableHead(
-              "last_login",
-              columns.lastLogin,
-              "hidden lg:table-cell",
-            )}
-            {renderSortableHead(
-              "created_at",
-              columns.createdAt,
-              "hidden xl:table-cell",
-            )}
-            <TableHead className="w-12" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((user) => (
-            <TableRow
-              key={user.id}
-              className={onView ? "cursor-pointer hover:bg-muted/50" : undefined}
-              onClick={onView ? () => onView(user.id) : undefined}
-            >
-              <TableCell className="font-medium">
-                {`${user.firstName} ${user.lastName}`.trim()}
-              </TableCell>
-              <TableCell className="hidden md:table-cell">{user.email}</TableCell>
-              <TableCell className="hidden lg:table-cell">
-                {ROLE_LABELS[user.role] ?? user.role}
-              </TableCell>
-              <TableCell>
-                <UserStatusBadge status={user.status} size="sm" showIcon />
-              </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                {formatDateTime(user.lastLogin)}
-              </TableCell>
-              <TableCell className="hidden xl:table-cell whitespace-nowrap text-muted-foreground">
-                {formatDate(user.createdAt)}
-              </TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                <UserActions
-                  userId={user.id}
-                  userName={`${user.firstName} ${user.lastName}`.trim()}
-                  status={user.status}
-                  onStatusChange={onStatusChange}
-                />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      columns={columns}
+      rows={users}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      primaryTo={primaryTo}
+      primaryState={primaryState}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
   );
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -10,9 +10,9 @@ import {
   buildMainBranchListItem,
 } from "../../test/branchTestFixtures";
 
-function renderTable(
-  ui: React.ReactElement,
-) {
+const sort = { field: "name", direction: "asc" as const };
+
+function renderTable(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -25,13 +25,17 @@ function renderTable(
   );
 }
 
+const tableProps = {
+  isLoading: false as const,
+  primaryTo: (branch: { id: string }) => `/branches/${branch.id}`,
+  sort,
+  onSortChange: vi.fn(),
+};
+
 describe("BranchTable", () => {
   it("renders location and principal badge", () => {
     renderTable(
-      <BranchTable
-        branches={[buildMainBranchListItem()]}
-        isLoading={false}
-      />,
+      <BranchTable branches={[buildMainBranchListItem()]} {...tableProps} />,
     );
 
     expect(screen.getByText("El Marqués, Querétaro")).toBeInTheDocument();
@@ -48,25 +52,26 @@ describe("BranchTable", () => {
             isMain: false,
           }),
         ]}
-        isLoading={false}
+        {...tableProps}
       />,
     );
 
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
-  it("navigates to detail when row is clicked", async () => {
+  it("link primario en nombre de sucursal", () => {
     const branch = buildBranchListItem({ name: "Fila navegable" });
 
-    renderTable(
-      <BranchTable branches={[branch]} isLoading={false} />,
+    renderTable(<BranchTable branches={[branch]} {...tableProps} />);
+
+    const link = screen.getByRole("link", { name: "Fila navegable" });
+    expect(link).toHaveAttribute("href", `/branches/${branch.id}`);
+  });
+
+  it("retorna null cuando no hay filas", () => {
+    const { container } = renderTable(
+      <BranchTable branches={[]} {...tableProps} />,
     );
-
-    const row = screen.getByText("Fila navegable").closest("tr");
-    expect(row).toBeTruthy();
-    row?.click();
-
-    // MemoryRouter keeps navigation in-memory; BranchTable calls navigate()
-    expect(row).toHaveClass("cursor-pointer");
+    expect(container).toBeEmptyDOMElement();
   });
 });

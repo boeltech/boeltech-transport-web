@@ -1,26 +1,18 @@
 /**
- * ClientTable Component
- * Clean Architecture - Presentation Layer
+ * ClientTable — listado Operate (`EntityListTable`, SoT §7 T1–T10).
  *
- * Tabla de listado de clientes con ordenamiento y acciones.
- *
- * Ubicación: src/features/clients/presentation/components/ClientTable.tsx
+ * 7 cols: Código · Razón social · RFC · Tipo · Pago · Contacto ·
+ * Estado · ⋯. Sort URL `sortBy`/`sortOrder` (page). Empty → null.
+ * `framed={false}`.
  */
 
-import { useNavigate } from "react-router-dom";
-import { useListQueueFromState } from "@shared/utils/listQueueFrom";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@shared/ui/table";
 import { Badge } from "@shared/ui/badge";
-import { Skeleton } from "@shared/ui/skeleton";
-import { Phone, Mail } from "lucide-react";
-import { cn } from "@shared/lib/utils/cn";
+import {
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListSortState,
+  type EntityListStackedValue,
+} from "@shared/ui/table";
 
 import type { ClientListItem } from "../../domain";
 import {
@@ -28,263 +20,162 @@ import {
   getPaymentTermsConfig,
   formatCreditDays,
 } from "../config/clientConfig";
-import { ClientStatusBadge, operationalStatusFromClient } from "../config/clientStatusConfig";
+import {
+  ClientStatusBadge,
+  operationalStatusFromClient,
+} from "../config/clientStatusConfig";
 import { clientsCopy } from "../copy/clientsCopy";
 import { ClientActions } from "./ClientActions";
 
 const tableCopy = clientsCopy.table;
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 export interface ClientTableProps {
   clients: ClientListItem[];
   isLoading?: boolean;
-  onSort?: (field: string) => void;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
+  /** Href del detalle (link primario + fila). */
+  primaryTo: (client: ClientListItem) => string;
+  /** Cola del listado (`location.state.from`). */
+  primaryState?: (client: ClientListItem) => unknown;
+  sort: EntityListSortState;
+  onSortChange: (next: EntityListSortState) => void;
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
+function buildColumns(): EntityListColumnDef<ClientListItem>[] {
+  return [
+    {
+      id: "code",
+      header: tableCopy.code,
+      kind: "code",
+      sortable: true,
+      sortField: "client_code",
+      accessor: (client) => client.clientCode,
+    },
+    {
+      id: "legalName",
+      header: tableCopy.legalName,
+      kind: "primary",
+      sortable: true,
+      sortField: "legal_name",
+      accessor: (client): EntityListStackedValue => ({
+        primary: client.legalName,
+        secondary: client.tradeName || undefined,
+      }),
+    },
+    {
+      id: "taxId",
+      header: tableCopy.taxId,
+      kind: "code",
+      headerClassName: "hidden md:table-cell",
+      className: "hidden md:table-cell",
+      accessor: (client) => client.taxId,
+    },
+    {
+      id: "type",
+      header: tableCopy.type,
+      kind: "status",
+      sortable: true,
+      sortField: "type",
+      headerClassName: "hidden lg:table-cell",
+      className: "hidden lg:table-cell",
+      accessor: (client) => {
+        const typeConfig = getClientTypeConfig(client.type);
+        const TypeIcon = typeConfig.icon;
+        return (
+          <Badge variant={typeConfig.variant} className="gap-1">
+            <TypeIcon className="h-3 w-3" />
+            {typeConfig.labelShort}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: "payment",
+      header: tableCopy.payment,
+      kind: "stacked",
+      headerClassName: "hidden lg:table-cell",
+      className: "hidden lg:table-cell",
+      accessor: (client): EntityListStackedValue => {
+        const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
+        return {
+          primary: (
+            <Badge variant={paymentConfig.variant} className="w-fit">
+              {paymentConfig.labelShort}
+            </Badge>
+          ),
+          secondary:
+            client.paymentTerms === "credit"
+              ? formatCreditDays(client.creditDays)
+              : undefined,
+        };
+      },
+    },
+    {
+      id: "contact",
+      header: tableCopy.contact,
+      kind: "stacked",
+      headerClassName: "hidden xl:table-cell",
+      className: "hidden xl:table-cell",
+      accessor: (client): EntityListStackedValue => {
+        const contactPhone =
+          client.primaryContact?.phone ?? client.phone;
+        const contactEmail =
+          client.primaryContact?.email ?? client.email;
+        const contactName = client.primaryContact?.fullName;
+        return {
+          primary: contactName || contactPhone || contactEmail || undefined,
+          secondary: contactName
+            ? contactPhone || contactEmail || undefined
+            : contactPhone && contactEmail
+              ? contactEmail
+              : undefined,
+        };
+      },
+    },
+    {
+      id: "status",
+      header: tableCopy.status,
+      kind: "status",
+      accessor: (client) => (
+        <ClientStatusBadge
+          status={operationalStatusFromClient(client.isActive)}
+          size="sm"
+        />
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (client) => (
+        <ClientActions client={client} variant="dropdown" />
+      ),
+    },
+  ];
+}
 
 export function ClientTable({
   clients,
   isLoading = false,
-  onSort,
-  sortBy,
-  sortOrder,
+  primaryTo,
+  primaryState,
+  sort,
+  onSortChange,
 }: ClientTableProps) {
-  const navigate = useNavigate();
-  const fromState = useListQueueFromState();
-
-  // Handler para clic en fila
-  const handleRowClick = (clientId: string) => {
-    navigate(`/clients/${clientId}`, { state: fromState });
-  };
-
-  // Handler para ordenamiento
-  const handleSort = (field: string) => {
-    if (onSort) {
-      onSort(field);
-    }
-  };
-
-  // Render de header con ordenamiento
-  const renderSortableHeader = (
-    field: string,
-    label: string,
-    className?: string,
-  ) => {
-    const isActive = sortBy === field;
-    const isAsc = sortOrder === "asc";
-
-    return (
-      <TableHead
-        className={cn(
-          "cursor-pointer select-none hover:bg-muted/50",
-          className,
-        )}
-        onClick={() => handleSort(field)}
-      >
-        <div className="flex items-center gap-1">
-          {label}
-          {isActive && <span className="text-xs">{isAsc ? "↑" : "↓"}</span>}
-        </div>
-      </TableHead>
-    );
-  };
-
-  // Loading state
-  if (isLoading) {
-    return <ClientTableSkeleton />;
-  }
-
-  // ListPageShell owns empty; avoid a second EmptyState when items=[] (D4).
-  if (clients.length === 0) {
-    return null;
-  }
+  const columns = buildColumns();
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {renderSortableHeader("client_code", tableCopy.code, "w-24")}
-            {renderSortableHeader("legal_name", tableCopy.legalName)}
-            <TableHead className="w-32">{tableCopy.taxId}</TableHead>
-            {renderSortableHeader("type", tableCopy.type, "w-28")}
-            <TableHead className="w-24">{tableCopy.payment}</TableHead>
-            <TableHead className="w-36">{tableCopy.contact}</TableHead>
-            <TableHead className="w-24">{tableCopy.status}</TableHead>
-            <TableHead className="w-16"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {clients.map((client) => {
-            const typeConfig = getClientTypeConfig(client.type);
-            const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
-            const TypeIcon = typeConfig.icon;
-            const contactPhone =
-              client.primaryContact?.phone ?? client.phone;
-            const contactEmail =
-              client.primaryContact?.email ?? client.email;
-            const contactName = client.primaryContact?.fullName;
-
-            return (
-              <TableRow
-                key={client.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleRowClick(client.id)}
-              >
-                {/* Código */}
-                <TableCell className="font-mono text-sm">
-                  {client.clientCode}
-                </TableCell>
-
-                {/* Razón Social */}
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{client.legalName}</span>
-                    {client.tradeName && (
-                      <span className="text-xs text-muted-foreground">
-                        {client.tradeName}
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
-
-                {/* RFC */}
-                <TableCell className="font-mono text-sm">
-                  {client.taxId ?? "—"}
-                </TableCell>
-
-                {/* Tipo */}
-                <TableCell>
-                  <Badge variant={typeConfig.variant} className="gap-1">
-                    <TypeIcon className="h-3 w-3" />
-                    {typeConfig.labelShort}
-                  </Badge>
-                </TableCell>
-
-                {/* Términos de Pago */}
-                <TableCell>
-                  <div className="flex flex-col">
-                    <Badge variant={paymentConfig.variant} className="w-fit">
-                      {paymentConfig.labelShort}
-                    </Badge>
-                    {client.paymentTerms === "credit" && (
-                      <span className="text-xs text-muted-foreground mt-0.5">
-                        {formatCreditDays(client.creditDays)}
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
-
-                {/* Contacto */}
-                <TableCell>
-                  <div className="flex flex-col gap-0.5 text-sm">
-                    {contactName && (
-                      <span className="truncate max-w-[150px]">
-                        {contactName}
-                      </span>
-                    )}
-                    {contactPhone && (
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Phone className="h-3 w-3" />
-                        {contactPhone}
-                      </span>
-                    )}
-                    {contactEmail && (
-                      <span className="flex items-center gap-1 text-muted-foreground truncate max-w-[150px]">
-                        <Mail className="h-3 w-3" />
-                        {contactEmail}
-                      </span>
-                    )}
-                    {!contactName && !contactPhone && !contactEmail && (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </div>
-                </TableCell>
-
-                {/* Estado */}
-                <TableCell>
-                  <ClientStatusBadge
-                    status={operationalStatusFromClient(client.isActive)}
-                    size="sm"
-                  />
-                </TableCell>
-
-                {/* Acciones */}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <ClientActions client={client} variant="dropdown" />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
-
-// ============================================================================
-// SKELETON
-// ============================================================================
-
-function ClientTableSkeleton() {
-  return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-24">{tableCopy.code}</TableHead>
-            <TableHead>{tableCopy.legalName}</TableHead>
-            <TableHead className="w-32">{tableCopy.taxId}</TableHead>
-            <TableHead className="w-28">{tableCopy.type}</TableHead>
-            <TableHead className="w-24">{tableCopy.payment}</TableHead>
-            <TableHead className="w-36">{tableCopy.contact}</TableHead>
-            <TableHead className="w-24">{tableCopy.status}</TableHead>
-            <TableHead className="w-16"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <TableRow key={i}>
-              <TableCell>
-                <Skeleton className="h-4 w-16" />
-              </TableCell>
-              <TableCell>
-                <div className="space-y-1">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-24" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-5 w-16" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-5 w-16" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-28" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-5 w-16" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-8 w-8 rounded-md" />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <EntityListTable
+      framed={false}
+      density="list"
+      columns={columns}
+      rows={clients}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      primaryTo={primaryTo}
+      primaryState={primaryState}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
   );
 }
 

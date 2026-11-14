@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
 import { ListPageShell } from "@shared/ui/page-shells/ListPageShell";
+import type { EntityListSortState } from "@shared/ui/table";
 import { ROLES } from "@shared/constants/roles";
 import { usePermissions, useRole } from "@shared/permissions";
 import { buildBranchSelectOptions } from "@shared/utils/branchSelectUtils";
@@ -34,6 +35,7 @@ import { Plus, Search, AlertTriangle, FileUp, Loader2, Users } from "lucide-reac
 import { useDrivers, useDeleteDriver } from "../../application";
 import {
   type DriverListItem,
+  type DriverSortOptions,
   type DriverStatusType,
   getDriverPrimaryLicenseNumber,
 } from "../../domain";
@@ -48,6 +50,14 @@ import { DRIVER_STATUS_CONFIG } from "../index";
 import { countDriverPanelFilters } from "../utils/driverListFilters";
 
 const copy = driversCopy.list;
+
+/** Campos `sort_by` expuestos en la tabla (paridad API; sin inventar URL). */
+const SORTABLE_FIELDS = new Set<DriverSortOptions["field"]>([
+  "employee_name",
+  "license_expiry",
+  "total_trips",
+  "status",
+]);
 
 export function DriversListPage() {
   const navigate = useNavigate();
@@ -110,6 +120,31 @@ export function DriversListPage() {
   });
   const hasPanelFilters = activePanelFilterCount > 0;
 
+  /** Sort en estado local (no había URL sort; no inventar query). */
+  const [sort, setSort] = useState<DriverSortOptions>({
+    field: "employee_name",
+    direction: "asc",
+  });
+
+  const tableSort: EntityListSortState = {
+    field: sort.field,
+    direction: sort.direction,
+  };
+
+  const handleSortChange = useCallback(
+    (next: EntityListSortState) => {
+      if (!SORTABLE_FIELDS.has(next.field as DriverSortOptions["field"])) {
+        return;
+      }
+      setSort({
+        field: next.field as DriverSortOptions["field"],
+        direction: next.direction,
+      });
+      filters.setPage(1);
+    },
+    [filters],
+  );
+
   const { data, isLoading, isFetching, refetch } = useDrivers({
     page: filters.page,
     limit: 10,
@@ -119,7 +154,7 @@ export function DriversListPage() {
       licenseExpiringSoon: licenseExpiring || undefined,
       branchId: branchIdFilter || undefined,
     },
-    sort: { field: "employee_name", direction: "asc" },
+    sort,
   });
 
   const drivers = data?.data ?? [];
@@ -164,6 +199,13 @@ export function DriversListPage() {
     (id: string) => navigate(`/drivers/${id}`, { state: fromState }),
     [fromState, navigate],
   );
+
+  const primaryTo = useCallback(
+    (driver: DriverListItem) => `/drivers/${driver.id}`,
+    [],
+  );
+
+  const primaryState = useCallback(() => fromState, [fromState]);
 
   const handleEdit = useCallback(
     (id: string) => navigate(`/drivers/${id}/edit`, { state: fromState }),
@@ -279,6 +321,10 @@ export function DriversListPage() {
           <DriverTable
             drivers={drivers}
             isLoading={isLoading}
+            primaryTo={primaryTo}
+            primaryState={primaryState}
+            sort={tableSort}
+            onSortChange={handleSortChange}
             onView={handleView}
             onEdit={canEdit ? handleEdit : undefined}
             onDelete={canDelete ? handleDelete : undefined}

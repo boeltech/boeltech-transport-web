@@ -1,33 +1,28 @@
+/**
+ * FleetDocumentsTable — listado Operate (`EntityListTable`, SoT §7 T1–T10).
+ *
+ * 5 cols: Entidad · Documento · Vence · Días · Severidad.
+ * Link primario al detalle (driver/vehicle docs). Empty → null.
+ * `framed={false}`.
+ */
+
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { Skeleton } from "@shared/ui/skeleton";
-import { formatDate } from "@shared/utils/dateUtils";
-import type { DocumentExpiryItem } from "../../domain";
+import { FLEET_DOCUMENTS_PATH, type DocumentExpiryItem } from "../../domain";
 import { fleetDocumentsCopy } from "../copy";
 import { DocumentExpirySeverityBadge } from "../config/documentExpirySeverityConfig";
+import { documentExpiryDetailPath } from "../utils/documentExpiryNavigation";
 
 const copy = fleetDocumentsCopy.table;
 const docTypeCopy = fleetDocumentsCopy.docType;
 
-interface FleetDocumentsTableProps {
+export interface FleetDocumentsTableProps {
   items: DocumentExpiryItem[];
   isLoading: boolean;
-  onOpen: (item: DocumentExpiryItem) => void;
 }
-
-const HEADERS: { key: string; label: string; className?: string }[] = [
-  { key: "entity", label: copy.entity },
-  { key: "docType", label: copy.docType },
-  { key: "expiresOn", label: copy.expiresOn },
-  { key: "days", label: copy.daysRemaining, className: "text-right" },
-  { key: "severity", label: copy.severity },
-];
 
 function formatDaysRemaining(days: number | null): string {
   if (days == null) return copy.daysUnknown;
@@ -35,97 +30,73 @@ function formatDaysRemaining(days: number | null): string {
   return copy.daysLeft(days);
 }
 
+function buildColumns(): EntityListColumnDef<DocumentExpiryItem>[] {
+  return [
+    {
+      id: "entity",
+      header: copy.entity,
+      kind: "primary",
+      accessor: (item): EntityListStackedValue => ({
+        primary: item.entityLabel,
+      }),
+    },
+    {
+      id: "docType",
+      header: copy.docType,
+      kind: "meta",
+      accessor: (item) => docTypeCopy[item.docType],
+    },
+    {
+      id: "expiresOn",
+      header: copy.expiresOn,
+      kind: "date",
+      headerClassName: "hidden md:table-cell",
+      className: "hidden md:table-cell",
+      accessor: (item) => item.expiresOn ?? copy.expiresUnknown,
+    },
+    {
+      id: "days",
+      header: copy.daysRemaining,
+      kind: "meta",
+      headerClassName: "text-right",
+      className: "text-right tabular-nums",
+      accessor: (item) => formatDaysRemaining(item.daysRemaining),
+    },
+    {
+      id: "severity",
+      header: copy.severity,
+      kind: "status",
+      accessor: (item) => (
+        <DocumentExpirySeverityBadge
+          status={item.severity}
+          size="sm"
+          showIcon
+        />
+      ),
+    },
+  ];
+}
+
+function getRowId(item: DocumentExpiryItem): string {
+  return `${item.entityType}-${item.entityId}-${item.docType}`;
+}
+
 export function FleetDocumentsTable({
   items,
   isLoading,
-  onOpen,
 }: FleetDocumentsTableProps) {
-  if (isLoading) {
-    return (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {HEADERS.map((h) => (
-              <TableHead key={h.key} className={h.className}>
-                {h.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <TableRow key={i}>
-              <TableCell>
-                <Skeleton className="h-4 w-36" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-28" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-4 w-24" />
-              </TableCell>
-              <TableCell className="text-right">
-                <Skeleton className="ml-auto h-4 w-10" />
-              </TableCell>
-              <TableCell>
-                <Skeleton className="h-5 w-20" />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    );
-  }
-
-  if (items.length === 0) return null;
+  const columns = buildColumns();
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          {HEADERS.map((h) => (
-            <TableHead key={h.key} className={h.className}>
-              {h.label}
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {items.map((item) => (
-          <TableRow
-            key={`${item.entityType}-${item.entityId}-${item.docType}`}
-            className="cursor-pointer"
-            onClick={() => onOpen(item)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onOpen(item);
-              }
-            }}
-            tabIndex={0}
-            role="link"
-            aria-label={`${copy.openDetail}: ${item.entityLabel}`}
-          >
-            <TableCell className="font-medium">{item.entityLabel}</TableCell>
-            <TableCell>{docTypeCopy[item.docType]}</TableCell>
-            <TableCell>
-              {item.expiresOn
-                ? formatDate(item.expiresOn)
-                : copy.expiresUnknown}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatDaysRemaining(item.daysRemaining)}
-            </TableCell>
-            <TableCell>
-              <DocumentExpirySeverityBadge
-                status={item.severity}
-                size="sm"
-                showIcon
-              />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <EntityListTable
+      framed={false}
+      density="list"
+      columns={columns}
+      rows={items}
+      getRowId={getRowId}
+      isLoading={isLoading}
+      primaryTo={documentExpiryDetailPath}
+      primaryState={() => ({ from: FLEET_DOCUMENTS_PATH })}
+    />
   );
 }

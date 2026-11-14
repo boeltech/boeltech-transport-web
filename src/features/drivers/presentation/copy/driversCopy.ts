@@ -239,7 +239,7 @@ export const driversCopy = {
       refreshSuccess: "Lista actualizada",
     },
     actions: {
-      create: "Nuevo Conductor",
+      create: "Nuevo conductor",
       import: "Importar",
       importAria: "Importar conductores desde archivo",
       clearFilters: "Limpiar filtros",
@@ -252,7 +252,13 @@ export const driversCopy = {
       licenseExpiring: "Licencias por vencer",
     },
     table: {
+      name: "Conductor",
+      phone: "Teléfono",
       branch: "Sucursal",
+      license: "Licencia",
+      expiration: "Vencimiento",
+      trips: "Viajes",
+      status: "Estado",
     },
     card: {
       viewMore: "Ver más",

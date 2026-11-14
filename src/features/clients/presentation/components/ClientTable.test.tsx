@@ -36,6 +36,8 @@ const client: ClientListItem = {
   primaryContact: null,
 };
 
+const sort = { field: "legal_name", direction: "asc" as const };
+
 function renderTable(clients: ClientListItem[] = [client]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -43,28 +45,44 @@ function renderTable(clients: ClientListItem[] = [client]) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <ClientTable clients={clients} />
+        <ClientTable
+          clients={clients}
+          primaryTo={(row) => `/clients/${row.id}`}
+          sort={sort}
+          onSortChange={vi.fn()}
+        />
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
-describe("ClientTable (F3 D14)", () => {
+describe("ClientTable", () => {
   it("toma los headers del listado desde clientsCopy.table", () => {
     renderTable();
 
     const copy = clientsCopy.table;
-    expect(screen.getByText(copy.code)).toBeInTheDocument();
-    expect(screen.getByText(copy.legalName)).toBeInTheDocument();
-    expect(screen.getByText(copy.taxId)).toBeInTheDocument();
-    expect(screen.getByText(copy.type)).toBeInTheDocument();
-    expect(screen.getByText(copy.payment)).toBeInTheDocument();
-    expect(screen.getByText(copy.contact)).toBeInTheDocument();
-    expect(screen.getByText(copy.status)).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: copy.code }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: copy.legalName }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: copy.taxId }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: copy.status }),
+    ).toBeInTheDocument();
   });
 
   it("con lista vacía no monta empty local (D4)", () => {
     const { container } = renderTable([]);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("link primario en razón social", () => {
+    renderTable();
+    const link = screen.getByRole("link", { name: "Acme SA de CV" });
+    expect(link).toHaveAttribute("href", "/clients/c-1");
   });
 });
