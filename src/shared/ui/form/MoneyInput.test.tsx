@@ -19,6 +19,13 @@ describe("MoneyInput", () => {
     expect(input).not.toHaveValue("$28,000.00");
   });
 
+  it("placeholder idle sin $ (badge ISO ya ancla MXN)", () => {
+    render(<MoneyInput onValueChange={() => undefined} />);
+
+    expect(screen.getByRole("textbox")).toHaveAttribute("placeholder", "0.00");
+    expect(screen.getByText("MXN")).toBeInTheDocument();
+  });
+
   it("entra en modo edición al enfocar y vuelve a amount-only al blur", async () => {
     const user = userEvent.setup();
     render(<MoneyInput value={25000} onValueChange={() => undefined} />);

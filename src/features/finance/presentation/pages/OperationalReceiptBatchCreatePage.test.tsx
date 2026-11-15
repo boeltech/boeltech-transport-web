@@ -280,6 +280,41 @@ describe("OperationalReceiptBatchCreatePage", () => {
     });
   });
 
+  it("idle: CTA «Registrar cobro» disabled, sin $0 ni N; pie pide capturar monto", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: copy.page.title });
+
+    const submit = screen.getByRole("button", { name: copy.page.submitIdle });
+    expect(submit).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: /Registrar \$0/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(copy.page.footer.unallocatedIdle),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Por repartir/i)).not.toBeInTheDocument();
+    expect(copy.page.notePlaceholder).not.toMatch(/excedente/i);
+    expect(copy.page.disclaimer).toMatch(/\(REP\)/);
+  });
+
+  it("con monto y abonos: CTA con monto×N y Por repartir en cero", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole("heading", { name: copy.page.title });
+
+    await typeAmount(user, "13000");
+
+    expect(
+      await screen.findByRole("button", {
+        name: copy.page.submit("$13,000.00", 2),
+      }),
+    ).toBeEnabled();
+    expect(screen.getByText(/Por repartir/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(copy.page.footer.unallocatedIdle),
+    ).not.toBeInTheDocument();
+  });
+
   it("excedente (monto > saldo elegidos) muestra Alert y no envía", async () => {
     const user = userEvent.setup();
     const mutate = vi.fn();

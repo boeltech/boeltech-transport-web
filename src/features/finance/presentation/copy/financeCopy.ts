@@ -326,36 +326,33 @@ export const financeCopy = {
   efectivoPorCobrar: {
     title: "Cobros sin factura",
     description:
-      "Viajes Sin factura con saldo pendiente. Registra el abono en Costos del viaje o un cobro por lote desde aquí o desde la ficha del cliente. El cobro con factura vive en Facturas a crédito.",
+      "Viajes Sin factura con saldo pendiente. Registra el abono en Costos o un cobro por lote.",
     entityLabelPlural: "viajes",
     channelHint:
-      "Esto no es Facturas a crédito. El cobro con factura no aparece en esta bandeja.",
+      "Incluye programados, en curso y completados. El cobro con factura vive en Facturas a crédito.",
     totals: {
-      pending: "Saldo operativo",
+      pending: "Por cobrar",
       trips: "Viajes",
       clients: "Clientes",
     },
     /**
-     * Subtotal del universo filtrado del cliente (meta.by_client), no de la página.
-     * Si hay menos filas visibles que tripCount, aclara «mostrando k de n».
+     * Conteo en la fila de grupo: tripCount = universo filtrado (meta.by_client).
+     * Si la página corta al cliente, «k de n viajes».
      */
-    clientSubtotal: (
-      amount: string,
-      tripCount: number,
-      visibleTripCount?: number,
-    ) => {
-      const tripsLabel =
-        tripCount === 1 ? "1 viaje" : `${tripCount} viajes`;
-      const base = `Subtotal del cliente ${amount} · ${tripsLabel}`;
+    groupTripCount: (tripCount: number, visibleTripCount?: number) => {
       if (
         visibleTripCount != null &&
         visibleTripCount > 0 &&
         visibleTripCount < tripCount
       ) {
-        return `${base} (mostrando ${visibleTripCount} de ${tripCount})`;
+        return `${visibleTripCount} de ${tripCount} viajes`;
       }
-      return base;
+      return tripCount === 1 ? "1 viaje" : `${tripCount} viajes`;
     },
+    groupBatchCta: "Cobro por lote",
+    groupBatchAria: (clientName: string) =>
+      `Registrar cobro por lote de ${clientName}`,
+    noReceipts: "Sin abonos",
     clientUnknown: "Sin cliente",
     clientChip: (name: string) => `Cliente: ${name}`,
     clearClientFilter: "Quitar filtro de cliente",
@@ -367,18 +364,12 @@ export const financeCopy = {
       departure: "Salida",
       status: "Estado",
       baseRate: "Tarifa",
-      collected: "Acumulado",
-      pending: "Saldo",
-      cashStatus: "Cobro",
+      collected: "Cobrado",
+      pending: "Por cobrar",
       action: "",
     },
     openCostsCta: "Abrir Costos",
     openCostsAria: (code: string) => `Abrir Costos del viaje ${code}`,
-    cashStatus: {
-      pending: "Pendiente",
-      partial: "Parcial",
-      collected: "Cobrado",
-    },
     empty: {
       title: "Sin cobros pendientes",
       description:
@@ -391,8 +382,7 @@ export const financeCopy = {
     },
     relatedConfig: {
       label: "Facturas a crédito",
-      description:
-        "Cola fiscal de facturas a crédito (PPD) con saldo. El cobro con factura vive ahí, no en esta bandeja.",
+      description: "Cola fiscal PPD con saldo (cobro con factura).",
     },
     loadErrorTitle: "No se pudo cargar",
     loadError:

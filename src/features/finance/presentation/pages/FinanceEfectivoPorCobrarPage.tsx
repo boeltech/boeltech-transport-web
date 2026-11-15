@@ -90,17 +90,19 @@ function KpiStrip({
     <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <div className="rounded-lg border bg-card px-4 py-3">
         <dt className="text-xs text-muted-foreground">{copy.totals.pending}</dt>
-        <dd className="mt-1 text-lg font-semibold tabular-nums">
+        <dd className="mt-1 text-lg font-semibold font-mono tabular-nums">
           {formatMxCurrency(pendingAmount)}
         </dd>
       </div>
       <div className="rounded-lg border bg-card px-4 py-3">
         <dt className="text-xs text-muted-foreground">{copy.totals.trips}</dt>
-        <dd className="mt-1 text-lg font-semibold tabular-nums">{tripCount}</dd>
+        <dd className="mt-1 text-lg font-semibold font-mono tabular-nums">
+          {tripCount}
+        </dd>
       </div>
       <div className="rounded-lg border bg-card px-4 py-3">
         <dt className="text-xs text-muted-foreground">{copy.totals.clients}</dt>
-        <dd className="mt-1 text-lg font-semibold tabular-nums">
+        <dd className="mt-1 text-lg font-semibold font-mono tabular-nums">
           {clientCount}
         </dd>
       </div>

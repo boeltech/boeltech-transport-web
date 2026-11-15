@@ -38,6 +38,7 @@ import {
   FormStickyActions,
   FormValidationSummary,
   MoneyInput,
+  formatMoneyAmountOnly,
   RHFDateField,
   RHFSelect,
   RHFTextareaField,
@@ -73,6 +74,12 @@ import {
 
 const copy = operationalReceiptBatchCopy;
 const MXN_EPS = 0.01;
+const MONEY_LOCALE = "es-MX";
+
+/** Celda money T4: cantidad mono sin `$` / sin sufijo ISO (unidad en header). */
+function formatBatchTableMoney(amount: number): string {
+  return formatMoneyAmountOnly(amount, MONEY_LOCALE, 2);
+}
 /** Identidad estable mientras candidatesQuery aún no tiene data (evita loop de renders). */
 const EMPTY_CANDIDATES: OperationalReceiptBatchCandidate[] = [];
 
@@ -263,12 +270,14 @@ export function OperationalReceiptBatchCreatePage() {
     () => selectedCandidates.reduce((s, c) => s + c.pendingAmount, 0),
     [selectedCandidates],
   );
-  const unallocated =
-    typeof amount === "number" ? amount - allocatedTotal : 0;
+  const hasPaymentAmount = typeof amount === "number" && amount > 0;
+  const unallocated = hasPaymentAmount ? amount - allocatedTotal : 0;
   const liveExcess =
-    typeof amount === "number" && amount > selectedPending + MXN_EPS
+    hasPaymentAmount && amount > selectedPending + MXN_EPS
       ? amount - selectedPending
       : 0;
+  const showUnallocatedWarning =
+    hasPaymentAmount && Math.abs(unallocated) > MXN_EPS;
 
   useEffect(() => {
     if (liveExcess > MXN_EPS) {
@@ -290,6 +299,11 @@ export function OperationalReceiptBatchCreatePage() {
         .map(([tripId, lineAmount]) => ({ tripId, amount: lineAmount })),
     [amounts, selectedIds],
   );
+
+  const submitLabel =
+    !hasPaymentAmount || positiveLines.length === 0
+      ? copy.page.submitIdle
+      : copy.page.submit(formatMxCurrency(amount), positiveLines.length);
 
   const isDirty =
     form.formState.isDirty ||
@@ -558,7 +572,7 @@ export function OperationalReceiptBatchCreatePage() {
 
         <form
           id="operational-receipt-batch-form"
-          className="space-y-8"
+          className="space-y-6"
           onSubmit={onSubmit}
           noValidate
         >
@@ -831,8 +845,8 @@ export function OperationalReceiptBatchCreatePage() {
                                 status={trip.status as TripStatusType}
                               />
                             </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {formatMxCurrency(trip.pendingAmount)}
+                            <TableCell className="text-right font-mono tabular-nums">
+                              {formatBatchTableMoney(trip.pendingAmount)}
                             </TableCell>
                             <TableCell className="text-right">
                               {checked && !disabledTrips.has(trip.tripId) ? (
@@ -866,8 +880,8 @@ export function OperationalReceiptBatchCreatePage() {
                                 </p>
                               ) : null}
                             </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {formatMxCurrency(after)}
+                            <TableCell className="text-right font-mono tabular-nums">
+                              {formatBatchTableMoney(after)}
                             </TableCell>
                           </TableRow>
                         );
@@ -879,31 +893,37 @@ export function OperationalReceiptBatchCreatePage() {
                 <div
                   className={cn(
                     "sticky bottom-16 z-10 flex flex-wrap gap-4 rounded-md border bg-card px-3 py-2 text-sm shadow-sm",
-                    Math.abs(unallocated) > MXN_EPS && "border-warning",
+                    showUnallocatedWarning && "border-warning",
                   )}
                 >
                   <span>
                     {copy.page.footer.selectedPending}:{" "}
-                    <strong className="tabular-nums">
-                      {formatMxCurrency(selectedPending)}
+                    <strong className="font-mono tabular-nums">
+                      {formatBatchTableMoney(selectedPending)}
                     </strong>
                   </span>
                   <span>
                     {copy.page.footer.allocated}:{" "}
-                    <strong className="tabular-nums">
-                      {formatMxCurrency(allocatedTotal)}
+                    <strong className="font-mono tabular-nums">
+                      {formatBatchTableMoney(allocatedTotal)}
                     </strong>
                   </span>
-                  <span
-                    className={cn(
-                      Math.abs(unallocated) > MXN_EPS && "text-warning-foreground",
-                    )}
-                  >
-                    {copy.page.footer.unallocated}:{" "}
-                    <strong className="tabular-nums">
-                      {formatMxCurrency(unallocated)}
-                    </strong>
-                  </span>
+                  {hasPaymentAmount ? (
+                    <span
+                      className={cn(
+                        showUnallocatedWarning && "text-warning-foreground",
+                      )}
+                    >
+                      {copy.page.footer.unallocated}:{" "}
+                      <strong className="font-mono tabular-nums">
+                        {formatBatchTableMoney(unallocated)}
+                      </strong>
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {copy.page.footer.unallocatedIdle}
+                    </span>
+                  )}
                 </div>
               </>
             )}
@@ -927,19 +947,10 @@ export function OperationalReceiptBatchCreatePage() {
             <Button
               type="submit"
               disabled={
-                isSubmitting ||
-                !hasCandidates ||
-                !(typeof amount === "number" && amount > 0)
+                isSubmitting || !hasCandidates || !hasPaymentAmount
               }
             >
-              {isSubmitting
-                ? copy.page.submitting
-                : copy.page.submit(
-                    formatMxCurrency(
-                      typeof amount === "number" ? amount : 0,
-                    ),
-                    positiveLines.length || selectedIds.size,
-                  )}
+              {isSubmitting ? copy.page.submitting : submitLabel}
             </Button>
           </FormStickyActions>
         </form>

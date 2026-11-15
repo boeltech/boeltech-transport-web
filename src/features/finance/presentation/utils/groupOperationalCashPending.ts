@@ -16,7 +16,8 @@ export interface OperationalCashPendingClientGroup {
   trips: OperationalCashPendingTrip[];
 }
 
-function clientKey(clientId: string | null): string {
+/** Key de grupo por cliente (también la usa la tabla para `getGroupKey`). */
+export function operationalCashClientKey(clientId: string | null): string {
   return clientId ?? "__none__";
 }
 
@@ -30,7 +31,7 @@ export function groupOperationalCashPendingByClient(
 ): OperationalCashPendingClientGroup[] {
   const tripsByKey = new Map<string, OperationalCashPendingTrip[]>();
   for (const trip of trips) {
-    const key = clientKey(trip.clientId);
+    const key = operationalCashClientKey(trip.clientId);
     const list = tripsByKey.get(key);
     if (list) {
       list.push(trip);
@@ -43,7 +44,7 @@ export function groupOperationalCashPendingByClient(
   const seen = new Set<string>();
 
   for (const client of byClient) {
-    const key = clientKey(client.clientId);
+    const key = operationalCashClientKey(client.clientId);
     const pageTrips = tripsByKey.get(key);
     if (!pageTrips?.length) continue;
     seen.add(key);

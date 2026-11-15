@@ -6,15 +6,16 @@ export const operationalReceiptBatchCopy = {
   page: {
     title: "Registrar cobro por lote",
     disclaimer:
-      "Cobros sin factura. No genera factura ni comprobante de pago.",
+      "Cobros sin factura. No genera factura ni comprobante de pago (REP).",
     zonePayment: "Pago del cliente",
     zoneTrips: "Viajes que cubre",
-    amount: "Monto del pago (MXN)",
+    amount: "Monto del pago",
     instrument: "Instrumento",
     reference: "Referencia",
     collectedAt: "Fecha del cobro",
     note: "Nota (opcional)",
-    notePlaceholder: "Anota el excedente u otra referencia interna…",
+    notePlaceholder:
+      "Referencia interna (no registra saldo a favor)…",
     searchPlaceholder: "Buscar por folio del viaje",
     selectAll: "Seleccionar todos",
     selectNone: "Ninguno",
@@ -24,19 +25,22 @@ export const operationalReceiptBatchCopy = {
       trip: "Viaje",
       departure: "Salida",
       status: "Estado",
-      pendingBefore: "Saldo antes",
-      amount: "Abono",
-      pendingAfter: "Saldo después",
+      pendingBefore: "Saldo antes (MXN)",
+      amount: "Abono (MXN)",
+      pendingAfter: "Saldo después (MXN)",
     },
     footer: {
       selectedPending: "Saldo de los elegidos",
       allocated: "Repartido",
       unallocated: "Por repartir",
+      unallocatedIdle: "Captura el monto para repartir",
     },
     editedBadge: "Reparto editado",
     resetSuggest: "Volver a sugerir por antigüedad",
     noAllocation: "Sin abono",
     notEligible: "Ya no admite cobro sin factura",
+    /** Idle / sin abonos > 0: sin monto ni N (PRD D1–D2). */
+    submitIdle: "Registrar cobro",
     submit: (amountLabel: string, n: number) =>
       n === 1
         ? `Registrar ${amountLabel} en 1 viaje`
@@ -77,7 +81,7 @@ export const operationalReceiptBatchCopy = {
     atLeastOne: "Asigna un abono a al menos un viaje",
   },
   excessAlert: (excessLabel: string, pendingLabel: string) =>
-    `El pago excede por ${excessLabel} el saldo de los viajes elegidos (${pendingLabel}). Ajusta el monto o elige más viajes. El saldo a favor no se registra aquí; anota el excedente en la nota.`,
+    `El pago excede por ${excessLabel} el saldo de los viajes elegidos (${pendingLabel}). Ajusta el monto o elige más viajes. No se registra saldo a favor: la nota es solo referencia interna y no contabiliza el excedente.`,
   balanceChangedAlert:
     "Los saldos cambiaron mientras capturabas. Ya los actualizamos; revisa el reparto antes de registrar.",
   toast: {

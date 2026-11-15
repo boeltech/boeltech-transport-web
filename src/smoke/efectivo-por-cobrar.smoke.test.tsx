@@ -297,25 +297,26 @@ describe("smoke: efectivo-por-cobrar", () => {
       screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
     expect(screen.getByText(copy.channelHint)).toBeInTheDocument();
-    expect(screen.getByText(copy.totals.pending)).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByText(copy.totals.pending)
+        .some((el) => el.tagName === "DT"),
+    ).toBe(true);
     expect(screen.getByText(copy.totals.trips)).toBeInTheDocument();
 
-    expect(
-      screen.getByRole("heading", { name: "Cliente Alpha" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Cliente Beta" }),
-    ).toBeInTheDocument();
+    const groupRows = document.querySelectorAll("tr[data-entity-group-row]");
+    expect(groupRows).toHaveLength(2);
+    expect(groupRows[0]).toHaveTextContent("Cliente Alpha");
+    expect(groupRows[1]).toHaveTextContent("Cliente Beta");
 
     expect(screen.getByText("V-100")).toBeInTheDocument();
     expect(screen.getByText("V-200")).toBeInTheDocument();
     expect(
-      screen.getAllByRole("columnheader", { name: copy.columns.pending })
-        .length,
-    ).toBeGreaterThan(0);
-    expect(copy.columns.pending).toBe("Saldo");
+      screen.getAllByRole("columnheader", { name: copy.columns.pending }),
+    ).toHaveLength(1);
+    expect(copy.columns.pending).toBe("Por cobrar");
     expect(
-      screen.queryByRole("columnheader", { name: "Por cobrar" }),
+      screen.queryByRole("columnheader", { name: "Saldo" }),
     ).not.toBeInTheDocument();
 
     const openCostsA = screen.getByRole("link", {
@@ -391,12 +392,10 @@ describe("smoke: efectivo-por-cobrar", () => {
     expect(
       screen.getByText(copy.clientChip("Cliente Alpha")),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Cliente Alpha" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Cliente Beta" }),
-    ).not.toBeInTheDocument();
+    const groupRows = document.querySelectorAll("tr[data-entity-group-row]");
+    expect(groupRows).toHaveLength(1);
+    expect(groupRows[0]).toHaveTextContent("Cliente Alpha");
+    expect(groupRows[0]).not.toHaveTextContent("Cliente Beta");
   });
 
   it("card cliente con saldo enlaza a bandeja ?clientId= (no Cobros)", () => {

@@ -3,7 +3,10 @@ import type {
   OperationalCashPendingByClient,
   OperationalCashPendingTrip,
 } from "@features/finance/domain/operationalCashPending";
-import { groupOperationalCashPendingByClient } from "./groupOperationalCashPending";
+import {
+  groupOperationalCashPendingByClient,
+  operationalCashClientKey,
+} from "./groupOperationalCashPending";
 
 function trip(
   partial: Partial<OperationalCashPendingTrip> &
@@ -76,5 +79,22 @@ describe("groupOperationalCashPendingByClient", () => {
     const groups = groupOperationalCashPendingByClient(trips, byClient);
     expect(groups).toHaveLength(1);
     expect(groups[0]!.clientId).toBe("c-b");
+  });
+
+  it("aplanar los grupos deja filas contiguas por key (filas de grupo de la tabla)", () => {
+    const byClient: OperationalCashPendingByClient[] = [
+      { clientId: "c-a", clientName: "Alpha", pendingAmount: 2000, tripCount: 2 },
+      { clientId: null, clientName: null, pendingAmount: 1000, tripCount: 1 },
+    ];
+    const trips = [
+      trip({ id: "t1", clientId: "c-a" }),
+      trip({ id: "t2", clientId: null }),
+      trip({ id: "t3", clientId: "c-a" }),
+    ];
+
+    const keys = groupOperationalCashPendingByClient(trips, byClient)
+      .flatMap((g) => g.trips)
+      .map((t) => operationalCashClientKey(t.clientId));
+    expect(keys).toEqual(["c-a", "c-a", "__none__"]);
   });
 });

@@ -164,8 +164,14 @@ describe("FinanceEfectivoPorCobrarPage", () => {
       screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
     expect(screen.getByText(copy.channelHint)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Cliente Alpha" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Cliente Beta" })).toBeInTheDocument();
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+    const groupRows = document.querySelectorAll("tr[data-entity-group-row]");
+    expect(groupRows).toHaveLength(2);
+    expect(groupRows[0]).toHaveTextContent("Cliente Alpha");
+    expect(groupRows[1]).toHaveTextContent("Cliente Beta");
+    expect(
+      screen.queryByRole("heading", { name: "Cliente Alpha" }),
+    ).not.toBeInTheDocument();
 
     const linkA = screen.getByRole("link", {
       name: copy.openCostsAria("V-100"),
@@ -284,17 +290,24 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     expect(screen.getByText(copy.relatedConfig.description)).toBeInTheDocument();
   });
 
-  it("uses Saldo column label (not Por cobrar)", () => {
+  it("uses Cobrado / Por cobrar columns and Por cobrar KPI (no Cobro column)", () => {
     renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
       route: ["/finance/operational-cash-pending"],
     });
 
-    const headers = screen.getAllByRole("columnheader", { name: copy.columns.pending });
-    expect(headers.length).toBeGreaterThan(0);
-    expect(copy.columns.pending).toBe("Saldo");
     expect(
-      screen.queryByRole("columnheader", { name: "Por cobrar" }),
+      screen.getAllByRole("columnheader", { name: "Por cobrar" }),
+    ).toHaveLength(1);
+    expect(
+      screen.getByRole("columnheader", { name: "Cobrado" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Saldo" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Cobro" }),
+    ).not.toBeInTheDocument();
+    expect(copy.totals.pending).toBe("Por cobrar");
   });
 
   it("keeps page title Cobros sin factura (not Facturas a crédito heading)", () => {
@@ -306,7 +319,9 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     ).toBeInTheDocument();
     expect(copy.title).toBe("Cobros sin factura");
     expect(copy.description).toMatch(/Sin factura/i);
-    expect(copy.description).toMatch(/Facturas a crédito/);
+    expect(copy.description).not.toMatch(/Facturas a crédito/);
+    expect(copy.channelHint).toMatch(/Facturas a crédito/);
+    expect(copy.channelHint).toMatch(/programados/i);
     expect(copy.description).not.toMatch(/efectivo cobrado/i);
     expect(
       within(document.body).queryByRole("heading", {

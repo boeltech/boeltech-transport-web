@@ -29,7 +29,11 @@ export {
 export { PasswordRequirementsList } from "./PasswordRequirementsList";
 export { RHFSelect, type RHFSelectOption } from "./RHFSelect";
 export { RHFTextField, type RHFTextFieldProps } from "./RHFTextField";
-export { MoneyInput, type MoneyInputProps } from "./MoneyInput";
+export {
+  MoneyInput,
+  formatMoneyAmountOnly,
+  type MoneyInputProps,
+} from "./MoneyInput";
 export { RHFMoneyField, type RHFMoneyFieldProps } from "./RHFMoneyField";
 export { DateField, type DateFieldProps } from "./DateField";
 export { MonthField, type MonthFieldProps } from "./MonthField";

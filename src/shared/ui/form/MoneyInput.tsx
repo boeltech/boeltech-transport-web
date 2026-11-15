@@ -97,7 +97,7 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
       onBlur,
       onFocus,
       onKeyDown,
-      placeholder = "$0.00",
+      placeholder = "0.00",
       disabled,
       readOnly,
       ...props
