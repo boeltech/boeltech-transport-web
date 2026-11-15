@@ -80,6 +80,12 @@ function renderPanel(
   queryOverrides: {
     isError?: boolean;
     refetch?: ReturnType<typeof vi.fn>;
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
   } = {},
 ) {
   const refetch = queryOverrides.refetch ?? vi.fn();
@@ -88,7 +94,7 @@ function renderPanel(
       ? undefined
       : {
           data: documents,
-          pagination: {
+          pagination: queryOverrides.pagination ?? {
             page: 1,
             limit: 25,
             total: documents.length,
@@ -234,5 +240,36 @@ describe("FinanceDispatchSentPanel", () => {
     expect(
       screen.queryByRole("button", { name: /Reenviar/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("with data and one page: shows results summary and no pager controls", () => {
+    renderPanel(vi.fn(), [buildDocument()], {
+      pagination: { page: 1, limit: 25, total: 1, totalPages: 1 },
+    });
+
+    expect(screen.getByText(/Mostrando/)).toBeInTheDocument();
+    expect(screen.getByText("1-1")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Anterior" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Siguiente" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows selectedHint that mentions esta página after selection", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "Seleccionar A-10" })[0]!,
+    );
+
+    expect(
+      screen.getByText(dispatchRunsCopy.workbench.sent.selectedHint),
+    ).toBeInTheDocument();
+    expect(dispatchRunsCopy.workbench.sent.selectedHint).toMatch(
+      /esta página/i,
+    );
   });
 });

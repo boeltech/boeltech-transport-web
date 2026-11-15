@@ -55,6 +55,12 @@ function renderPanel(
   queryOverrides: {
     isError?: boolean;
     refetch?: ReturnType<typeof vi.fn>;
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
   } = {},
   initialEntry = "/finance/dispatch",
 ) {
@@ -64,7 +70,7 @@ function renderPanel(
       ? undefined
       : {
           data: documents,
-          pagination: {
+          pagination: queryOverrides.pagination ?? {
             page: 1,
             limit: 25,
             total: documents.length,
@@ -215,5 +221,64 @@ describe("FinanceDispatchPendingPanel", () => {
         documentKind: "rep",
       }),
     );
+  });
+
+  it("with data and one page: shows results summary and no pager controls", () => {
+    const docs = Array.from({ length: 23 }, (_, i) =>
+      buildDocument({
+        id: `inv-${i + 1}`,
+        folioLabel: `A-${i + 1}`,
+        groupKey: `client-${i + 1}`,
+        clientId: `client-${i + 1}`,
+        clientName: `Cliente ${i + 1}`,
+      }),
+    );
+    renderPanel(vi.fn(), docs, {
+      pagination: { page: 1, limit: 25, total: 23, totalPages: 1 },
+    });
+
+    expect(screen.getByText(/Mostrando/)).toBeInTheDocument();
+    expect(screen.getByText("1-23")).toBeInTheDocument();
+    expect(screen.getByText("23")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Anterior" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Siguiente" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("with totalPages > 1: shows pager; selection clears on page change", async () => {
+    const user = userEvent.setup();
+    const docs = Array.from({ length: 25 }, (_, i) =>
+      buildDocument({
+        id: `inv-${i + 1}`,
+        folioLabel: `A-${i + 1}`,
+        groupKey: `client-${i + 1}`,
+        clientId: `client-${i + 1}`,
+        clientName: `Cliente ${i + 1}`,
+      }),
+    );
+    renderPanel(vi.fn(), docs, {
+      pagination: { page: 1, limit: 25, total: 40, totalPages: 2 },
+    });
+
+    expect(screen.getByRole("button", { name: "Siguiente" })).toBeInTheDocument();
+
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "Seleccionar A-1" })[0]!,
+    );
+    expect(
+      screen.getByRole("button", { name: "Enviar 1 documento" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dispatchRunsCopy.workbench.pending.selectedHint),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Siguiente" }));
+
+    expect(
+      screen.queryByRole("button", { name: /Enviar/i }),
+    ).not.toBeInTheDocument();
   });
 });

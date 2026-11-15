@@ -177,4 +177,13 @@ describe("dispatchRunsCopy glossary", () => {
       "Buscar por folio o cliente",
     );
   });
+
+  it("Envíos pending/sent: hint de lote menciona esta página (paridad Cobros)", () => {
+    expect(dispatchRunsCopy.workbench.pending.selectedHint).toMatch(
+      /lote.*esta página/i,
+    );
+    expect(dispatchRunsCopy.workbench.sent.selectedHint).toMatch(
+      /lote.*esta página/i,
+    );
+  });
 });

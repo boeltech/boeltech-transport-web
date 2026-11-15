@@ -61,7 +61,7 @@ export const dispatchRunsCopy = {
         type: "Tipo",
       },
       selectedHint:
-        "Puedes seleccionar facturas y comprobantes de pago de distintos clientes.",
+        "El lote es la selección de esta página. Puedes incluir facturas y comprobantes de pago de distintos clientes.",
       sendCta: (count: number) =>
         count === 1 ? "Enviar 1 documento" : `Enviar ${count} documentos`,
       empty: {
@@ -106,7 +106,7 @@ export const dispatchRunsCopy = {
         chipTo: (value: string) => `Hasta: ${value}`,
       },
       selectedHint:
-        "Puedes seleccionar facturas y comprobantes de pago de distintos clientes.",
+        "El lote es la selección de esta página. Puedes incluir facturas y comprobantes de pago de distintos clientes.",
       resendCta: (count: number) =>
         count === 1 ? "Reenviar 1 documento" : `Reenviar ${count} documentos`,
       empty: {
