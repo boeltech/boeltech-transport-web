@@ -1,9 +1,12 @@
 /**
  * FinanceInvoiceListTable — facturas del hub Finanzas (`EntityListTable`).
  *
- * ≤7 cols: Folio · Cliente · Fecha+método · Total · Saldo · Viajes · Estado(+envío).
+ * ≤7 cols: Folio · Cliente · Fecha+método · Total · Saldo · Viajes · Estado(+envío L2).
  * Empty → null (WorkbenchPageShell). Workbench sin card de List: framed default.
  * Sin checkboxes (T9: no hay lote en este listado).
+ *
+ * Densidad Operate (PRD D1–D7): en Estado máximo un badge fiscal; envío = texto L2
+ * tipográfico (solo staff + stamped). Método de pago = texto muted, no Badge.
  */
 
 import { useMemo } from "react";
@@ -22,7 +25,6 @@ import type {
 import {
   getDisplayAmountsFromInvoiceFields,
   InvoiceBillingScopeBadge,
-  InvoiceEmailDispatchBadge,
   invoicingCopy,
 } from "@features/invoicing";
 import { FinanceInvoiceStatusBadge } from "../config/financeInvoiceStatusConfig";
@@ -52,6 +54,42 @@ function statusLabel(
 ): string {
   if (isClientPortal) return copy.statusLabelsClient[status];
   return copy.statusLabels[status];
+}
+
+/**
+ * L2 de envío: solo staff + stamped. Misma regla/copy que InvoiceEmailDispatchBadge,
+ * sin segundo chip (D1–D3).
+ */
+function dispatchSecondaryLine(
+  invoice: FinanceInvoiceListItem,
+): EntityListStackedValue["secondary"] {
+  if (invoice.status !== "stamped") return undefined;
+
+  const sent = Boolean(invoice.dispatchSentAt);
+  const autoFailed =
+    !sent && invoice.autoDispatch?.lastItemStatus === "failed";
+
+  if (autoFailed) {
+    return (
+      <span
+        className="text-destructive"
+        title={invoicingCopy.send.listAutoFailTitle}
+      >
+        {invoicingCopy.send.badgeAutoFail}
+      </span>
+    );
+  }
+
+  const label = sent
+    ? invoicingCopy.send.badgeSent
+    : invoicingCopy.send.badgeNotSent;
+  const title = sent
+    ? invoice.dispatchSentAt
+      ? invoicingCopy.send.badgeSentOn(formatDate(invoice.dispatchSentAt))
+      : invoicingCopy.send.listSentTitle
+    : invoicingCopy.send.listNotSentTitle;
+
+  return <span title={title}>{label}</span>;
 }
 
 interface FinanceInvoiceListTableProps {
@@ -131,11 +169,7 @@ function buildColumns(
       kind: "stacked",
       accessor: (invoice): EntityListStackedValue => ({
         primary: formatDate(invoice.issuedAt),
-        secondary: (
-          <Badge variant="outline" className="text-xs font-normal">
-            {formatFinancePaymentMethodLabel(invoice.paymentMethod)}
-          </Badge>
-        ),
+        secondary: formatFinancePaymentMethodLabel(invoice.paymentMethod),
       }),
     },
     {
@@ -173,27 +207,19 @@ function buildColumns(
     {
       id: "status",
       header: copy.table.status,
-      kind: "status",
-      accessor: (invoice) => (
-        <div className="flex flex-col items-start gap-1">
-          {isClientPortal ? (
-            <Badge variant="secondary" className="text-xs font-normal">
-              {statusLabel(invoice.status, true)}
-            </Badge>
-          ) : (
-            <FinanceInvoiceStatusBadge status={invoice.status} />
-          )}
-          {!isClientPortal ? (
-            <InvoiceEmailDispatchBadge
-              status={invoice.status}
-              dispatchSentAt={invoice.dispatchSentAt}
-              autoDispatchLastItemStatus={
-                invoice.autoDispatch?.lastItemStatus
-              }
-            />
-          ) : null}
-        </div>
-      ),
+      kind: "stacked",
+      accessor: (invoice): EntityListStackedValue => ({
+        primary: isClientPortal ? (
+          <Badge variant="secondary" className="text-xs font-normal">
+            {statusLabel(invoice.status, true)}
+          </Badge>
+        ) : (
+          <FinanceInvoiceStatusBadge status={invoice.status} />
+        ),
+        secondary: isClientPortal
+          ? undefined
+          : dispatchSecondaryLine(invoice),
+      }),
     },
   );
 

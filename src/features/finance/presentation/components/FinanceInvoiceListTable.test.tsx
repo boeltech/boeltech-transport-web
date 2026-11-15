@@ -168,7 +168,28 @@ describe("FinanceInvoiceListTable", () => {
     expect(screen.queryByText(/^stamping$/)).not.toBeInTheDocument();
   });
 
-  it("shows Enviada chip when dispatchSentAt is set on stamped rows", () => {
+  it("shows payment method as muted secondary text, not a Badge (D4)", () => {
+    renderTable({
+      invoices: [
+        buildInvoice({ paymentMethod: "PPD" }),
+        buildInvoice({
+          id: "inv-2",
+          folio: 2,
+          paymentMethod: "PUE",
+        }),
+      ],
+    });
+
+    const credit = screen.getByText("A crédito");
+    const cash = screen.getByText("De contado");
+    expect(credit).toBeInTheDocument();
+    expect(cash).toBeInTheDocument();
+    // Método de pago ya no va en Badge outline; solo texto L2.
+    expect(credit.closest(".rounded-md")).toBeNull();
+    expect(cash.closest(".rounded-md")).toBeNull();
+  });
+
+  it("shows Enviada as L2 text when dispatchSentAt is set on stamped rows", () => {
     renderTable({
       invoices: [
         buildInvoice({
@@ -178,13 +199,47 @@ describe("FinanceInvoiceListTable", () => {
     });
 
     expect(screen.getByText("Enviada")).toBeInTheDocument();
+    expect(screen.getByText("Emitida")).toBeInTheDocument();
   });
 
-  it("shows No enviada chip for stamped rows without dispatchSentAt", () => {
+  it("shows No enviada as L2 text for stamped rows without dispatchSentAt", () => {
     renderTable({
       invoices: [buildInvoice({ dispatchSentAt: null })],
     });
 
     expect(screen.getByText("No enviada")).toBeInTheDocument();
+  });
+
+  it("shows Envío auto falló as L2 text without a second dispatch badge (D2)", () => {
+    renderTable({
+      invoices: [
+        buildInvoice({
+          dispatchSentAt: null,
+          autoDispatch: { lastItemStatus: "failed" },
+        }),
+      ],
+    });
+
+    expect(screen.getByText("Envío auto falló")).toBeInTheDocument();
+    expect(screen.queryByText("No enviada")).not.toBeInTheDocument();
+    expect(screen.getByText("Emitida")).toBeInTheDocument();
+  });
+
+  it("hides dispatch L2 for non-stamped staff rows (D3)", () => {
+    renderTable({
+      invoices: [
+        buildInvoice({ status: "draft", dispatchSentAt: null }),
+        buildInvoice({
+          id: "inv-2",
+          folio: 2,
+          status: "cancelled",
+          dispatchSentAt: null,
+        }),
+      ],
+    });
+
+    expect(screen.queryByText("No enviada")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enviada")).not.toBeInTheDocument();
+    expect(screen.queryByText("Envío auto falló")).not.toBeInTheDocument();
   });
 });
