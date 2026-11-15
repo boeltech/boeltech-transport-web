@@ -6,19 +6,13 @@ import { useRole } from "@shared/permissions";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { Skeleton } from "@shared/ui/skeleton";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { useQueryErrorToast } from "@shared/hooks";
-import { formatDate } from "@shared/utils/dateUtils";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import {
   FINANCE_INVOICEABLE_PATH,
   FINANCE_INVOICES_PATH,
@@ -56,59 +50,128 @@ const workbenchCopy = copy.workbench;
 const PAGE_SIZE = 10;
 
 // ============================================================================
-// TABLE
+// TABLE — EntityListTable workbench (Conform D1–D7)
 // ============================================================================
 
-const TABLE_HEADERS = [
-  { key: "trip", label: copy.table.trip },
-  { key: "client", label: copy.table.client },
-  { key: "route", label: copy.table.route },
-  { key: "departure", label: copy.table.departure },
-  { key: "baseRate", label: copy.table.baseRate, className: "text-right" },
-  { key: "action", label: "", className: "w-0" },
-];
+function buildInvoiceableColumns(opts: {
+  onInvoice: (trip: TripListItem) => void;
+  onOpenTripInvoicing: (trip: TripListItem) => void;
+}): EntityListColumnDef<TripListItem>[] {
+  const { onInvoice, onOpenTripInvoicing } = opts;
 
-function TableHeaderRow() {
-  return (
-    <TableHeader>
-      <TableRow>
-        {TABLE_HEADERS.map((header) => (
-          <TableHead key={header.key} className={header.className}>
-            {header.label}
-          </TableHead>
-        ))}
-      </TableRow>
-    </TableHeader>
-  );
-}
+  return [
+    {
+      id: "trip",
+      header: copy.table.trip,
+      kind: "primary",
+      className: "font-mono",
+      accessor: (trip): EntityListStackedValue => {
+        const hasActiveSplit = trip.invoicing.hasActiveSplit;
+        const splitProgress =
+          hasActiveSplit && trip.invoicing.splitLegsTotal > 0
+            ? copy.table.splitLegsProgress(
+                trip.invoicing.splitLegsInvoiced,
+                trip.invoicing.splitLegsTotal,
+              )
+            : null;
+        const hasChips =
+          trip.operationalOutcome === "false_trip" || hasActiveSplit;
+        const secondary =
+          hasChips || splitProgress ? (
+            <div className="flex flex-col gap-1 whitespace-normal">
+              {hasChips ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {trip.operationalOutcome === "false_trip" ? (
+                    <Badge variant="warning" tone="soft" className="text-xs">
+                      {copy.table.falseTripChip}
+                    </Badge>
+                  ) : null}
+                  {hasActiveSplit ? (
+                    <Badge variant="default" className="text-xs">
+                      {copy.table.splitShareChip}
+                    </Badge>
+                  ) : null}
+                </div>
+              ) : null}
+              {splitProgress ? <span>{splitProgress}</span> : null}
+            </div>
+          ) : undefined;
 
-function LoadingSkeleton() {
-  return (
-    <TableBody>
-      {Array.from({ length: PAGE_SIZE }).map((_, index) => (
-        <TableRow key={index}>
-          <TableCell>
-            <Skeleton className="h-4 w-24" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-40" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-48" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-4 w-28" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="ml-auto h-4 w-20" />
-          </TableCell>
-          <TableCell>
-            <Skeleton className="h-8 w-24" />
-          </TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  );
+        return {
+          primary: trip.tripCode,
+          secondary,
+        };
+      },
+    },
+    {
+      id: "client",
+      header: copy.table.client,
+      kind: "text",
+      accessor: (trip) => trip.client?.legalName ?? copy.noClient,
+    },
+    {
+      id: "route",
+      header: copy.table.route,
+      kind: "meta",
+      accessor: (trip) => formatRoute(trip.originCity, trip.destinationCity),
+    },
+    {
+      id: "departure",
+      header: copy.table.departure,
+      kind: "date",
+      accessor: (trip) => trip.scheduledDeparture.toISOString(),
+    },
+    {
+      id: "baseRate",
+      header: copy.table.baseRate,
+      kind: "money",
+      accessor: (trip) => trip.baseRate,
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      className: "w-auto",
+      headerClassName: "w-0",
+      accessor: (trip) => {
+        const isBlocked = classifyInvoiceableBucket(trip) === "blocked";
+        const blockReason =
+          isBlocked && trip.invoicing.blockReason
+            ? trip.invoicing.blockReason
+            : null;
+
+        if (shouldOpenInvoiceCreateFromFinanceHub(trip)) {
+          return (
+            <Button
+              size="sm"
+              onClick={() => onInvoice(trip)}
+              data-help-anchor="inv-facturar-row"
+            >
+              {copy.invoiceAction}
+            </Button>
+          );
+        }
+
+        return (
+          <div className="flex max-w-[14rem] flex-col items-end gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              title={blockReason ?? undefined}
+              onClick={() => onOpenTripInvoicing(trip)}
+            >
+              {copy.goToTripInvoicing}
+            </Button>
+            {blockReason ? (
+              <span className="text-xs font-normal text-muted-foreground text-right">
+                {blockReason}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
+    },
+  ];
 }
 
 function InvoiceableTripsTable({
@@ -116,109 +179,30 @@ function InvoiceableTripsTable({
   isLoading,
   onInvoice,
   onOpenTripInvoicing,
+  primaryState,
 }: {
   trips: TripListItem[];
   isLoading: boolean;
   onInvoice: (trip: TripListItem) => void;
   onOpenTripInvoicing: (trip: TripListItem) => void;
+  primaryState: () => unknown;
 }) {
-  return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeaderRow />
-        {isLoading ? (
-          <LoadingSkeleton />
-        ) : (
-          <TableBody>
-            {trips.map((trip) => {
-              const hasActiveSplit = trip.invoicing.hasActiveSplit;
-              const isBlocked = classifyInvoiceableBucket(trip) === "blocked";
-              const blockReason =
-                isBlocked && trip.invoicing.blockReason
-                  ? trip.invoicing.blockReason
-                  : null;
-              const splitProgress =
-                hasActiveSplit && trip.invoicing.splitLegsTotal > 0
-                  ? copy.table.splitLegsProgress(
-                      trip.invoicing.splitLegsInvoiced,
-                      trip.invoicing.splitLegsTotal,
-                    )
-                  : null;
+  const columns = useMemo(
+    () => buildInvoiceableColumns({ onInvoice, onOpenTripInvoicing }),
+    [onInvoice, onOpenTripInvoicing],
+  );
 
-              return (
-                <TableRow key={trip.id}>
-                  <TableCell className="font-mono font-medium">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span>{trip.tripCode}</span>
-                        {trip.operationalOutcome === "false_trip" ? (
-                          <Badge
-                            variant="warning"
-                            tone="soft"
-                            className="text-xs"
-                          >
-                            {copy.table.falseTripChip}
-                          </Badge>
-                        ) : null}
-                        {hasActiveSplit ? (
-                          <Badge variant="default" className="text-xs">
-                            {copy.table.splitShareChip}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      {splitProgress ? (
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {splitProgress}
-                        </span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {trip.client?.legalName ?? copy.noClient}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatRoute(trip.originCity, trip.destinationCity)}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {formatDate(trip.scheduledDeparture.toISOString())}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatMxCurrency(trip.baseRate)}
-                  </TableCell>
-                  <TableCell>
-                    {shouldOpenInvoiceCreateFromFinanceHub(trip) ? (
-                      <Button
-                        size="sm"
-                        onClick={() => onInvoice(trip)}
-                        data-help-anchor="inv-facturar-row"
-                      >
-                        {copy.invoiceAction}
-                      </Button>
-                    ) : (
-                      <div className="flex max-w-[14rem] flex-col items-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          title={blockReason ?? undefined}
-                          onClick={() => onOpenTripInvoicing(trip)}
-                        >
-                          {copy.goToTripInvoicing}
-                        </Button>
-                        {blockReason ? (
-                          <span className="text-xs font-normal text-muted-foreground text-right">
-                            {blockReason}
-                          </span>
-                        ) : null}
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        )}
-      </Table>
-    </div>
+  return (
+    <EntityListTable
+      density="list"
+      aria-label={copy.title}
+      columns={columns}
+      rows={trips}
+      getRowId={(row) => row.id}
+      isLoading={isLoading}
+      primaryTo={(trip) => buildTripInvoicingHubPath(trip.id)}
+      primaryState={primaryState}
+    />
   );
 }
 
@@ -228,7 +212,7 @@ function InvoiceableTripsTable({
 
 export function FinanceInvoiceablePage() {
   const navigate = useNavigate();
-  const { from: queueFrom } = useInvoiceQueueFromState();
+  const queueFromState = useInvoiceQueueFromState();
   const role = useRole();
   const isAccountant = role === ROLES.ACCOUNTANT;
 
@@ -306,20 +290,22 @@ export function FinanceInvoiceablePage() {
   const handleInvoice = useCallback(
     (trip: TripListItem) => {
       navigate(buildInvoiceCreatePathFromTrip(trip), {
-        state: { from: queueFrom },
+        state: queueFromState,
       });
     },
-    [navigate, queueFrom],
+    [navigate, queueFromState],
   );
 
   const handleOpenTripInvoicing = useCallback(
     (trip: TripListItem) => {
       navigate(buildTripInvoicingHubPath(trip.id), {
-        state: { from: queueFrom },
+        state: queueFromState,
       });
     },
-    [navigate, queueFrom],
+    [navigate, queueFromState],
   );
+
+  const primaryState = useCallback(() => queueFromState, [queueFromState]);
 
   const isDegraded = isError && !isLoading;
   const emptyBucket = workbenchCopy.emptyByBucket[activeBucket];
@@ -361,12 +347,13 @@ export function FinanceInvoiceablePage() {
       renderContent={() => {
         if (listLoading) {
           return (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeaderRow />
-                <LoadingSkeleton />
-              </Table>
-            </div>
+            <InvoiceableTripsTable
+              trips={[]}
+              isLoading
+              onInvoice={handleInvoice}
+              onOpenTripInvoicing={handleOpenTripInvoicing}
+              primaryState={primaryState}
+            />
           );
         }
 
@@ -422,6 +409,7 @@ export function FinanceInvoiceablePage() {
             isLoading={false}
             onInvoice={handleInvoice}
             onOpenTripInvoicing={handleOpenTripInvoicing}
+            primaryState={primaryState}
           />
         );
       }}
