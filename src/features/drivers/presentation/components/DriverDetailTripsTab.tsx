@@ -1,15 +1,23 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import type { InfiniteData } from "@tanstack/react-query";
-import { AlertTriangle, Route, Truck } from "lucide-react";
+import { AlertTriangle, Ban, Clock, Route, Truck } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
 import { Skeleton } from "@shared/ui/skeleton";
-import { DetailSection, DetailTimeline } from "@shared/ui/data-display";
+import {
+  DetailSection,
+  DetailTimeline,
+  type DetailTimelineItem,
+} from "@shared/ui/data-display";
 import type { MappedPaginatedResult } from "@shared/api";
 import type { DriverTripSummary } from "../../domain";
-import { TripStatus, TRIP_STATUS_LABELS } from "@features/trips";
+import {
+  TripStatus,
+  TRIP_STATUS_LABELS,
+  type TripStatusType,
+} from "@features/trips";
 import { useDriverTripsInfinite } from "../../application";
 import { driversCopy } from "../copy";
 import { formatDate } from "@shared/utils/dateUtils";
@@ -18,6 +26,46 @@ const copy = driversCopy.detail;
 
 interface DriverDetailTripsTabProps {
   driverId: string;
+}
+
+/** Rail del timeline: distingue Completado / En ruta / Cancelado / resto. */
+function railPropsForTripStatus(
+  status: TripStatusType,
+): Pick<
+  DetailTimelineItem,
+  "icon" | "completed" | "dotBgClassName" | "dotIconClassName"
+> {
+  switch (status) {
+    case TripStatus.COMPLETED:
+      // `icon` no se muestra: DetailTimeline lo reemplaza por Check.
+      return {
+        icon: <Truck className="h-4 w-4" aria-hidden />,
+        completed: true,
+      };
+    case TripStatus.IN_PROGRESS:
+      return {
+        icon: <Truck className="h-4 w-4" aria-hidden />,
+        completed: false,
+        dotBgClassName: "bg-primary/10",
+        dotIconClassName: "text-primary",
+      };
+    case TripStatus.CANCELLED:
+      return {
+        icon: <Ban className="h-4 w-4" aria-hidden />,
+        completed: false,
+        dotBgClassName: "bg-destructive/10",
+        dotIconClassName: "text-destructive",
+      };
+    case TripStatus.SCHEDULED:
+    case TripStatus.DRAFT:
+    default:
+      return {
+        icon: <Clock className="h-4 w-4" aria-hidden />,
+        completed: false,
+        dotBgClassName: "bg-muted",
+        dotIconClassName: "text-muted-foreground",
+      };
+  }
 }
 
 export function DriverDetailTripsTab({ driverId }: DriverDetailTripsTabProps) {
@@ -48,11 +96,11 @@ export function DriverDetailTripsTab({ driverId }: DriverDetailTripsTabProps) {
         const clientLabel = trip.client?.legalName?.trim() || null;
         const statusLabel =
           TRIP_STATUS_LABELS[trip.status] ?? String(trip.status);
+        const rail = railPropsForTripStatus(trip.status);
 
         return {
           id: trip.id,
-          icon: <Truck className="h-4 w-4" />,
-          completed: trip.status === TripStatus.COMPLETED,
+          ...rail,
           dotSize: "sm" as const,
           content: (
             <div
@@ -67,19 +115,14 @@ export function DriverDetailTripsTab({ driverId }: DriverDetailTripsTabProps) {
               onClick={() => navigate(`/trips/${trip.id}`)}
               className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
             >
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <Truck className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-mono font-medium">{trip.tripCode}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {trip.originCity} → {trip.destinationCity}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {copy.format.tripMeta(vehicleLabel, clientLabel)}
-                  </p>
-                </div>
+              <div className="min-w-0">
+                <p className="font-mono font-medium">{trip.tripCode}</p>
+                <p className="text-sm text-muted-foreground">
+                  {trip.originCity} → {trip.destinationCity}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {copy.format.tripMeta(vehicleLabel, clientLabel)}
+                </p>
               </div>
               <div className="shrink-0 text-right">
                 <Badge variant="outline">{statusLabel}</Badge>
