@@ -2,19 +2,15 @@
  * ClientTripHistoryTab — tabla paginada de viajes del cliente (WS-B)
  *
  * Por defecto cohorte operativa (excluye draft/cancelled), alineada a KPIs del header.
+ * Matriz: EntityListTable compact embebida (framed=false; navegación solo por link primario).
  */
 
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
-import { History, Loader2, Route, CalendarDays } from "lucide-react";
+import { History, Route, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
 } from "@shared/ui/table";
 import { Badge } from "@shared/ui/badge";
 import { Label } from "@shared/ui/label";
@@ -22,13 +18,13 @@ import { Switch } from "@shared/ui/switch";
 import { ListingPagination } from "@shared/ui/listing";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { formatDateTime } from "@shared/utils/dateUtils";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { TripStatusBadge } from "@features/trips/presentation/config/tripStatusConfig";
 import { InvoiceStatusBadge } from "@features/invoicing/presentation/components";
 import type { TripStatusType } from "@features/trips/domain";
 import type { InvoiceStatus } from "@features/invoicing/domain";
 
 import { useClientTripHistory } from "../../application";
+import type { ClientTripHistoryItem } from "../../domain";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
 
 const copy = clientDetailCopy.history;
@@ -64,6 +60,67 @@ function formatRoute(origin: string | null, destination: string | null): string 
   return `${origin} → ${destination}`;
 }
 
+function buildColumns(): EntityListColumnDef<ClientTripHistoryItem>[] {
+  return [
+    {
+      id: "trip",
+      header: copy.table.trip,
+      kind: "primary",
+      accessor: (trip) => trip.tripCode,
+    },
+    {
+      id: "route",
+      header: copy.table.route,
+      kind: "text",
+      className: "max-w-[220px]",
+      accessor: (trip) => formatRoute(trip.originLabel, trip.destinationLabel),
+    },
+    {
+      id: "date",
+      header: copy.table.date,
+      kind: "meta",
+      accessor: (trip) =>
+        trip.scheduledDeparture
+          ? formatDateTime(trip.scheduledDeparture)
+          : null,
+    },
+    {
+      id: "revenue",
+      header: copy.table.revenue,
+      kind: "money",
+      accessor: (trip) => trip.revenue,
+    },
+    {
+      id: "source",
+      header: copy.table.source,
+      kind: "status",
+      accessor: (trip) => (
+        <Badge variant="outline" className="text-xs">
+          {formatRevenueSource(trip.revenueSource)}
+        </Badge>
+      ),
+    },
+    {
+      id: "status",
+      header: copy.table.status,
+      kind: "status",
+      accessor: (trip) => (
+        <TripStatusBadge
+          status={trip.status as TripStatusType}
+          size="sm"
+          showIcon={false}
+        />
+      ),
+    },
+    {
+      id: "invoice",
+      header: copy.table.invoice,
+      kind: "status",
+      accessor: (trip) => formatInvoiceStatus(trip.invoiceStatus),
+    },
+  ];
+}
+
 export function ClientTripHistoryTab({ clientId }: ClientTripHistoryTabProps) {
   const [page, setPage] = useState(1);
   const [includeExcluded, setIncludeExcluded] = useState(false);
@@ -76,6 +133,8 @@ export function ClientTripHistoryTab({ clientId }: ClientTripHistoryTabProps) {
   const trips = historyQuery.data?.data ?? [];
   const pagination = historyQuery.data?.pagination;
   const isLoading = historyQuery.isLoading;
+  const columns = buildColumns();
+  const isEmpty = !isLoading && trips.length === 0;
 
   const handleToggleExcluded = (checked: boolean) => {
     setIncludeExcluded(checked);
@@ -121,11 +180,7 @@ export function ClientTripHistoryTab({ clientId }: ClientTripHistoryTabProps) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : trips.length === 0 ? (
+          {isEmpty ? (
             <EmptyState
               icon={<Route />}
               title={copy.table.empty}
@@ -133,61 +188,18 @@ export function ClientTripHistoryTab({ clientId }: ClientTripHistoryTabProps) {
             />
           ) : (
             <>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{copy.table.trip}</TableHead>
-                      <TableHead>{copy.table.route}</TableHead>
-                      <TableHead>{copy.table.date}</TableHead>
-                      <TableHead className="text-right">{copy.table.revenue}</TableHead>
-                      <TableHead>{copy.table.source}</TableHead>
-                      <TableHead>{copy.table.status}</TableHead>
-                      <TableHead>{copy.table.invoice}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {trips.map((trip) => (
-                      <TableRow key={trip.tripId}>
-                        <TableCell>
-                          <Link
-                            to={`/trips/${trip.tripId}`}
-                            className="font-mono text-sm font-medium text-primary hover:underline"
-                          >
-                            {trip.tripCode}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="max-w-[220px] truncate text-sm">
-                          {formatRoute(trip.originLabel, trip.destinationLabel)}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {trip.scheduledDeparture
-                            ? formatDateTime(trip.scheduledDeparture)
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatMxCurrency(trip.revenue)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {formatRevenueSource(trip.revenueSource)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <TripStatusBadge
-                            status={trip.status as TripStatusType}
-                            size="sm"
-                            showIcon={false}
-                          />
-                        </TableCell>
-                        <TableCell>{formatInvoiceStatus(trip.invoiceStatus)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <EntityListTable
+                framed={false}
+                density="compact"
+                columns={columns}
+                rows={trips}
+                getRowId={(row) => row.tripId}
+                isLoading={isLoading}
+                primaryTo={(row) => `/trips/${row.tripId}`}
+                aria-label={copy.title}
+              />
 
-              {pagination ? (
+              {pagination && !isLoading ? (
                 <ListingPagination
                   page={pagination.page}
                   totalPages={pagination.totalPages}
