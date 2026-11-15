@@ -1,7 +1,8 @@
 /**
  * TablesSection — EntityListTable (SoT §7 T1–T10)
  *
- * Demo viva: kinds, density list/compact, sort + aria-sort, skeleton, empty=null.
+ * Demo viva: kinds, density list/compact, sort + aria-sort, skeleton, empty=null,
+ * filas de grupo.
  */
 
 import { useMemo, useState } from "react";
@@ -21,6 +22,7 @@ import {
   type EntityListSortState,
   type EntityListStackedValue,
 } from "@shared/ui/table";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 type DemoStatus = "available" | "inTrip";
 
@@ -176,6 +178,145 @@ function buildColumns(): EntityListColumnDef<DemoRow>[] {
   ];
 }
 
+type GroupDemoRow = {
+  id: string;
+  code: string;
+  clientId: string;
+  departure: string;
+  rate: number;
+  collected: number;
+  pending: number;
+};
+
+const GROUP_DEMO_CLIENTS: Record<
+  string,
+  { name: string; tripCount: number; pending: number }
+> = {
+  c1: { name: "Epicteto", tripCount: 1, pending: 250 },
+  c2: { name: "ORGANICOS ÑAVEZ OSORIO", tripCount: 3, pending: 41_000 },
+};
+
+const GROUP_DEMO_ROWS: GroupDemoRow[] = [
+  {
+    id: "g1",
+    code: "TRP-261002-0001",
+    clientId: "c1",
+    departure: "2026-10-02",
+    rate: 28_000,
+    collected: 27_750,
+    pending: 250,
+  },
+  {
+    id: "g2",
+    code: "TRP-261108-0003",
+    clientId: "c2",
+    departure: "2026-11-13",
+    rate: 32_500,
+    collected: 17_500,
+    pending: 15_000,
+  },
+  {
+    id: "g3",
+    code: "TRP-261110-0004",
+    clientId: "c2",
+    departure: "2026-11-15",
+    rate: 26_000,
+    collected: 0,
+    pending: 26_000,
+  },
+];
+
+const GROUP_DEMO_COLUMNS: EntityListColumnDef<GroupDemoRow>[] = [
+  { id: "code", header: "Viaje", kind: "primary", accessor: (r) => r.code },
+  { id: "departure", header: "Salida", kind: "date", accessor: (r) => r.departure },
+  { id: "rate", header: "Tarifa", kind: "money", accessor: (r) => r.rate },
+  {
+    id: "collected",
+    header: "Cobrado",
+    kind: "stacked",
+    stackedWeight: "normal",
+    headerClassName: "text-right",
+    className: "text-right",
+    accessor: (r): EntityListStackedValue => ({
+      primary: (
+        <span className="font-mono tabular-nums">
+          {formatMxCurrency(r.collected)}
+        </span>
+      ),
+      secondary: r.collected > 0 ? "Último: Efectivo · Lote" : "Sin abonos",
+    }),
+  },
+  {
+    id: "pending",
+    header: "Por cobrar",
+    kind: "money",
+    className: "font-semibold",
+    accessor: (r) => r.pending,
+  },
+  {
+    id: "actions",
+    header: "",
+    kind: "actions",
+    className: "w-auto",
+    headerClassName: "w-0",
+    accessor: () => (
+      <Button type="button" variant="ghost" size="sm">
+        Abrir Costos
+      </Button>
+    ),
+  },
+];
+
+function GroupedTableDemo() {
+  return (
+    <div id="tables-entity-list-groups" className="space-y-3">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Filas de grupo</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            <code className="font-mono text-xs">getGroupKey</code> +{" "}
+            <code className="font-mono text-xs">renderGroupHeader</code>: un
+            solo encabezado de columnas, una fila de sección por grupo con
+            subtotal alineado bajo su columna y acción{" "}
+            <code className="font-mono text-xs">outline sm</code>. El subtotal
+            es el total del grupo que da la API; «k de n» cuando la página corta
+            al grupo. Ancla: Cobros sin factura.
+          </p>
+        </CardContent>
+      </Card>
+      <EntityListTable
+        columns={GROUP_DEMO_COLUMNS}
+        rows={GROUP_DEMO_ROWS}
+        getRowId={(r) => r.id}
+        primaryTo={(r) => `/trips/${r.id}?tab=costs`}
+        getGroupKey={(r) => r.clientId}
+        renderGroupHeader={({ key, rows }) => {
+          const client = GROUP_DEMO_CLIENTS[key]!;
+          return {
+            title: client.name,
+            meta:
+              rows.length < client.tripCount
+                ? `${rows.length} de ${client.tripCount} viajes`
+                : client.tripCount === 1
+                  ? "1 viaje"
+                  : `${client.tripCount} viajes`,
+            cells: {
+              pending: client.pending,
+              actions: (
+                <Button type="button" variant="outline" size="sm">
+                  Cobro por lote
+                </Button>
+              ),
+            },
+          };
+        }}
+      />
+    </div>
+  );
+}
+
 export function TablesSection() {
   const columns = useMemo(() => buildColumns(), []);
   const [density, setDensity] = useState<"list" | "compact">("list");
@@ -265,6 +406,8 @@ export function TablesSection() {
           </div>
         }
       />
+
+      <GroupedTableDemo />
 
       <Card>
         <CardHeader className="pb-2">

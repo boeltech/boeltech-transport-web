@@ -7,4 +7,6 @@ export {
   type EntityListStackedValue,
   type EntityListColumnDef,
   type EntityListTableProps,
+  type EntityListGroup,
+  type EntityListGroupHeader,
 } from "./EntityListTable";

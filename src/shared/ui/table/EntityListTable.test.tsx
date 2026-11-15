@@ -254,6 +254,119 @@ describe("EntityListTable", () => {
     expect(root.className).not.toContain("shadow-sm");
   });
 
+  describe("filas de grupo", () => {
+    const groupedRows: DemoRow[] = [
+      { ...rows[0], id: "a1", name: "A-1", branch: "Norte", amount: 100 },
+      { ...rows[0], id: "a2", name: "A-2", branch: "Norte", amount: 200 },
+      { ...rows[0], id: "b1", name: "B-1", branch: "Sur", amount: 50 },
+    ];
+
+    function renderGrouped(props: Partial<EntityListTableProps<DemoRow>> = {}) {
+      return renderTable({
+        rows: groupedRows,
+        getGroupKey: (r) => r.branch ?? "",
+        renderGroupHeader: (group) => ({
+          title: group.key,
+          meta: `${group.rows.length} filas`,
+          cells: {
+            amount: group.rows.reduce((sum, r) => sum + (r.amount ?? 0), 0),
+            actions: <button type="button">Lote {group.key}</button>,
+          },
+        }),
+        ...props,
+      });
+    }
+
+    it("una fila de grupo por corrida consecutiva, antes de sus filas", () => {
+      const { container } = renderGrouped();
+      const bodyRows = Array.from(container.querySelectorAll("tbody tr"));
+      expect(bodyRows.map((r) => r.hasAttribute("data-entity-group-row"))).toEqual(
+        [true, false, false, true, false],
+      );
+      expect(bodyRows[0]).toHaveTextContent("Norte · 2 filas");
+      expect(container.querySelectorAll("thead")).toHaveLength(1);
+    });
+
+    it("label abarca hasta la primera columna con celda; celdas alineadas por kind", () => {
+      const { container } = renderGrouped();
+      const groupRow = container.querySelector("tr[data-entity-group-row]")!;
+      const cells = within(groupRow as HTMLElement).getAllByRole("cell");
+      // name, branch, plate, km → label (colSpan 4); amount; actions
+      expect(cells[0]).toHaveAttribute("colspan", "4");
+      expect(cells).toHaveLength(3);
+      expect(cells[1]).toHaveTextContent("$300.00");
+      expect(cells[1]!.className).toContain("text-right");
+      expect(cells[1]!.className).toContain("font-mono");
+      expect(
+        within(cells[2]!).getByRole("button", { name: "Lote Norte" }),
+      ).toBeInTheDocument();
+    });
+
+    it("fila de grupo sin hover ni click de fila", async () => {
+      const user = userEvent.setup();
+      const onRowActivate = vi.fn();
+      const { container } = renderGrouped({
+        primaryTo: undefined,
+        onRowActivate,
+      });
+      const groupRow = container.querySelector(
+        "tr[data-entity-group-row]",
+      ) as HTMLElement;
+      expect(groupRow.className).toContain("hover:bg-muted/60");
+      expect(groupRow.className).not.toContain("cursor-pointer");
+      await user.click(groupRow);
+      expect(onRowActivate).not.toHaveBeenCalled();
+    });
+
+    it("las filas de grupo cuentan para el sticky header (> 25)", () => {
+      const many: DemoRow[] = Array.from({ length: 20 }, (_, i) => ({
+        ...rows[0],
+        id: `r${i}`,
+        branch: `G${Math.floor(i / 7)}`,
+      }));
+      const { container: grouped } = renderGrouped({ rows: many });
+      // 20 filas + 3 grupos = 23 → sin sticky
+      expect(grouped.querySelector("thead")!.className).not.toContain("sticky");
+
+      const many2: DemoRow[] = Array.from({ length: 20 }, (_, i) => ({
+        ...rows[0],
+        id: `s${i}`,
+        branch: `G${Math.floor(i / 2)}`,
+      }));
+      const { container: grouped2 } = renderGrouped({ rows: many2 });
+      // 20 filas + 10 grupos = 30 → sticky
+      expect(grouped2.querySelector("thead")!.className).toContain("sticky");
+    });
+
+    it("sin getGroupKey el render no cambia (sin filas de grupo)", () => {
+      const { container } = renderTable({ rows: groupedRows });
+      expect(container.querySelector("tr[data-entity-group-row]")).toBeNull();
+      expect(container.querySelectorAll("tbody tr")).toHaveLength(3);
+    });
+  });
+
+  it("stacked: stackedWeight normal quita font-medium de la línea 1", () => {
+    const columns: EntityListColumnDef<DemoRow>[] = [
+      {
+        id: "s",
+        header: "S",
+        kind: "stacked",
+        stackedWeight: "normal",
+        accessor: () => ({ primary: "Monto", secondary: "L2" }),
+      },
+      {
+        id: "d",
+        header: "D",
+        kind: "stacked",
+        accessor: () => ({ primary: "Default", secondary: "L2" }),
+      },
+    ];
+    renderTable({ columns, rows: [rows[0]] });
+    expect(screen.getByText("Monto").className).toContain("font-normal");
+    expect(screen.getByText("Monto").className).not.toContain("font-medium");
+    expect(screen.getByText("Default").className).toContain("font-medium");
+  });
+
   it("framed default envuelve en card Operate", () => {
     const { container } = renderTable({ rows: [rows[0]] });
     const root = container.firstChild as HTMLElement;

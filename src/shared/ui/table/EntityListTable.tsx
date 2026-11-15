@@ -4,6 +4,7 @@
  * Card propia si `framed` (default); bajo ListPageShell usar `framed={false}`.
  * Density siempre en Table + kinds + sort aria-sort.
  * Empty → null (shell posee empty). Loading → skeleton por columns.
+ * Filas de grupo opcionales (`getGroupKey` + `renderGroupHeader`).
  */
 
 import * as React from "react";
@@ -66,6 +67,27 @@ export interface EntityListColumnDef<TRow> {
   sortField?: string;
   className?: string;
   headerClassName?: string;
+  /** Peso de la línea 1 en `stacked` (default `"medium"`). */
+  stackedWeight?: "medium" | "normal";
+}
+
+/**
+ * Fila de grupo (sección dentro del mismo `<tbody>`).
+ * `title` + `meta` ocupan desde la primera columna hasta la anterior a la
+ * primera columna con contenido en `cells`; cada celda se alinea con su kind.
+ */
+export interface EntityListGroupHeader {
+  title: React.ReactNode;
+  /** Misma línea, muted, precedido de «·». */
+  meta?: React.ReactNode;
+  /** Contenido por `column.id` (p. ej. subtotal bajo la columna money, CTA en actions). */
+  cells?: Partial<Record<string, React.ReactNode>>;
+}
+
+export interface EntityListGroup<TRow> {
+  key: string;
+  /** Filas visibles del grupo (corrida consecutiva con la misma key). */
+  rows: TRow[];
 }
 
 export interface EntityListTableProps<TRow> {
@@ -100,9 +122,16 @@ export interface EntityListTableProps<TRow> {
    * Debe devolver `TableRow` / fragmento de rows — no `<tbody>`.
    */
   renderAfterRow?: (row: TRow) => React.ReactNode;
+  /**
+   * Agrupa filas consecutivas con la misma key bajo una fila de grupo.
+   * El caller entrega `rows` ya ordenadas por grupo (no se reordena aquí).
+   * Requiere `renderGroupHeader`.
+   */
+  getGroupKey?: (row: TRow) => string;
+  renderGroupHeader?: (group: EntityListGroup<TRow>) => EntityListGroupHeader;
   sort?: EntityListSortState | null;
   onSortChange?: (next: EntityListSortState) => void;
-  /** Sticky thead si true o rows.length > 25 (T10) */
+  /** Sticky thead si true o filas renderizadas (datos + grupo) > 25 (T10) */
   stickyHeader?: boolean;
   className?: string;
   /** `aria-label` del `<table>` (tests / a11y de listados con nombre). */
@@ -243,14 +272,22 @@ function EmptyDash() {
   return <span className="text-muted-foreground">{EMPTY_DASH}</span>;
 }
 
-function renderStacked(value: EntityListStackedValue): React.ReactNode {
+function renderStacked(
+  value: EntityListStackedValue,
+  weight: "medium" | "normal" = "medium",
+): React.ReactNode {
   const primaryEmpty = isEmptyCellValue(value.primary);
   const secondaryEmpty = isEmptyCellValue(value.secondary);
   if (primaryEmpty && secondaryEmpty) return <EmptyDash />;
 
   return (
     <div className="min-w-0">
-      <div className="truncate font-medium text-sm">
+      <div
+        className={cn(
+          "truncate text-sm",
+          weight === "medium" ? "font-medium" : "font-normal",
+        )}
+      >
         {primaryEmpty ? <EmptyDash /> : value.primary}
       </div>
       {!secondaryEmpty ? (
@@ -298,11 +335,18 @@ function renderCellContent<TRow>(
 
   if (column.kind === "stacked") {
     if (raw == null) return <EmptyDash />;
-    if (isStackedValue(raw)) return renderStacked(raw);
+    if (isStackedValue(raw)) return renderStacked(raw, column.stackedWeight);
     // Fallback: treat as single line if caller returned a node
     if (isEmptyCellValue(raw)) return <EmptyDash />;
     return (
-      <div className="font-medium text-sm">{raw as React.ReactNode}</div>
+      <div
+        className={cn(
+          "text-sm",
+          column.stackedWeight === "normal" ? "font-normal" : "font-medium",
+        )}
+      >
+        {raw as React.ReactNode}
+      </div>
     );
   }
 
@@ -371,6 +415,72 @@ function ariaSortValue(
   return sort.direction === "asc" ? "ascending" : "descending";
 }
 
+function buildGroups<TRow>(
+  rows: TRow[],
+  getGroupKey: (row: TRow) => string,
+): EntityListGroup<TRow>[] {
+  const groups: EntityListGroup<TRow>[] = [];
+  for (const row of rows) {
+    const key = getGroupKey(row);
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) {
+      last.rows.push(row);
+    } else {
+      groups.push({ key, rows: [row] });
+    }
+  }
+  return groups;
+}
+
+function formatGroupCellValue(
+  kind: EntityListColumnKind,
+  value: React.ReactNode,
+): React.ReactNode {
+  if (kind === "money") return formatMoneyValue(value);
+  if (kind === "number") return formatNumberValue(value);
+  return value;
+}
+
+function GroupHeaderRow<TRow>({
+  columns,
+  header,
+}: {
+  columns: EntityListColumnDef<TRow>[];
+  header: EntityListGroupHeader;
+}) {
+  const cells = header.cells ?? {};
+  const firstCellIndex = columns.findIndex(
+    (column, index) => index > 0 && cells[column.id] !== undefined,
+  );
+  const labelSpan = firstCellIndex === -1 ? columns.length : firstCellIndex;
+
+  return (
+    <TableRow
+      data-entity-group-row=""
+      className="bg-muted/60 hover:bg-muted/60 dark:bg-muted dark:hover:bg-muted"
+    >
+      <TableCell colSpan={labelSpan}>
+        <span className="font-semibold text-foreground">{header.title}</span>
+        {header.meta != null ? (
+          <span className="text-muted-foreground"> · {header.meta}</span>
+        ) : null}
+      </TableCell>
+      {columns.slice(labelSpan).map((column) => (
+        <TableCell
+          key={column.id}
+          className={cn(
+            cellAlignClass(column.kind),
+            cellKindClass(column.kind),
+            column.className,
+          )}
+        >
+          {formatGroupCellValue(column.kind, cells[column.id] ?? null)}
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+}
+
 function isInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   return Boolean(
@@ -396,6 +506,8 @@ export function EntityListTable<TRow>({
   getRowClassName,
   getRowProps,
   renderAfterRow,
+  getGroupKey,
+  renderGroupHeader,
   sort = null,
   onSortChange,
   stickyHeader,
@@ -410,8 +522,13 @@ export function EntityListTable<TRow>({
     return null;
   }
 
+  const groups =
+    getGroupKey && renderGroupHeader ? buildGroups(rows, getGroupKey) : null;
+  const renderedRowCount = rows.length + (groups?.length ?? 0);
+
   const sticky =
-    stickyHeader === true || (!isLoading && rows.length > STICKY_ROW_THRESHOLD);
+    stickyHeader === true ||
+    (!isLoading && renderedRowCount > STICKY_ROW_THRESHOLD);
 
   const handleSort = (column: EntityListColumnDef<TRow>) => {
     if (!column.sortable || !onSortChange) return;
@@ -442,6 +559,48 @@ export function EntityListTable<TRow>({
       return;
     }
     onRowActivate?.(row);
+  };
+
+  const hasPrimaryLink = Boolean(
+    primaryTo && columns.some((c) => c.kind === "primary"),
+  );
+  const rowInteractive = hasPrimaryLink || Boolean(onRowActivate);
+
+  const renderDataRow = (row: TRow) => {
+    const rowProps = getRowProps?.(row);
+    return (
+      <React.Fragment key={getRowId(row)}>
+        <TableRow
+          {...rowProps}
+          className={cn(
+            rowInteractive && "cursor-pointer",
+            getRowClassName?.(row),
+          )}
+          onClick={
+            rowInteractive ? (event) => handleRowClick(event, row) : undefined
+          }
+        >
+          {columns.map((column) => (
+            <TableCell
+              key={column.id}
+              className={cn(
+                cellAlignClass(column.kind),
+                cellKindClass(column.kind),
+                column.className,
+              )}
+              onClick={
+                column.kind === "actions"
+                  ? (e) => e.stopPropagation()
+                  : undefined
+              }
+            >
+              {renderCellContent(column, row, primaryTo, primaryState)}
+            </TableCell>
+          ))}
+        </TableRow>
+        {renderAfterRow?.(row)}
+      </React.Fragment>
+    );
   };
 
   const tableBlock = (
@@ -529,53 +688,17 @@ export function EntityListTable<TRow>({
           </TableBody>
         ) : (
           <TableBody>
-            {rows.map((row) => {
-              const hasPrimaryLink = Boolean(
-                primaryTo && columns.some((c) => c.kind === "primary"),
-              );
-              const rowInteractive = hasPrimaryLink || Boolean(onRowActivate);
-              const rowProps = getRowProps?.(row);
-              return (
-                <React.Fragment key={getRowId(row)}>
-                  <TableRow
-                    {...rowProps}
-                    className={cn(
-                      rowInteractive && "cursor-pointer",
-                      getRowClassName?.(row),
-                    )}
-                    onClick={
-                      rowInteractive
-                        ? (event) => handleRowClick(event, row)
-                        : undefined
-                    }
-                  >
-                    {columns.map((column) => (
-                      <TableCell
-                        key={column.id}
-                        className={cn(
-                          cellAlignClass(column.kind),
-                          cellKindClass(column.kind),
-                          column.className,
-                        )}
-                        onClick={
-                          column.kind === "actions"
-                            ? (e) => e.stopPropagation()
-                            : undefined
-                        }
-                      >
-                        {renderCellContent(
-                          column,
-                          row,
-                          primaryTo,
-                          primaryState,
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                  {renderAfterRow?.(row)}
-                </React.Fragment>
-              );
-            })}
+            {groups && renderGroupHeader
+              ? groups.map((group, index) => (
+                  <React.Fragment key={`group-${index}-${group.key}`}>
+                    <GroupHeaderRow
+                      columns={columns}
+                      header={renderGroupHeader(group)}
+                    />
+                    {group.rows.map(renderDataRow)}
+                  </React.Fragment>
+                ))
+              : rows.map(renderDataRow)}
           </TableBody>
         )}
       </Table>

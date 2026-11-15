@@ -36,7 +36,8 @@ Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
 | `density` | `"list"` | **Siempre** se pasa a `<Table density={…}>`. Nunca omitir. |
 | `framed` | `true` | Card propia. Con `ListPageShell` table-mode → `framed={false}` (F4 `/vehicles`). |
 | `footer` | — | Slot bajo la tabla (`border-t`). Demos / uso fuera del shell. El pie de padrón lo monta `ListPageShell`. |
-| `stickyHeader` | auto > 25 | Sticky `thead` si `true` **o** `rows.length > 25`. |
+| `stickyHeader` | auto > 25 | Sticky `thead` si `true` **o** filas renderizadas (datos + grupo) > 25. |
+| `getGroupKey` / `renderGroupHeader` | — | Filas de grupo (ver §Filas de grupo). Sin ambas props el render no cambia. |
 | `sort` / `onSortChange` | — | UI + `aria-sort`; **la URL la cablea el caller**. |
 | `primaryTo` / `primaryState` | — | Href (+ `location.state` opcional) del link primario. |
 
@@ -47,7 +48,7 @@ Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
 | `primary` | izq. | `<Link to={primaryTo(row)} state={primaryState?.(row)}>` real; fila extiende hit-area. Accessor puede ser `EntityListStackedValue` (link solo en línea 1; p. ej. Unidad+tipo) |
 | `text` | izq. | `text-sm`; truncate |
 | `meta` | izq. | `text-muted-foreground` |
-| `stacked` | izq. | línea 1 medium + línea 2 `text-xs` muted (`EntityListStackedValue`) |
+| `stacked` | izq. | línea 1 medium (`stackedWeight: "normal"` para dinero sin énfasis) + línea 2 `text-xs` muted (`EntityListStackedValue`) |
 | `code` | izq. | `font-mono` ~13 px |
 | `number` | der. | `font-mono tabular-nums`; `number` → es-MX |
 | `money` | der. | `font-mono tabular-nums` + `formatMxCurrency`; negativo destructive |
@@ -71,6 +72,48 @@ Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
 - `list` (default): fila `h-11` (44 px).
 - `compact`: fila `h-9` (36 px) — detalle / Sheet / Dialog.
 - Encabezado siempre `h-9` muted cuando hay density.
+
+### Filas de grupo
+
+Una sola tabla (un `thead`) con una fila de sección por grupo; los importes de todos los grupos caen en la misma columna. Ancla: **Cobros sin factura** (`OperationalCashPendingTable`).
+
+```tsx
+<EntityListTable
+  rows={rows} // ya ordenadas por grupo — la tabla no reordena
+  getGroupKey={(r) => r.clientId ?? "__none__"}
+  renderGroupHeader={({ key, rows: visible }) => {
+    const client = clientsByKey.get(key)!; // totales de la API
+    return {
+      title: client.name, // tal como está guardado, sin uppercase CSS
+      meta: `${visible.length} de ${client.tripCount} viajes`,
+      cells: {
+        pending: client.pendingAmount, // number en columna money → formatMxCurrency
+        actions: <Button variant="outline" size="sm">Cobro por lote</Button>,
+      },
+    };
+  }}
+/>
+```
+
+```ts
+getGroupKey?: (row: TRow) => string;
+renderGroupHeader?: (group: { key: string; rows: TRow[] }) => {
+  title: ReactNode;
+  meta?: ReactNode;                              // misma línea, muted, « · »
+  cells?: Partial<Record<columnId, ReactNode>>;  // alineadas con la columna
+};
+```
+
+| Regla | Detalle |
+|-------|---------|
+| Agrupación | Corridas **consecutivas** con la misma key. Si el grupo continúa en la página siguiente, su fila se repite allí. |
+| Etiqueta | `title` (`font-semibold text-foreground`) + `meta` (`text-muted-foreground`) en una línea; abarca desde la 1.ª columna hasta la anterior a la primera columna con contenido en `cells`. |
+| Celdas | Alineación y tipografía del kind de su columna (+ `column.className`). `number` en `money` se formatea. |
+| Visual | `bg-muted/60 dark:bg-muted`, alto de fila de la densidad, sin `border-t` extra, sin hover, no clicable (`data-entity-group-row`). |
+| Subtotales | Pasar el total del grupo que da la API (universo filtrado), no la suma de filas visibles. |
+| Acción | `outline sm` en la columna `actions`; la acción de fila queda `ghost` para no competir. |
+
+Anti-patrones: card dentro de card por grupo, un `thead` por grupo, badge en el subtotal, mayúsculas por CSS en el nombre.
 
 ### Composición con `ListPageShell` (F3)
 
