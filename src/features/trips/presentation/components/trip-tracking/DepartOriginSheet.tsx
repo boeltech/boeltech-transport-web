@@ -22,6 +22,7 @@ import { formatStopActionShortLabel } from "../trackingActionLabels";
 import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
+import { TrackingSheetConfirmEffects } from "./TrackingSheetConfirmEffects";
 import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
@@ -195,6 +196,10 @@ function DepartOriginSheetBody({
             className="text-sm"
           />
         </div>
+
+        <TrackingSheetConfirmEffects
+          items={copy.sheet.confirmEffectsDepartOrigin}
+        />
       </div>
 
       <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>

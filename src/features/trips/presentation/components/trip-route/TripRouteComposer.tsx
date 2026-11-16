@@ -388,6 +388,12 @@ export interface TripRouteComposerProps {
   disabled?: boolean;
   readOnly?: boolean;
   /**
+   * D49 — inactivo hasta origen+destino (tooltip vía title).
+   * Default true para no romper callers mid-trip con ambos extremos.
+   */
+  canAddWaypoint?: boolean;
+  addWaypointDisabledReason?: string | null;
+  /**
    * ADR-0093 E1 — `pending-only`: filas locked vía `row.locked`; «Agregar escala» activo.
    * `full`: composer structural (draft/scheduled).
    */
@@ -404,11 +410,14 @@ export function TripRouteComposer({
   tripTimes,
   disabled = false,
   readOnly = false,
+  canAddWaypoint = true,
+  addWaypointDisabledReason = null,
   mode = "full",
   showVisitState = false,
   corridor,
 }: TripRouteComposerProps) {
   const showAddWaypoint = !readOnly;
+  const addDisabled = disabled || !canAddWaypoint;
   return (
     <div
       className="flex flex-col gap-1.5 md:max-h-[640px] md:overflow-y-auto md:border-r md:p-2"
@@ -426,17 +435,26 @@ export function TripRouteComposer({
         />
       ))}
       {showAddWaypoint ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="mt-1"
-          disabled={disabled}
-          onClick={onAddWaypoint}
+        <span
+          className="mt-1 inline-flex w-full"
+          title={
+            !canAddWaypoint
+              ? (addWaypointDisabledReason ?? copy.composer.needBothEnds)
+              : undefined
+          }
         >
-          <Plus className="mr-2 h-4 w-4" />
-          {copy.action.addWaypoint}
-        </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full"
+            disabled={addDisabled}
+            onClick={onAddWaypoint}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {copy.action.addWaypoint}
+          </Button>
+        </span>
       ) : null}
     </div>
   );

@@ -24,6 +24,7 @@ import { showTripDetailErrorToast } from "../../helpers/toastTripDetailError";
 import { formatStopActionShortLabel } from "../trackingActionLabels";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
+import { TrackingSheetConfirmEffects } from "./TrackingSheetConfirmEffects";
 import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
@@ -230,6 +231,14 @@ function RegisterStopTrackingEventSheetBody({
             className="text-sm"
           />
         </div>
+
+        <TrackingSheetConfirmEffects
+          items={
+            mode === "arrival"
+              ? copy.sheet.confirmEffectsArrive
+              : copy.sheet.confirmEffectsDepart
+          }
+        />
       </div>
 
       <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>

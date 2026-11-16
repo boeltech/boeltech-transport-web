@@ -78,6 +78,47 @@ export function sumRouteSegmentDistanceKm(stops: readonly TripStop[]): number | 
   );
 }
 
+/** Etiqueta corta para tramos de la card Distancias (ciudad o nombre). */
+export function routeStopShortLabel(stop: TripStop): string {
+  return (
+    stop.city?.trim() ||
+    stop.locationName?.trim() ||
+    stop.address?.trim() ||
+    copy.format.stopFallbackName(stop.sequenceOrder)
+  );
+}
+
+export type RouteDistanceSegment = {
+  id: string;
+  fromLabel: string;
+  toLabel: string;
+  km: number | null;
+};
+
+export function buildRouteDistanceSegments(
+  stops: readonly TripStop[],
+): RouteDistanceSegment[] {
+  const ordered = [...stops].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+  if (ordered.length < 2) return [];
+  const segments: RouteDistanceSegment[] = [];
+  for (let i = 1; i < ordered.length; i += 1) {
+    const previous = ordered[i - 1]!;
+    const current = ordered[i]!;
+    const km =
+      current.distanceFromPreviousKm != null &&
+      current.distanceFromPreviousKm > 0
+        ? current.distanceFromPreviousKm
+        : null;
+    segments.push({
+      id: `${previous.id}->${current.id}`,
+      fromLabel: routeStopShortLabel(previous),
+      toLabel: routeStopShortLabel(current),
+      km,
+    });
+  }
+  return segments;
+}
+
 export function countStopsMissingSegmentDistance(stops: readonly TripStop[]): number {
   const ordered = [...stops].sort((a, b) => a.sequenceOrder - b.sequenceOrder);
   return ordered.slice(1).filter(

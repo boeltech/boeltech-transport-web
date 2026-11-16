@@ -8,6 +8,7 @@ export const routeCopy = {
     origin: "Origen",
     waypoints: "Escalas",
     destination: "Destino",
+    distances: "Distancias",
   },
   hint: {
     stops: "Origen, escalas y destino. El avance en ruta se opera en Seguimiento.",
@@ -15,6 +16,8 @@ export const routeCopy = {
       "Ruta en curso. Puedes modificar, agregar o quitar paradas pendientes. Para ampliar al final, cambia el destino. Origen y paradas ya operadas no se modifican.",
     midTripComposer:
       "Paradas pendientes editables. Origen y paradas ya operadas quedan bloqueadas.",
+    distancesBilling:
+      "Calculadas con mapa. Sin distancias no se puede facturar.",
     origin: "Punto de salida del viaje.",
     waypoints: "Paradas intermedias con carga o descarga.",
     destination: "Punto final del recorrido.",
@@ -79,9 +82,11 @@ export const routeCopy = {
     replanRoute: "Replanificar ruta en edición completa",
     addWaypoint: "Agregar escala",
     editStop: "Editar parada",
+    changeDestination: "Cambiar destino",
     completeAddress: "Completar domicilio",
     calculateDistances: "Calcular distancias",
     saveChanges: "Guardar cambios",
+    discardChanges: "Descartar",
     cancel: "Cancelar",
     removeWaypoint: "Eliminar escala",
     removeDraftWaypoint: "Quitar escala",
@@ -106,6 +111,18 @@ export const routeCopy = {
   chip: {
     missingAddress: "Sin domicilio",
     missingOperation: "Sin operación",
+    /** D42 — replan / borrador local en curso. */
+    editing: "Editando",
+  },
+  unsaved: {
+    /** D43 */
+    title: "Cambios sin guardar",
+    draftEndpoints: "Origen o destino capturado; aún no se guarda la ruta.",
+    draftWaypoint: "1 escala nueva sin confirmar.",
+    draftMixed: (waypointCount: number) =>
+      waypointCount === 1
+        ? "Origen/destino y 1 escala sin guardar."
+        : `Origen/destino y ${waypointCount} escalas sin guardar.`,
   },
   composer: {
     title: "Elige origen y destino",
@@ -148,6 +165,12 @@ export const routeCopy = {
     contactPrefix: "Contacto:",
     savedAddress: "Domicilio guardado",
     manageInTracking: "Gestionar en Seguimiento",
+    lockedOperated: "Bloqueada · ya operada",
+    lockedInOperation: "Bloqueada · en operación",
+    totalPlanned: "Total planeado",
+    mapLink: "Mapa",
+    mapLegendActual: "Recorrido real",
+    mapLegendPlanned: "Ruta planeada",
     actualDeparture: "Salida real",
     scheduledDeparture: "Salida programada",
     scheduledDepartureTrip: "Salida programada",
@@ -179,6 +202,7 @@ export const routeCopy = {
     noDestination: "Sin parada de destino definida.",
     readOnlyEmpty: "Este viaje aún no tiene paradas en la ruta.",
     missingDistance: "Falta distancia desde la parada anterior.",
+    mapNoCoordinates: "Sin coordenadas en las paradas para mostrar el mapa.",
   },
   toast: {
     stopUpdated: "Parada actualizada",
@@ -193,6 +217,14 @@ export const routeCopy = {
       `${count} ${count === 1 ? "parada" : "paradas"}`,
     stopOrderHash: (order: number) => `#${order}`,
     distanceKm: (kmFormatted: string) => `${kmFormatted} km`,
+    segmentArrow: (from: string, to: string) => `${from} → ${to}`,
+    routeFooter: (stops: number, kmFormatted: string | null, cargos: number) => {
+      const stopPart = `${stops} ${stops === 1 ? "parada" : "paradas"}`;
+      const kmPart = kmFormatted != null ? `${kmFormatted} km` : null;
+      const cargoPart =
+        cargos === 1 ? "1 carga ligada" : `${cargos} cargas ligadas`;
+      return [stopPart, kmPart, cargoPart].filter(Boolean).join("  ·  ");
+    },
     completeAddressTitle: (displayOrder: number) =>
       `Completar domicilio · parada ${displayOrder}`,
     editStopTitle: (displayOrder: number) => `Editar parada ${displayOrder}`,

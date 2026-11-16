@@ -144,6 +144,7 @@ describe("trackingCopy — Finalizar viaje (Capa 1 lean)", () => {
     expect(trackingCopy.action.start).toBe("Despachar…");
     expect(trackingCopy.state.live).toBe("En vivo");
     expect(trackingCopy.section.itinerary).toBe("Paradas");
+    expect(trackingCopy.section.bitacora).toBe("Bitácora");
     expect(trackingCopy.section.timeline).toBe("Historial del viaje");
   });
 

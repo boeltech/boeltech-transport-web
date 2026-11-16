@@ -21,8 +21,10 @@ import {
   isStopDomicilioComplete,
   isStopOperativelyComplete,
   isStopWaypointOperationComplete,
+  buildRouteDistanceSegments,
   buildRouteMasterRows,
   resolveRouteMasterRowId,
+  routeStopShortLabel,
   ROUTE_SLOT_DESTINATION_ID,
   ROUTE_SLOT_ORIGIN_ID,
   shouldShowTrackingHint,
@@ -114,6 +116,45 @@ describe("tripRouteDetailHelpers", () => {
     expect(grouped.origin?.id).toBe("s0");
     expect(grouped.destination?.id).toBe("s2");
     expect(grouped.waypoints.map((item) => item.id)).toEqual(["s1"]);
+  });
+
+  it("builds distance segments with short labels for the Distancias card", () => {
+    const origin = stop({
+      id: "o",
+      sequenceOrder: 1,
+      city: "Monterrey",
+      locationName: "CEDIS Monterrey",
+    });
+    const mid = stop({
+      id: "m",
+      sequenceOrder: 2,
+      city: "Saltillo",
+      locationName: "Bodega Saltillo",
+      distanceFromPreviousKm: 86,
+    });
+    const dest = stop({
+      id: "d",
+      sequenceOrder: 3,
+      city: "Torreón",
+      locationName: "CEDIS Torreón",
+      distanceFromPreviousKm: 266,
+    });
+    expect(routeStopShortLabel(origin)).toBe("Monterrey");
+    expect(buildRouteDistanceSegments([origin, mid, dest])).toEqual([
+      {
+        id: "o->m",
+        fromLabel: "Monterrey",
+        toLabel: "Saltillo",
+        km: 86,
+      },
+      {
+        id: "m->d",
+        fromLabel: "Saltillo",
+        toLabel: "Torreón",
+        km: 266,
+      },
+    ]);
+    expect(sumRouteSegmentDistanceKm([origin, mid, dest])).toBe(352);
   });
 
   it("sums only positive segment distances after first stop", () => {

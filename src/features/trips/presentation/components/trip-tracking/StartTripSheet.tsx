@@ -48,6 +48,7 @@ import {
 } from "../../utils/tripSinCfdiCargoGating";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
+import { TrackingSheetConfirmEffects } from "./TrackingSheetConfirmEffects";
 import {
   TRACKING_SHEET_BODY_CLASS,
   TRACKING_SHEET_CONTENT_CLASS,
@@ -529,6 +530,14 @@ function StartTripSheetBody({
           onChange={setGps}
           disabled={isPending}
           variant="quiet"
+        />
+
+        <TrackingSheetConfirmEffects
+          items={
+            locationIntent === "at_dock"
+              ? copy.sheet.confirmEffectsDispatchAtDock
+              : copy.sheet.confirmEffectsDispatchEnRoute
+          }
         />
       </div>
 

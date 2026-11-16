@@ -171,3 +171,29 @@ export function resolveTrackingPrimaryAction(
     transitionText: null,
   };
 }
+
+/**
+ * CTA corto (verbo + objeto) para Qué sigue — el título contextual largo
+ * sigue en `TrackingPrimaryAction.title` (P2-1 / F5c).
+ */
+export function resolveTrackingPrimaryCtaLabel(
+  action: TrackingPrimaryAction,
+): string {
+  switch (action.kind) {
+    case "dispatch":
+      return trackingCopy.action.start;
+    case "arrive":
+      return trackingCopy.action.arrive;
+    case "depart":
+      return trackingCopy.action.depart;
+    case "depart_origin":
+      return trackingCopy.action.departOrigin;
+    case "close":
+      return trackingCopy.action.close;
+    case "cargo_blocked":
+      return trackingCopy.action.goToCargos;
+    case "idle":
+    case "none":
+      return action.title;
+  }
+}

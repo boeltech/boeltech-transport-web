@@ -16,7 +16,10 @@ import {
   CARGO_TRANSITION_COPY,
   STOP_TRANSITION_COPY,
 } from "./transitionCopy";
-import { resolveTrackingPrimaryAction } from "./trackingNextAction";
+import {
+  resolveTrackingPrimaryAction,
+  resolveTrackingPrimaryCtaLabel,
+} from "./trackingNextAction";
 import { TripTrackingStopsCargosMasterDetail } from "./TripTrackingStopsCargosMasterDetail";
 import { TripTrackingNextActionCard } from "./TripTrackingNextActionCard";
 import { TripTrackingItineraryRail } from "./TripTrackingItineraryRail";
@@ -152,6 +155,27 @@ describe("trackingNextAction", () => {
     expect(action.kind).toBe("arrive");
     expect(action.stop?.id).toBe("s1");
     expect(action.transitionText).toBe(STOP_TRANSITION_COPY.arrive);
+  });
+
+  it("P2-1: CTA corto ≠ título contextual con parada", () => {
+    const action = resolveTrackingPrimaryAction(TripStatus.IN_PROGRESS, [
+      {
+        ...origin,
+        actualArrival: new Date("2026-01-01T09:00:00Z"),
+        actualDeparture: new Date("2026-01-01T10:00:00Z"),
+        status: "completed",
+      },
+      {
+        ...waypoint,
+        actualArrival: new Date("2026-01-01T11:00:00Z"),
+        status: "in_progress",
+      },
+      destination,
+    ]);
+    expect(action.kind).toBe("depart");
+    expect(action.title).toMatch(/—/);
+    expect(resolveTrackingPrimaryCtaLabel(action)).toBe("Registrar salida");
+    expect(resolveTrackingPrimaryCtaLabel(action)).not.toBe(action.title);
   });
 
   it("prioriza salida de origen tras llegada en origen", () => {
@@ -1577,13 +1601,14 @@ describe("TripTrackingNowPanel (layout A Operate)", () => {
   });
 });
 
-describe("TripTrackingIncidentStrip (F7.2)", () => {
-  it("muestra franja compacta con CTA de cierre", async () => {
+describe("TripTrackingIncidentStrip (F7.2 / D35)", () => {
+  it("muestra franja compacta con Llamar y Cerrar", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
       <TripTrackingIncidentStrip
         summary="Pinchadura en km 120"
+        callPhone="+525551112233"
         canClose
         onClose={onClose}
       />,
@@ -1594,6 +1619,9 @@ describe("TripTrackingIncidentStrip (F7.2)", () => {
     });
     expect(strip).toHaveAttribute("data-tracking-section", "incident-strip");
     expect(screen.getByText("Pinchadura en km 120")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: trackingCopy.action.callOperator }),
+    ).toHaveAttribute("href", "tel:+525551112233");
     await user.click(
       screen.getByRole("button", { name: trackingCopy.action.closeIncident }),
     );

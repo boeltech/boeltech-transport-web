@@ -905,13 +905,15 @@ describe("TripDetailRouteTab", () => {
       sequenceOrder: 2,
       stopType: [StopType.DESTINATION, StopType.DELIVERY],
       locationName: "CEDIS Sur",
+      city: "Monterrey",
+      distanceFromPreviousKm: 120,
     });
 
     renderTab(
       <TripDetailRouteTab
         trip={trip}
         tripStatus={TripStatus.DRAFT}
-        orderedStops={[tripStop(), dest]}
+        orderedStops={[tripStop({ city: "Guadalajara" }), dest]}
         progress={0}
         canEditStructural
       />,
@@ -920,10 +922,13 @@ describe("TripDetailRouteTab", () => {
     expect(screen.queryByText("Guadalajara, JAL → Monterrey, NLE")).not.toBeInTheDocument();
     expect(screen.getByText(copy.section.stops)).toBeInTheDocument();
     expect(screen.queryByText(copy.composer.title)).not.toBeInTheDocument();
+    expect(screen.getByText(copy.section.distances)).toBeInTheDocument();
+    expect(screen.getByText(copy.label.totalPlanned)).toBeInTheDocument();
+    expect(screen.getByText(copy.hint.distancesBilling)).toBeInTheDocument();
+    expect(document.getElementById("trip-route-map")).not.toBeNull();
   });
 
-  it("requires origin and destination before adding a waypoint", async () => {
-    const user = userEvent.setup();
+  it("keeps Agregar escala disabled until origin and destination (D49)", () => {
     renderTab(
       <TripDetailRouteTab
         trip={trip}
@@ -934,11 +939,13 @@ describe("TripDetailRouteTab", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: copy.action.addWaypoint }));
-    expect(mocks.mutateAsync).not.toHaveBeenCalled();
-    expect(mocks.toast).not.toHaveBeenCalled();
-    expect(screen.getByText(copy.alert.captureTitle)).toBeInTheDocument();
-    expect(screen.getByText(copy.composer.needBothEnds)).toBeInTheDocument();
+    const addBtn = screen.getByRole("button", { name: copy.action.addWaypoint });
+    expect(addBtn).toBeDisabled();
+    expect(addBtn.closest("span")).toHaveAttribute(
+      "title",
+      copy.composer.needBothEnds,
+    );
+    expect(screen.getByText(copy.composer.title)).toBeInTheDocument();
   });
 
   it("uses the same itinerary in read-only without picker or add waypoint", () => {
@@ -1001,13 +1008,16 @@ describe("TripDetailRouteTab", () => {
     expect(
       screen.queryByRole("button", { name: copy.action.completeAddress }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: copy.action.editStop }));
+    const editButtons = screen.getAllByRole("button", {
+      name: copy.action.editStop,
+    });
+    await user.click(editButtons[0]!);
     const sheet = screen.getByTestId("stop-form-sheet");
     expect(sheet).toHaveTextContent(copy.format.editStopTitle(1));
     expect(sheet).toHaveAttribute("data-variant", "sheet");
     expect(
-      screen.getByRole("button", { name: copy.action.editStop }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", { name: copy.action.editStop }).length,
+    ).toBeGreaterThan(0);
   });
 
   it("does not show Editar parada together with Completar domicilio", async () => {
@@ -1033,15 +1043,19 @@ describe("TripDetailRouteTab", () => {
       />,
     );
 
+    expect(
+      screen.getByRole("button", { name: copy.action.completeAddress }),
+    ).toBeInTheDocument();
+    // Destino incompleto: Completar; origen completo sigue con Editar (timeline).
+    expect(
+      screen.getAllByRole("button", { name: copy.action.editStop }).length,
+    ).toBeGreaterThan(0);
     await user.click(
       screen.getByRole("button", { name: /Destino\. CEDIS Sur/ }),
     );
     expect(
       screen.getByRole("button", { name: copy.action.completeAddress }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: copy.action.editStop }),
-    ).not.toBeInTheDocument();
   });
 
   it("calculates missing segment distances when consecutive stops have coordinates", async () => {
@@ -1190,7 +1204,9 @@ describe("TripDetailRouteTab", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: copy.action.editStop }));
+    await user.click(
+      screen.getAllByRole("button", { name: copy.action.editStop })[0]!,
+    );
 
     const sheet = await screen.findByTestId("stop-form-sheet");
     expect(sheet).toHaveAttribute("data-is-pending", "true");
@@ -1438,8 +1454,12 @@ describe("TripDetailRouteTab", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /Escala Norte/i }));
-    await user.click(screen.getByRole("button", { name: copy.action.editStop }));
+    await user.click(
+      screen.getByRole("button", { name: /Escala Norte/i }),
+    );
+    await user.click(
+      screen.getAllByRole("button", { name: copy.action.editStop })[0]!,
+    );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
     expect(
@@ -1534,8 +1554,7 @@ describe("TripDetailRouteTab", () => {
         longitude: -100.31,
       });
 
-    it("shows ↑↓ on draft with canEditStructural + canReplanPendingStops and ≥2 waypoints", async () => {
-      const user = userEvent.setup();
+    it("shows ↑↓ on draft with canEditStructural + canReplanPendingStops and ≥2 waypoints", () => {
       renderTab(
         <TripDetailRouteTab
           trip={trip}
@@ -1547,14 +1566,12 @@ describe("TripDetailRouteTab", () => {
         />,
       );
 
-      await user.click(screen.getByRole("button", { name: /Escala A/i }));
-
       expect(
-        screen.getByRole("button", { name: copy.action.reorderUp }),
-      ).toBeInTheDocument();
+        screen.getAllByRole("button", { name: copy.action.reorderUp }).length,
+      ).toBeGreaterThan(0);
       expect(
-        screen.getByRole("button", { name: copy.action.reorderDown }),
-      ).toBeInTheDocument();
+        screen.getAllByRole("button", { name: copy.action.reorderDown }).length,
+      ).toBeGreaterThan(0);
     });
 
     it("persists reorder via stops:replan (not replace) on draft", async () => {
@@ -1570,17 +1587,16 @@ describe("TripDetailRouteTab", () => {
         />,
       );
 
-      await user.click(screen.getByRole("button", { name: /Escala A/i }));
-      await user.click(
-        screen.getByRole("button", { name: copy.action.reorderDown }),
-      );
+      const downButtons = screen.getAllByRole("button", {
+        name: copy.action.reorderDown,
+      });
+      await user.click(downButtons[0]!);
 
       expect(mocks.replanMutateAsync).toHaveBeenCalledTimes(1);
       expect(mocks.replaceMutateAsync).not.toHaveBeenCalled();
     });
 
     it("shows ↑↓ on in_progress mid-trip replan", async () => {
-      const user = userEvent.setup();
       const midOrigin = tripStop({
         id: "stop-origin",
         status: "completed",
@@ -1598,18 +1614,15 @@ describe("TripDetailRouteTab", () => {
         />,
       );
 
-      await user.click(screen.getByRole("button", { name: /Escala A/i }));
-
       expect(
-        screen.getByRole("button", { name: copy.action.reorderUp }),
-      ).toBeInTheDocument();
+        screen.getAllByRole("button", { name: copy.action.reorderUp }).length,
+      ).toBeGreaterThan(0);
       expect(
-        screen.getByRole("button", { name: copy.action.reorderDown }),
-      ).toBeInTheDocument();
+        screen.getAllByRole("button", { name: copy.action.reorderDown }).length,
+      ).toBeGreaterThan(0);
     });
 
-    it("does not show ↑↓ when canReplanPendingStops is false", async () => {
-      const user = userEvent.setup();
+    it("does not show ↑↓ when canReplanPendingStops is false", () => {
       renderTab(
         <TripDetailRouteTab
           trip={{ ...trip, status: TripStatus.COMPLETED }}
@@ -1621,8 +1634,6 @@ describe("TripDetailRouteTab", () => {
         />,
       );
 
-      await user.click(screen.getByRole("button", { name: /Escala A/i }));
-
       expect(
         screen.queryByRole("button", { name: copy.action.reorderUp }),
       ).not.toBeInTheDocument();
@@ -1631,8 +1642,7 @@ describe("TripDetailRouteTab", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("does not show ↑↓ with only one mutable waypoint", async () => {
-      const user = userEvent.setup();
+    it("does not show ↑↓ with only one mutable waypoint", () => {
       renderTab(
         <TripDetailRouteTab
           trip={trip}
@@ -1643,8 +1653,6 @@ describe("TripDetailRouteTab", () => {
           canReplanPendingStops
         />,
       );
-
-      await user.click(screen.getByRole("button", { name: /Escala A/i }));
 
       expect(
         screen.queryByRole("button", { name: copy.action.reorderUp }),

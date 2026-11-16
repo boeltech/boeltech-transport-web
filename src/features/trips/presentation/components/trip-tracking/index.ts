@@ -45,8 +45,14 @@ export {
 export type { TrackingHeaderSituation } from "./trackingHeaderContext";
 export { TripTrackingItineraryRail } from "./TripTrackingItineraryRail";
 export type { TripTrackingItineraryRailProps } from "./TripTrackingItineraryRail";
+export { TripTrackingStopsTimeline } from "./TripTrackingStopsTimeline";
+export type { TripTrackingStopsTimelineProps } from "./TripTrackingStopsTimeline";
+export { TripTrackingContactCard } from "./TripTrackingContactCard";
+export type { TripTrackingContactCardProps } from "./TripTrackingContactCard";
 export { TripTrackingIncidentStrip } from "./TripTrackingIncidentStrip";
 export type { TripTrackingIncidentStripProps } from "./TripTrackingIncidentStrip";
+export { TrackingSheetConfirmEffects } from "./TrackingSheetConfirmEffects";
+export type { TrackingSheetConfirmEffectsProps } from "./TrackingSheetConfirmEffects";
 export { TripTrackingObjectiveHub } from "./TripTrackingObjectiveHub";
 export type {
   TrackingContactInfo,
@@ -81,6 +87,7 @@ export type {
 } from "./transitionCopy";
 export {
   resolveTrackingPrimaryAction,
+  resolveTrackingPrimaryCtaLabel,
 } from "./trackingNextAction";
 export type {
   TrackingPrimaryAction,

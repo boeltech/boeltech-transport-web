@@ -14,7 +14,7 @@ export const trackingCopy = {
     now: "Ahora",
     /** Layout A: zona Operate (aria / landmark). */
     operate: "Operación",
-    /** Layout A: mapa + bitácora bajo fold o sub-tabs. */
+    /** D8: mapa + bitácora en el mismo layout (sin sub-tabs). */
     consulta: "Consulta",
     contact: "Contacto",
     metrics: "Avance del viaje",
@@ -24,6 +24,9 @@ export const trackingCopy = {
     cargosAtStop: "Cargas en esta parada",
     /** Portal cliente: narrativa de estado, no «Qué sigue» operativo (D11). */
     statusClient: "Estado del envío",
+    /** Card Consulta (artboard Seguimiento): título Bitácora. */
+    bitacora: "Bitácora",
+    /** Subtítulo / descripción del feed de eventos. */
     timeline: "Historial del viaje",
     map: "Mapa del viaje",
   },
@@ -57,6 +60,8 @@ export const trackingCopy = {
     now: "Ahora",
     /** Overflow Operate (PD5 / D5). */
     moreActions: "Más acciones",
+    /** D35 / Q8 — franja incidente. */
+    callOperator: "Llamar al operador",
     /**
      * F3 / D6: CTA Operate cuando hay N cargas pendientes (abre workbench o lista).
      * @deprecated Prefer `registerCargosAtStop` / `markPickup` — no usar «Ver…».
@@ -177,6 +182,38 @@ export const trackingCopy = {
       "Solo despacha. Después registra la llegada a origen.",
     /** Sugerencia default cuando origen≈sucursal. */
     dispatchIntentSuggested: "Sugerido",
+    /** D36 / Q9 — bloque de consecuencias antes del pie. */
+    confirmEffectsTitle: "Al confirmar",
+    confirmEffectsDispatchAtDock: [
+      "El viaje pasa a En ruta.",
+      "Se registra la llegada al origen.",
+      "La salida de origen se registra después, al terminar la carga.",
+    ] as const,
+    confirmEffectsDispatchEnRoute: [
+      "El viaje pasa a En ruta.",
+      "Después registra la llegada al origen.",
+    ] as const,
+    confirmEffectsArrive: [
+      "La parada queda en curso.",
+    ] as const,
+    confirmEffectsDepart: [
+      "La parada queda completada.",
+    ] as const,
+    confirmEffectsDepartOrigin: [
+      "La unidad sale del origen.",
+      "El tránsito hacia la siguiente parada queda registrado.",
+    ] as const,
+    confirmEffectsClose: [
+      "El viaje queda completado.",
+      "Ya se puede facturar y registrar gastos tardíos.",
+    ] as const,
+    confirmEffectsCloseWithDistance: (kmFormatted: string) =>
+      [
+        "El viaje queda completado.",
+        `Recorrido real: ${kmFormatted} km.`,
+        "Ya se puede facturar y registrar gastos tardíos.",
+      ] as const,
+    confirmEffectsNextStop: (label: string) => `Siguiente: ${label}.`,
     startMileagePlaceholder: "Ej: 150000",
     loadingVehicleMileage: "Cargando kilometraje…",
     /** Un solo hint operativo cuando hay sugerencia. */
@@ -232,7 +269,8 @@ export const trackingCopy = {
     mapLegendEvent: "Evento con GPS",
     mapLegendRoute: "Ruta planificada",
     mapLoading: "Cargando mapa",
-    quickCloseWarningTitle: "Antes de confirmar",
+    /** D36 / Q9: mismo título de bloque que el resto de Seg-*. */
+    quickCloseWarningTitle: "Al confirmar",
     quickCloseWarningStops:
       "Paradas no visitadas: se registrará una hora de llegada estimada.",
     quickCloseWarningCargos:

@@ -3,28 +3,32 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { cn } from "@shared/lib/utils/cn";
 
-import { trackingCopy } from "./trackingCopy";
+import { trackingCopy } from "../../copy";
 
 export type TripTrackingIncidentStripProps = {
   /** Cuerpo concreto (p. ej. descripción del último incidente) o fallback genérico. */
   summary?: string | null;
+  /** D35 / Q8 — `tel:` del operador cuando hay teléfono. */
+  callPhone?: string | null;
   canClose?: boolean;
   onClose?: () => void;
   className?: string;
 };
 
 /**
- * F7.2: franja full-width de incidente abierto (entre ProgressStrip y riel).
- * Peso visual de excepción > itinerario.
+ * F7.2 / D35: franja full-width de incidente abierto (entre ProgressStrip y riel).
+ * Peso visual de excepción > itinerario. CTAs: Llamar + Cerrar.
  */
 export function TripTrackingIncidentStrip({
   summary = null,
+  callPhone = null,
   canClose = false,
   onClose,
   className,
 }: TripTrackingIncidentStripProps) {
   const body =
     summary?.trim() || trackingCopy.hint.openIncident;
+  const phone = callPhone?.trim() || null;
 
   return (
     <div
@@ -46,17 +50,30 @@ export function TripTrackingIncidentStrip({
         </span>
         <p className="text-sm text-muted-foreground line-clamp-2">{body}</p>
       </div>
-      {canClose && onClose ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 shrink-0 border-destructive/40 px-2.5 text-xs"
-          onClick={onClose}
-        >
-          {trackingCopy.action.closeIncident}
-        </Button>
-      ) : null}
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {phone ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2.5 text-xs"
+            asChild
+          >
+            <a href={`tel:${phone}`}>{trackingCopy.action.callOperator}</a>
+          </Button>
+        ) : null}
+        {canClose && onClose ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 border-destructive/40 px-2.5 text-xs"
+            onClick={onClose}
+          >
+            {trackingCopy.action.closeIncident}
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -46,6 +46,7 @@ import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { trackingCopy } from "../../copy";
 import { TrackingGpsCaptureSection } from "./TrackingGpsCaptureSection";
 import { TrackingOccurredAtField } from "./TrackingOccurredAtField";
+import { TrackingSheetConfirmEffects } from "./TrackingSheetConfirmEffects";
 import {
   trackingGpsToEventFields,
   type TrackingGpsCapture,
@@ -424,6 +425,8 @@ function RegisterTripArrivalSheetBody({
             className="text-sm"
           />
         </div>
+
+        <TrackingSheetConfirmEffects items={[...copy.sheet.confirmEffectsClose]} />
       </div>
 
       <SheetFooter className={TRACKING_SHEET_FOOTER_CLASS}>

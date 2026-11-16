@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, Navigation } from "lucide-react";
 
+import { Badge } from "@shared/ui/badge";
+
 import {
   useClientCorridors,
   useReplaceTripStops,
@@ -44,6 +46,10 @@ import { mapStopToReplaceStopInput } from "../trip-detail-patch/mapStopToCreateS
 import { CorridorPicker } from "../corridor/CorridorPicker";
 import { TripDetailRouteStopCard } from "./TripDetailRouteStopCard";
 import { TripRouteComposer, TripRouteSlotCapture } from "./TripRouteComposer";
+import { TripRouteDistancesCard } from "./TripRouteDistancesCard";
+import { TripRouteMapPanel } from "./TripRouteMapPanel";
+import { TripRouteTimeline } from "./TripRouteTimeline";
+import { TripRouteUnsavedBar } from "./TripRouteUnsavedBar";
 import {
   buildReplanAfterRemoveWaypoint,
   buildReplanAfterReorderWaypoint,
@@ -52,6 +58,7 @@ import {
 } from "./buildReplanStopsPayload";
 import { isTripStopImmutableMidTrip } from "./isStopImmutableMidTrip";
 import {
+  buildRouteDistanceSegments,
   buildRouteMasterRows,
   countFillableMissingSegmentDistances,
   countStopsMissingDomicilio,
@@ -63,6 +70,7 @@ import {
   resolveRouteMasterRowId,
   ROUTE_SLOT_WAYPOINT_PREFIX,
   stopHasLinkedCargoMovements,
+  sumRouteSegmentDistanceKm,
   type RouteStopCategory,
 } from "./tripRouteDetailHelpers";
 import {
@@ -142,6 +150,8 @@ export interface TripDetailRouteTabProps {
     destinationCity?: string | null;
     destinationState?: string | null;
   };
+  /** D44 — avisa al shell cuando hay edición/panel local abierto. */
+  onEditingChange?: (editing: boolean) => void;
 }
 
 function getDisplayOrder(stop: TripStop, ordered: readonly TripStop[]): number {
@@ -161,6 +171,7 @@ export function TripDetailRouteTab({
   canReplanPendingStops = false,
   cargos,
   legacyRoute,
+  onEditingChange,
 }: TripDetailRouteTabProps) {
   const { toast } = useToast();
   const replaceStops = useReplaceTripStops(trip.id);
@@ -181,6 +192,7 @@ export function TripDetailRouteTab({
     null,
   );
   const [fiscalConfirmOpen, setFiscalConfirmOpen] = useState(false);
+  const [changingDestination, setChangingDestination] = useState(false);
   const pendingPersistRef = useRef<{
     execute: () => Promise<boolean>;
     syncKey: string;
@@ -204,6 +216,7 @@ export function TripDetailRouteTab({
     prevStopsSyncKeyRef.current = stopsSyncKey;
     setEndpointDraft({});
     setWaypointDraftIds([]);
+    setChangingDestination(false);
   }, [stopsSyncKey]);
 
   const { origin, destination, waypoints, ordered } =
@@ -264,6 +277,50 @@ export function TripDetailRouteTab({
       getRouteStopCategory(stop) === "waypoint" &&
       !isTripStopImmutableMidTrip(stop),
   );
+
+  const hasEndpointDraft = Boolean(
+    endpointDraft.origin || endpointDraft.destination,
+  );
+  const hasWaypointDraft = waypointDraftIds.length > 0;
+  const hasLocalDraft = hasEndpointDraft || hasWaypointDraft;
+  const isEditingLocally = hasLocalDraft || completeTarget != null;
+
+  useEffect(() => {
+    onEditingChange?.(isEditingLocally);
+    return () => onEditingChange?.(false);
+  }, [isEditingLocally, onEditingChange]);
+
+  const hasOriginEnd = Boolean(origin || endpointDraft.origin);
+  const hasDestinationEnd = Boolean(destination || endpointDraft.destination);
+  const canAddWaypoint = hasOriginEnd && hasDestinationEnd;
+
+  const unsavedSummary = (() => {
+    if (hasEndpointDraft && hasWaypointDraft) {
+      return copy.unsaved.draftMixed(waypointDraftIds.length);
+    }
+    if (hasWaypointDraft) return copy.unsaved.draftWaypoint;
+    if (hasEndpointDraft) return copy.unsaved.draftEndpoints;
+    return "";
+  })();
+
+  const canSaveLocalDraft =
+    hasEndpointDraft &&
+    canPersistComposerStops(
+      mergeComposerEndpointDraft({
+        existingStops: orderedStops,
+        draft: endpointDraft,
+      }),
+    ) &&
+    areComposerEndpointDraftsPutReady(endpointDraft, orderedStops);
+
+  const handleDiscardLocalDraft = () => {
+    setEndpointDraft({});
+    setWaypointDraftIds([]);
+    setCompleteTarget(null);
+    setCaptureError(null);
+    setSelectedId(null);
+    setChangingDestination(false);
+  };
 
   const runReplace = async (stops: CreateStopInput[]) => {
     if (replaceStops.isPending) return false;
@@ -330,6 +387,20 @@ export function TripDetailRouteTab({
     return runReplace(stops);
   };
 
+  const handleSaveLocalDraft = () => {
+    if (!canSaveLocalDraft) return;
+    const stops = mergeComposerEndpointDraft({
+      existingStops: orderedStops,
+      draft: endpointDraft,
+    });
+    void persistStops(stops).then((ok) => {
+      if (ok) {
+        setEndpointDraft({});
+        setWaypointDraftIds([]);
+      }
+    });
+  };
+
   const handleCalculateDistances = () => {
     void persistStops(
       finalizeReplaceStopsPayload(
@@ -340,6 +411,14 @@ export function TripDetailRouteTab({
 
   const handleSelectRow = (id: string) => {
     setSelectedId(id);
+    setCompleteTarget(null);
+    setCaptureError(null);
+    setChangingDestination(false);
+  };
+
+  const handleChangeDestination = (stop: TripStop) => {
+    setSelectedId(stop.id);
+    setChangingDestination(true);
     setCompleteTarget(null);
     setCaptureError(null);
   };
@@ -400,6 +479,9 @@ export function TripDetailRouteTab({
     // H1: always keep draft before any PUT attempt (survives remount / failed mutate).
     setEndpointDraft(nextDraft);
     setCaptureError(null);
+    if (category === "destination") {
+      setChangingDestination(false);
+    }
 
     const openCompleteFromPick = (targetCategory: "origin" | "destination") => {
       const targetPick =
@@ -752,6 +834,11 @@ export function TripDetailRouteTab({
         ? copy.state.noDestination
         : copy.composer.emptySlot;
 
+  const showComposerCapture =
+    selectedRow != null &&
+    (!selectedRow.stop || changingDestination) &&
+    canMutateRoute;
+
   const detailPanel = (() => {
     if (!selectedRow) {
       return (
@@ -761,7 +848,7 @@ export function TripDetailRouteTab({
       );
     }
 
-    if (!selectedRow.stop) {
+    if (!selectedRow.stop || changingDestination) {
       if (!canMutateRoute) {
         return (
           <p className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
@@ -769,28 +856,43 @@ export function TripDetailRouteTab({
           </p>
         );
       }
+      const captureCategory: RouteStopCategory = changingDestination
+        ? "destination"
+        : selectedRow.category;
       const isDraftWaypoint =
         selectedRow.category === "waypoint" &&
         isDraftWaypointSlotId(selectedRow.id);
       return (
         <div className="space-y-3">
           <TripRouteSlotCapture
-            key={selectedRow.id}
-            category={selectedRow.category}
+            key={changingDestination ? `change-dest-${selectedRow.id}` : selectedRow.id}
+            category={captureCategory}
             seedItem={
-              selectedRow.category === "origin"
+              captureCategory === "origin"
                 ? endpointDraft.origin
-                : selectedRow.category === "destination"
+                : captureCategory === "destination"
                   ? endpointDraft.destination
                   : null
             }
-            selectedLabel={captureLabel}
-            cityHint={captureHint || null}
+            selectedLabel={
+              captureCategory === "origin"
+                ? composerOriginLabel
+                : captureCategory === "destination"
+                  ? composerDestinationLabel
+                  : captureLabel
+            }
+            cityHint={
+              captureCategory === "origin"
+                ? originCityHint || null
+                : captureCategory === "destination"
+                  ? destinationCityHint || null
+                  : captureHint || null
+            }
             disabled={isRouteMutationPending}
             onPick={handlePick}
             onCompleteLabel={openCompleteLabel}
           />
-          {isDraftWaypoint ? (
+          {isDraftWaypoint && !hasPersistedStops ? (
             <Button
               type="button"
               size="sm"
@@ -800,6 +902,17 @@ export function TripDetailRouteTab({
               onClick={() => handleRemoveDraftWaypoint(selectedRow.id)}
             >
               {copy.action.removeDraftWaypoint}
+            </Button>
+          ) : null}
+          {changingDestination ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={isRouteMutationPending}
+              onClick={() => setChangingDestination(false)}
+            >
+              {copy.action.cancel}
             </Button>
           ) : null}
         </div>
@@ -855,8 +968,21 @@ export function TripDetailRouteTab({
     );
   })();
 
-  return (
-    <div className="space-y-6">
+  const distanceSegments = buildRouteDistanceSegments(ordered);
+  const totalPlannedKm = sumRouteSegmentDistanceKm(ordered);
+  const cargoCount = cargos?.length ?? 0;
+  const footerKm =
+    totalPlannedKm != null
+      ? totalPlannedKm.toLocaleString("es-MX", { maximumFractionDigits: 1 })
+      : null;
+  const routeFooterText = copy.format.routeFooter(
+    ordered.length,
+    footerKm,
+    cargoCount,
+  );
+
+  const routeAlerts = (
+    <>
       {missingDestinationMidTrip ? (
         <Alert variant="warning">
           <AlertCircle className="h-4 w-4" />
@@ -900,59 +1026,163 @@ export function TripDetailRouteTab({
           </AlertDescription>
         </Alert>
       ) : null}
+    </>
+  );
 
-      <div className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="text-base font-semibold">
-              {hasPersistedStops
-                ? copy.section.stops
-                : showMidTripReplan
-                  ? copy.state.emptyMidTripTitle
-                  : copy.composer.title}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {showMidTripReplan
-                ? copy.hint.stopsMidTrip
-                : hasPersistedStops
-                  ? copy.hint.stops
-                  : copy.composer.description}
-            </p>
-          </div>
-        </div>
-        {captureError ? (
-          <FormValidationSummary
-            title={copy.alert.captureTitle}
-            messages={[captureError]}
+  const unsavedAndErrors = (
+    <>
+      {captureError ? (
+        <FormValidationSummary
+          title={copy.alert.captureTitle}
+          messages={[captureError]}
+        />
+      ) : null}
+      {hasLocalDraft ? (
+        <TripRouteUnsavedBar
+          summary={unsavedSummary}
+          canSave={canSaveLocalDraft}
+          isPending={isRouteMutationPending}
+          onDiscard={handleDiscardLocalDraft}
+          onSave={handleSaveLocalDraft}
+        />
+      ) : null}
+    </>
+  );
+
+  const artboardLayout = hasPersistedStops ? (
+    <div className="space-y-3">
+      {unsavedAndErrors}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
+        <TripRouteTimeline
+          rows={masterRows}
+          selectedId={resolvedViewId}
+          onSelect={handleSelectRow}
+          onAddWaypoint={handleAddWaypoint}
+          tripTimes={tripTimes}
+          showVisitState={showVisitState}
+          showMidTripReplan={showMidTripReplan}
+          disabled={isRouteMutationPending}
+          readOnly={!canMutateRoute}
+          canAddWaypoint={canAddWaypoint}
+          addWaypointDisabledReason={copy.composer.needBothEnds}
+          editingChip={hasLocalDraft}
+          footerText={routeFooterText}
+          onEditStop={canMutateRoute ? openStopForm : undefined}
+          onCompleteAddress={canMutateRoute ? openStopForm : undefined}
+          onChangeDestination={
+            canMutateRoute ? handleChangeDestination : undefined
+          }
+          onRemoveWaypoint={
+            canMutateRoute ? handleRequestRemoveWaypoint : undefined
+          }
+          onRemoveDraftWaypoint={
+            canMutateRoute ? handleRemoveDraftWaypoint : undefined
+          }
+          onReorderUp={
+            canReplanPendingStops
+              ? (stop) => handleReorderWaypoint(stop, "up")
+              : undefined
+          }
+          onReorderDown={
+            canReplanPendingStops
+              ? (stop) => handleReorderWaypoint(stop, "down")
+              : undefined
+          }
+          canReorderStop={(stop) => {
+            const wpIndex = mutableWaypoints.findIndex(
+              (item) => item.id === stop.id,
+            );
+            const canReorder =
+              canReplanPendingStops &&
+              getRouteStopCategory(stop) === "waypoint" &&
+              wpIndex >= 0 &&
+              mutableWaypoints.length >= 2;
+            return {
+              up: Boolean(canReorder && wpIndex > 0 && !isRouteMutationPending),
+              down: Boolean(
+                canReorder &&
+                  wpIndex >= 0 &&
+                  wpIndex < mutableWaypoints.length - 1 &&
+                  !isRouteMutationPending,
+              ),
+            };
+          }}
+        />
+        <div className="space-y-4">
+          {showComposerCapture ? (
+            <div className="rounded-xl border bg-card p-4">{detailPanel}</div>
+          ) : (
+            <TripRouteMapPanel stops={ordered} />
+          )}
+          <TripRouteDistancesCard
+            segments={distanceSegments}
+            totalKm={totalPlannedKm}
           />
-        ) : null}
-        <div className="grid gap-4 rounded-md border bg-muted/30 p-2 md:grid-cols-[280px_1fr] md:items-stretch md:gap-0">
-          <TripRouteComposer
-            rows={masterRows}
-            selectedId={resolvedViewId}
-            onSelect={handleSelectRow}
-            onAddWaypoint={handleAddWaypoint}
-            tripTimes={tripTimes}
-            disabled={isRouteMutationPending}
-            readOnly={!canMutateRoute}
-            mode={showMidTripReplan ? "pending-only" : "full"}
-            showVisitState={showVisitState}
-            corridor={
-              showCorridorPicker ? (
-                <CorridorPicker
-                  corridors={corridors}
-                  isLoading={corridorsQuery.isLoading}
-                  disabled={replaceStops.isPending}
-                  onSelect={handleCorridorSelect}
-                />
-              ) : null
-            }
-          />
-          <div className="flex min-h-0 flex-col bg-background md:max-h-[640px] md:overflow-hidden md:rounded-r-md md:p-5">
-            {detailPanel}
-          </div>
         </div>
       </div>
+    </div>
+  ) : null;
+
+  const emptyComposerLayout = !hasPersistedStops ? (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold">
+            {showMidTripReplan
+              ? copy.state.emptyMidTripTitle
+              : copy.composer.title}
+            {hasLocalDraft ? (
+              <Badge variant="info" tone="soft" className="font-normal">
+                {copy.chip.editing}
+              </Badge>
+            ) : null}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            {showMidTripReplan
+              ? hasLocalDraft
+                ? copy.hint.midTripComposer
+                : copy.hint.stopsMidTrip
+              : copy.composer.description}
+          </p>
+        </div>
+      </div>
+      {unsavedAndErrors}
+      <div className="grid gap-4 rounded-md border bg-muted/30 p-2 md:grid-cols-[280px_1fr] md:items-stretch md:gap-0">
+        <TripRouteComposer
+          rows={masterRows}
+          selectedId={resolvedViewId}
+          onSelect={handleSelectRow}
+          onAddWaypoint={handleAddWaypoint}
+          tripTimes={tripTimes}
+          disabled={isRouteMutationPending}
+          readOnly={!canMutateRoute}
+          canAddWaypoint={canAddWaypoint}
+          addWaypointDisabledReason={copy.composer.needBothEnds}
+          mode={showMidTripReplan ? "pending-only" : "full"}
+          showVisitState={showVisitState}
+          corridor={
+            showCorridorPicker ? (
+              <CorridorPicker
+                corridors={corridors}
+                isLoading={corridorsQuery.isLoading}
+                disabled={replaceStops.isPending}
+                onSelect={handleCorridorSelect}
+              />
+            ) : null
+          }
+        />
+        <div className="flex min-h-0 flex-col bg-background md:max-h-[640px] md:overflow-hidden md:rounded-r-md md:p-5">
+          {detailPanel}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <div className="space-y-6">
+      {routeAlerts}
+      {artboardLayout}
+      {emptyComposerLayout}
 
       {stopForm}
 
