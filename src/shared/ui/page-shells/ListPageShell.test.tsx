@@ -10,7 +10,7 @@ const emptyState = {
 };
 
 describe("ListPageShell", () => {
-  it("table-mode: una card; empty dentro; summary+pagination en pie; toolbar fuera", () => {
+  it("table-mode: una card; empty dentro sin pie dual; toolbar fuera", () => {
     const { container } = render(
       <ListPageShell
         title="Vehículos"
@@ -28,24 +28,21 @@ describe("ListPageShell", () => {
     );
 
     expect(screen.getByPlaceholderText("Buscar...")).toBeInTheDocument();
-    // EmptyState title + ListingResultsSummary (total 0) share copy
-    expect(
-      screen.getAllByText("No se encontraron vehículos").length,
-    ).toBeGreaterThanOrEqual(2);
+    // EmptyState único — sin summary «No se encontraron» del pie (total===0)
+    expect(screen.getAllByText("No se encontraron vehículos")).toHaveLength(1);
     expect(screen.queryByTestId("table-slot")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Mostrando/)).not.toBeInTheDocument();
 
     const card = container.querySelector(".rounded-xl.border.bg-card");
     expect(card).toBeTruthy();
-    expect(card!.querySelector(".border-t")).toBeTruthy();
+    expect(card!.querySelector(".border-t")).toBeNull();
     expect(card!.textContent).toContain("No se encontraron vehículos");
     expect(card!.textContent).toContain("Comienza agregando tu primer vehículo");
 
-    // T8: no Primera/Última; current page secondary when pages > 1
+    // T8: sin controles de página en empty
     expect(screen.queryByRole("button", { name: "Primera" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Última" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "1" }).className).toMatch(
-      /bg-secondary/,
-    );
+    expect(screen.queryByRole("button", { name: "1" })).not.toBeInTheDocument();
 
     // Toolbar search is outside the results card
     const search = screen.getByPlaceholderText("Buscar...");

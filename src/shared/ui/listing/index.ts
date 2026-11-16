@@ -5,6 +5,11 @@ export { ActiveFilterChips } from "./ActiveFilterChips";
 export type { ActiveFilterChip } from "./ActiveFilterChips";
 export { ListingResultsSummary } from "./ListingResultsSummary";
 export { ListingPagination } from "./ListingPagination";
+export { ListingResultsFrame } from "./ListingResultsFrame";
+export type {
+  ListingResultsFramePagination,
+  ListingResultsFrameProps,
+} from "./ListingResultsFrame";
 export { ListingDateRangeFilter } from "./ListingDateRangeFilter";
 export type { ListingDateRangeFilterProps } from "./ListingDateRangeFilter";
 export {

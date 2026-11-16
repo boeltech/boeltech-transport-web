@@ -7,6 +7,7 @@ Patrón reusable para pantallas de listado (clientes, viajes, vehículos, conduc
 - `ListingSearchInput`: buscador con icono
 - `ViewModeToggle`: toggle table/cards
 - `ActiveFilterChips`: chips de filtros activos con acción de remover
+- `ListingResultsFrame`: card T1 + pie T8 (summary + pagination embedded). Pie solo si `pagination.total > 0`; controles solo si `totalPages > 1` y hay `onPageChange`.
 - `ListingResultsSummary`: texto de rango mostrado y total
 - `ListingPagination`: paginación T8 (Anterior / números / Siguiente; página actual `secondary`; sin Primera/Última). Prop `embedded` para pie de card (sin `border-t` propio).
 - `ListingFilterPanel`: trigger «Filtros (n)» + Collapsible + Card/grid (recortes del padrón)
@@ -14,10 +15,16 @@ Patrón reusable para pantallas de listado (clientes, viajes, vehículos, conduc
 
 ### Empty state (contrato)
 
-El empty del padrón vive **solo** en `ListPageShell` (`emptyState`), **dentro**
-de la card de resultados en `viewMode=table`. Las tablas (`EntityListTable`,
-`VehicleTable`, etc.) deben devolver `null` (o no montar filas) cuando
-`items.length === 0` — **no** renderizar un segundo `EmptyState` local.
+El empty del padrón vive **dentro** de `ListingResultsFrame` (vía `ListPageShell.emptyState`
+o composición en workbench), **sin pie** cuando `total === 0` (no montar summary
+«No se encontraron» del pie). Las tablas (`EntityListTable`, etc.) deben devolver
+`null` cuando `items.length === 0` — **no** un segundo `EmptyState` local.
+
+### Workbench list-like
+
+`WorkbenchPageShell` **no** envuelve `renderContent` en card. La feature compone
+`ListingResultsFrame` + tablas `framed={false}`. Si el frame pinta el pie T8,
+**no** pasar `pagination` / `onPageChange` al Workbench (un solo dueño del pie).
 
 ### Mutaciones de estado operativo
 
@@ -103,13 +110,14 @@ Usa estas reglas para mantener consistencia visual y de texto entre módulos.
 
 ### 4) Resumen de resultados y paginación
 
-- Usar siempre `ListingResultsSummary` para el texto de rango/total.
-- Usar siempre `ListingPagination` para navegación entre páginas (T8: sin Primera/Última; página actual `secondary`).
-- En `ListPageShell` table-mode el patrón es **una card**:
+- Preferir `ListingResultsFrame` (monta summary + pagination embedded).
+- Usar siempre `ListingResultsSummary` / `ListingPagination` si se compone a mano (T8: sin Primera/Última; página actual `secondary`).
+- En `ListPageShell` table-mode el patrón es **ListingResultsFrame**:
   - Toolbar **fuera**
   - Interior: tabla | empty
-  - Pie `border-t`: summary + pagination (`embedded`)
-- Fuera del shell (workbench, sheets): `ListingPagination` standalone (con `border-t` propio salvo `embedded`).
+  - Pie `border-t` solo si `total > 0`: summary + pagination (`embedded`) si `totalPages > 1`
+- Workbench list-like: misma composición en la feature; no pie en Workbench si el frame lo pinta.
+- Sheets / embebidos sin frame: `ListingPagination` standalone (con `border-t` propio salvo `embedded`).
 
 ### 5) Estado vacío (empty state)
 

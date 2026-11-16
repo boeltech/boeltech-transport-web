@@ -11,8 +11,8 @@
  *   2. Toolbar (search + filtros + acciones extras + refresh + viewMode) — fuera de la card
  *   3. Active filter chips
  *   4. Bloque de resultados:
- *      - table: una card (tabla|empty + pie summary+pagination)
- *      - cards: grid + pie compartido debajo (sin card xl del grid)
+ *      - table: ListingResultsFrame (tabla|empty + pie T8 si total>0)
+ *      - cards: grid + pie compartido debajo (sin card xl; pie si total>0)
  *
  * El shell NO maneja queries ni permisos. La página inyecta:
  * - data (`items`, `pagination`, `isLoading`)
@@ -31,6 +31,7 @@ import {
 import {
   ActiveFilterChips,
   ListingPagination,
+  ListingResultsFrame,
   ListingResultsSummary,
   ListingSearchInput,
   ViewModeToggle,
@@ -169,32 +170,27 @@ function ListPageShellPrimaryActionButton({
   return button;
 }
 
-function ResultsFooter({
+/** Pie T8 bajo grid cards (sin card xl). Table-mode usa `ListingResultsFrame`. */
+function CardsResultsFooter({
   entityLabelPlural,
   pagination,
   onPageChange,
-  variant,
 }: {
   entityLabelPlural: string;
   pagination: ListPageShellPagination;
   onPageChange?: (page: number) => void;
-  /** `card` = pie Anatomía dentro de rounded-xl; `plain` = bajo grid cards */
-  variant: "card" | "plain";
 }) {
+  if (pagination.total <= 0) return null;
+
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
-        variant === "card" ? "border-t px-4 py-2.5" : "border-t pt-4",
-      )}
-    >
+    <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
       <ListingResultsSummary
         entityLabelPlural={entityLabelPlural}
         total={pagination.total}
         page={pagination.page}
         limit={pagination.limit}
       />
-      {onPageChange ? (
+      {onPageChange && pagination.totalPages > 1 ? (
         <ListingPagination
           embedded
           page={pagination.page}
@@ -233,13 +229,12 @@ function ListPageShellInner<TItem>({
   const viewMode = toolbar?.viewMode?.value ?? "table";
   const hasItems = items.length > 0;
 
-  const resultsFooter =
+  const cardsFooter =
     pagination != null ? (
-      <ResultsFooter
+      <CardsResultsFooter
         entityLabelPlural={entityLabelPlural}
         pagination={pagination}
         onPageChange={onPageChange}
-        variant={viewMode === "table" ? "card" : "plain"}
       />
     ) : null;
 
@@ -326,13 +321,16 @@ function ListPageShellInner<TItem>({
       ) : null}
 
       {/* ====================================================================
-       * Content + pie
+       * Content + pie (table = ListingResultsFrame T1/T8; cards = grid + pie)
        * ================================================================== */}
       {viewMode === "table" ? (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <ListingResultsFrame
+          entityLabelPlural={entityLabelPlural}
+          pagination={pagination}
+          onPageChange={onPageChange}
+        >
           {isLoading || hasItems ? renderTable() : <EmptyState {...emptyState} />}
-          {resultsFooter}
-        </div>
+        </ListingResultsFrame>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -348,7 +346,7 @@ function ListPageShellInner<TItem>({
               renderCards?.()
             )}
           </div>
-          {resultsFooter}
+          {cardsFooter}
         </>
       )}
     </div>

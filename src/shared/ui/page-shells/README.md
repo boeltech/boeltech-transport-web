@@ -96,38 +96,52 @@ Anatomía fija: Header → Awareness strip (buckets) → Toolbar → `renderCont
 
 ```tsx
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
+import { ListingResultsFrame } from "@shared/ui/listing";
 
 <WorkbenchPageShell
   title="…"
   buckets={buckets} // WorkbenchBucket[]
   showHeader={!embedded}
   toolbar={{ search, filters, onRefresh }}
-  renderContent={() => /* tabla / cola / empty por bucket */}
+  // List-like: componer frame en la feature — no wrap ciego de renderContent.
+  // Si ListingResultsFrame pinta el pie, no pasar pagination/onPageChange aquí.
+  renderContent={() => (
+    <ListingResultsFrame
+      entityLabelPlural="…"
+      pagination={pagination}
+      onPageChange={setPage}
+    >
+      {/* EntityListTable framed={false} | EmptyState | skeleton */}
+    </ListingResultsFrame>
+  )}
   relatedConfig={{ label: "…", href: "/…" }}
 />
 ```
 
-Tests: `WorkbenchPageShell.test.tsx`. Showcase: `/design-system` → Patrones.
+- Workbench **no** aporta card T1 ni opt-in automático del frame.
+- Error / checklist / bridges que sustituyen la cola van **fuera** del frame.
+- Tests: `WorkbenchPageShell.test.tsx`. Showcase: `/design-system` → Patrones.
 
 ---
 
 ## `ListPageShell` — card de resultados (T1 / T8)
 
-Anatomía table-mode:
+Anatomía table-mode (`ListingResultsFrame`):
 
 ```
 [header]
 [toolbar + chips]          ← fuera de la card
-┌─ rounded-xl border bg-card shadow-sm ─────────────┐
-│  renderTable()  |  EmptyState (si !loading && 0)   │
-│  ─ border-t ───────────────────────────────────── │
-│  ListingResultsSummary + ListingPagination (T8)   │
-└────────────────────────────────────────────────────┘
+┌─ ListingResultsFrame (rounded-xl border bg-card shadow-sm) ─┐
+│  renderTable()  |  EmptyState (si !loading && 0)            │
+│  ─ border-t (solo si total > 0) ─────────────────────────── │
+│  ListingResultsSummary + ListingPagination embedded (T8)   │
+└────────────────────────────────────────────────────────────┘
 ```
 
+- Empty (`total === 0`): EmptyState **sin** pie (no summary dual «No se encontraron»).
 - Paginación: Anterior / números / Siguiente; página actual `secondary`; sin Primera/Última.
-- `EntityListTable` bajo este shell: `framed={false}` (F4+); el shell aporta el marco.
-- Cards-mode: grid sin card xl; pie summary+pagination debajo (misma T8).
+- `EntityListTable` bajo este shell: `framed={false}` (F4+); el frame aporta el marco.
+- Cards-mode: grid sin card xl; pie summary+pagination debajo (misma T8; pie si `total > 0`).
 - Firma pública: `renderTable: () => ReactNode` sin cambio.
 
 Tests: `ListPageShell.test.tsx`.

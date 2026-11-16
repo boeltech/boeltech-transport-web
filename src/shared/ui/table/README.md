@@ -34,8 +34,8 @@ Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
 | Prop | Default | Notas |
 |------|---------|-------|
 | `density` | `"list"` | **Siempre** se pasa a `<Table density={…}>`. Nunca omitir. |
-| `framed` | `true` | Card propia. Con `ListPageShell` table-mode → `framed={false}` (F4 `/vehicles`). |
-| `footer` | — | Slot bajo la tabla (`border-t`). Demos / uso fuera del shell. El pie de padrón lo monta `ListPageShell`. |
+| `framed` | `true` | Card propia. Con `ListPageShell` / `ListingResultsFrame` → `framed={false}` (ancla `/vehicles`; workbench list-like). |
+| `footer` | — | Slot bajo la tabla (`border-t`). Demos / uso fuera del frame. El pie T8 lo monta `ListingResultsFrame` (vía shell o composición). |
 | `stickyHeader` | auto > 25 | Sticky `thead` si `true` **o** filas renderizadas (datos + grupo) > 25. |
 | `getGroupKey` / `renderGroupHeader` | — | Filas de grupo (ver §Filas de grupo). Sin ambas props el render no cambia. |
 | `sort` / `onSortChange` | — | UI + `aria-sort`; **la URL la cablea el caller**. |
@@ -64,7 +64,7 @@ Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
 
 | Estado | Comportamiento |
 |--------|----------------|
-| `!isLoading && rows.length === 0` | `return null` — el **shell** monta `emptyState` |
+| `!isLoading && rows.length === 0` | `return null` — el **frame/shell** monta `EmptyState` |
 | `isLoading` | Misma card + thead; ~5 filas skeleton **por** `columns` / kinds |
 
 ### Densidad (T2)
