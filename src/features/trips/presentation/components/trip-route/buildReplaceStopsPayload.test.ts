@@ -9,6 +9,7 @@ import {
   areComposerEndpointDraftsPutReady,
   buildReplaceStopsPayload,
   canPersistComposerStops,
+  stopFormDataToComposerEndpointPick,
   fillMissingCreateStopDistances,
   isComposerPickPutReady,
   isDuplicateComposerEndpointAddress,
@@ -457,6 +458,31 @@ describe("mergeComposerEndpointDraft", () => {
     expect(both).toHaveLength(2);
     expect(canPersistComposerStops(both)).toBe(true);
     expect(both[1]?.locationName).toBe("CEDIS Sur");
+  });
+});
+
+describe("stopFormDataToComposerEndpointPick", () => {
+  it("maps Completar domicilio fields onto a composer draft pick", () => {
+    const pick = stopFormDataToComposerEndpointPick(
+      {
+        stopCategory: "origin",
+        locationName: "Patio norte",
+        street: "Calle Manual",
+        exteriorNumber: "10",
+        postalCode: "44100",
+        satStateCode: "JAL",
+        satMunicipalityCode: "039",
+        latitude: 20.67,
+        longitude: -103.35,
+        clientId: "cli-1",
+      },
+      pickerItem,
+    );
+    expect(pick.id).toBe(pickerItem.id);
+    expect(pick.locationName).toBe("Patio norte");
+    expect(pick.street).toBe("Calle Manual");
+    expect(pick.postalCode).toBe("44100");
+    expect(isComposerPickPutReady(pick)).toBe(true);
   });
 });
 

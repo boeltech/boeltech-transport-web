@@ -430,6 +430,48 @@ export function pickerItemLabel(item: AddressSearchListItem): string {
 }
 
 /**
+ * Completar domicilio sin par (gate `canPersistComposerStops`): actualiza el
+ * borrador local del composer a partir del formulario, sin PUT.
+ */
+export function stopFormDataToComposerEndpointPick(
+  data: StopFormData,
+  seed?: ComposerEndpointPick,
+): ComposerEndpointPick {
+  const catalogId =
+    seed?.id?.trim() ||
+    data.sourceAddressId?.trim() ||
+    data.clientAddressId?.trim() ||
+    data.addressId?.trim() ||
+    "";
+  return {
+    id: catalogId || seed?.id || "draft-endpoint",
+    ownerType: seed?.ownerType ?? "client",
+    ownerId: seed?.ownerId ?? data.clientId?.trim() ?? "",
+    ownerLabel: seed?.ownerLabel ?? null,
+    addressType: seed?.addressType ?? "shipping",
+    locationName: data.locationName?.trim() || null,
+    street: data.street?.trim() ?? "",
+    exteriorNumber: data.exteriorNumber?.trim() ?? "",
+    postalCode: data.postalCode?.trim() ?? "",
+    satStateCode: data.satStateCode?.trim() ?? "",
+    satMunicipalityCode: data.satMunicipalityCode?.trim() || null,
+    neighborhoodName: data.neighborhoodName?.trim() || null,
+    satNeighborhoodCode: data.satNeighborhoodCode?.trim() || null,
+    latitude: data.latitude ?? null,
+    longitude: data.longitude ?? null,
+    geocodingAccuracy: seed?.geocodingAccuracy ?? null,
+    geolocationPending: false,
+    isPrimary: seed?.isPrimary ?? false,
+    isActive: seed?.isActive ?? true,
+    isCartaPorteReady: seed?.isCartaPorteReady ?? false,
+    remitenteRfc: seed?.remitenteRfc,
+    remitenteName: seed?.remitenteName,
+    destinatarioRfc: seed?.destinatarioRfc,
+    destinatarioName: seed?.destinatarioName,
+  };
+}
+
+/**
  * Mínimo para PUT de esqueleto desde el composer (ADR-0078 / ADR-0092 tripStop).
  * Create-new Nombre+CP sin pin/SAT no pasa; catálogo geolocalizado típico sí.
  */

@@ -68,6 +68,8 @@ import {
   isDraftWaypointSlotId,
   isStopDomicilioComplete,
   resolveRouteMasterRowId,
+  ROUTE_SLOT_DESTINATION_ID,
+  ROUTE_SLOT_ORIGIN_ID,
   ROUTE_SLOT_WAYPOINT_PREFIX,
   stopHasLinkedCargoMovements,
   sumRouteSegmentDistanceKm,
@@ -89,6 +91,7 @@ import {
   pickerItemLabel,
   removeWaypointFromReplaceStopsPayload,
   replaceStopsFromCorridor,
+  stopFormDataToComposerEndpointPick,
   upsertComposerStop,
 } from "./buildReplaceStopsPayload";
 import { tripDetailCopy } from "../../copy";
@@ -255,11 +258,21 @@ export function TripDetailRouteTab({
       isTripStopImmutableMidTrip(row.stop),
   }));
   const masterRowIds = masterRows.map((row) => row.id).join("|");
-  const resolvedViewId = useMemo(
-    () => resolveRouteMasterRowId(masterRows, selectedId),
+  /** D-R1/D-R3 — Operate solo con ambos extremos; composer si falta origen o destino. */
+  const hasBothPersistedEndpoints = Boolean(origin && destination);
+  const hasAnyPersistedStop = orderedStops.length > 0;
+  const resolvedViewId = useMemo(() => {
+    // Legacy N=1 / tras capturar un extremo: preferir el slot vacío accionable.
+    const preferred =
+      selectedId ??
+      (origin && !destination
+        ? ROUTE_SLOT_DESTINATION_ID
+        : !origin && destination
+          ? ROUTE_SLOT_ORIGIN_ID
+          : null);
+    return resolveRouteMasterRowId(masterRows, preferred);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- masterRowIds cubre la identidad de las filas
-    [masterRowIds, selectedId],
-  );
+  }, [masterRowIds, selectedId, origin?.id, destination?.id]);
   const selectedRow =
     masterRows.find((row) => row.id === resolvedViewId) ?? null;
   const selectedLocked = Boolean(selectedRow?.locked);
@@ -521,6 +534,11 @@ export function TripDetailRouteTab({
       });
       if (!pickReady) {
         openCompleteFromPick(category);
+      } else if (category === "origin") {
+        // D-R3 — destino accionable con LocationField; no publicar timeline.
+        setSelectedId(ROUTE_SLOT_DESTINATION_ID);
+      } else if (category === "destination") {
+        setSelectedId(ROUTE_SLOT_ORIGIN_ID);
       }
       return;
     }
@@ -677,6 +695,41 @@ export function TripDetailRouteTab({
       }
     };
 
+    // Mismo gate que handlePick: no PUT de ruta incompleta (1 extremo).
+    if (
+      createTarget?.kind === "create" &&
+      !showMidTripReplan &&
+      !canPersistComposerStops(stops)
+    ) {
+      const category = createTarget.category;
+      if (category === "waypoint") {
+        setCaptureError(copy.composer.needBothEnds);
+        setCompleteTarget(null);
+        return;
+      }
+      const seed =
+        category === "origin" ? endpointDraft.origin : endpointDraft.destination;
+      const pick = stopFormDataToComposerEndpointPick(data, seed);
+      setEndpointDraft((prev) => ({ ...prev, [category]: pick }));
+      toast({
+        title: isComposerPickPutReady(pick)
+          ? category === "origin"
+            ? copy.composer.pendingOriginSaved
+            : copy.composer.pendingDestinationSaved
+          : category === "origin"
+            ? copy.composer.pendingOriginIncomplete
+            : copy.composer.pendingDestinationIncomplete,
+        variant: "default",
+      });
+      setCompleteTarget(null);
+      setSelectedId(
+        category === "origin"
+          ? ROUTE_SLOT_DESTINATION_ID
+          : ROUTE_SLOT_ORIGIN_ID,
+      );
+      return;
+    }
+
     if (showMidTripReplan) {
       const pending = toReplanPendingStops({
         next: stops,
@@ -810,9 +863,8 @@ export function TripDetailRouteTab({
   const missingDomicilioCount = countStopsMissingDomicilio(ordered);
   const missingDistanceCount = countStopsMissingSegmentDistance(ordered);
   const fillableDistanceCount = countFillableMissingSegmentDistances(ordered);
-  const hasPersistedStops = orderedStops.length > 0;
   const missingDestinationMidTrip =
-    showMidTripReplan && hasPersistedStops && !destination;
+    showMidTripReplan && hasAnyPersistedStop && !destination;
 
   const captureLabel =
     selectedRow?.category === "origin"
@@ -892,7 +944,7 @@ export function TripDetailRouteTab({
             onPick={handlePick}
             onCompleteLabel={openCompleteLabel}
           />
-          {isDraftWaypoint && !hasPersistedStops ? (
+          {isDraftWaypoint && !hasBothPersistedEndpoints ? (
             <Button
               type="button"
               size="sm"
@@ -991,7 +1043,7 @@ export function TripDetailRouteTab({
         </Alert>
       ) : null}
 
-      {hasPersistedStops && missingDomicilioCount > 0 ? (
+      {hasBothPersistedEndpoints && missingDomicilioCount > 0 ? (
         <Alert variant="warning">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{copy.alert.missingAddressTitle}</AlertTitle>
@@ -1001,7 +1053,7 @@ export function TripDetailRouteTab({
         </Alert>
       ) : null}
 
-      {hasPersistedStops && missingDistanceCount > 0 ? (
+      {hasBothPersistedEndpoints && missingDistanceCount > 0 ? (
         <Alert variant="warning">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{copy.alert.missingDistanceTitle}</AlertTitle>
@@ -1049,7 +1101,7 @@ export function TripDetailRouteTab({
     </>
   );
 
-  const artboardLayout = hasPersistedStops ? (
+  const artboardLayout = hasBothPersistedEndpoints ? (
     <div className="space-y-3">
       {unsavedAndErrors}
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
@@ -1123,7 +1175,7 @@ export function TripDetailRouteTab({
     </div>
   ) : null;
 
-  const emptyComposerLayout = !hasPersistedStops ? (
+  const emptyComposerLayout = !hasBothPersistedEndpoints ? (
     <div className="space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
