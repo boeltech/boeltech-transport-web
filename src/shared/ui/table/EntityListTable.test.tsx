@@ -373,4 +373,107 @@ describe("EntityListTable", () => {
     expect(root.className).toContain("rounded-xl");
     expect(root.className).toContain("bg-card");
   });
+
+  describe("kind share + summaryRow", () => {
+    type ShareRow = {
+      id: string;
+      name: string;
+      share: { amount: number; percent: number } | null;
+    };
+
+    const shareColumns: EntityListColumnDef<ShareRow>[] = [
+      {
+        id: "name",
+        header: "Cliente",
+        kind: "text",
+        accessor: (r) => r.name,
+      },
+      {
+        id: "share",
+        header: "Parte del flete",
+        kind: "share",
+        accessor: (r) => r.share,
+      },
+      {
+        id: "actions",
+        header: "",
+        kind: "actions",
+        accessor: () => null,
+      },
+    ];
+
+    const shareRows: ShareRow[] = [
+      { id: "1", name: "Cliente A", share: { amount: 6000, percent: 60 } },
+      { id: "2", name: "Cliente B", share: { amount: 4000, percent: 40 } },
+      { id: "3", name: "Sin dato", share: null },
+    ];
+
+    function renderShareTable(
+      props: Partial<EntityListTableProps<ShareRow>> = {},
+    ) {
+      return render(
+        <MemoryRouter>
+          <EntityListTable
+            columns={shareColumns}
+            rows={shareRows}
+            getRowId={(r) => r.id}
+            {...props}
+          />
+        </MemoryRouter>,
+      );
+    }
+
+    it("share: monto + % visibles; barra aria-hidden; vacío → —", () => {
+      const { container } = renderShareTable();
+      expect(screen.getByText("$6,000.00")).toBeInTheDocument();
+      expect(screen.getByText("60%")).toBeInTheDocument();
+      expect(screen.getByText("40%")).toBeInTheDocument();
+      expect(screen.getByText("—")).toBeInTheDocument();
+      // % legible; Progress con aria-hidden no expone role progressbar
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+      expect(container.querySelectorAll("[aria-hidden]").length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    it("summaryRow al final en tfoot; sin hover activable; formatea share", async () => {
+      const user = userEvent.setup();
+      const onRowActivate = vi.fn();
+      const { container } = renderShareTable({
+        onRowActivate,
+        summaryRow: {
+          label: "Base de flete",
+          cells: {
+            share: { amount: 10_000, percent: 100 },
+          },
+        },
+      });
+
+      const summary = container.querySelector(
+        "tr[data-entity-summary-row]",
+      ) as HTMLElement;
+      expect(summary).toBeTruthy();
+      expect(summary.closest("tfoot")).toBeTruthy();
+      expect(summary).toHaveTextContent("Base de flete");
+      expect(summary).toHaveTextContent("$10,000.00");
+      expect(summary).toHaveTextContent("100%");
+      expect(summary.className).toContain("bg-muted/60");
+      expect(summary.className).not.toContain("cursor-pointer");
+
+      await user.click(summary);
+      expect(onRowActivate).not.toHaveBeenCalled();
+    });
+
+    it("summaryRow no se muestra en loading", () => {
+      const { container } = renderShareTable({
+        rows: [],
+        isLoading: true,
+        summaryRow: {
+          label: "Base de flete",
+          cells: { share: { amount: 1, percent: 100 } },
+        },
+      });
+      expect(container.querySelector("tr[data-entity-summary-row]")).toBeNull();
+    });
+  });
 });

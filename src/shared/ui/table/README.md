@@ -38,6 +38,7 @@ Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
 | `footer` | — | Slot bajo la tabla (`border-t`). Demos / uso fuera del frame. El pie T8 lo monta `ListingResultsFrame` (vía shell o composición). |
 | `stickyHeader` | auto > 25 | Sticky `thead` si `true` **o** filas renderizadas (datos + grupo) > 25. |
 | `getGroupKey` / `renderGroupHeader` | — | Filas de grupo (ver §Filas de grupo). Sin ambas props el render no cambia. |
+| `summaryRow` | — | Fila de totales en `<tfoot>` (ver §Fila de totales). Opt-in; no va en `rows[]`. |
 | `sort` / `onSortChange` | — | UI + `aria-sort`; **la URL la cablea el caller**. |
 | `primaryTo` / `primaryState` | — | Href (+ `location.state` opcional) del link primario. |
 
@@ -52,6 +53,7 @@ Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
 | `code` | izq. | `font-mono` ~13 px |
 | `number` | der. | `font-mono tabular-nums`; `number` → es-MX |
 | `money` | der. | `font-mono tabular-nums` + `formatMxCurrency`; negativo destructive |
+| `share` | der. | `EntityListShareValue`: monto opcional + `N%` muted + barra `Progress` `h-1.5` (`bar` default `true`). a11y: `%` legible; barra `aria-hidden`. Compact puede crecer ~1 línea. |
 | `date` | izq. | `formatDate` si ISO/`Date`; nodo ya formateado se respeta |
 | `status` | izq. | nodo del accessor (`StatusBadge`); no mapa local |
 | `actions` | der. | menú ⋯ del caller; `stopPropagation`; no cuenta en tope de 7 |
@@ -115,6 +117,33 @@ renderGroupHeader?: (group: { key: string; rows: TRow[] }) => {
 
 Anti-patrones: card dentro de card por grupo, un `thead` por grupo, badge en el subtotal, mayúsculas por CSS en el nombre.
 
+### Fila de totales (`summaryRow`)
+
+Totales de columnas al final de la tabla (no pie T8). Ancla: **Reparto** en Facturación del viaje («Base de flete»).
+
+```tsx
+<EntityListTable
+  columns={columns}
+  rows={legs}
+  getRowId={(r) => r.id}
+  summaryRow={{
+    label: "Base de flete",
+    cells: {
+      share: { amount: basisAmount, percent: 100 },
+    },
+  }}
+/>
+```
+
+| Regla | Detalle |
+|-------|---------|
+| Ubicación | `<tfoot>` · `data-entity-summary-row` · **fuera** de `rows[]` |
+| Visual | `bg-muted/60`, `font-semibold`; sin hover; no clicable / no `onRowActivate` |
+| Celdas | Pasan por el formateo del kind de la columna (`share` / `money` / …) |
+| Label | Abarca desde la 1.ª columna hasta la anterior a la primera con contenido en `cells` |
+| vs `footer` | `footer` = slot bajo la card (T8). `summaryRow` = fila de totales de columnas |
+| vs grupo | Secciones → `getGroupKey` / `renderGroupHeader`, no `summaryRow` |
+
 ### Composición con `ListPageShell` (F3)
 
 `ListPageShell` **posee** la card del bloque de resultados en table-mode (toolbar fuera; empty + pie summary/pagination dentro).
@@ -132,6 +161,8 @@ Anti-patrones: card dentro de card por grupo, un `thead` por grupo, badge en el 
 - Checkboxes de selección en listado CRUD (solo Workbench — T9; no en v1).
 - Más de 7 columnas de datos sin `stacked` / detalle.
 - Sort solo en memoria sin reflejar URL cuando el listado ya filtra por query.
+- Usar `summaryRow` para secciones o historial (secciones → grupo; timeline → riel/Sheet).
+- Hand-roll `<table>` o barra % local cuando basta el kind `share`.
 
 ## Primitivos `Table*`
 

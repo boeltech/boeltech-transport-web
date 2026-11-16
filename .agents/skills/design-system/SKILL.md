@@ -30,7 +30,7 @@ principio, actualizar este bloque en el mismo cambio.
 |---|-----------|------------------|
 | P1 | Paridad de negocio, no de cromo | Estados de dominio vía `StatusBadge` + config; no inventar estados ni copiar UI a Android |
 | P2 | Una primaria; la marca actúa, el ámbar avisa | Una sola `Button` sólida (`--primary`, teal) por vista; ámbar solo señal (riel, warning). Excepción: CTA ámbar en `/welcome` (D-M2) |
-| P3 | Densidad según el contexto | Operate = alta densidad; tablas → contrato **Tablas** (T1–T10) + `EntityListTable` (SoT `platforms/web/design.md` §7); workbenches, KPIs |
+| P3 | Densidad según el contexto | Operate = alta densidad; tablas → contrato **Tablas** (T1–T10 + `share` / `summaryRow`) + `EntityListTable` (SoT `platforms/web/design.md` §7); workbenches, KPIs |
 | P4 | Primero el job, después el componente | Elegir el page shell por job (tabla de taxonomía abajo) |
 | P5 | Rol antes que valor | Solo tokens semánticos; nunca colores Tailwind crudos |
 | P6 | Ninguna pantalla sin sus estados | Empty vía shell · `LoadingPageState` · error → `DetailAlertCard` + Reintentar |
@@ -459,8 +459,11 @@ Texto canónico: `design/tlamx/platforms/web/design.md` §7. Resumen vinculante:
 - Densidades: lista `h-11` / compacta `h-9` (solo embebida); head
   `h-9 text-xs font-medium text-muted-foreground bg-muted`; selected `bg-primary-50` (T2).
 - Columnas vía `columns[].kind` (`primary`, `text`, `meta`, `stacked`, `code`, `number`,
-  `money`, `date`, `status`, `actions`); números/dinero a la derecha mono +
-  `tabular-nums`; unidad en el header (T3–T4).
+  `money`, `share`, `date`, `status`, `actions`); números/dinero/share a la derecha mono +
+  `tabular-nums`; unidad en el header (T3–T4). `share` = monto opcional + `%` + barra
+  delgada (`Progress` compacto; `%` legible, barra `aria-hidden`).
+- `summaryRow` opt-in: fila de totales en `<tfoot>` (label + celdas por kind); no es
+  `footer` ni fila de grupo. No usar para historial/timeline.
 - Máx. **7** cols de datos + `actions`; vacío = «—» muted; sentence case; link real en
   `primary` (T5–T7).
 - Paginación: página actual `secondary`; **sin** Primera/Última; 10 filas listado / 25
@@ -921,7 +924,7 @@ README: `src/shared/ui/location/README.md` · Guía: `docs/direcciones/patron-lo
 | Mapas + embeds (dark) | `src/shared/geolocation/README.md` |
 | Overlays + toast | `src/shared/ui/toast/README.md` |
 | Listados (filtros, cards) | `src/shared/ui/listing/README.md` |
-| Tablas Operate (T1–T10, kinds) | SoT `platforms/web/design.md` §7 · `@shared/ui/table` |
+| Tablas Operate (T1–T10, kinds + `share` / `summaryRow`) | SoT `platforms/web/design.md` §7 · `@shared/ui/table` |
 | Location / direcciones | `src/shared/ui/location/README.md` · `src/shared/ui/address-input/README.md` |
 | Inbox notificaciones (usuario) | `D:\cowork\boeltech\erp-transport\docs\notificaciones\inbox-usuario.md` |
 | Charts (ADR-0045) | `D:\cowork\boeltech\erp-transport\design\adr\0045-charts-library-y-patron-chartcard.md` |

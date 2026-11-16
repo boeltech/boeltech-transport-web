@@ -1,8 +1,8 @@
 /**
- * TablesSection — EntityListTable (SoT §7 T1–T10)
+ * TablesSection — EntityListTable (SoT §7 T1–T10 + share / summaryRow)
  *
  * Demo viva: kinds, density list/compact, sort + aria-sort, skeleton, empty=null,
- * filas de grupo.
+ * filas de grupo, share + summaryRow.
  */
 
 import { useMemo, useState } from "react";
@@ -19,6 +19,7 @@ import {
 import {
   EntityListTable,
   type EntityListColumnDef,
+  type EntityListShareValue,
   type EntityListSortState,
   type EntityListStackedValue,
 } from "@shared/ui/table";
@@ -317,6 +318,78 @@ function GroupedTableDemo() {
   );
 }
 
+type ShareDemoRow = {
+  id: string;
+  client: string;
+  share: EntityListShareValue;
+  invoice: string;
+};
+
+const SHARE_DEMO_ROWS: ShareDemoRow[] = [
+  {
+    id: "s1",
+    client: "Acme Logística",
+    share: { amount: 18_000, percent: 60 },
+    invoice: "Facturar porción",
+  },
+  {
+    id: "s2",
+    client: "Norte Industrial",
+    share: { amount: 12_000, percent: 40 },
+    invoice: "A-123",
+  },
+];
+
+const SHARE_DEMO_COLUMNS: EntityListColumnDef<ShareDemoRow>[] = [
+  { id: "client", header: "Cliente", kind: "text", accessor: (r) => r.client },
+  {
+    id: "share",
+    header: "Parte del flete",
+    kind: "share",
+    accessor: (r) => r.share,
+  },
+  {
+    id: "invoice",
+    header: "Factura",
+    kind: "meta",
+    accessor: (r) => r.invoice,
+  },
+];
+
+function ShareSummaryDemo() {
+  return (
+    <div id="tables-entity-list-share" className="space-y-3">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Share + summaryRow</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            Kind <code className="font-mono text-xs">share</code>: monto + % +
+            barra delgada. Prop{" "}
+            <code className="font-mono text-xs">summaryRow</code>: fila «Base de
+            flete» en <code className="font-mono text-xs">tfoot</code> (no es{" "}
+            <code className="font-mono text-xs">footer</code> ni grupo). Ancla:
+            Reparto en Facturación del viaje.
+          </p>
+        </CardContent>
+      </Card>
+      <EntityListTable
+        columns={SHARE_DEMO_COLUMNS}
+        rows={SHARE_DEMO_ROWS}
+        getRowId={(r) => r.id}
+        density="compact"
+        summaryRow={{
+          label: "Base de flete",
+          cells: {
+            share: { amount: 30_000, percent: 100 },
+          },
+        }}
+      />
+    </div>
+  );
+}
+
 export function TablesSection() {
   const columns = useMemo(() => buildColumns(), []);
   const [density, setDensity] = useState<"list" | "compact">("list");
@@ -408,6 +481,8 @@ export function TablesSection() {
       />
 
       <GroupedTableDemo />
+
+      <ShareSummaryDemo />
 
       <Card>
         <CardHeader className="pb-2">

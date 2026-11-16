@@ -5,6 +5,7 @@
  * Density siempre en Table + kinds + sort aria-sort.
  * Empty → null (shell posee empty). Loading → skeleton por columns.
  * Filas de grupo opcionales (`getGroupKey` + `renderGroupHeader`).
+ * Kind `share` + prop `summaryRow` (F-ds · evolve-ds 2026-11-16).
  */
 
 import * as React from "react";
@@ -12,6 +13,7 @@ import { Link } from "react-router-dom";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
+import { Progress } from "@shared/ui/progress";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { formatDate } from "@shared/utils/dateUtils";
@@ -20,6 +22,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -27,7 +30,7 @@ import {
 } from "./table";
 
 // ---------------------------------------------------------------------------
-// Types (contrato TEC §5 + footer slot §10)
+// Types (contrato TEC §5 + footer slot §10 + F-ds share/summaryRow)
 // ---------------------------------------------------------------------------
 
 export type EntityListColumnKind =
@@ -38,6 +41,7 @@ export type EntityListColumnKind =
   | "code"
   | "number"
   | "money"
+  | "share"
   | "date"
   | "status"
   | "actions";
@@ -54,14 +58,35 @@ export interface EntityListStackedValue {
   secondary?: React.ReactNode;
 }
 
+/** Celda de porción: monto + % + barra (opt-in; p. ej. Reparto). */
+export interface EntityListShareValue {
+  amount?: number | null;
+  /** 0–100 */
+  percent: number;
+  /** default true */
+  bar?: boolean;
+}
+
+export interface EntityListSummaryRow {
+  label: React.ReactNode;
+  cells?: Partial<
+    Record<string, React.ReactNode | EntityListShareValue | number>
+  >;
+}
+
 export interface EntityListColumnDef<TRow> {
   id: string;
   header: string;
   kind: EntityListColumnKind;
-  /** Valor de celda; stacked → EntityListStackedValue */
+  /** Valor de celda; stacked → EntityListStackedValue; share → EntityListShareValue */
   accessor: (
     row: TRow,
-  ) => React.ReactNode | EntityListStackedValue | null | undefined;
+  ) =>
+    | React.ReactNode
+    | EntityListStackedValue
+    | EntityListShareValue
+    | null
+    | undefined;
   sortable?: boolean;
   /** Campo que viaja a URL/API cuando sortable */
   sortField?: string;
@@ -145,8 +170,14 @@ export interface EntityListTableProps<TRow> {
   /**
    * Slot bajo la tabla (`border-t`). Útil en demos / uso embebido fuera del shell.
    * Con `ListPageShell` el pie vive en el shell — no pasar `footer` ahí.
+   * No confundir con `summaryRow` (fila de totales de columnas).
    */
   footer?: React.ReactNode;
+  /**
+   * Fila de totales al final (`<tfoot>`). Opt-in; no va en `rows[]`.
+   * No hover / no `onRowActivate`. No usar para secciones (usar `getGroupKey`).
+   */
+  summaryRow?: EntityListSummaryRow;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +197,16 @@ function isStackedValue(value: unknown): value is EntityListStackedValue {
     typeof value === "object" &&
     value !== null &&
     "primary" in value &&
+    !("percent" in value) &&
+    !React.isValidElement(value)
+  );
+}
+
+function isShareValue(value: unknown): value is EntityListShareValue {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "percent" in value &&
     !React.isValidElement(value)
   );
 }
@@ -174,6 +215,11 @@ function isEmptyCellValue(value: unknown): boolean {
   if (value == null) return true;
   if (typeof value === "string" && value.trim() === "") return true;
   return false;
+}
+
+function clampSharePercent(percent: number): number {
+  if (!Number.isFinite(percent)) return 0;
+  return Math.min(100, Math.max(0, percent));
 }
 
 function formatNumberValue(value: unknown): React.ReactNode {
@@ -215,7 +261,12 @@ function formatDateValue(value: unknown): React.ReactNode {
 }
 
 function cellAlignClass(kind: EntityListColumnKind): string {
-  if (kind === "number" || kind === "money" || kind === "actions") {
+  if (
+    kind === "number" ||
+    kind === "money" ||
+    kind === "share" ||
+    kind === "actions"
+  ) {
     return "text-right";
   }
   return "text-left";
@@ -231,6 +282,7 @@ function cellKindClass(kind: EntityListColumnKind): string {
       return "font-mono text-[13px]";
     case "number":
     case "money":
+    case "share":
       return "font-mono tabular-nums";
     case "date":
       return "tabular-nums";
@@ -248,6 +300,13 @@ function skeletonForKind(kind: EntityListColumnKind): React.ReactNode {
         <div className="space-y-1.5">
           <Skeleton className="h-4 w-28" />
           <Skeleton className="h-3 w-20" />
+        </div>
+      );
+    case "share":
+      return (
+        <div className="ml-auto w-24 space-y-1.5">
+          <Skeleton className="ml-auto h-4 w-16" />
+          <Skeleton className="h-1.5 w-full" />
         </div>
       );
     case "status":
@@ -270,6 +329,40 @@ function skeletonForKind(kind: EntityListColumnKind): React.ReactNode {
 
 function EmptyDash() {
   return <span className="text-muted-foreground">{EMPTY_DASH}</span>;
+}
+
+/**
+ * Share cell: amount (optional) + visible N% + thin Progress.
+ * a11y: el % legible es la señal; la barra va `aria-hidden` (no duplicar progressbar).
+ * Compact puede crecer ~1 línea vs fila de un solo valor — documentado en README.
+ */
+function renderShare(value: EntityListShareValue): React.ReactNode {
+  const percent = clampSharePercent(value.percent);
+  const showBar = value.bar !== false;
+  const amountNode =
+    value.amount != null && Number.isFinite(value.amount)
+      ? formatMoneyValue(value.amount)
+      : null;
+
+  return (
+    <div className="ml-auto flex w-full min-w-[5.5rem] max-w-[9rem] flex-col items-end gap-0.5">
+      {amountNode != null ? (
+        <div className="text-sm tabular-nums">{amountNode}</div>
+      ) : null}
+      <div className="flex w-full flex-col items-end gap-0.5">
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {`${percent}%`}
+        </span>
+        {showBar ? (
+          <Progress
+            value={percent}
+            aria-hidden
+            className="h-1.5 w-full bg-primary/15"
+          />
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function renderStacked(
@@ -331,6 +424,13 @@ function renderCellContent<TRow>(
 
   if (column.kind === "actions") {
     return (raw as React.ReactNode) ?? null;
+  }
+
+  if (column.kind === "share") {
+    if (raw == null) return <EmptyDash />;
+    if (isShareValue(raw)) return renderShare(raw);
+    if (isEmptyCellValue(raw)) return <EmptyDash />;
+    return raw as React.ReactNode;
   }
 
   if (column.kind === "stacked") {
@@ -441,6 +541,58 @@ function formatGroupCellValue(
   return value;
 }
 
+function formatSummaryCellValue(
+  kind: EntityListColumnKind,
+  value: React.ReactNode | EntityListShareValue | number | undefined,
+): React.ReactNode {
+  if (value == null) return null;
+  if (kind === "share") {
+    if (isShareValue(value)) return renderShare(value);
+    return value as React.ReactNode;
+  }
+  if (kind === "money") return formatMoneyValue(value);
+  if (kind === "number") return formatNumberValue(value);
+  return value as React.ReactNode;
+}
+
+function SummaryRow<TRow>({
+  columns,
+  summary,
+}: {
+  columns: EntityListColumnDef<TRow>[];
+  summary: EntityListSummaryRow;
+}) {
+  const cells = summary.cells ?? {};
+  const firstCellIndex = columns.findIndex(
+    (column, index) => index > 0 && cells[column.id] !== undefined,
+  );
+  const labelSpan = firstCellIndex === -1 ? columns.length : firstCellIndex;
+
+  return (
+    <TableRow
+      data-entity-summary-row=""
+      className="bg-muted/60 font-semibold hover:bg-muted/60 dark:bg-muted dark:hover:bg-muted"
+    >
+      <TableCell colSpan={labelSpan} className="font-semibold text-foreground">
+        {summary.label}
+      </TableCell>
+      {columns.slice(labelSpan).map((column) => (
+        <TableCell
+          key={column.id}
+          className={cn(
+            cellAlignClass(column.kind),
+            cellKindClass(column.kind),
+            "font-semibold",
+            column.className,
+          )}
+        >
+          {formatSummaryCellValue(column.kind, cells[column.id])}
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+}
+
 function GroupHeaderRow<TRow>({
   columns,
   header,
@@ -515,6 +667,7 @@ export function EntityListTable<TRow>({
   "aria-label": ariaLabel,
   framed = true,
   footer,
+  summaryRow,
 }: EntityListTableProps<TRow>) {
   const density: TableDensity = densityProp ?? "list";
 
@@ -635,7 +788,9 @@ export function EntityListTable<TRow>({
                       type="button"
                       className={cn(
                         "inline-flex items-center gap-1 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        column.kind === "number" || column.kind === "money"
+                        column.kind === "number" ||
+                        column.kind === "money" ||
+                        column.kind === "share"
                           ? "ml-auto"
                           : undefined,
                       )}
@@ -701,6 +856,12 @@ export function EntityListTable<TRow>({
               : rows.map(renderDataRow)}
           </TableBody>
         )}
+
+        {!isLoading && summaryRow != null ? (
+          <TableFooter className="border-t bg-transparent font-semibold [&>tr]:border-0">
+            <SummaryRow columns={columns} summary={summaryRow} />
+          </TableFooter>
+        ) : null}
       </Table>
 
       {footer != null ? (

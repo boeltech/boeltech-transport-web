@@ -155,7 +155,7 @@ const SECTIONS: readonly SectionConfig[] = [
     label: "Tablas",
     icon: Table2,
     description:
-      "EntityListTable: kinds, density, sort aria-sort, skeleton y empty null (SoT §7)",
+      "EntityListTable: kinds (incl. share), summaryRow, density, sort, skeleton y empty null (SoT §7)",
     group: "Patterns",
   },
   {
