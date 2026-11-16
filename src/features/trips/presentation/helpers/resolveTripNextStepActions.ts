@@ -1,7 +1,7 @@
 /**
- * Consolida next-step above-the-fold del detalle (pedido claridad flujo · F2/F9).
+ * Consolida next-step above-the-fold del detalle (rediseño F1 · HB-G2-CTA).
  * Pura: status + readiness + flags → 1 primaria + ≤2 secundarias.
- * No navega ni consulta permisos por sí misma: el caller pasa booleans.
+ * Programado / En ruta: primaria = open_operate (abre sheet); Facturar en header (D11).
  */
 
 import { TripStatus, type TripStatusType } from "@features/trips/domain";
@@ -16,6 +16,8 @@ export type TripNextStepPhase =
 export type TripNextStepActionId =
   | "complete_route_cargo"
   | "confirm_reserve"
+  | "open_operate"
+  /** @deprecated Prefer `open_operate` (HB-G2-CTA). Kept for transitional callers. */
   | "go_to_tracking"
   | "invoice"
   | "go_to_route"
@@ -46,22 +48,19 @@ export type ResolveTripNextStepActionsInput = {
   /** Puede mutar/completar reserva (trips.update). */
   readonly canUpdateTrip: boolean;
   /**
-   * Eleva Facturar en next-step (D10 / F6): ≥1 scope freight-family
-   * (`primary_transport` | `false_trip` | `split_share`).
-   * Accessory-only → false; create accesoria queda en header/menú (D12).
-   * El caller deriva con `hasFreightFamilyTripInvoiceScope`.
+   * Eleva Facturar en next-step solo en Completado (D12).
+   * En Programado / En ruta Facturar vive en el header (D11 / D5).
    */
   readonly canInvoice: boolean;
   /**
    * Atención fiscal (ATF): el CTA del job (Sustituir / …) no debe competir
-   * con Facturar genérico en next-step (F4 / PRD).
+   * con Facturar genérico en next-step.
    */
   readonly requiresFiscalAttention?: boolean;
-  /** Tab activo del detalle; evita CTA «Ir a Seguimiento» redundante. */
+  /** Tab activo del detalle (informativo; ya no suprime open_operate). */
   readonly activeTab?: string | null;
   /**
-   * Borradores ligados (F9 / D18). Caller deriva con `listLinkedTripInvoiceDrafts`.
-   * Con elevate Facturar (D10) no se usan para secundaria fiscal create.
+   * Borradores ligados (D18).
    */
   readonly linkedDraftInvoiceIds?: readonly string[];
 };
@@ -72,13 +71,6 @@ function takeSecondaries(
   actions: readonly TripNextStepAction[],
 ): TripNextStepAction[] {
   return actions.slice(0, MAX_SECONDARIES);
-}
-
-function trackingSecondary(
-  activeTab: string | null | undefined,
-): TripNextStepAction | null {
-  if (activeTab === "tracking") return null;
-  return { id: "go_to_tracking", tab: "tracking" };
 }
 
 function draftSecondary(
@@ -106,7 +98,6 @@ export function resolveTripNextStepActions(
     canUpdateTrip,
     canInvoice,
     requiresFiscalAttention = false,
-    activeTab,
     linkedDraftInvoiceIds,
   } = input;
 
@@ -147,33 +138,30 @@ export function resolveTripNextStepActions(
   if (status === TripStatus.SCHEDULED || status === TripStatus.IN_PROGRESS) {
     const phase: TripNextStepPhase =
       status === TripStatus.SCHEDULED ? "scheduled" : "in_progress";
-    const tracking = trackingSecondary(activeTab);
-    /** Con ATF, Facturar genérico cede al banner/CTA del job fiscal. */
-    const elevateInvoice = canInvoice && !requiresFiscalAttention;
 
-    if (elevateInvoice) {
-      const secondaries = tracking ? [tracking] : [];
+    // D11 / HB-G2-CTA: Despachar / acción de parada = primaria; Facturar en header.
+    if (canUpdateTrip) {
+      const draft = draftSecondary(linkedDraftInvoiceIds);
       return {
         phase,
-        primary: { id: "invoice" },
-        secondaries: takeSecondaries(secondaries),
+        primary: { id: "open_operate" },
+        secondaries: takeSecondaries(draft ? [draft] : []),
       };
     }
 
-    if (tracking) {
-      const draft = draftSecondary(linkedDraftInvoiceIds);
-      const secondaries = draft ? [draft] : [];
+    // Sin permiso de operar: Facturar si aplica (fallback).
+    if (canInvoice && !requiresFiscalAttention) {
       return {
         phase,
-        primary: tracking,
-        secondaries: takeSecondaries(secondaries),
+        primary: { id: "invoice" },
+        secondaries: [],
       };
     }
 
     return null;
   }
 
-  if (status === TripStatus.COMPLETED && canInvoice) {
+  if (status === TripStatus.COMPLETED && canInvoice && !requiresFiscalAttention) {
     return {
       phase: "completed",
       primary: { id: "invoice" },

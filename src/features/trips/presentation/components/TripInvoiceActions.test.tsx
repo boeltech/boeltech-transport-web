@@ -435,7 +435,7 @@ describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
     },
   );
 
-  it("freight-family elegible: sin CTA verde; Facturar en menú (skip intacto)", async () => {
+  it("freight-family elegible: Facturar outline en header (D5 / F1); no variante default", async () => {
     const user = userEvent.setup();
     renderHeader(
       makeTrip({
@@ -448,22 +448,15 @@ describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
       }),
     );
 
-    expect(
-      screen.queryByRole("button", {
-        name: tripFiscalCopy.invoiceActions.generatePrimary,
-      }),
-    ).not.toBeInTheDocument();
+    const facturar = screen.getByTestId("trip-header-facturar");
+    expect(facturar).toBeInTheDocument();
+    expect(facturar).toHaveTextContent(
+      tripFiscalCopy.invoiceActions.generatePrimary,
+    );
+    expect(facturar.className).toMatch(/border-input|bg-background/);
+    expect(facturar.className).not.toMatch(/bg-primary(?:\/|$|\s)/);
 
-    await user.click(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-      }),
-    );
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generatePrimary,
-      }),
-    );
+    await user.click(facturar);
     expect(mockNavigate).toHaveBeenCalledWith(
       `/invoices/new?trip_id=${TRIP_ID}`,
       { state: { from: `/trips/${TRIP_ID}` } },

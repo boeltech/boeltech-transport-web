@@ -6,6 +6,8 @@ export const TRIP_DETAIL_TAB_VALUES = [
   "tracking",
   "cargo",
   "costs",
+  /** F1 label anticipa Facturación/Cobro; contenido completo = F5. */
+  "billing",
 ] as const;
 
 export type TripDetailTabValue = (typeof TRIP_DETAIL_TAB_VALUES)[number];

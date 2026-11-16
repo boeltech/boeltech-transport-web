@@ -68,7 +68,7 @@ describe("resolveTripNextStepActions", () => {
     ).toBeNull();
   });
 
-  it("Programado billable: Facturar primaria; Seguimiento secundaria", () => {
+  it("Programado billable: open_operate primaria; Facturar no eleva (D11)", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.SCHEDULED,
       routeReady: true,
@@ -80,12 +80,12 @@ describe("resolveTripNextStepActions", () => {
 
     expect(plan).toEqual({
       phase: "scheduled",
-      primary: { id: "invoice" },
-      secondaries: [{ id: "go_to_tracking", tab: "tracking" }],
+      primary: { id: "open_operate" },
+      secondaries: [],
     });
   });
 
-  it("Programado no billable: Seguimiento primaria; sin secundarias", () => {
+  it("Programado no billable: open_operate primaria", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.SCHEDULED,
       routeReady: true,
@@ -97,12 +97,12 @@ describe("resolveTripNextStepActions", () => {
 
     expect(plan).toEqual({
       phase: "scheduled",
-      primary: { id: "go_to_tracking", tab: "tracking" },
+      primary: { id: "open_operate" },
       secondaries: [],
     });
   });
 
-  it("Programado con 1 borrador (D18): primaria tracking; secundaria open_draft", () => {
+  it("Programado con 1 borrador (D18): primaria open_operate; secundaria open_draft", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.SCHEDULED,
       routeReady: true,
@@ -115,7 +115,7 @@ describe("resolveTripNextStepActions", () => {
 
     expect(plan).toEqual({
       phase: "scheduled",
-      primary: { id: "go_to_tracking", tab: "tracking" },
+      primary: { id: "open_operate" },
       secondaries: [{ id: "open_draft", invoiceId: "inv-draft-1" }],
     });
   });
@@ -131,11 +131,11 @@ describe("resolveTripNextStepActions", () => {
       linkedDraftInvoiceIds: ["inv-a", "inv-b"],
     });
 
-    expect(plan?.primary.id).toBe("go_to_tracking");
+    expect(plan?.primary.id).toBe("open_operate");
     expect(plan?.secondaries).toEqual([{ id: "view_invoices" }]);
   });
 
-  it("Programado create eleva Facturar: no secundaria borrador (D10)", () => {
+  it("Programado create: sigue open_operate; borrador como secundaria", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.SCHEDULED,
       routeReady: true,
@@ -146,13 +146,30 @@ describe("resolveTripNextStepActions", () => {
       linkedDraftInvoiceIds: ["inv-draft-1"],
     });
 
-    expect(plan?.primary.id).toBe("invoice");
+    expect(plan?.primary.id).toBe("open_operate");
     expect(plan?.secondaries).toEqual([
-      { id: "go_to_tracking", tab: "tracking" },
+      { id: "open_draft", invoiceId: "inv-draft-1" },
     ]);
   });
 
-  it("Programado en tab Seguimiento + billable: solo Facturar", () => {
+  it("Programado en tab Seguimiento: sigue open_operate (abre sheet)", () => {
+    const plan = resolveTripNextStepActions({
+      status: TripStatus.SCHEDULED,
+      routeReady: true,
+      cargoReady: true,
+      canUpdateTrip: true,
+      canInvoice: true,
+      activeTab: "tracking",
+    });
+
+    expect(plan).toEqual({
+      phase: "scheduled",
+      primary: { id: "open_operate" },
+      secondaries: [],
+    });
+  });
+
+  it("Programado sin update + billable: Facturar fallback", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.SCHEDULED,
       routeReady: true,
@@ -169,34 +186,20 @@ describe("resolveTripNextStepActions", () => {
     });
   });
 
-  it("Programado en Seguimiento sin billable: sin plan", () => {
+  it("Programado sin update ni billable: sin plan", () => {
     expect(
       resolveTripNextStepActions({
         status: TripStatus.SCHEDULED,
         routeReady: true,
         cargoReady: true,
-        canUpdateTrip: true,
+        canUpdateTrip: false,
         canInvoice: false,
         activeTab: "tracking",
       }),
     ).toBeNull();
   });
 
-  it("Programado + Seguimiento + borradores: sin plan (D19 confirmada F10)", () => {
-    expect(
-      resolveTripNextStepActions({
-        status: TripStatus.SCHEDULED,
-        routeReady: true,
-        cargoReady: true,
-        canUpdateTrip: true,
-        canInvoice: false,
-        activeTab: "tracking",
-        linkedDraftInvoiceIds: ["inv-a", "inv-b"],
-      }),
-    ).toBeNull();
-  });
-
-  it("En ruta billable: misma jerarquía que Programado", () => {
+  it("En ruta billable: open_operate primaria (D3 / HB-G2-CTA)", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.IN_PROGRESS,
       routeReady: true,
@@ -207,11 +210,11 @@ describe("resolveTripNextStepActions", () => {
     });
 
     expect(plan?.phase).toBe("in_progress");
-    expect(plan?.primary.id).toBe("invoice");
-    expect(plan?.secondaries).toHaveLength(1);
+    expect(plan?.primary.id).toBe("open_operate");
+    expect(plan?.secondaries).toHaveLength(0);
   });
 
-  it("En ruta con ATF: no eleva Facturar; Seguimiento es primaria (F4)", () => {
+  it("En ruta con ATF: open_operate (Facturar no eleva)", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.IN_PROGRESS,
       routeReady: true,
@@ -219,34 +222,18 @@ describe("resolveTripNextStepActions", () => {
       canUpdateTrip: true,
       canInvoice: true,
       requiresFiscalAttention: true,
-      activeTab: "operation",
+      activeTab: "overview",
     });
 
-    expect(plan?.phase).toBe("in_progress");
-    expect(plan?.primary.id).toBe("go_to_tracking");
-    expect(plan?.secondaries).toEqual([]);
+    expect(plan?.primary.id).toBe("open_operate");
   });
 
-  it("En ruta con ATF ya en Seguimiento: sin next-step (banner ATF es el job)", () => {
-    expect(
-      resolveTripNextStepActions({
-        status: TripStatus.IN_PROGRESS,
-        routeReady: true,
-        cargoReady: true,
-        canUpdateTrip: true,
-        canInvoice: true,
-        requiresFiscalAttention: true,
-        activeTab: "tracking",
-      }),
-    ).toBeNull();
-  });
-
-  it("Completado billable (freight-family): Facturar; sin secundarias", () => {
+  it("Completado billable: Facturar primaria", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.COMPLETED,
       routeReady: true,
       cargoReady: true,
-      canUpdateTrip: false,
+      canUpdateTrip: true,
       canInvoice: true,
     });
 
@@ -257,44 +244,27 @@ describe("resolveTripNextStepActions", () => {
     });
   });
 
-  it("Completado solo accessory (canInvoice false / D10): sin next-step", () => {
+  it("Completado sin billable: sin plan", () => {
     expect(
       resolveTripNextStepActions({
         status: TripStatus.COMPLETED,
         routeReady: true,
         cargoReady: true,
-        canUpdateTrip: false,
+        canUpdateTrip: true,
         canInvoice: false,
       }),
     ).toBeNull();
   });
 
-  it("Programado solo accessory (canInvoice false / D10): Seguimiento, no Facturar", () => {
-    const plan = resolveTripNextStepActions({
-      status: TripStatus.SCHEDULED,
-      routeReady: true,
-      cargoReady: true,
-      canUpdateTrip: true,
-      canInvoice: false,
-      activeTab: "operation",
-    });
-
-    expect(plan).toEqual({
-      phase: "scheduled",
-      primary: { id: "go_to_tracking", tab: "tracking" },
-      secondaries: [],
-    });
-    expect(plan?.primary.id).not.toBe("invoice");
-  });
-
-  it("nunca devuelve más de 2 secundarias", () => {
-    const plan = resolveTripNextStepActions({
-      status: TripStatus.DRAFT,
-      routeReady: true,
-      cargoReady: true,
-      canUpdateTrip: true,
-      canInvoice: false,
-    });
-    expect(plan?.secondaries.length).toBeLessThanOrEqual(2);
+  it("Cancelado: sin plan", () => {
+    expect(
+      resolveTripNextStepActions({
+        status: TripStatus.CANCELLED,
+        routeReady: true,
+        cargoReady: true,
+        canUpdateTrip: true,
+        canInvoice: true,
+      }),
+    ).toBeNull();
   });
 });

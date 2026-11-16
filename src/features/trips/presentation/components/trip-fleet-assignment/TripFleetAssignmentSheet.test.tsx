@@ -437,6 +437,17 @@ describe("TripFleetAssignmentSheet", () => {
     expect(screen.getByText(copy.sections.driver)).toBeInTheDocument();
   });
 
+  it("uses in-progress description when the trip is en ruta (Q9b)", () => {
+    renderSheet({
+      trip: makeTrip({ status: TripStatus.IN_PROGRESS }),
+    });
+
+    expect(
+      screen.getByText(copy.sheetDescriptionInProgress),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(copy.sheetDescription)).not.toBeInTheDocument();
+  });
+
   it("submits the updated assignment payload without touching stops or routes", async () => {
     const user = userEvent.setup();
     const { onOpenChange } = renderSheet();

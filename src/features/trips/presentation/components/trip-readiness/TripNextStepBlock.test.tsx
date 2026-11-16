@@ -47,40 +47,38 @@ describe("TripNextStepBlock", () => {
     expect(onNavigateTab).toHaveBeenCalledWith("route");
   });
 
-  it("Programado billable: Facturar primary + Ir a iniciar secondary (D17)", async () => {
+  it("Programado: Despachar… abre operate sheet (HB-G2-CTA / D11)", async () => {
     const user = userEvent.setup();
-    const onInvoice = vi.fn();
-    const onNavigateTab = vi.fn();
+    const onOpenOperate = vi.fn();
     render(
       <TripNextStepBlock
         plan={{
           phase: "scheduled",
-          primary: { id: "invoice" },
-          secondaries: [{ id: "go_to_tracking", tab: "tracking" }],
+          primary: { id: "open_operate" },
+          secondaries: [],
         }}
-        onNavigateTab={onNavigateTab}
-        onInvoice={onInvoice}
+        onNavigateTab={vi.fn()}
+        onOpenOperate={onOpenOperate}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: copy.invoice }));
-    expect(onInvoice).toHaveBeenCalledOnce();
     await user.click(screen.getByRole("button", { name: copy.goToStart }));
-    expect(onNavigateTab).toHaveBeenCalledWith("tracking");
+    expect(onOpenOperate).toHaveBeenCalledOnce();
   });
 
-  it("Programado con borrador: Ir a iniciar + Abrir borrador (D16–D18)", async () => {
+  it("Programado con borrador: Despachar… + Abrir borrador (D18)", async () => {
     const user = userEvent.setup();
-    const onNavigateTab = vi.fn();
+    const onOpenOperate = vi.fn();
     const onOpenDraft = vi.fn();
     render(
       <TripNextStepBlock
         plan={{
           phase: "scheduled",
-          primary: { id: "go_to_tracking", tab: "tracking" },
+          primary: { id: "open_operate" },
           secondaries: [{ id: "open_draft", invoiceId: "inv-1" }],
         }}
-        onNavigateTab={onNavigateTab}
+        onNavigateTab={vi.fn()}
+        onOpenOperate={onOpenOperate}
         onOpenDraft={onOpenDraft}
         description={copy.descriptionScheduledWithDraft}
       />,
@@ -94,7 +92,7 @@ describe("TripNextStepBlock", () => {
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: copy.goToStart }));
-    expect(onNavigateTab).toHaveBeenCalledWith("tracking");
+    expect(onOpenOperate).toHaveBeenCalledOnce();
     await user.click(screen.getByRole("button", { name: copy.openDraft }));
     expect(onOpenDraft).toHaveBeenCalledWith("inv-1");
   });
@@ -106,10 +104,11 @@ describe("TripNextStepBlock", () => {
       <TripNextStepBlock
         plan={{
           phase: "scheduled",
-          primary: { id: "go_to_tracking", tab: "tracking" },
+          primary: { id: "open_operate" },
           secondaries: [{ id: "view_invoices" }],
         }}
         onNavigateTab={vi.fn()}
+        onOpenOperate={vi.fn()}
         onViewInvoices={onViewInvoices}
         description={copy.descriptionScheduledWithDrafts}
       />,
@@ -119,33 +118,81 @@ describe("TripNextStepBlock", () => {
     expect(onViewInvoices).toHaveBeenCalledOnce();
   });
 
-  it("En ruta: primaria Ir a Seguimiento, nunca Ir a iniciar (D20)", async () => {
+  it("En ruta: primaria open_operate con label dinámico", async () => {
     const user = userEvent.setup();
-    const onNavigateTab = vi.fn();
+    const onOpenOperate = vi.fn();
     render(
       <TripNextStepBlock
         plan={{
           phase: "in_progress",
-          primary: { id: "go_to_tracking", tab: "tracking" },
+          primary: { id: "open_operate" },
           secondaries: [{ id: "open_draft", invoiceId: "inv-1" }],
         }}
-        onNavigateTab={onNavigateTab}
+        onNavigateTab={vi.fn()}
+        onOpenOperate={onOpenOperate}
         onOpenDraft={vi.fn()}
+        operatePrimaryLabel="Registrar salida"
         description={copy.descriptionInProgressWithDraft}
       />,
     );
 
     expect(
-      screen.getByRole("button", { name: copy.goToTracking }),
+      screen.getByRole("button", { name: "Registrar salida" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: copy.goToStart }),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: copy.goToTracking }));
-    expect(onNavigateTab).toHaveBeenCalledWith("tracking");
+    await user.click(screen.getByRole("button", { name: "Registrar salida" }));
+    expect(onOpenOperate).toHaveBeenCalledOnce();
   });
 
-  it("Qué falta is collapsed by default and expands schedule + operate (F8)", async () => {
+  it("P2-1: CTA corto distinto del título contextual largo", () => {
+    const longTitle = "Registrar salida — Parada 2 · Escala · Carga";
+    render(
+      <TripNextStepBlock
+        plan={{
+          phase: "in_progress",
+          primary: { id: "open_operate" },
+          secondaries: [],
+        }}
+        onNavigateTab={vi.fn()}
+        onOpenOperate={vi.fn()}
+        operatePrimaryLabel={longTitle}
+        operateCtaLabel="Registrar salida"
+      />,
+    );
+
+    expect(screen.getByText(longTitle)).toBeInTheDocument();
+    expect(
+      screen.getByTestId("trip-next-step-primary"),
+    ).toHaveTextContent("Registrar salida");
+    expect(screen.getByTestId("trip-next-step-primary")).not.toHaveTextContent(
+      "Parada 2",
+    );
+  });
+
+  it("P2-2/D33: late usa Nh de retraso, no «va tarde»", () => {
+    render(
+      <TripNextStepBlock
+        plan={{
+          phase: "in_progress",
+          primary: { id: "open_operate" },
+          secondaries: [],
+        }}
+        onNavigateTab={vi.fn()}
+        onOpenOperate={vi.fn()}
+        operatePrimaryLabel="Registrar llegada"
+        operateCtaLabel="Registrar llegada"
+        late
+        lateDelayLabel="3 h de retraso"
+      />,
+    );
+
+    expect(screen.getByText(/Qué sigue · 3 h de retraso/)).toBeInTheDocument();
+    expect(screen.queryByText(/va tarde/i)).not.toBeInTheDocument();
+  });
+
+  it("Qué falta opens by default in draft (D3) and expands schedule + operate", async () => {
     const user = userEvent.setup();
     const onReadinessItemClick = vi.fn();
     render(
@@ -162,19 +209,9 @@ describe("TripNextStepBlock", () => {
       />,
     );
 
-    expect(
-      screen.queryByText(readiness.title),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(readiness.scheduleGroup),
-    ).not.toBeInTheDocument();
-
     const toggle = screen.getByTestId("trip-next-step-what-missing");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).toHaveTextContent(copy.whatMissing);
-
-    await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveTextContent(copy.whatMissing);
     expect(screen.getByText(readiness.scheduleGroup)).toBeInTheDocument();
     expect(screen.getByText(readiness.operateGroup)).toBeInTheDocument();
 

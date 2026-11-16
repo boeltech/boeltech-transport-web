@@ -96,17 +96,16 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
     const user = userEvent.setup();
     renderHeaderMenu(makeTrip());
 
-    await user.click(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-      }),
-    );
-
     expect(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      screen.getByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.generatePrimary, "i"),
       }),
     ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByTestId("trip-invoice-header-overflow"),
+    );
+
     expect(
       screen.getByRole("menuitem", {
         name: tripFiscalCopy.invoiceActions.openRevenueSplit,
@@ -118,11 +117,7 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
     const user = userEvent.setup();
     renderHeaderMenu(makeTrip());
 
-    await user.click(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-      }),
-    );
+    await user.click(screen.getByTestId("trip-invoice-header-overflow"));
     await user.click(
       screen.getByRole("menuitem", {
         name: tripFiscalCopy.invoiceActions.openRevenueSplit,
@@ -146,11 +141,7 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
       }),
     );
 
-    await user.click(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-      }),
-    );
+    await user.click(screen.getByTestId("trip-invoice-header-overflow"));
 
     expect(
       screen.getByText(
@@ -179,11 +170,7 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
     const user = userEvent.setup();
     renderHeaderMenu(makeTrip());
 
-    await user.click(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-      }),
-    );
+    await user.click(screen.getByTestId("trip-invoice-header-overflow"));
 
     expect(
       screen.queryByRole("menuitem", {

@@ -93,14 +93,6 @@ export function TripInvoiceActions({
   /** Defensa local: viaje cancelado no ofrece CTAs de create (no solo flags API). */
   const isTripCancelled = trip.status === TripStatus.CANCELLED;
 
-  const canShowCreateInvoiceAction =
-    !isSinCfdiEfectivo &&
-    !isTripCancelled &&
-    canCreateInvoices &&
-    trip.invoicing.canGenerateInvoice &&
-    !isFalseTripOutcome &&
-    !trip.invoicing.hasActiveSplit;
-
   const canShowFalseTripInvoiceAction =
     !isSinCfdiEfectivo &&
     !isTripCancelled &&
@@ -270,7 +262,6 @@ export function TripInvoiceActions({
     return null;
   }
 
-  const createPrimaryHref = buildInvoiceCreateHref({ tripId: trip.id });
   const createFalseTripHref = buildInvoiceCreateHref({
     tripId: trip.id,
     scope: "false_trip",
@@ -406,87 +397,70 @@ export function TripInvoiceActions({
   ) : null;
 
   if (presentation === "headerMenu") {
-    const hasHeaderMenuWork =
-      showPrimaryFacturar ||
+    // D5 / rediseño F1: Facturar outline en header (no verde; no dropdown como única CTA).
+    // Overflow fiscal (accesorias / split / ver) queda en menú compacto si aplica.
+    const hasOverflowMenu =
       canShowLinkedInvoiceState ||
       canShowAccessoryInvoiceAction ||
       canShowSplitMenuGroup ||
-      canShowRevenueSplitEntry;
+      canShowRevenueSplitEntry ||
+      (canShowFalseTripInvoiceAction && !showPrimaryFacturar) ||
+      showPatioEscalateHint;
 
-    if (pendingAccountantBadge && !hasHeaderMenuWork) {
-      return (
-        <span className={className}>{pendingAccountantBadge}</span>
-      );
+    if (
+      !showPrimaryFacturar &&
+      !hasOverflowMenu &&
+      !pendingAccountantBadge
+    ) {
+      return null;
     }
 
-    const showMenuHeader =
-      trip.invoicing.hasActiveSplit ||
-      canShowLinkedInvoiceState ||
-      canShowSplitMenuGroup ||
-      canShowAccessoryInvoiceAction ||
-      canShowCreateInvoiceAction ||
-      canShowFalseTripInvoiceAction ||
-      canShowPendingAccountantHint;
-
-    const menu = (
+    const overflowMenu = hasOverflowMenu ? (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className={className}>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label={copy.menuLabel}
+            data-testid="trip-invoice-header-overflow"
+          >
             <Receipt className="h-4 w-4 shrink-0" />
-            <span className="mx-1.5">{copy.menuLabel}</span>
-            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+            <ChevronDown className="ml-1 h-4 w-4 shrink-0 opacity-70" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-72">
-          {showMenuHeader ? (
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={tripInvoicingConfig.variant}>
-                    {toDetailInvoicingBadge(tripInvoicingConfig).label}
-                  </Badge>
-                  {trip.invoicing.hasActiveSplit ? (
-                    <span className="text-xs text-muted-foreground">
-                      {copy.splitProgress(
-                        trip.invoicing.splitLegsInvoiced,
-                        trip.invoicing.splitLegsTotal,
-                      )}
-                    </span>
-                  ) : trip.invoicing.invoiceFolio ? (
-                    <span className="text-xs text-muted-foreground">
-                      Folio {trip.invoicing.invoiceFolio}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            </DropdownMenuLabel>
-          ) : null}
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={tripInvoicingConfig.variant}>
+                {toDetailInvoicingBadge(tripInvoicingConfig).label}
+              </Badge>
+              {trip.invoicing.hasActiveSplit ? (
+                <span className="text-xs text-muted-foreground">
+                  {copy.splitProgress(
+                    trip.invoicing.splitLegsInvoiced,
+                    trip.invoicing.splitLegsTotal,
+                  )}
+                </span>
+              ) : trip.invoicing.invoiceFolio ? (
+                <span className="text-xs text-muted-foreground">
+                  Folio {trip.invoicing.invoiceFolio}
+                </span>
+              ) : null}
+            </div>
+          </DropdownMenuLabel>
 
           {showPatioEscalateHint ? (
             <>
-              {showMenuHeader ? <DropdownMenuSeparator /> : null}
-              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground whitespace-normal">
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="whitespace-normal text-xs font-normal text-muted-foreground">
                 {copy.patioEscalateHint}
               </DropdownMenuLabel>
             </>
           ) : null}
 
-          {/* Atajos tipados (mismos href que el sheet) — no abren camino distinto. */}
-          {canShowCreateInvoiceAction ? (
+          {canShowFalseTripInvoiceAction && !showPrimaryFacturar ? (
             <>
-              {showMenuHeader || showPatioEscalateHint ? (
-                <DropdownMenuSeparator />
-              ) : null}
-              <DropdownMenuItem onSelect={() => goToInvoice(createPrimaryHref)}>
-                <Receipt className="mr-2 h-4 w-4" />
-                {copy.generatePrimary}
-              </DropdownMenuItem>
-            </>
-          ) : null}
-
-          {canShowFalseTripInvoiceAction && !canShowCreateInvoiceAction ? (
-            <>
-              {showMenuHeader ? <DropdownMenuSeparator /> : null}
+              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => goToInvoice(createFalseTripHref)}>
                 <Receipt className="mr-2 h-4 w-4" />
                 {copy.generateFalseTrip}
@@ -500,7 +474,9 @@ export function TripInvoiceActions({
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onSelect={() => goToInvoice(`/invoices/${trip.invoicing.invoiceId}`)}
+                onSelect={() =>
+                  goToInvoice(`/invoices/${trip.invoicing.invoiceId}`)
+                }
               >
                 <FileText className="mr-2 h-4 w-4" />
                 {copy.viewPrimary}
@@ -512,13 +488,25 @@ export function TripInvoiceActions({
           {accessoryMenuItems}
         </DropdownMenuContent>
       </DropdownMenu>
-    );
+    ) : null;
 
-    // D24: sin CTA verde «Facturar» — Facturar vive en next-step + menú dropdown.
     return (
       <div className={`flex flex-wrap items-center gap-2 ${className ?? ""}`}>
         {pendingAccountantBadge}
-        {menu}
+        {showPrimaryFacturar ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handlePrimaryFacturar}
+            data-testid="trip-header-facturar"
+          >
+            <Receipt className="mr-1.5 h-4 w-4" />
+            {copy.generatePrimary}
+          </Button>
+        ) : null}
+        {/* F1: Facturar outline + overflow (Reparto / ver / patio) cuando aplica — no ocultar el menú tras la primaria. */}
+        {overflowMenu}
         {scopeSheet}
       </div>
     );

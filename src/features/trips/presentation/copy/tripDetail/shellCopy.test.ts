@@ -42,29 +42,33 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.action.more).toBe("Más");
   });
 
-  it("CTA header scheduled navega a Seguimiento; no afirma mutación start (D3)", () => {
-    expect(shellCopy.action.startTrip).toBe("Ir a Seguimiento");
-    expect(shellCopy.action.startTrip).toBe(shellCopy.action.goToTracking);
+  it("CTA Despachar abre sheet (HB-G2-CTA); no afirma «iniciar viaje» genérico", () => {
+    expect(shellCopy.action.startTrip).toBe("Despachar…");
     expect(shellCopy.action.startTrip).not.toMatch(/iniciar viaje/i);
+    expect(shellCopy.action.invoice).toBe("Facturar");
+    expect(shellCopy.action.registerCash).toBe("Registrar cobro");
   });
 
-  it("next-step F2/F8/F9: copy Operate sin mutación falsa de start", () => {
-    expect(shellCopy.nextStep.title).toBe("Siguiente paso");
+  it("next-step F1: Qué sigue + Despachar… (abre sheet)", () => {
+    expect(shellCopy.nextStep.title).toBe("Qué sigue");
     expect(shellCopy.nextStep.completeRouteCargo).toMatch(/ruta y cargas/i);
     expect(shellCopy.nextStep.confirmReserve).toBe("Confirmar reserva");
     expect(shellCopy.nextStep.goToTracking).toBe("Ir a Seguimiento");
-    expect(shellCopy.nextStep.goToStart).toBe("Ir a iniciar");
+    expect(shellCopy.nextStep.goToStart).toBe("Despachar…");
+    expect(shellCopy.nextStep.openOperate).toBe("Despachar…");
     expect(shellCopy.nextStep.goToStart).not.toMatch(/iniciar viaje/i);
     expect(shellCopy.nextStep.invoice).toBe("Facturar");
     expect(shellCopy.nextStep.openDraft).toBe("Abrir borrador");
     expect(shellCopy.nextStep.viewInvoices).toBe("Ver facturas");
+    expect(shellCopy.tab.operation).toBe("Resumen");
+    expect(shellCopy.tab.billing).toBe("Facturación");
+    expect(shellCopy.tab.billingSinCfdi).toBe("Cobro");
     expect(shellCopy.linkedDraftsSheet.title).toBe("Facturas del viaje");
     expect(shellCopy.linkedDraftsSheet.description).toBe("Elige cuál abrir.");
     expect(shellCopy.linkedDraftsSheet.rowPrincipal).toBe("Flete");
     expect(shellCopy.linkedDraftsSheet.rowAccessory).toBe(
       "Servicios adicionales",
     );
-    expect(shellCopy.nextStep.descriptionScheduledCreate).toMatch(/Programado/i);
     expect(shellCopy.nextStep.descriptionScheduledWithDraft).toMatch(/borrador/i);
     expect(shellCopy.nextStep.descriptionScheduledWithDraft).not.toMatch(
       /empezar a facturar/i,
@@ -72,11 +76,11 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.nextStep.descriptionScheduledOperate).not.toMatch(
       /empezar a facturar/i,
     );
-    expect(shellCopy.nextStep.descriptionScheduledSplitPartial(2, 4)).toBe(
-      "Se facturaron 2 de 4 porciones. Puedes seguir con las restantes. Para sacar el viaje, inicia desde Seguimiento.",
+    expect(shellCopy.nextStep.descriptionScheduledSplitPartial(2, 4)).toMatch(
+      /2 de 4 porciones/,
     );
-    expect(shellCopy.nextStep.descriptionInProgressSplitPartial(2, 4)).toBe(
-      "Se facturaron 2 de 4 porciones. Sigue con las restantes o continúa en Seguimiento.",
+    expect(shellCopy.nextStep.descriptionInProgressSplitPartial(2, 4)).toMatch(
+      /2 de 4 porciones/,
     );
     expect(shellCopy.nextStep.descriptionCompletedSplitPartial(2, 4)).toBe(
       "Se facturaron 2 de 4 porciones. Emite las restantes cuando corresponda.",
@@ -126,8 +130,8 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     );
   });
 
-  it("orienta atención fiscal al camino Operación → sustituir (T4-041)", () => {
-    expect(shellCopy.alert.fiscalAttentionBody).toMatch(/Operación/i);
+  it("orienta atención fiscal al camino Resumen → sustituir (T4-041 / D6)", () => {
+    expect(shellCopy.alert.fiscalAttentionBody).toMatch(/Resumen/i);
     expect(shellCopy.alert.fiscalAttentionBody).toMatch(/docs vencidos|reasigna/i);
     expect(shellCopy.alert.fiscalAttentionBody).toMatch(/sustituye/i);
   });

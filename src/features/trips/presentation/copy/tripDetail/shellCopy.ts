@@ -8,13 +8,18 @@ export const shellCopy = {
     fallback: "Viaje",
   },
   tab: {
-    operation: "Operación",
+    /** D6 / F1: label anticipa Resumen (contenido 2-col = F2). */
+    operation: "Resumen",
     operationClient: "Resumen",
     operationDriver: "Resumen",
     route: "Ruta",
     tracking: "Seguimiento",
     cargo: "Cargas",
     costs: "Costos",
+    /** D7 / F1: label anticipa Facturación (contenido = F5). */
+    billing: "Facturación",
+    /** D14 / D15: Sin factura → Cobro. */
+    billingSinCfdi: "Cobro",
     history: "Historial",
     /** Polling de timeline; no implica GPS de unidad. */
     trackingLive: "En vivo",
@@ -22,6 +27,17 @@ export const shellCopy = {
     trackingIncident: "Incidente",
     trackingIncidentAria: "Con incidente abierto",
     openIncident: "Incidente",
+    billingPendingAria: "Pendiente fiscal",
+    billingDotAria: "Pendiente en Facturación",
+    costsReturnedAria: "Gasto devuelto",
+  },
+  alertsStack: {
+    showMore: (n: number) =>
+      n === 1 ? "Ver 1 aviso más" : `Ver ${n} avisos más`,
+    showLess: "Ocultar avisos",
+  },
+  journeyStrip: {
+    ariaLabel: "Estado y datos clave del viaje",
   },
   stat: {
     cargo: "Cargas",
@@ -45,8 +61,8 @@ export const shellCopy = {
     openIncidentCta: "Ir a Seguimiento",
     fiscalAttentionTitle: "Revisión de facturación pendiente",
     fiscalAttentionBody:
-      "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Operación; luego sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
-    /** Gerente: verbo = trámite, no Operación como paso 1 (D16). */
+      "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Resumen; luego sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+    /** Gerente: verbo = trámite, no Resumen como paso 1 (D16). */
     fiscalAttentionManagerBody:
       "Hubo cambios después de facturar. Sustituye o cancela la factura. No bloquea el viaje.",
     fiscalAttentionCta: "Sustituir factura",
@@ -68,7 +84,7 @@ export const shellCopy = {
     substitutionCancelPendingCta: "Abrir factura original",
     /** ADR-0081: prorrateo — no pretender un solo documento de flete. */
     fiscalAttentionSplitBody:
-      "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Operación; luego sustituye cada porción facturada pendiente al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+      "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Resumen; luego sustituye cada porción facturada pendiente al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
     fiscalAttentionSplitManagerBody:
       "Hubo cambios después de facturar. Sustituye cada porción facturada pendiente. No bloquea el viaje.",
     fiscalAttentionSplitCta: "Abrir factura de porción",
@@ -182,13 +198,13 @@ export const shellCopy = {
     confirm: "Confirmar",
     cancel: "Cancelar",
     more: "Más",
-    /** D3: CTA de fase en header — solo navega a Seguimiento; no muta start. */
+    /** D5 / D14: outline en header. */
+    invoice: "Facturar",
+    /** Q11 / C24: header Sin factura. */
+    registerCash: "Registrar cobro",
+    /** Legado: el CTA de fase ya no vive en el header (HB-G2-CTA). */
     goToTracking: "Ir a Seguimiento",
-    /**
-     * Alias de navegación (mismo job que `goToTracking`).
-     * No afirma «Iniciar viaje»: la mutación start vive en el tab Seguimiento.
-     */
-    startTrip: "Ir a Seguimiento",
+    startTrip: "Despachar…",
     closeTrip: "Cerrar viaje",
   },
   toast: {
@@ -251,17 +267,20 @@ export const shellCopy = {
    * Una primaria + ≤2 secundarias; readiness = «Qué falta» colapsado si next-step visible.
    */
   nextStep: {
-    title: "Siguiente paso",
+    title: "Qué sigue",
+    /**
+     * @deprecated F5c / D33 — usar `formatTripLateDelayChip` («Nh de retraso»).
+     * Se mantiene solo por compat de imports; no renderizar como chip único.
+     */
+    lateSuffix: "va tarde",
     completeRouteCargo: "Completar ruta y cargas",
     completeRoute: "Completar ruta",
     completeCargo: "Completar cargas",
     confirmReserve: "Confirmar reserva",
+    /** HB-G2-CTA: abre StartTripSheet / sheets de parada. */
+    openOperate: "Despachar…",
     goToTracking: "Ir a Seguimiento",
-    /**
-     * D17: label de `go_to_tracking` en Programado (solo navega; no muta start).
-     * En ruta usa `goToTracking` (D20).
-     */
-    goToStart: "Ir a iniciar",
+    goToStart: "Despachar…",
     invoice: "Facturar",
     goToRoute: "Ir a Ruta",
     goToCargo: "Ir a Cargas",
@@ -271,7 +290,7 @@ export const shellCopy = {
     openDraft: "Abrir borrador",
     /** D18: varios borradores — reuso léxico listado. */
     viewInvoices: "Ver facturas",
-    /** Inventario Para programar / Para completar bajo next-step (cerrado por defecto). */
+    /** D3: Qué falta abierto en Reserva / Programado. */
     whatMissing: "Qué falta",
 
     descriptionDraftIncomplete:
@@ -280,34 +299,24 @@ export const shellCopy = {
       "Ruta y cargas listas. Confirma para pasar el viaje a Programado. Llegada, tarifa y kilometraje se piden al confirmar.",
     descriptionDraftReadyFleetBlocked:
       "Asigna unidad y conductor antes de confirmar. Llegada, tarifa y kilometraje se piden al confirmar.",
-    /** D16 A · create freight-family elegible. */
     descriptionScheduledCreate:
-      "Desde Programado puedes facturar el flete al Cliente del viaje; la Carta Porte toma los datos de las paradas. Para sacar el viaje, inicia desde Seguimiento.",
-    /** D16 B · ≥1 borrador. */
+      "Ya puedes facturar el flete; la Carta Porte toma los datos de las paradas. Despacha cuando toque salir.",
     descriptionScheduledWithDraft:
-      "Ya hay factura en borrador. Continúa el timbrado desde Facturación. Para sacar el viaje, inicia desde Seguimiento.",
-    /** D16 B plural. */
+      "Ya hay factura en borrador. Continúa el timbrado desde Facturación o despacha el viaje.",
     descriptionScheduledWithDrafts:
-      "Ya hay facturas en borrador. Continúa el timbrado desde Facturación. Para sacar el viaje, inicia desde Seguimiento.",
-    /** D16 C · sin create ni borrador. */
+      "Ya hay facturas en borrador. Continúa el timbrado desde Facturación o despacha el viaje.",
     descriptionScheduledOperate:
-      "Para sacar el viaje, ve a Seguimiento e inicia desde ahí.",
-    /** D20 A. */
+      "Despacha el viaje para pasarlo a En ruta. Facturar queda en el encabezado si aplica.",
     descriptionInProgressCreate:
-      "Puedes facturar si aplica. El seguimiento del viaje está en Seguimiento.",
-    /** D20 B. */
+      "Registra la siguiente parada. Puedes facturar desde el encabezado si aplica.",
     descriptionInProgressWithDraft:
-      "Ya hay factura en borrador. Continúa el timbrado desde Facturación o sigue el viaje en Seguimiento.",
-    /** D20 C. */
-    descriptionInProgressOperate: "Sigue el viaje en Seguimiento.",
+      "Registra la siguiente parada. Hay factura en borrador en Facturación.",
+    descriptionInProgressOperate: "Registra la siguiente acción de la parada en curso.",
     descriptionCompleted: "Emite la factura del viaje cuando corresponda.",
-    /** D28 · split parcial Programado. */
     descriptionScheduledSplitPartial: (invoiced: number, total: number) =>
-      `Se facturaron ${invoiced} de ${total} porciones. Puedes seguir con las restantes. Para sacar el viaje, inicia desde Seguimiento.`,
-    /** D28 · split parcial En ruta. */
+      `Se facturaron ${invoiced} de ${total} porciones. Puedes seguir con las restantes. Despacha cuando toque salir.`,
     descriptionInProgressSplitPartial: (invoiced: number, total: number) =>
-      `Se facturaron ${invoiced} de ${total} porciones. Sigue con las restantes o continúa en Seguimiento.`,
-    /** D28 · split parcial Completado. */
+      `Se facturaron ${invoiced} de ${total} porciones. Sigue con las restantes o registra la parada en curso.`,
     descriptionCompletedSplitPartial: (invoiced: number, total: number) =>
       `Se facturaron ${invoiced} de ${total} porciones. Emite las restantes cuando corresponda.`,
   },

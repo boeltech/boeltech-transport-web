@@ -904,7 +904,11 @@ export function TripFleetAssignmentSheet({
         >
           <SheetHeader className={FLEET_ASSIGNMENT_SHEET_HEADER_CLASS}>
             <SheetTitle>{copy.sheetTitle}</SheetTitle>
-            <SheetDescription>{copy.sheetDescription}</SheetDescription>
+            <SheetDescription>
+              {trip.status === TripStatus.IN_PROGRESS
+                ? copy.sheetDescriptionInProgress
+                : copy.sheetDescription}
+            </SheetDescription>
           </SheetHeader>
 
           <form

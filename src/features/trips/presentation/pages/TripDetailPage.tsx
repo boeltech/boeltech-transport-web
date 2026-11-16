@@ -6,7 +6,7 @@
  * - useTripCargos: Obtiene cargas del viaje via endpoint separado
  * - useTripExpenses: Obtiene gastos del viaje via endpoint separado
  * - useTripExpensesSummary: Obtiene resumen de gastos
- * - Tabs: Operación, Ruta, Seguimiento, Cargas, Costos (historial bajo Operación)
+ * - Tabs: Resumen, Ruta, Seguimiento, Cargas, Costos, Facturación/Cobro
 
  *
  * Clean Architecture: Page compone componentes de Presentation + hooks de Application
@@ -33,10 +33,8 @@ import {
 import {
   AlertCircle,
   Truck,
-  Clock,
-  Package,
-  Navigation,
   Receipt,
+  Wallet,
   Loader2,
   AlertTriangle,
   ChevronDown,
@@ -53,7 +51,6 @@ import {
   calculateDistance,
   calculateTripDuration,
   formatDuration,
-  formatTripRouteSubtitle,
 } from "@features/trips";
 import { useInvoice } from "@features/invoicing/application";
 
@@ -63,7 +60,6 @@ import {
   type StopTypeValue,
   TripStatus,
   CargoStatus,
-  StopStatus,
   canReassignTripFleet,
   getOrderedStops,
   hasOperationalCashCollected,
@@ -85,14 +81,25 @@ import {
   TripTrackingTabLazy,
   TripDetailCargoTabLazy,
   TripDetailCostsTabLazy,
+  TripDetailBillingTabLazy,
   TripDetailTabFallback,
 } from "./TripDetailLazyTabs";
-import { shouldMountTripInvoicingConsole } from "../components/shouldShowTripInvoicingConsole";
-import { TripInvoicingConsole } from "../components/TripInvoicingConsole";
-import { TripMidTripAdjustStrip } from "../components/TripMidTripAdjustStrip";
 import { TripLinkedInvoiceDraftsSheet } from "../components/TripLinkedInvoiceDraftsSheet";
 import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
-import { TripLiquidacionControl } from "../components/TripLiquidacionControl";
+import { TripJourneyStrip } from "../components/trip-shell/TripJourneyStrip";
+import { TripShellAlertsStack } from "../components/trip-shell/TripShellAlertsStack";
+import { TripPhaseOperateSheets } from "../components/trip-shell/TripPhaseOperateSheets";
+import { RegisterOperationalCashSheet } from "../components/trip-costs/RegisterOperationalCashSheet";
+import { buildTripJourneyStripModel } from "../helpers/buildTripJourneyStripModel";
+import {
+  formatTripLateDelayChip,
+  resolveTripLateDelayMs,
+} from "../helpers/formatTripLateDelayChip";
+import { formatTripRouteTitle } from "../helpers/formatTripRouteTitle";
+import {
+  resolveTrackingPrimaryAction,
+  resolveTrackingPrimaryCtaLabel,
+} from "../components/trip-tracking/trackingNextAction";
 import {
   resolveTripAccessDeniedCopy,
   resolveTripBackHref,
@@ -103,13 +110,9 @@ import { TripDetailRouteTab } from "../components/trip-route";
 import { TripConfirmReserveButton } from "../components/trip-readiness/TripConfirmReserveButton";
 import { TripNextStepBlock } from "../components/trip-readiness/TripNextStepBlock";
 import { TripReadinessRail } from "../components/trip-readiness/TripReadinessRail";
-import { getCargoWeightKg } from "../components/trip-cargos/tripCargoDetailHelpers";
 import { listLinkedTripInvoiceDrafts } from "../helpers/listLinkedTripInvoiceDrafts";
 import { resolveTripNextStepActions } from "../helpers/resolveTripNextStepActions";
 import { resolveTripNextStepDescription } from "../helpers/resolveTripNextStepDescription";
-import { listMidTripAdjustLinks } from "../helpers/listMidTripAdjustLinks";
-import type { MidTripAdjustLink } from "../helpers/listMidTripAdjustLinks";
-import { shouldSuppressInProgressFleetMissingAlert } from "../helpers/shouldSuppressInProgressFleetMissingAlert";
 import {
   hasFreightFamilyTripInvoiceScope,
   listEligibleTripInvoiceScopes,
@@ -119,7 +122,6 @@ import { computeTripReadiness } from "../hooks/useTripReadiness";
 import { isTripRouteReadyForStartUi } from "../utils/tripStartRouteGating";
 import { tripDetailCopy } from "../copy";
 import { cfdiEmissionIntentCopy } from "../copy/cfdiEmissionIntentCopy";
-import { formatDateTime } from "@shared/utils/dateUtils";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
 import { getTripDetailAccess } from "./tripDetailAccess";
 import { applyOpenAssignFleetSearchParams } from "./tripDetailAssignFleetParams";
@@ -131,7 +133,6 @@ import {
   shouldFetchTripExpenses,
   shouldFetchTripExpensesSummary,
   shouldFetchTripTimeline,
-  shouldShowShellEtaPassedBanner,
   shouldShowShellOpenIncidentBanner,
 } from "./tripDetailQueryGating";
 import { buildTripRouteDetailView } from "./tripDetailRouteData";
@@ -391,6 +392,10 @@ export function TripDetailPage() {
   const [revenueSplitSheetOpen, setRevenueSplitSheetOpen] = useState(false);
   const [invoiceScopeSheetOpen, setInvoiceScopeSheetOpen] = useState(false);
   const [linkedDraftsSheetOpen, setLinkedDraftsSheetOpen] = useState(false);
+  const [phaseOperateOpen, setPhaseOperateOpen] = useState(false);
+  /** D44 — edición local en tab Ruta (drafts / sheet parada). */
+  const [routeEditing, setRouteEditing] = useState(false);
+  const [cashSheetOpen, setCashSheetOpen] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -413,15 +418,14 @@ export function TripDetailPage() {
     );
   }, [trip, cargos.length, satConfigAutotransporteCode]);
 
-  /** Split legs para scopes Facturar (F3); comparte cache con TripInvoiceActions. */
+  /** Split legs para scopes Facturar + tab Facturación (F5). */
   const needsInvoiceScopeSplit =
     Boolean(trip) &&
     !isLeanTripPortal &&
-    canCreateInvoices &&
     trip?.cfdiEmissionIntent !== "sin_cfdi_efectivo" &&
     trip?.operationalOutcome !== "false_trip" &&
     (Boolean(trip?.invoicing.hasActiveSplit) ||
-      Boolean(trip?.invoicing.canGenerateInvoice) ||
+      Boolean(canCreateInvoices && trip?.invoicing.canGenerateInvoice) ||
       (trip?.invoicing.splitLegsTotal ?? 0) > 0);
 
   const { data: revenueSplitForInvoiceScopes } = useTripRevenueSplit(tripId, {
@@ -509,11 +513,10 @@ export function TripDetailPage() {
   const tripAlerts = useMemo(() => {
     if (!trip) return undefined;
 
+    /** Orden de push ≈ D32 (1 ops → 5 pendientes). Stack muestra ≤1 + «N más». */
     const cards: ReactElement[] = [];
 
     // F8 / D15: card standalone solo si no hay next-step (evitar doble checklist ATF).
-    // F9 / D19 (confirmada F10): Programado + tab Seguimiento → no reponer card
-    // ni next-step (hub «Iniciar viaje» es la primaria).
     const showStandaloneReadinessRail =
       !nextStepPlan &&
       !isLeanTripPortal &&
@@ -842,92 +845,57 @@ export function TripDetailPage() {
       }
     }
 
-    if (
-      shouldShowShellEtaPassedBanner(resolvedActiveTab) &&
-      (displayStatus === TripStatus.SCHEDULED ||
-        displayStatus === TripStatus.IN_PROGRESS) &&
-      trip.scheduledArrival &&
-      !(routeDetail?.trip.actualArrival ?? trip.actualArrival) &&
-      trip.scheduledArrival.getTime() < comparisonNowMs
-    ) {
-      cards.push(
-        <DetailAlertCard
-          key="eta-passed"
-          severity="warning"
-          icon={<Clock className="h-5 w-5" />}
-          title={shell.alert.etaPassedTitle}
-          items={[
-            {
-              label: shell.alert.etaPassedLabel,
-              text: formatDateTime(trip.scheduledArrival.toISOString()),
-            },
-          ]}
-        />,
-      );
-    }
+    // Q8 / D33: retraso de Salida/Llegada vive en la franja (no banner ETA).
 
     if (
       displayStatus === TripStatus.IN_PROGRESS &&
       (!trip.vehicle || !trip.driver)
     ) {
-      // D27: same reassign chip the strip would expose (other chips irrelevant for gate).
-      const midTripLinksForFleetGate = !isLeanTripPortal
-        ? listMidTripAdjustLinks({
-            canReplanPendingStops: false,
-            canAppendCargo: false,
-            canReassignFleet:
-              canUpdateTrip && canReassignTripFleet(trip.status),
-          })
-        : [];
-      const absorbFleetMissingInStrip =
-        shouldSuppressInProgressFleetMissingAlert(midTripLinksForFleetGate);
-
-      if (!absorbFleetMissingInStrip) {
-        const missing: { label?: string; text: string }[] = [];
-        if (!trip.vehicle) {
-          missing.push({
-            label: shell.alert.assignmentVehicleLabel,
-            text: shell.alert.operationVehicleMissing,
-          });
-        }
-        if (!trip.driver) {
-          missing.push({
-            label: shell.alert.assignmentDriverLabel,
-            text: shell.alert.operationDriverMissing,
-          });
-        }
-        if (missing.length > 0) {
-          const canAssignFleetFromAlert =
-            !isLeanTripPortal &&
-            canUpdateTrip &&
-            canReassignTripFleet(trip.status);
-          cards.push(
-            <DetailAlertCard
-              key="operation-missing"
-              severity="critical"
-              icon={<AlertTriangle className="h-5 w-5" />}
-              title={shell.alert.operationIncompleteTitle}
-              items={missing}
-              action={
-                canAssignFleetFromAlert ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setSearchParams(
-                        (prev) => applyOpenAssignFleetSearchParams(prev),
-                        { replace: true },
-                      );
-                    }}
-                  >
-                    {tripDetailCopy.operation.action.assignFleet}
-                  </Button>
-                ) : null
-              }
-            />,
-          );
-        }
+      // V4 P1: sin strip mid-trip — aviso de flota vive aquí / card Flota (F4).
+      const missing: { label?: string; text: string }[] = [];
+      if (!trip.vehicle) {
+        missing.push({
+          label: shell.alert.assignmentVehicleLabel,
+          text: shell.alert.operationVehicleMissing,
+        });
+      }
+      if (!trip.driver) {
+        missing.push({
+          label: shell.alert.assignmentDriverLabel,
+          text: shell.alert.operationDriverMissing,
+        });
+      }
+      if (missing.length > 0) {
+        const canAssignFleetFromAlert =
+          !isLeanTripPortal &&
+          canUpdateTrip &&
+          canReassignTripFleet(trip.status);
+        cards.push(
+          <DetailAlertCard
+            key="operation-missing"
+            severity="critical"
+            icon={<AlertTriangle className="h-5 w-5" />}
+            title={shell.alert.operationIncompleteTitle}
+            items={missing}
+            action={
+              canAssignFleetFromAlert ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setSearchParams(
+                      (prev) => applyOpenAssignFleetSearchParams(prev),
+                      { replace: true },
+                    );
+                  }}
+                >
+                  {tripDetailCopy.operation.action.assignFleet}
+                </Button>
+              ) : null
+            }
+          />,
+        );
       }
     }
 
@@ -964,39 +932,28 @@ export function TripDetailPage() {
       );
     }
 
-    if (trip.cfdiEmissionIntent === "sin_cfdi_efectivo") {
+    // D14 / D30: modo Sin factura = chip en subtítulo; no banner informativo ATF.
+    if (
+      trip.cfdiEmissionIntent === "sin_cfdi_efectivo" &&
+      hasOperationalCashCollected(trip)
+    ) {
       cards.push(
         <DetailAlertCard
-          key="sin-cfdi-efectivo"
+          key="sin-cfdi-cash-freeze"
           severity="warning"
-          icon={<Receipt className="h-5 w-5" />}
-          title={cfdiEmissionIntentCopy.banner}
+          icon={<AlertCircle className="h-5 w-5" />}
+          title={cfdiEmissionIntentCopy.governance.cashFreeze}
         >
-          <p>{cfdiEmissionIntentCopy.complianceNotice}</p>
+          <p>{cfdiEmissionIntentCopy.governance.cashFreezeHint}</p>
         </DetailAlertCard>,
       );
-
-      if (hasOperationalCashCollected(trip)) {
-        cards.push(
-          <DetailAlertCard
-            key="sin-cfdi-cash-freeze"
-            severity="warning"
-            icon={<AlertCircle className="h-5 w-5" />}
-            title={cfdiEmissionIntentCopy.governance.cashFreeze}
-          >
-            <p>{cfdiEmissionIntentCopy.governance.cashFreezeHint}</p>
-          </DetailAlertCard>,
-        );
-      }
     }
 
     if (cards.length === 0) return undefined;
-    return <div className="space-y-3">{cards}</div>;
+    return <TripShellAlertsStack alerts={cards} />;
   }, [
     trip,
     displayStatus,
-    routeDetail?.trip,
-    comparisonNowMs,
     hasOpenTrackingIncident,
     tripReadiness,
     nextStepPlan,
@@ -1157,9 +1114,6 @@ export function TripDetailPage() {
   const cargoCount = usesLiveCargos
     ? cargos.length
     : (trip.cargos?.length ?? 0);
-  const totalCargoWeight = usesLiveCargos
-    ? cargos.reduce((sum, c) => sum + getCargoWeightKg(c), 0)
-    : (trip.cargos?.reduce((sum, c) => sum + getCargoWeightKg(c), 0) ?? 0);
   const pickupStops = orderedStops.filter((stop) => hasStopType(stop.stopType, "pickup"));
 
   const pendingExpenses = expensesSummary?.pendingCount ?? 0;
@@ -1187,12 +1141,6 @@ export function TripDetailPage() {
     closedAt: trip.actualArrival,
     role,
   });
-
-  const nextStepOwnsTracking = Boolean(
-    nextStepPlan &&
-      (nextStepPlan.primary.id === "go_to_tracking" ||
-        nextStepPlan.secondaries.some((a) => a.id === "go_to_tracking")),
-  );
 
   const goToNextStepTab = (tab: "route" | "cargo" | "tracking") => {
     setSearchParams(
@@ -1229,6 +1177,57 @@ export function TripDetailPage() {
       setLinkedDraftsSheetOpen(true);
     }
   };
+
+  const handleNextStepOpenOperate = () => {
+    setPhaseOperateOpen(true);
+  };
+
+  const goToTrackingTab = () => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", "tracking");
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const trackingPrimaryAction = nextStepPlan
+    ? resolveTrackingPrimaryAction(
+        resolvedDisplayStatus,
+        orderedStops,
+        cargos,
+        { canMutateCargo: canUpdateTrip },
+      )
+    : null;
+  const operatePrimaryLabel = trackingPrimaryAction?.title ?? null;
+  const operateCtaLabel = trackingPrimaryAction
+    ? resolveTrackingPrimaryCtaLabel(trackingPrimaryAction)
+    : null;
+
+  const nextStepLate =
+    Boolean(nextStepPlan) &&
+    (resolvedDisplayStatus === TripStatus.SCHEDULED ||
+      resolvedDisplayStatus === TripStatus.IN_PROGRESS) &&
+    ((resolvedDisplayStatus === TripStatus.SCHEDULED &&
+      trip.scheduledDeparture.getTime() < comparisonNowMs &&
+      !trip.actualDeparture) ||
+      (Boolean(trip.scheduledArrival) &&
+        trip.scheduledArrival!.getTime() < comparisonNowMs &&
+        !trip.actualArrival));
+
+  const lateDelayMs = nextStepLate
+    ? resolveTripLateDelayMs({
+        nowMs: comparisonNowMs,
+        scheduledDepartureMs: trip.scheduledDeparture.getTime(),
+        scheduledArrivalMs: trip.scheduledArrival?.getTime() ?? null,
+        hasActualDeparture: Boolean(trip.actualDeparture),
+        hasActualArrival: Boolean(trip.actualArrival),
+      })
+    : null;
+  const lateDelayLabel =
+    lateDelayMs != null ? formatTripLateDelayChip(lateDelayMs) : null;
 
   const handleSelectLinkedDraft = (invoiceId: string) => {
     navigate(`/invoices/${invoiceId}`, {
@@ -1288,8 +1287,14 @@ export function TripDetailPage() {
           ? confirmReserveButton
           : undefined
       }
+      operatePrimaryLabel={operatePrimaryLabel}
+      operateCtaLabel={operateCtaLabel}
+      late={nextStepLate}
+      lateDelayLabel={lateDelayLabel}
+      primaryDemoted={phaseOperateOpen || routeEditing}
       onNavigateTab={goToNextStepTab}
       onInvoice={handleNextStepInvoice}
+      onOpenOperate={handleNextStepOpenOperate}
       onOpenDraft={handleNextStepOpenDraft}
       onViewInvoices={handleNextStepViewInvoices}
       readinessStatus={
@@ -1313,53 +1318,27 @@ export function TripDetailPage() {
     />
   ) : null;
 
-  /** F4 / D7: strip mid-trip — deep-links sin tab nuevo (chrome alerts). */
-  const midTripAdjustLinks =
-    !isLeanTripPortal && resolvedDisplayStatus === TripStatus.IN_PROGRESS
-      ? listMidTripAdjustLinks({
-          canReplanPendingStops,
-          canAppendCargo,
-          canReassignFleet,
-        })
-      : [];
-  const pendingStopCountForStrip = orderedStops.filter(
-    (stop) => stop.status === StopStatus.PENDING,
-  ).length;
+  /** F1 ATF: franja → Qué sigue → ≤1 aviso. V4 P1: sin strip mid-trip. */
+  const journeyStrip = !isLeanTripPortal ? (
+    <TripJourneyStrip
+      model={buildTripJourneyStripModel({
+        trip,
+        status: resolvedDisplayStatus,
+        orderedStops,
+        cargoCount,
+        distanceKm: distance,
+        durationLabel: duration ? formatDuration(duration) : null,
+        nowMs: comparisonNowMs,
+      })}
+    />
+  ) : null;
 
-  const handleMidTripAdjustNavigate = (link: MidTripAdjustLink) => {
-    if (link.openAssignFleet) {
-      setSearchParams(
-        (prev) => applyOpenAssignFleetSearchParams(prev),
-        { replace: true },
-      );
-      return;
-    }
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("tab", link.tab);
-        return next;
-      },
-      { replace: true },
-    );
-  };
-
-  const midTripAdjustStrip =
-    midTripAdjustLinks.length > 0 ? (
-      <TripMidTripAdjustStrip
-        links={midTripAdjustLinks}
-        pendingStopCount={pendingStopCountForStrip}
-        onNavigate={handleMidTripAdjustNavigate}
-      />
-    ) : null;
-
-  /** ATF banners (en tripAlerts) van antes del strip: el job fiscal no pierde jerarquía. */
-  const composedAlerts =
-    nextStepAlerts || tripAlerts || midTripAdjustStrip ? (
+  const composedAboveTabs =
+    journeyStrip || nextStepAlerts || tripAlerts ? (
       <div className="space-y-3">
+        {journeyStrip}
         {nextStepAlerts}
         {tripAlerts}
-        {midTripAdjustStrip}
       </div>
     ) : undefined;
 
@@ -1375,42 +1354,82 @@ export function TripDetailPage() {
           resolvedDisplayStatus === TripStatus.CANCELLED ? "muted" : "primary",
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="shrink-0">{trip.tripCode}</span>
+            <span className="min-w-0 truncate">
+              {formatTripRouteTitle(orderedStops, {
+                originCity: trip.originCity,
+                originState: trip.originState,
+                destinationCity: trip.destinationCity,
+                destinationState: trip.destinationState,
+              })}
+            </span>
             <TripStatusBadge
               status={resolvedDisplayStatus}
               size="sm"
               showIcon
             />
+            {trip.requiresFiscalAttention ? (
+              <Badge
+                variant="warning"
+                tone="soft"
+                className="text-xs"
+                data-testid="trip-header-fiscal-attention-chip"
+              >
+                {shell.alert.fiscalAttentionChip}
+              </Badge>
+            ) : null}
             {trip.operationalOutcome === "false_trip" ? (
               <Badge variant="warning" tone="soft" className="text-xs">
                 {shell.alert.falseTripChip}
               </Badge>
             ) : null}
+            {nextStepLate &&
+            resolvedDisplayStatus === TripStatus.IN_PROGRESS &&
+            lateDelayLabel ? (
+              <Badge
+                variant="warning"
+                tone="soft"
+                className="text-xs"
+                data-testid="trip-header-late-delay-chip"
+              >
+                {lateDelayLabel}
+              </Badge>
+            ) : null}
           </span>
         ),
         subtitle: (
-          <div className="space-y-2">
-            {/* L1 ruta · L2 cliente — sin chips/CTAs/bloqueo */}
-            <div className="space-y-0.5">
-              <p className="truncate text-sm text-muted-foreground">
-                {formatTripRouteSubtitle(orderedStops, {
-                  originCity: trip.originCity,
-                  originState: trip.originState,
-                  destinationCity: trip.destinationCity,
-                  destinationState: trip.destinationState,
-                })}
-              </p>
-              {!isLeanTripPortal && trip.client?.legalName ? (
-                <p className="truncate text-xs text-muted-foreground">
-                  {trip.client.legalName}
-                </p>
-              ) : null}
-            </div>
-            {/* Franja bajo subtítulo (Conform: sin slot shell dedicado) */}
-            <TripLiquidacionControl
-              trip={trip}
-              isLeanTripPortal={isLeanTripPortal}
-            />
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <span className="font-mono tabular-nums text-foreground">
+              {trip.tripCode}
+            </span>
+            {!isLeanTripPortal && trip.client?.legalName ? (
+              <>
+                <span aria-hidden>·</span>
+                <span className="truncate">{trip.client.legalName}</span>
+              </>
+            ) : null}
+            {!isLeanTripPortal ? (
+              <>
+                <span aria-hidden>·</span>
+                <Badge
+                  variant={
+                    trip.cfdiEmissionIntent === "sin_cfdi_efectivo"
+                      ? "warning"
+                      : "outline"
+                  }
+                  tone="soft"
+                  className="text-xs"
+                >
+                  {trip.cfdiEmissionIntent === "sin_cfdi_efectivo"
+                    ? cfdiEmissionIntentCopy.chip.sinCfdi
+                    : cfdiEmissionIntentCopy.chip.conCfdi}
+                </Badge>
+              </>
+            ) : null}
+            {trip.settlementException?.status === "in_progress" ? (
+              <Badge variant="warning" tone="soft" className="text-xs">
+                Solicitud pendiente
+              </Badge>
+            ) : null}
           </div>
         ),
         actions: (
@@ -1437,64 +1456,27 @@ export function TripDetailPage() {
               ) : null
             ) : isDriverPortal ? null : (
               <>
-                {/* F2: Confirmar vive en next-step when draft_ready; oculta en incompleta. */}
-                {!nextStepPlan ||
-                (nextStepPlan.phase !== "draft_incomplete" &&
-                  nextStepPlan.primary.id !== "confirm_reserve")
-                  ? confirmReserveButton
-                  : null}
-                {/* F2: Seguimiento elevated in next-step; header solo si el bloque no lo posee. */}
-                {resolvedDisplayStatus === TripStatus.SCHEDULED &&
-                resolvedActiveTab !== "tracking" &&
-                !nextStepOwnsTracking ? (
+                {/* D5: Confirmar / Despachar viven en Qué sigue — no en header. */}
+                {trip.cfdiEmissionIntent === "sin_cfdi_efectivo" ? (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setSearchParams(
-                        (prev) => {
-                          const next = new URLSearchParams(prev);
-                          next.set("tab", "tracking");
-                          return next;
-                        },
-                        { replace: true },
-                      );
-                    }}
+                    onClick={() => setCashSheetOpen(true)}
+                    data-testid="trip-header-register-cash"
                   >
-                    <Navigation className="mr-1.5 h-4 w-4" />
-                    {shell.action.goToTracking}
+                    <Wallet className="mr-1.5 h-4 w-4" />
+                    {shell.action.registerCash}
                   </Button>
-                ) : null}
-                {resolvedDisplayStatus === TripStatus.IN_PROGRESS &&
-                resolvedActiveTab !== "tracking" &&
-                !nextStepOwnsTracking ? (
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    onClick={() => {
-                      setSearchParams(
-                        (prev) => {
-                          const next = new URLSearchParams(prev);
-                          next.set("tab", "tracking");
-                          return next;
-                        },
-                        { replace: true },
-                      );
-                    }}
-                  >
-                    <Navigation className="mr-1.5 h-4 w-4" />
-                    {shell.action.goToTracking}
-                  </Button>
-                ) : null}
-                <TripInvoiceActions
-                  trip={trip}
-                  presentation="headerMenu"
-                  onOpenRevenueSplit={() => setRevenueSplitSheetOpen(true)}
-                  scopeSheetOpen={invoiceScopeSheetOpen}
-                  onScopeSheetOpenChange={setInvoiceScopeSheetOpen}
-                />
+                ) : (
+                  <TripInvoiceActions
+                    trip={trip}
+                    presentation="headerMenu"
+                    onOpenRevenueSplit={() => setRevenueSplitSheetOpen(true)}
+                    scopeSheetOpen={invoiceScopeSheetOpen}
+                    onScopeSheetOpenChange={setInvoiceScopeSheetOpen}
+                  />
+                )}
                 <TripActions
                   variant="detailMenu"
                   tripId={trip.id}
@@ -1523,68 +1505,7 @@ export function TripDetailPage() {
           </div>
         ),
       }}
-      alerts={composedAlerts}
-      preStats={
-        isLeanTripPortal ||
-        !shouldMountTripInvoicingConsole({
-          trip,
-          hasPostCancelFiscal: Boolean(postCancelFiscal),
-          requiresFiscalAttention: Boolean(trip.requiresFiscalAttention),
-          nextStepPlan,
-        })
-          ? undefined
-          : (
-          <TripInvoicingConsole
-            trip={trip}
-            postCancelFiscal={
-              postCancelFiscal
-                ? {
-                    title: postCancelFiscal.title,
-                    lines: postCancelFiscal.lines,
-                    onDismiss: () => setPostCancelFiscal(null),
-                  }
-                : undefined
-            }
-            onViewRevenueSplit={() => setRevenueSplitSheetOpen(true)}
-          />
-        )
-      }
-      stats={(() => {
-        const status = resolvedDisplayStatus;
-        if (status === TripStatus.DRAFT || status === TripStatus.SCHEDULED) {
-          return undefined;
-        }
-        const distanceValue =
-          distance != null && distance > 0
-            ? `${distance.toLocaleString("es-MX")} km`
-            : "—";
-        const durationValue = duration ? formatDuration(duration) : "—";
-
-        return [
-          {
-            title: shell.stat.distance,
-            value: distanceValue,
-            tone: "primary" as const,
-            icon: <Navigation className="h-5 w-5" />,
-          },
-          {
-            title: shell.stat.duration,
-            value: durationValue,
-            tone: "info" as const,
-            icon: <Clock className="h-5 w-5" />,
-          },
-          {
-            title: shell.stat.cargo,
-            value: cargoCount,
-            tone: "warning" as const,
-            icon: <Package className="h-5 w-5" />,
-            description:
-              totalCargoWeight > 0
-                ? shell.stat.cargoWeightTotal(totalCargoWeight)
-                : undefined,
-          },
-        ];
-      })()}
+      alerts={composedAboveTabs}
       tabs={{
         defaultValue: "overview",
         value: resolvedActiveTab,
@@ -1646,6 +1567,7 @@ export function TripDetailPage() {
                   destinationCity: trip.destinationCity,
                   destinationState: trip.destinationState,
                 }}
+                onEditingChange={setRouteEditing}
               />
             ),
           },
@@ -1729,6 +1651,10 @@ export function TripDetailPage() {
                   canEditStructural={canEditStructural}
                   canAppendCargo={canAppendCargo}
                   cfdiEmissionIntent={trip.cfdiEmissionIntent}
+                  hasActivePrimaryInvoice={
+                    trip.invoicing.hasActivePrimaryInvoice
+                  }
+                  invoiceStatus={trip.invoicing.invoiceStatus}
                   vehicleId={trip.vehicleId}
                   onRetry={() => refetchCargos()}
                 />
@@ -1746,6 +1672,15 @@ export function TripDetailPage() {
                         <Badge variant="secondary" className="ml-1 text-xs">
                           {pendingExpenses}
                         </Badge>
+                      ) : null}
+                      {expenses.some(
+                        (e) => e.approval?.flowStatus === "returned",
+                      ) ? (
+                        <span
+                          className="ml-1 inline-flex h-2 w-2 shrink-0 rounded-full bg-warning"
+                          role="status"
+                          aria-label={shell.tab.costsReturnedAria}
+                        />
                       ) : null}
                     </span>
                   ),
@@ -1795,6 +1730,41 @@ export function TripDetailPage() {
                 },
               ]
             : []),
+          ...(!isLeanTripPortal
+            ? [
+                {
+                  value: "billing" as const,
+                  label: (
+                    <span className="inline-flex items-center gap-1">
+                      {trip.cfdiEmissionIntent === "sin_cfdi_efectivo"
+                        ? shell.tab.billingSinCfdi
+                        : shell.tab.billing}
+                      {trip.requiresFiscalAttention ||
+                      Boolean(postCancelFiscal) ||
+                      trip.settlementException?.status === "in_progress" ? (
+                        <span
+                          className="ml-1 inline-flex h-2 w-2 shrink-0 rounded-full bg-warning"
+                          role="status"
+                          aria-label={shell.tab.billingDotAria}
+                        />
+                      ) : null}
+                    </span>
+                  ),
+                  content: (
+                    <Suspense fallback={<TripDetailTabFallback />}>
+                      <TripDetailBillingTabLazy
+                        trip={trip}
+                        canSubstituteInvoice={canSubstituteFiscal}
+                        revenueSplit={revenueSplitForInvoiceScopes ?? null}
+                        onOpenRevenueSplit={() =>
+                          setRevenueSplitSheetOpen(true)
+                        }
+                      />
+                    </Suspense>
+                  ),
+                },
+              ]
+            : []),
         ],
       }}
       metadata={{
@@ -1821,6 +1791,42 @@ export function TripDetailPage() {
           onOpenChange={setLinkedDraftsSheetOpen}
           drafts={linkedDraftInvoices}
           onSelectDraft={handleSelectLinkedDraft}
+        />
+      ) : null}
+      {!isLeanTripPortal && trip ? (
+        <TripPhaseOperateSheets
+          tripId={trip.id}
+          tripCode={trip.tripCode}
+          vehicleId={trip.vehicleId}
+          driverId={trip.driverId}
+          tripStartMileage={trip.mileage.start}
+          originBranchId={trip.originBranchId}
+          status={resolvedDisplayStatus}
+          cargos={cargos}
+          cfdiEmissionIntent={trip.cfdiEmissionIntent}
+          pendingSinCfdiRequest={
+            trip.settlementException?.status === "in_progress"
+          }
+          requiresFiscalAttention={trip.requiresFiscalAttention}
+          open={phaseOperateOpen}
+          onOpenChange={setPhaseOperateOpen}
+          onFallbackToTracking={goToTrackingTab}
+        />
+      ) : null}
+      {!isLeanTripPortal &&
+      trip &&
+      trip.cfdiEmissionIntent === "sin_cfdi_efectivo" ? (
+        <RegisterOperationalCashSheet
+          tripId={trip.id}
+          open={cashSheetOpen}
+          onOpenChange={setCashSheetOpen}
+          pendingAmount={
+            trip.operationalCash?.pendingAmount ??
+            Math.max(
+              0,
+              (trip.costs.baseRate ?? 0) - (trip.operationalCashAmount ?? 0),
+            )
+          }
         />
       ) : null}
     </>

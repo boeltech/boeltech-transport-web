@@ -19,6 +19,12 @@ export const TripDetailCostsTabLazy = lazyWithRetry(() =>
   })),
 );
 
+export const TripDetailBillingTabLazy = lazyWithRetry(() =>
+  import("../components/trip-billing").then((m) => ({
+    default: m.TripDetailBillingTab,
+  })),
+);
+
 export function TripDetailTabFallback() {
   return (
     <div className="space-y-4 py-4">
