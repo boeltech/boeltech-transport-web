@@ -61,7 +61,7 @@ export function ApprovalRowTripExpense({
   const isDocumented = item.status === "documented";
 
   return (
-    <TableRow>
+    <TableRow data-state={selected ? "selected" : undefined}>
       <TableCell className="w-10">
         {selectable ? (
           <Checkbox
@@ -124,7 +124,7 @@ export function ApprovalRowTripExpense({
       <TableCell className="max-w-[220px] truncate text-xs text-muted-foreground">
         {ctx.description ?? copy.table.noDescription}
       </TableCell>
-      <TableCell className="text-right tabular-nums font-medium">
+      <TableCell className="text-right font-mono tabular-nums">
         {formatMxCurrency(item.amount)}
       </TableCell>
       <TableCell>{formatDate(ctx.occurredAt)}</TableCell>

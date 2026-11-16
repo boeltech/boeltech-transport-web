@@ -1095,21 +1095,21 @@ export function ApprovalInboxPage({
                 }
                 onHistory={(item) => setHistoryTarget(item)}
                 maxSelection={BULK_MAX}
+                pagination={
+                  pagination
+                    ? {
+                        page: pagination.page,
+                        totalPages: pagination.totalPages,
+                        total: pagination.total,
+                        limit: pagination.limit,
+                      }
+                    : undefined
+                }
+                onPageChange={filters.setPage}
               />
             </div>
           );
         }}
-        pagination={
-          pagination
-            ? {
-                page: pagination.page,
-                totalPages: pagination.totalPages,
-                total: pagination.total,
-                limit: pagination.limit,
-              }
-            : undefined
-        }
-        onPageChange={filters.setPage}
         relatedConfig={relatedConfig}
       />
 

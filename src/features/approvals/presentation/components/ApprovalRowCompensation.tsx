@@ -62,7 +62,7 @@ export function ApprovalRowCompensation({
         : copy.table.noDescription;
 
   return (
-    <TableRow>
+    <TableRow data-state={selected ? "selected" : undefined}>
       <TableCell className="w-10">
         {selectable ? (
           <Checkbox
@@ -114,11 +114,13 @@ export function ApprovalRowCompensation({
           </p>
         ) : null}
       </TableCell>
-      <TableCell>Liquidación</TableCell>
+      <TableCell>
+        <span className="font-medium">Liquidación</span>
+      </TableCell>
       <TableCell className="max-w-[220px] truncate text-xs text-muted-foreground">
         {periodLabel}
       </TableCell>
-      <TableCell className="text-right tabular-nums font-medium">
+      <TableCell className="text-right font-mono tabular-nums">
         {formatMxCurrency(item.amount)}
       </TableCell>
       <TableCell>{formatDate(item.submittedAt)}</TableCell>

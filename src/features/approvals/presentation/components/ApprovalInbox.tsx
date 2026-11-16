@@ -9,6 +9,10 @@ import {
 import { Checkbox } from "@shared/ui/checkbox";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
+  ListingResultsFrame,
+  type ListingResultsFramePagination,
+} from "@shared/ui/listing";
+import {
   resolveApprovableActionUi,
   resolveApprovableSelfActionUi,
   type ApprovableItem,
@@ -61,6 +65,11 @@ export interface ApprovalInboxProps {
   /** ADR-0099 «Ver historial». */
   onHistory?: (item: ApprovableItem) => void;
   maxSelection?: number;
+  /** Pie T8 del frame; si falta o total === 0 → sin pie. */
+  pagination?: ListingResultsFramePagination;
+  onPageChange?: (page: number) => void;
+  /** Etiqueta plural del summary («Mostrando… de N solicitudes»). */
+  entityLabelPlural?: string;
 }
 
 export function ApprovalInbox({
@@ -78,6 +87,9 @@ export function ApprovalInbox({
   onReturn,
   onHistory,
   maxSelection = 50,
+  pagination,
+  onPageChange,
+  entityLabelPlural = "solicitudes",
 }: ApprovalInboxProps) {
   const canSelectItem = (item: ApprovableItem) =>
     isApprovableSelectable(item, canUpdate, currentUserId, selfApprovalPolicy);
@@ -89,91 +101,91 @@ export function ApprovalInbox({
     selectableItems.some((item) => selectedIds.has(item.id)) && !allSelected;
   const headers = visibleHeaders(hideTypeColumn);
 
-  if (isLoading) {
-    return (
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {headers.map((header) => (
-                <TableHead key={header.key} className={header.className}>
-                  {header.label}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.from({ length: 5 }).map((_, index) => (
-              <TableRow key={index}>
-                <TableCell colSpan={headers.length}>
-                  <Skeleton className="h-6 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    );
+  // Empty lo monta la page (`EmptyState`); no frame vacío duplicado.
+  if (!isLoading && items.length === 0) {
+    return null;
   }
 
-  return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10">
-              {canUpdate && selectableItems.length > 0 ? (
-                <Checkbox
-                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                  onCheckedChange={(checked) => onToggleAll(checked === true)}
-                  aria-label={copy.select}
-                />
-              ) : null}
-            </TableHead>
-            {headers.slice(1).map((header) => (
-              <TableHead key={header.key} className={header.className}>
-                {header.label}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item) => {
-            const selfActionUi = resolveApprovableSelfActionUi(
-              item,
-              currentUserId,
-              selfApprovalPolicy,
-            );
-            const actionUi = resolveApprovableActionUi(
-              item,
-              currentUserId,
-              selfApprovalPolicy,
-              canUpdate,
-            );
-            const selectable =
-              canSelectItem(item) &&
-              (selectedIds.has(item.id) || selectedIds.size < maxSelection);
+  const headerRow = (
+    <TableRow>
+      <TableHead className="w-10">
+        {canUpdate && selectableItems.length > 0 ? (
+          <Checkbox
+            checked={allSelected ? true : someSelected ? "indeterminate" : false}
+            onCheckedChange={(checked) => onToggleAll(checked === true)}
+            aria-label={copy.select}
+          />
+        ) : null}
+      </TableHead>
+      {headers.slice(1).map((header) => (
+        <TableHead key={header.key} className={header.className}>
+          {header.label}
+        </TableHead>
+      ))}
+    </TableRow>
+  );
 
-            return (
-              <ApprovalRow
-                key={item.id}
-                item={item}
-                selected={selectedIds.has(item.id)}
-                selectable={selectable}
-                canUpdate={canUpdate}
-                hideTypeColumn={hideTypeColumn}
-                selfActionUi={selfActionUi}
-                actionUi={actionUi}
-                onSelectChange={(checked) => onToggleItem(item, checked)}
-                onApprove={() => onApprove(item)}
-                onReject={() => onReject(item)}
-                onReturn={onReturn ? () => onReturn(item) : undefined}
-                onHistory={onHistory ? () => onHistory(item) : undefined}
-              />
-            );
-          })}
-        </TableBody>
+  const loadingBody = (
+    <TableBody>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <TableRow key={index}>
+          <TableCell colSpan={headers.length}>
+            <Skeleton className="h-6 w-full" />
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  );
+
+  const dataBody = (
+    <TableBody>
+      {items.map((item) => {
+        const selfActionUi = resolveApprovableSelfActionUi(
+          item,
+          currentUserId,
+          selfApprovalPolicy,
+        );
+        const actionUi = resolveApprovableActionUi(
+          item,
+          currentUserId,
+          selfApprovalPolicy,
+          canUpdate,
+        );
+        const selectable =
+          canSelectItem(item) &&
+          (selectedIds.has(item.id) || selectedIds.size < maxSelection);
+
+        return (
+          <ApprovalRow
+            key={item.id}
+            item={item}
+            selected={selectedIds.has(item.id)}
+            selectable={selectable}
+            canUpdate={canUpdate}
+            hideTypeColumn={hideTypeColumn}
+            selfActionUi={selfActionUi}
+            actionUi={actionUi}
+            onSelectChange={(checked) => onToggleItem(item, checked)}
+            onApprove={() => onApprove(item)}
+            onReject={() => onReject(item)}
+            onReturn={onReturn ? () => onReturn(item) : undefined}
+            onHistory={onHistory ? () => onHistory(item) : undefined}
+          />
+        );
+      })}
+    </TableBody>
+  );
+
+  return (
+    <ListingResultsFrame
+      entityLabelPlural={entityLabelPlural}
+      pagination={pagination}
+      onPageChange={onPageChange}
+    >
+      <Table density="list">
+        <TableHeader>{headerRow}</TableHeader>
+        {isLoading ? loadingBody : dataBody}
       </Table>
-    </div>
+    </ListingResultsFrame>
   );
 }

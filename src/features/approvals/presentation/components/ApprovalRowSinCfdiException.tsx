@@ -22,6 +22,7 @@ export interface ApprovalRowSinCfdiExceptionProps extends ApprovalRowDecisionPro
 
 export function ApprovalRowSinCfdiException({
   item,
+  selected,
   hideTypeColumn = true,
   canUpdate,
   selfActionUi,
@@ -41,7 +42,7 @@ export function ApprovalRowSinCfdiException({
     APPROVAL_STATUS_LABELS[item.status as ApprovalStatus] ?? item.status;
 
   return (
-    <TableRow>
+    <TableRow data-state={selected ? "selected" : undefined}>
       <TableCell className="w-10" />
       {hideTypeColumn ? null : (
         <TableCell>
@@ -55,7 +56,7 @@ export function ApprovalRowSinCfdiException({
         <Link
           to={`/trips/${ctx.tripId}`}
           state={{ from: inboxHref }}
-          className="font-semibold text-primary font-mono"
+          className="font-medium text-primary font-mono"
         >
           {ctx.tripCode}
         </Link>
@@ -65,7 +66,7 @@ export function ApprovalRowSinCfdiException({
       <TableCell className="max-w-[220px] truncate text-xs text-muted-foreground">
         {ctx.reason}
       </TableCell>
-      <TableCell className="text-right tabular-nums font-medium">
+      <TableCell className="text-right font-mono tabular-nums">
         {formatMxCurrency(item.amount)}
       </TableCell>
       <TableCell>{formatDate(item.submittedAt)}</TableCell>

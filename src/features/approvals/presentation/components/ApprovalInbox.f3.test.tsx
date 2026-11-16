@@ -71,4 +71,31 @@ describe("ApprovalInbox F3 D7", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Gasto de viaje")).toBeInTheDocument();
   });
+
+  it("Conform: frame T1 + density list; vacío → null; fila marcada data-state=selected", () => {
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <ApprovalInbox
+          {...baseProps}
+          selectedIds={new Set(["expense-1"])}
+        />
+      </MemoryRouter>,
+    );
+
+    const frame = container.querySelector(".rounded-xl.border.bg-card.shadow-sm");
+    expect(frame).toBeTruthy();
+    expect(screen.getByRole("table").closest(".rounded-xl.border.bg-card.shadow-sm")).toBe(
+      frame,
+    );
+
+    const selectedRow = screen.getByRole("link", { name: "V-2026-001" }).closest("tr");
+    expect(selectedRow).toHaveAttribute("data-state", "selected");
+
+    rerender(
+      <MemoryRouter>
+        <ApprovalInbox {...baseProps} items={[]} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
 });

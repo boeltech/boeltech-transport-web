@@ -92,6 +92,31 @@ describe("ApprovalRow", () => {
     expect(screen.getByText("CFDI validado")).toBeInTheDocument();
   });
 
+  it("fila seleccionada expone data-state=selected", () => {
+    render(
+      <MemoryRouter>
+        <table>
+          <tbody>
+            <ApprovalRow
+              item={tripExpenseItem}
+              selected
+              selectable
+              canUpdate
+              onSelectChange={vi.fn()}
+              onApprove={vi.fn()}
+              onReject={vi.fn()}
+            />
+          </tbody>
+        </table>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "V-2026-001" }).closest("tr")).toHaveAttribute(
+      "data-state",
+      "selected",
+    );
+  });
+
   it("renders driver_advance_request row with open debt warning", () => {
     render(
       <MemoryRouter>

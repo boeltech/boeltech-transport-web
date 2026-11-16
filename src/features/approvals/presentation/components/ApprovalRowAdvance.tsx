@@ -50,7 +50,7 @@ export function ApprovalRowAdvance({
   const hasOpenDebt = typeof openBalance === "number" && openBalance > 0;
 
   return (
-    <TableRow>
+    <TableRow data-state={selected ? "selected" : undefined}>
       <TableCell className="w-10">
         {selectable ? (
           <Checkbox
@@ -72,10 +72,10 @@ export function ApprovalRowAdvance({
         </TableCell>
       )}
       <TableCell>
-        <span className="font-semibold text-primary font-mono">
+        <span className="font-medium text-primary font-mono">
           {ctx.folio || "Anticipo"}
         </span>
-        <p className="text-xs text-muted-foreground font-medium">
+        <p className="text-xs text-muted-foreground">
           {ctx.employeeFullName ?? "—"}
         </p>
 
@@ -116,7 +116,9 @@ export function ApprovalRowAdvance({
       </TableCell>
       <TableCell>
         <div className="space-y-0.5">
-          <span className="capitalize block">{ctx.category ?? "Anticipo de viaje"}</span>
+          <span className="block font-medium capitalize">
+            {ctx.category ?? "Anticipo de viaje"}
+          </span>
           {ctx.paymentMethod ? (
             <span className="text-[11px] text-muted-foreground capitalize block">
               Método: {ctx.paymentMethod}
@@ -127,7 +129,7 @@ export function ApprovalRowAdvance({
       <TableCell className="max-w-[220px] truncate text-xs text-muted-foreground">
         {ctx.notes || copy.table.noDescription}
       </TableCell>
-      <TableCell className="text-right tabular-nums font-medium">
+      <TableCell className="text-right font-mono tabular-nums">
         {formatMxCurrency(item.amount)}
       </TableCell>
       <TableCell>{formatDate(item.submittedAt)}</TableCell>
