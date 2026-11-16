@@ -5,7 +5,10 @@ import { Button } from "@shared/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { EmptyState } from "@shared/ui/feedback-states";
-import { type ActiveFilterChip } from "@shared/ui/listing";
+import {
+  ListingResultsFrame,
+  type ActiveFilterChip,
+} from "@shared/ui/listing";
 import { usePermissions } from "@shared/permissions";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { EmployeeAsyncCombobox } from "@shared/ui/employee-async-combobox";
@@ -76,7 +79,7 @@ export function SettlementsAdvancesPage() {
           ? "fully_applied"
           : activeBucket,
     page: filters.page,
-    pageSize: 20,
+    pageSize: 25,
   });
 
   const { data: openDisbursed } = useDriverAdvances({
@@ -234,12 +237,36 @@ export function SettlementsAdvancesPage() {
     toast({ title: copy.toasts.dataRefreshed, variant: "success" });
   }, [refetch, toast]);
 
+  /** D4: pie «Mostrando…» = filas del bucket/filtro visible, no total API sin filtrar. */
+  const visibleResultsTotal = useMemo(() => {
+    if (filters.search.trim()) return filteredAdvances.length;
+    if (activeBucket === "open") {
+      return (
+        (openDisbursed?.pagination.total ?? 0) +
+        (openPartial?.pagination.total ?? 0)
+      );
+    }
+    return advancesData?.pagination.total ?? 0;
+  }, [
+    activeBucket,
+    advancesData?.pagination.total,
+    filteredAdvances.length,
+    filters.search,
+    openDisbursed?.pagination.total,
+    openPartial?.pagination.total,
+  ]);
+
   const pagination =
     !showLoadError && advancesData?.pagination
       ? {
           page: filters.page,
-          totalPages: advancesData.pagination.totalPages,
-          total: advancesData.pagination.total,
+          totalPages: Math.max(
+            1,
+            Math.ceil(
+              visibleResultsTotal / Math.max(1, advancesData.pagination.limit),
+            ),
+          ),
+          total: visibleResultsTotal,
           limit: advancesData.pagination.limit,
         }
       : undefined;
@@ -351,8 +378,6 @@ export function SettlementsAdvancesPage() {
             />
           ),
         }}
-        pagination={pagination}
-        onPageChange={filters.setPage}
         renderContent={() => {
           if (showLoadError) {
             return (
@@ -377,38 +402,34 @@ export function SettlementsAdvancesPage() {
             );
           }
 
-          if (isEmpty) {
-            return (
-              <EmptyState
-                icon={<Plus className="h-8 w-8 text-muted-foreground" />}
-                title={copy.empty.advancesTitle}
-                description={
-                  filters.hasFilters
-                    ? copy.empty.withFiltersDescription
-                    : copy.empty.advances
-                }
-                cta={
-                  canCreate
-                    ? {
-                        label: advancesCopy.primaryAction,
-                        onClick: () => setAdvanceDialogOpen(true),
-                      }
-                    : undefined
-                }
-                secondaryCta={
-                  filters.hasFilters
-                    ? {
-                        label: copy.empty.clearFilters,
-                        onClick: filters.clearAll,
-                        variant: "outline",
-                      }
-                    : undefined
-                }
-              />
-            );
-          }
-
-          return (
+          const resultsBody = isEmpty ? (
+            <EmptyState
+              icon={<Plus className="h-8 w-8 text-muted-foreground" />}
+              title={copy.empty.advancesTitle}
+              description={
+                filters.hasFilters
+                  ? copy.empty.withFiltersDescription
+                  : copy.empty.advances
+              }
+              cta={
+                canCreate
+                  ? {
+                      label: advancesCopy.primaryAction,
+                      onClick: () => setAdvanceDialogOpen(true),
+                    }
+                  : undefined
+              }
+              secondaryCta={
+                filters.hasFilters
+                  ? {
+                      label: copy.empty.clearFilters,
+                      onClick: filters.clearAll,
+                      variant: "outline",
+                    }
+                  : undefined
+              }
+            />
+          ) : (
             <DriverAdvancesTable
               advances={filteredAdvances}
               isLoading={isLoading}
@@ -419,6 +440,16 @@ export function SettlementsAdvancesPage() {
               }
               estimatedByEmployee={capacityByEmployee}
             />
+          );
+
+          return (
+            <ListingResultsFrame
+              entityLabelPlural={advancesCopy.entityLabelPlural}
+              pagination={pagination}
+              onPageChange={filters.setPage}
+            >
+              {resultsBody}
+            </ListingResultsFrame>
           );
         }}
       />

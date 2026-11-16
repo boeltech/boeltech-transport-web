@@ -3,27 +3,35 @@ import { screen } from "@testing-library/react";
 import { renderWithTheme } from "@/test/renderWithTheme";
 import { SettlementsAdvancesPage } from "./SettlementsAdvancesPage";
 import { settlementsCopy } from "../copy/settlementsCopy";
+import type { DriverAdvance } from "../../domain/entities";
 
 const advancesCopy = settlementsCopy.advancesList;
 
-const { advancesQuery, mockPermissions } = vi.hoisted(() => ({
+type AdvancesPageData = {
+  data: DriverAdvance[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+const { advancesQuery, countByStatus, mockPermissions } = vi.hoisted(() => ({
   advancesQuery: {
-    data: undefined as
-      | {
-          data: unknown[];
-          pagination: {
-            page: number;
-            limit: number;
-            total: number;
-            totalPages: number;
-          };
-        }
-      | undefined,
+    data: undefined as AdvancesPageData | undefined,
     isLoading: false,
     isFetching: false,
     isError: false,
     refetch: vi.fn(),
   },
+  countByStatus: {
+    disbursed: 0,
+    partially_applied: 0,
+    pending_approval: 0,
+    pending_disbursement: 0,
+    fully_applied: 0,
+  } as Record<string, number>,
   mockPermissions: { granted: new Set<string>() },
 }));
 
@@ -68,8 +76,30 @@ vi.mock("@features/employees/application", () => ({
   }),
 }));
 
+vi.mock("../components/AdvanceActions", () => ({
+  AdvanceActions: () => (
+    <button type="button" aria-label="Abrir menú de acciones" />
+  ),
+}));
+
 vi.mock("../../application/hooks", () => ({
-  useDriverAdvances: () => advancesQuery,
+  useDriverAdvances: (params?: { status?: string; pageSize?: number }) => {
+    // KPI probes (pageSize 1) → totales por status; listado principal → advancesQuery.
+    if (params?.pageSize === 1 && params.status) {
+      const total = countByStatus[params.status] ?? 0;
+      return {
+        data: {
+          data: [],
+          pagination: { page: 1, limit: 1, total, totalPages: total > 0 ? 1 : 0 },
+        },
+        isLoading: false,
+        isFetching: false,
+        isError: false,
+        refetch: vi.fn(),
+      };
+    }
+    return advancesQuery;
+  },
   useSettlementWorkbench: () => ({
     data: {
       backlog: [],
@@ -90,6 +120,31 @@ vi.mock("../../application/hooks", () => ({
   }),
 }));
 
+function makeAdvance(overrides: Partial<DriverAdvance> = {}): DriverAdvance {
+  return {
+    id: "adv-1",
+    tenantId: "tenant-1",
+    folio: "ANT-202611-0001",
+    employeeId: "emp-1",
+    employeeFullName: "Pedro Infante",
+    tripId: null,
+    tripCode: null,
+    amount: 1000,
+    balanceRemaining: 1000,
+    availableBalance: 1000,
+    currency: "MXN",
+    category: "travel_advance",
+    status: "disbursed",
+    disbursedAt: "2026-11-01T12:00:00Z",
+    paymentMethod: "cash",
+    bankReference: null,
+    notes: null,
+    createdAt: "2026-11-01T10:00:00Z",
+    updatedAt: "2026-11-01T12:00:00Z",
+    ...overrides,
+  };
+}
+
 describe("SettlementsAdvancesPage F4", () => {
   beforeEach(() => {
     mockPermissions.granted = new Set([
@@ -105,6 +160,11 @@ describe("SettlementsAdvancesPage F4", () => {
     advancesQuery.isFetching = false;
     advancesQuery.isError = false;
     advancesQuery.refetch.mockClear();
+    countByStatus.disbursed = 0;
+    countByStatus.partially_applied = 0;
+    countByStatus.pending_approval = 0;
+    countByStatus.pending_disbursement = 0;
+    countByStatus.fully_applied = 0;
   });
 
   it("muestra pipeline 4 etapas y alerta anticipo≠reembolso", () => {
@@ -183,5 +243,32 @@ describe("SettlementsAdvancesPage F4", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/emp-1/i)).not.toBeInTheDocument();
     expect(screen.getByText(advancesCopy.operatorAll)).toBeInTheDocument();
+  });
+
+  it("D4: pie Mostrando… usa total del bucket Abiertos, no pagination.total sin filtrar", () => {
+    countByStatus.disbursed = 4;
+    countByStatus.partially_applied = 2;
+    const openRows = [
+      makeAdvance({ id: "a1", folio: "ANT-1", status: "disbursed" }),
+      makeAdvance({ id: "a2", folio: "ANT-2", status: "disbursed" }),
+      makeAdvance({ id: "a3", folio: "ANT-3", status: "partially_applied" }),
+      makeAdvance({
+        id: "a4",
+        folio: "ANT-4",
+        status: "pending_approval",
+      }),
+    ];
+    advancesQuery.data = {
+      data: openRows,
+      // API sin filtrar por Abiertos (mezcla statuses) → total inflado
+      pagination: { page: 1, limit: 25, total: 9, totalPages: 1 },
+    };
+
+    renderWithTheme(<SettlementsAdvancesPage />);
+
+    expect(screen.getByText(/Mostrando/i).textContent).toMatch(
+      /Mostrando\s+1-6\s+de\s+6/,
+    );
+    expect(screen.getByText(/Mostrando/i).textContent).not.toMatch(/de\s+9/);
   });
 });

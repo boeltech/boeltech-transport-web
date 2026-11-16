@@ -53,7 +53,7 @@ describe("OperatorPaymentReadinessPanel", () => {
     expect(onAssign).toHaveBeenCalledWith("emp-m");
   });
 
-  it("Sin CLABE enlaza a Empleados (HB-T5: no muestra dígitos)", () => {
+  it("Sin CLABE: glifo warn (no destructive) y enlace a Empleados (HB-T5)", () => {
     renderPanel({
       ...noTariff,
       status: "no_clabe",
@@ -69,10 +69,42 @@ describe("OperatorPaymentReadinessPanel", () => {
     });
 
     expect(screen.getByText(copy.panel.stepAccountMissing)).toBeInTheDocument();
+    const warnGlyph = screen.getByTestId("operators-step-glyph-warn-3");
+    expect(warnGlyph).toHaveClass("bg-warning");
+    expect(warnGlyph).not.toHaveClass("bg-destructive");
     const clabeLink = screen.getByTestId("operators-panel-clabe-link");
     expect(clabeLink).toHaveAttribute("href", "/employees/emp-m");
     expect(clabeLink).toHaveClass("underline");
     expect(screen.queryByText(/5521|CLABE\s*\d/i)).not.toBeInTheDocument();
+  });
+
+  it("muestra anticipos en panel cuando hay saldo (no en listado)", () => {
+    renderPanel({
+      ...noTariff,
+      status: "ready",
+      template: {
+        id: "tpl-1",
+        name: "Local estándar",
+        version: 3,
+        effectiveFrom: "2026-08-15",
+        payability: "active",
+      },
+      openAdvancesCount: 1,
+      openAdvancesBalance: 3000,
+      attentionReasons: [],
+    });
+
+    const advances = screen.getByTestId("operators-panel-advances");
+    expect(advances).toHaveTextContent(copy.columns.advances);
+    expect(advances).toHaveTextContent(/3,000/);
+  });
+
+  it("empty del panel: mismo contenedor sin card anidada", () => {
+    renderPanel(null);
+    const empty = screen.getByTestId("operators-readiness-panel-empty");
+    expect(empty).toBeInTheDocument();
+    expect(empty.className).not.toMatch(/rounded-xl/);
+    expect(empty.className).not.toMatch(/bg-card/);
   });
 
   it("template_not_payable draft: muestra tarifa, hint y CTA Tarifas (sin Asignar)", () => {

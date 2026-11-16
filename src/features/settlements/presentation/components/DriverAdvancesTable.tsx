@@ -6,7 +6,6 @@
  * Fechas con `formatDate`. Sin sort API nuevo.
  */
 
-import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import {
   EntityListTable,
@@ -65,18 +64,35 @@ function deliveryMethodLabel(adv: DriverAdvance): string {
   );
 }
 
+function showRepartirInlineFor(
+  adv: DriverAdvance,
+  onRepartir: DriverAdvancesTableProps["onRepartir"],
+  estimatedByEmployee: DriverAdvancesTableProps["estimatedByEmployee"],
+): boolean {
+  return Boolean(
+    onRepartir &&
+      canOfferRepartir(adv) &&
+      advanceExceedsPayment(adv, estimatedByEmployee),
+  );
+}
+
 function buildColumns(
-  props: Pick<DriverAdvancesTableProps, "onRepartir" | "estimatedByEmployee">,
+  props: Pick<
+    DriverAdvancesTableProps,
+    "onRepartir" | "estimatedByEmployee" | "advances"
+  >,
 ): EntityListColumnDef<DriverAdvance>[] {
-  const { onRepartir, estimatedByEmployee } = props;
-  const reserveRepartir = Boolean(onRepartir);
+  const { onRepartir, estimatedByEmployee, advances } = props;
+  const widenActions = advances.some((adv) =>
+    showRepartirInlineFor(adv, onRepartir, estimatedByEmployee),
+  );
 
   return [
     {
       id: "folio",
       header: copy.fields.folio,
       kind: "code",
-      className: "w-[7.5rem] font-semibold text-primary",
+      className: "w-[7.5rem]",
       accessor: (adv) => adv.folio,
     },
     {
@@ -102,56 +118,37 @@ function buildColumns(
       header: copy.fields.category,
       kind: "text",
       className: "w-[11rem]",
-      accessor: (adv) => {
-        const catLabel =
-          ADVANCE_CATEGORY_LABELS[adv.category as AdvanceCategory] ??
-          adv.category;
-        return <span className="line-clamp-2 break-words">{catLabel}</span>;
-      },
+      accessor: (adv) =>
+        ADVANCE_CATEGORY_LABELS[adv.category as AdvanceCategory] ??
+        adv.category,
     },
     {
       id: "balanceRemaining",
       header: copy.fields.balanceRemaining,
-      kind: "text",
-      className:
-        "w-[9rem] text-right font-mono text-sm font-medium tabular-nums text-foreground",
-      headerClassName: "w-[9rem] text-right font-medium text-foreground",
-      accessor: (adv) => {
+      kind: "stacked",
+      stackedWeight: "normal",
+      className: "w-[9rem] text-right",
+      headerClassName: "w-[9rem] text-right",
+      accessor: (adv): EntityListStackedValue => {
         const balance = adv.availableBalance ?? adv.balanceRemaining;
-        const exceeds = advanceExceedsPayment(adv, estimatedByEmployee);
         const hasPlan =
           adv.periodDeductionCap != null && adv.periodDeductionCap > 0;
-        return (
-          <div className="text-right">
-            {formatMxCurrency(balance)}
-            <p className="mt-0.5 text-[10px] font-normal text-muted-foreground">
-              {formatMxCurrency(adv.amount)} entregado
-            </p>
-            {adv.reservedAmount && adv.reservedAmount > 0 ? (
-              <p className="mt-0.5 whitespace-normal text-[10px] font-normal text-muted-foreground">
-                {copy.createPage.summary.reservedAdvanceHint}
-              </p>
-            ) : null}
-            {exceeds ? (
-              <div className="mt-1 flex justify-end">
-                <Badge variant="warning" tone="soft" className="text-[10px]">
-                  {advancesCopy.exceedsBadge}
-                </Badge>
-              </div>
-            ) : null}
-            {hasPlan ? (
-              <p className="mt-1 text-[10px] font-normal text-muted-foreground">
-                {advancesCopy.planPerPeriod(
-                  formatMxCurrency(adv.periodDeductionCap!),
-                  Math.max(
-                    1,
-                    Math.ceil(balance / (adv.periodDeductionCap ?? 1)),
-                  ),
-                )}
-              </p>
-            ) : null}
-          </div>
-        );
+        return {
+          primary: (
+            <span className="font-mono tabular-nums">
+              {formatMxCurrency(balance)}
+            </span>
+          ),
+          secondary: hasPlan
+            ? advancesCopy.planPerPeriod(
+                formatMxCurrency(adv.periodDeductionCap!),
+                Math.max(
+                  1,
+                  Math.ceil(balance / (adv.periodDeductionCap ?? 1)),
+                ),
+              )
+            : undefined,
+        };
       },
     },
     {
@@ -160,7 +157,9 @@ function buildColumns(
       kind: "stacked",
       className: "w-[8.5rem]",
       accessor: (adv): EntityListStackedValue => ({
-        primary: adv.disbursedAt ? formatDate(adv.disbursedAt) : "—",
+        primary: adv.disbursedAt
+          ? formatDate(adv.disbursedAt)
+          : copy.fields.deliveryPending,
         secondary: `${deliveryMethodLabel(adv)}${
           adv.bankReference ? ` · ${adv.bankReference}` : ""
         }`,
@@ -189,12 +188,15 @@ function buildColumns(
       id: "actions",
       header: "",
       kind: "actions",
-      className: reserveRepartir ? "w-[10rem]" : "w-12",
-      headerClassName: reserveRepartir ? "w-[10rem] text-right" : "w-12 text-right",
+      className: widenActions ? "w-[10rem]" : "w-12",
+      headerClassName: widenActions ? "w-[10rem] text-right" : "w-12 text-right",
       accessor: (adv) => {
-        const exceeds = advanceExceedsPayment(adv, estimatedByEmployee);
         const offerRepartir = Boolean(onRepartir && canOfferRepartir(adv));
-        const showRepartirInline = offerRepartir && exceeds;
+        const showRepartirInline = showRepartirInlineFor(
+          adv,
+          onRepartir,
+          estimatedByEmployee,
+        );
         return (
           <div className="flex items-center justify-end gap-0.5">
             {showRepartirInline ? (
@@ -230,7 +232,7 @@ export function DriverAdvancesTable({
   onRepartir,
   estimatedByEmployee,
 }: DriverAdvancesTableProps) {
-  const columns = buildColumns({ onRepartir, estimatedByEmployee });
+  const columns = buildColumns({ onRepartir, estimatedByEmployee, advances });
 
   return (
     <EntityListTable

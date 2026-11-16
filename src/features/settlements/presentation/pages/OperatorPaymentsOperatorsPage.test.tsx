@@ -157,6 +157,10 @@ describe("OperatorPaymentsOperatorsPage F3", () => {
     expect(screen.getByRole("heading", { name: copy.title })).toBeInTheDocument();
     expect(screen.getByText(copy.description)).toBeInTheDocument();
     expect(screen.getByTestId("operators-row-emp-m")).toBeInTheDocument();
+    expect(screen.getByTestId("operators-row-emp-m")).toHaveAttribute(
+      "data-state",
+      "selected",
+    );
     expect(screen.getByTestId("operators-readiness-panel")).toBeInTheDocument();
     expect(
       within(screen.getByTestId("operators-readiness-panel")).getByText(
@@ -166,6 +170,15 @@ describe("OperatorPaymentsOperatorsPage F3", () => {
     expect(
       screen.getByRole("button", { name: copy.assignBatch }),
     ).toBeInTheDocument();
+
+    const grid = screen.getByTestId("operators-work-grid");
+    expect(grid.className).toMatch(/gap-0/);
+    expect(grid.className).toMatch(/items-stretch/);
+    expect(
+      within(screen.getByTestId("operators-table")).queryByRole("columnheader", {
+        name: copy.columns.advances,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("chip Listos filtra a ready", async () => {

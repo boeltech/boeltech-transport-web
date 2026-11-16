@@ -1,9 +1,10 @@
 /**
- * SettlementBacklogTable — Por pagar backlog (`EntityListTable` en modo tabla).
+ * SettlementBacklogTable — Por armar backlog (`EntityListTable` en modo tabla).
  *
- * Empleado · Estimado · Periodo(+avisos) · Concepto · Acción.
- * Empty → null (SettlementsListPage). `framed={false}` (paridad SettlementsTable).
- * Vista cards sin migrar (no EntityListTable).
+ * Conform SoT §7: Operador primary · A pagar money · Periodo stacked+avisos ·
+ * Concepto status · Armar pago outline sm (excepción workbench D4).
+ * Empty → null (SettlementsListPage). `framed={false}` bajo workbench.
+ * Cards: misma tipografía Operate (medium / mono tabular); layout cards sin rediseño.
  */
 
 import { Link } from "react-router-dom";
@@ -19,6 +20,7 @@ import {
 import {
   EntityListTable,
   type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
 import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
@@ -146,6 +148,18 @@ const WARNINGS_WITH_OWN_BADGE = new Set([
   "template_version_superseded",
 ]);
 
+function visibleBacklogWarnings(
+  warnings: readonly string[],
+): string[] {
+  return warnings
+    .filter((w) => !IGNORED_BACKLOG_WARNINGS.has(w))
+    .filter(
+      (w) =>
+        WARNINGS_WITH_OWN_BADGE.has(w) || genericWarningLabel(w) !== null,
+    )
+    .sort((a, b) => warningRank(a) - warningRank(b));
+}
+
 function PeriodWarnings({
   row,
   fromState,
@@ -153,18 +167,12 @@ function PeriodWarnings({
   row: SettlementBacklogRow;
   fromState?: { from: string };
 }) {
-  const { warnings, employeeId, periodOverlap } = row;
-  const visible = warnings
-    .filter((w) => !IGNORED_BACKLOG_WARNINGS.has(w))
-    .filter(
-      (w) =>
-        WARNINGS_WITH_OWN_BADGE.has(w) || genericWarningLabel(w) !== null,
-    )
-    .sort((a, b) => warningRank(a) - warningRank(b));
+  const { employeeId, periodOverlap } = row;
+  const visible = visibleBacklogWarnings(row.warnings);
   if (visible.length === 0) return null;
 
   return (
-    <ul className="flex flex-wrap items-center gap-1.5">
+    <ul className="flex flex-nowrap items-center gap-1">
       {visible.map((warning) => {
         if (warning === "reimbursement_payee_required") {
           return (
@@ -173,12 +181,12 @@ function PeriodWarnings({
                 <TooltipTrigger asChild>
                   <span
                     tabIndex={0}
-                    className="inline-flex cursor-help rounded-md"
+                    className="inline-flex cursor-help"
                   >
                     <Badge
                       variant="warning"
                       tone="soft"
-                      className="text-xs font-medium"
+                      className="text-xs"
                       data-testid="backlog-payee-required-badge"
                     >
                       {reimbursementCopy.backlog.payeeRequiredBadge(
@@ -203,19 +211,19 @@ function PeriodWarnings({
             periodOverlap?.status,
           );
           return (
-            <li key={warning} className="flex flex-wrap items-center gap-1.5">
+            <li key={warning}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
                     to={overlapHref}
                     state={fromState}
-                    className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label={copy.warnings.period_overlap_cta}
                   >
                     <Badge
                       variant="warning"
                       tone="soft"
-                      className="text-xs font-medium"
+                      className="text-xs"
                     >
                       {formatPeriodOverlapFolioLabel(periodOverlap) ??
                         overlapCopy.badge}
@@ -235,7 +243,7 @@ function PeriodWarnings({
             <Badge
               variant="warning"
               tone="soft"
-              className="text-xs font-medium"
+              className="text-xs"
               data-testid="backlog-template-change-badge"
             >
               {copy.warnings.template_change_in_period}
@@ -250,7 +258,7 @@ function PeriodWarnings({
                 <TooltipTrigger asChild>
                   <span
                     tabIndex={0}
-                    className="inline-flex cursor-help rounded-md"
+                    className="inline-flex cursor-help"
                   >
                     {badge}
                   </span>
@@ -271,7 +279,7 @@ function PeriodWarnings({
             <Badge
               variant="warning"
               tone="soft"
-              className="text-xs font-medium"
+              className="text-xs"
               data-testid="backlog-template-superseded-badge"
             >
               {copy.warnings.template_version_superseded}
@@ -286,7 +294,7 @@ function PeriodWarnings({
                 <TooltipTrigger asChild>
                   <span
                     tabIndex={0}
-                    className="inline-flex cursor-help rounded-md"
+                    className="inline-flex cursor-help"
                   >
                     {badge}
                   </span>
@@ -301,11 +309,7 @@ function PeriodWarnings({
 
         return (
           <li key={warning}>
-            <Badge
-              variant="warning"
-              tone="soft"
-              className="text-xs font-medium"
-            >
+            <Badge variant="warning" tone="soft" className="text-xs">
               {genericWarningLabel(warning)}
             </Badge>
           </li>
@@ -326,52 +330,52 @@ function buildTableColumns(opts: {
     {
       id: "employee",
       header: fieldsCopy.employee,
-      kind: "text",
-      className: "min-w-[220px] font-semibold whitespace-nowrap",
+      kind: "primary",
+      className: "min-w-[180px] whitespace-nowrap",
       accessor: (row) => row.employeeFullName,
     },
     {
       id: "estimatedAmount",
       header: fieldsCopy.estimatedAmount,
-      kind: "status",
-      headerClassName: "text-right",
-      className: "min-w-[140px] text-right",
+      kind: "money",
+      className: "min-w-[120px]",
       accessor: (row) =>
         row.estimatedNetAmount != null ? (
-          <span className="font-mono text-base font-bold tabular-nums whitespace-nowrap">
-            {formatMxCurrency(row.estimatedNetAmount)}
-          </span>
+          row.estimatedNetAmount
         ) : (
-          <span className="inline-flex justify-end">
-            <OperatorPaymentStatusBadge status="no_template" size="sm" />
-          </span>
+          <OperatorPaymentStatusBadge status="no_template" size="sm" />
         ),
     },
     {
       id: "period",
       header: fieldsCopy.period,
-      kind: "status",
-      className: "min-w-[220px]",
-      accessor: (row) => (
-        <div className="space-y-1.5">
-          <BacklogPeriod row={row} />
-          <PeriodWarnings row={row} fromState={fromState} />
-        </div>
-      ),
+      kind: "stacked",
+      stackedWeight: "normal",
+      className: "min-w-[200px]",
+      accessor: (row): EntityListStackedValue => {
+        const hasWarnings = visibleBacklogWarnings(row.warnings).length > 0;
+        return {
+          primary: <BacklogPeriod row={row} />,
+          secondary: hasWarnings ? (
+            <PeriodWarnings row={row} fromState={fromState} />
+          ) : undefined,
+        };
+      },
     },
     {
       id: "pendingConcept",
       header: fieldsCopy.pendingConcept,
       kind: "status",
-      className: "min-w-[170px]",
+      className: "min-w-[160px]",
       accessor: (row) => <RowTypeBadge row={row} />,
     },
     {
       id: "action",
       header: fieldsCopy.action,
       kind: "actions",
-      className: "min-w-[150px] w-auto",
-      headerClassName: "min-w-[150px] w-auto text-right",
+      // Workbench D4: CTA outline sm visible (no ⋯). Ancho para el label más largo.
+      className: "w-[12rem] whitespace-nowrap",
+      headerClassName: "w-[12rem] text-right",
       accessor: (row) => {
         const createPath = resolveBacklogCreatePath(row);
         if (!canCreate) {
@@ -443,7 +447,7 @@ export function SettlementBacklogTable({
             >
               <CardHeader className="pb-2 space-y-2">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 text-sm font-semibold text-foreground truncate">
+                  <p className="min-w-0 text-sm font-medium text-foreground truncate">
                     {row.employeeFullName}
                   </p>
                   <RowTypeBadge row={row} />
@@ -452,11 +456,11 @@ export function SettlementBacklogTable({
 
               <CardContent className="space-y-3">
                 <div className="rounded-md bg-primary/5 p-2.5 flex justify-between items-center gap-2">
-                  <span className="text-xs text-muted-foreground font-medium">
+                  <span className="text-xs text-muted-foreground">
                     {fieldsCopy.estimatedAmount}
                   </span>
                   {row.estimatedNetAmount != null ? (
-                    <span className="text-base font-extrabold tabular-nums text-foreground">
+                    <span className="font-mono text-sm tabular-nums text-foreground">
                       {formatMxCurrency(row.estimatedNetAmount)}
                     </span>
                   ) : (

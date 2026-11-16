@@ -20,7 +20,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu";
-import { type ActiveFilterChip } from "@shared/ui/listing";
+import {
+  ListingResultsFrame,
+  type ActiveFilterChip,
+} from "@shared/ui/listing";
 import { useListingFilters, useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
@@ -228,7 +231,7 @@ export function SettlementsListPage() {
         : undefined,
     search: filters.search.trim() || undefined,
     page: filters.page,
-    pageSize: 20,
+    pageSize: 25,
     enabled: activeBucket !== "pending",
   });
 
@@ -242,7 +245,7 @@ export function SettlementsListPage() {
     status: "rejected",
     search: filters.search.trim() || undefined,
     page: filters.page,
-    pageSize: 20,
+    pageSize: 25,
     enabled: activeBucket === "draft",
   });
 
@@ -628,34 +631,6 @@ export function SettlementsListPage() {
     isWorkbenchError,
   ]);
 
-  const activePagination = useMemo(() => {
-    if (activeBucket === "pending") return undefined;
-
-    if (activeBucket === "draft" && pipelineData?.pagination) {
-      const total =
-        (pipelineData.pagination.total ?? 0) +
-        (rejectedPipelineData?.pagination.total ?? 0);
-      return {
-        page: filters.page,
-        totalPages: Math.max(
-          pipelineData.pagination.totalPages,
-          rejectedPipelineData?.pagination.totalPages ?? 1,
-        ),
-        total,
-        limit: pipelineData.pagination.limit,
-      };
-    }
-    if (pipelineData?.pagination) {
-      return {
-        page: filters.page,
-        totalPages: pipelineData.pagination.totalPages,
-        total: pipelineData.pagination.total,
-        limit: pipelineData.pagination.limit,
-      };
-    }
-    return undefined;
-  }, [activeBucket, filters.page, pipelineData, rejectedPipelineData]);
-
   const handleViewSettlement = useCallback(
     (id: string) => navigate(settlementDetailPath(id), { state: fromState }),
     [fromState, navigate],
@@ -681,6 +656,49 @@ export function SettlementsListPage() {
     () => filterSettlementBacklog(backlogRows, filters.search),
     [backlogRows, filters.search],
   );
+
+  /** Pie T8: pipeline = API; pending sin API → síntesis (summary sin controles). */
+  const activePagination = useMemo(() => {
+    if (activeBucket === "pending") {
+      const total = visibleBacklogRows.length;
+      return {
+        page: 1,
+        totalPages: 1,
+        total,
+        limit: total || 25,
+      };
+    }
+
+    if (activeBucket === "draft" && pipelineData?.pagination) {
+      const total =
+        (pipelineData.pagination.total ?? 0) +
+        (rejectedPipelineData?.pagination.total ?? 0);
+      return {
+        page: filters.page,
+        totalPages: Math.max(
+          pipelineData.pagination.totalPages,
+          rejectedPipelineData?.pagination.totalPages ?? 1,
+        ),
+        total,
+        limit: pipelineData.pagination.limit,
+      };
+    }
+    if (pipelineData?.pagination) {
+      return {
+        page: filters.page,
+        totalPages: pipelineData.pagination.totalPages,
+        total: pipelineData.pagination.total,
+        limit: pipelineData.pagination.limit,
+      };
+    }
+    return undefined;
+  }, [
+    activeBucket,
+    filters.page,
+    pipelineData,
+    rejectedPipelineData,
+    visibleBacklogRows.length,
+  ]);
   const hasBranchFilter = Boolean(branchIdFilter);
   const hasContractorFilter = includeContractors && activeBucket === "pending";
   const hasEmployeeFilter =
@@ -935,28 +953,7 @@ export function SettlementsListPage() {
           ),
         }}
         renderContent={() => {
-          if (activeLoading) {
-            return isPendingBucket ? (
-              <SettlementBacklogTable
-                rows={[]}
-                isLoading
-                viewMode="table"
-                fromState={fromState}
-                onNavigateCreate={(path) =>
-                  navigate(path, { state: fromState })
-                }
-              />
-            ) : (
-              <SettlementPipelineQueue
-                bucket={activeBucket}
-                settlements={[]}
-                isLoading
-                viewMode="table"
-                onView={handleViewSettlement}
-              />
-            );
-          }
-
+          // Sustituyen el frame: error / checklist / bridge tarifas
           if (activeError) {
             return (
               <DetailAlertCard
@@ -978,80 +975,100 @@ export function SettlementsListPage() {
             );
           }
 
-          if (isSurfaceEmpty) {
-            if (showChecklist) {
-              return (
-                <SettlementsSetupChecklist
-                  items={readinessItems}
-                  isReady={isSettlementsReady}
-                  isLoading={readinessLoading}
-                />
-              );
-            }
-
-            if (showSchemesBridge) {
-              return (
-                <DetailAlertCard
-                  severity="info"
-                  icon={<Wallet className="h-5 w-5" aria-hidden />}
-                  title={workbenchCopy.empty.schemesBridgeTitle}
-                  items={[{ text: workbenchCopy.empty.schemesBridgeDescription }]}
-                  action={
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(COMPENSATION_TEMPLATES_PATH)}
-                      >
-                        {workbenchCopy.empty.schemesBridgeAction}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate("/employees")}
-                      >
-                        {workbenchCopy.empty.schemesBridgeEmployeesAction}
-                      </Button>
-                    </div>
-                  }
-                />
-              );
-            }
-
-            const emptyTitle = hasToolbarFilters
-              ? workbenchCopy.empty.withFiltersTitle
-              : isPendingBucket
-                ? workbenchCopy.empty.backlogTitle
-                : workbenchCopy.empty.pipelineTitle;
-            const emptyDescription = hasToolbarFilters
-              ? workbenchCopy.empty.withFiltersDescription
-              : isPendingBucket
-                ? helpEmpty?.phrase ?? workbenchCopy.empty.backlogDescription
-                : workbenchCopy.empty.pipelineDescription;
-
+          if (!activeLoading && isSurfaceEmpty && showChecklist) {
             return (
-              <EmptyState
-                icon={<Wallet className="h-10 w-10 text-muted-foreground" />}
-                title={emptyTitle}
-                description={emptyDescription}
-                cta={
-                  hasToolbarFilters
-                    ? {
-                        label: workbenchCopy.empty.clearFilters,
-                        onClick: filters.clearAll,
-                        variant: "outline",
-                      }
-                    : helpEmpty
-                      ? helpEmpty.viewHelpCta
-                      : undefined
+              <SettlementsSetupChecklist
+                items={readinessItems}
+                isReady={isSettlementsReady}
+                isLoading={readinessLoading}
+              />
+            );
+          }
+
+          if (!activeLoading && isSurfaceEmpty && showSchemesBridge) {
+            return (
+              <DetailAlertCard
+                severity="info"
+                icon={<Wallet className="h-5 w-5" aria-hidden />}
+                title={workbenchCopy.empty.schemesBridgeTitle}
+                items={[{ text: workbenchCopy.empty.schemesBridgeDescription }]}
+                action={
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(COMPENSATION_TEMPLATES_PATH)}
+                    >
+                      {workbenchCopy.empty.schemesBridgeAction}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate("/employees")}
+                    >
+                      {workbenchCopy.empty.schemesBridgeEmployeesAction}
+                    </Button>
+                  </div>
                 }
               />
             );
           }
 
-          return isPendingBucket ? (
+          const entityLabelPlural = isPendingBucket
+            ? copy.operatorsList.entityLabelPlural
+            : copy.registry.entityLabelPlural;
+
+          const emptyTitle = hasToolbarFilters
+            ? workbenchCopy.empty.withFiltersTitle
+            : isPendingBucket
+              ? workbenchCopy.empty.backlogTitle
+              : workbenchCopy.empty.pipelineTitle;
+          const emptyDescription = hasToolbarFilters
+            ? workbenchCopy.empty.withFiltersDescription
+            : isPendingBucket
+              ? (helpEmpty?.phrase ?? workbenchCopy.empty.backlogDescription)
+              : workbenchCopy.empty.pipelineDescription;
+
+          const resultsBody = activeLoading ? (
+            isPendingBucket ? (
+              <SettlementBacklogTable
+                rows={[]}
+                isLoading
+                viewMode="table"
+                fromState={fromState}
+                onNavigateCreate={(path) =>
+                  navigate(path, { state: fromState })
+                }
+              />
+            ) : (
+              <SettlementPipelineQueue
+                bucket={activeBucket}
+                settlements={[]}
+                isLoading
+                viewMode="table"
+                onView={handleViewSettlement}
+              />
+            )
+          ) : isSurfaceEmpty ? (
+            <EmptyState
+              icon={<Wallet className="h-10 w-10 text-muted-foreground" />}
+              title={emptyTitle}
+              description={emptyDescription}
+              cta={
+                hasToolbarFilters
+                  ? {
+                      label: workbenchCopy.empty.clearFilters,
+                      onClick: filters.clearAll,
+                      variant: "outline",
+                    }
+                  : helpEmpty
+                    ? helpEmpty.viewHelpCta
+                    : undefined
+              }
+            />
+          ) : isPendingBucket ? (
             <SettlementBacklogTable
               rows={visibleBacklogRows}
               isLoading={false}
@@ -1062,8 +1079,40 @@ export function SettlementsListPage() {
               }
             />
           ) : (
+            <SettlementPipelineQueue
+              bucket={activeBucket}
+              settlements={pipelineSettlements}
+              isLoading={false}
+              viewMode="table"
+              onView={handleViewSettlement}
+              onDisburse={setDisburseSettlement}
+              selectedIds={selectionEnabled ? selectedIds : undefined}
+              onToggleSelect={
+                selectionEnabled ? handleToggleSelect : undefined
+              }
+              onToggleSelectAll={
+                selectionEnabled ? handleToggleSelectAll : undefined
+              }
+              hasClabeByEmployeeId={
+                activeBucket === "payable" ? hasClabeByEmployeeId : undefined
+              }
+              onActionComplete={() => {
+                void refetchPipelinePrimary();
+                if (activeBucket === "draft") void refetchRejectedPipeline();
+                void refetchWorkbenchCounts();
+              }}
+            />
+          );
+
+          // BulkBar entre toolbar y card (fuera del frame)
+          const showBulkBar =
+            !activeLoading &&
+            !isSurfaceEmpty &&
+            (activeBucket === "payable" || activeBucket === "approval");
+
+          return (
             <div className="space-y-2">
-              {activeBucket === "payable" ? (
+              {showBulkBar && activeBucket === "payable" ? (
                 <SettlementBulkBar
                   mode="payable"
                   selectedCount={selectedIds.size}
@@ -1072,7 +1121,7 @@ export function SettlementsListPage() {
                   onRegisterBatch={handleOpenRegisterBatch}
                 />
               ) : null}
-              {activeBucket === "approval" ? (
+              {showBulkBar && activeBucket === "approval" ? (
                 <SettlementBulkBar
                   mode="approval"
                   selectedCount={selectedIds.size}
@@ -1085,34 +1134,18 @@ export function SettlementsListPage() {
                   }
                 />
               ) : null}
-              <SettlementPipelineQueue
-                bucket={activeBucket}
-                settlements={pipelineSettlements}
-                isLoading={false}
-                viewMode="table"
-                onView={handleViewSettlement}
-                onDisburse={setDisburseSettlement}
-                selectedIds={selectionEnabled ? selectedIds : undefined}
-                onToggleSelect={
-                  selectionEnabled ? handleToggleSelect : undefined
+              <ListingResultsFrame
+                entityLabelPlural={entityLabelPlural}
+                pagination={activePagination}
+                onPageChange={
+                  isPendingBucket ? undefined : filters.setPage
                 }
-                onToggleSelectAll={
-                  selectionEnabled ? handleToggleSelectAll : undefined
-                }
-                hasClabeByEmployeeId={
-                  activeBucket === "payable" ? hasClabeByEmployeeId : undefined
-                }
-                onActionComplete={() => {
-                  void refetchPipelinePrimary();
-                  if (activeBucket === "draft") void refetchRejectedPipeline();
-                  void refetchWorkbenchCounts();
-                }}
-              />
+              >
+                {resultsBody}
+              </ListingResultsFrame>
             </div>
           );
         }}
-        pagination={activePagination}
-        onPageChange={filters.setPage}
       />
 
       {disburseSettlement ? (

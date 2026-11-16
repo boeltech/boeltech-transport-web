@@ -11,12 +11,14 @@ import {
 import type { OperatorPaymentReadiness } from "../../domain/entities";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
+  formatOperatorAdvancesLabel,
   formatOperatorSalaryLabel,
   formatOperatorTariffLabel,
   operatorPanelSubtitle,
 } from "../utils/operatorPaymentDisplay";
 
 const copy = settlementsCopy.operatorsList.panel;
+const listCopy = settlementsCopy.operatorsList;
 
 type StepState = "ok" | "todo" | "warn";
 
@@ -40,6 +42,9 @@ function StepGlyph({ state, index }: { state: StepState; index: number }) {
           : "bg-warning text-warning-foreground",
       )}
       aria-hidden
+      data-testid={
+        state === "warn" ? `operators-step-glyph-warn-${index}` : undefined
+      }
     >
       {index}
     </div>
@@ -76,6 +81,10 @@ interface OperatorPaymentReadinessPanelProps {
   onAssignTariff: (employeeId: string) => void;
 }
 
+/**
+ * Inspector de readiness (sin card anidada dentro del T1).
+ * Cabecera alineada al body de la tabla en lg (`pt-9` ≈ thead h-9).
+ */
 export function OperatorPaymentReadinessPanel({
   operator,
   canAssign,
@@ -84,7 +93,7 @@ export function OperatorPaymentReadinessPanel({
   if (!operator) {
     return (
       <aside
-        className="rounded-xl border bg-card p-5"
+        className="border-t px-4 py-4 lg:border-t-0 lg:pt-9"
         data-testid="operators-readiness-panel-empty"
       >
         <h2 className="text-base font-semibold">{copy.emptyTitle}</h2>
@@ -95,6 +104,8 @@ export function OperatorPaymentReadinessPanel({
 
   const tariff = formatOperatorTariffLabel(operator);
   const salary = formatOperatorSalaryLabel(operator);
+  const advances = formatOperatorAdvancesLabel(operator);
+  const showAdvances = advances !== listCopy.advancesNone;
   const employeeHref = `/employees/${operator.employeeId}`;
   const isNotPayable = operator.status === "template_not_payable";
   const isScheduled = operator.status === "template_scheduled";
@@ -108,7 +119,8 @@ export function OperatorPaymentReadinessPanel({
         ? "warn"
         : "ok";
   const salaryState: StepState = salary.amount ? "ok" : "warn";
-  const accountState: StepState = operator.hasClabe ? "ok" : "todo";
+  /** Sin CLABE = warn (mismo tono que badge); destructive solo sin tarifa / bloqueo. */
+  const accountState: StepState = operator.hasClabe ? "ok" : "warn";
   /** Prohibido CTA «Asignar tarifa» cuando ya hay asignación no pagable / programada. */
   const showAssignCta =
     canAssign &&
@@ -122,110 +134,122 @@ export function OperatorPaymentReadinessPanel({
     isNotPayable && operator.template?.payability === "draft";
 
   return (
-    <aside className="space-y-3" data-testid="operators-readiness-panel">
-      <div className="rounded-xl border bg-card">
-        <div className="border-b px-5 py-4">
-          <h2 className="text-base font-semibold leading-6">{operator.fullName}</h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            {operatorPanelSubtitle(operator)}
-          </p>
+    <aside
+      className="space-y-3 border-t px-4 py-4 lg:border-t-0 lg:pt-9"
+      data-testid="operators-readiness-panel"
+    >
+      <div>
+        <h2 className="text-base font-semibold leading-6">{operator.fullName}</h2>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
+          {operatorPanelSubtitle(operator)}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3.5">
+        <div className="grid grid-cols-[28px_1fr] gap-3">
+          <StepGlyph state={tariffState} index={1} />
+          <div>
+            <div className="text-sm font-semibold">{copy.stepTariff}</div>
+            <div className="mt-0.5 text-[13px] text-muted-foreground">
+              {tariff.muted ? copy.stepTariffEmpty : tariff.title}
+              {tariff.subtitle ? ` · ${tariff.subtitle}` : ""}
+            </div>
+            {isDraftNotPayable ? (
+              <p
+                className="mt-1 text-[13px] text-muted-foreground"
+                data-testid="operators-panel-draft-hint"
+              >
+                {copy.stepTariffDraftHint}
+              </p>
+            ) : null}
+            {isNotPayable ? (
+              <Button
+                asChild
+                size="sm"
+                className="mt-2"
+                data-testid="operators-panel-go-tariffs"
+              >
+                <Link to={tariffsHref}>{copy.goToTariffs}</Link>
+              </Button>
+            ) : null}
+            {showAssignCta ? (
+              <Button
+                type="button"
+                size="sm"
+                className="mt-2"
+                data-testid="operators-panel-assign"
+                onClick={() => onAssignTariff(operator.employeeId)}
+              >
+                {settlementsCopy.operatorsList.assignSingle}
+              </Button>
+            ) : null}
+          </div>
         </div>
-        <div className="flex flex-col gap-3.5 px-5 py-4">
-          <div className="grid grid-cols-[28px_1fr] gap-3">
-            <StepGlyph state={tariffState} index={1} />
-            <div>
-              <div className="text-sm font-semibold">{copy.stepTariff}</div>
-              <div className="mt-0.5 text-[13px] text-muted-foreground">
-                {tariff.muted ? copy.stepTariffEmpty : tariff.title}
-                {tariff.subtitle ? ` · ${tariff.subtitle}` : ""}
-              </div>
-              {isDraftNotPayable ? (
-                <p
-                  className="mt-1 text-[13px] text-muted-foreground"
-                  data-testid="operators-panel-draft-hint"
-                >
-                  {copy.stepTariffDraftHint}
-                </p>
-              ) : null}
-              {isNotPayable ? (
-                <Button
-                  asChild
-                  size="sm"
-                  className="mt-2"
-                  data-testid="operators-panel-go-tariffs"
-                >
-                  <Link to={tariffsHref}>{copy.goToTariffs}</Link>
-                </Button>
-              ) : null}
-              {showAssignCta ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="mt-2"
-                  data-testid="operators-panel-assign"
-                  onClick={() => onAssignTariff(operator.employeeId)}
-                >
-                  {settlementsCopy.operatorsList.assignSingle}
-                </Button>
-              ) : null}
+
+        <div className="grid grid-cols-[28px_1fr] gap-3">
+          <StepGlyph state={salaryState} index={2} />
+          <div>
+            <div className="text-sm font-semibold">{copy.stepSalary}</div>
+            <div className="mt-0.5 text-[13px] text-muted-foreground">
+              {salary.amount ? (
+                <>
+                  {salary.amount}
+                  {salary.period ? ` ${salary.period}` : ""}
+                  {" · "}
+                  <EmployeesLink
+                    to={employeeHref}
+                    testId="operators-panel-salary-link"
+                  >
+                    {copy.stepSalaryEdit}
+                  </EmployeesLink>
+                </>
+              ) : (
+                <>
+                  {copy.stepSalaryEmpty}{" "}
+                  <EmployeesLink
+                    to={employeeHref}
+                    testId="operators-panel-salary-link"
+                  >
+                    {copy.stepSalaryEdit}
+                  </EmployeesLink>
+                </>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-[28px_1fr] gap-3">
-            <StepGlyph state={salaryState} index={2} />
-            <div>
-              <div className="text-sm font-semibold">{copy.stepSalary}</div>
-              <div className="mt-0.5 text-[13px] text-muted-foreground">
-                {salary.amount ? (
-                  <>
-                    {salary.amount}
-                    {salary.period ? ` ${salary.period}` : ""}
-                    {" · "}
-                    <EmployeesLink
-                      to={employeeHref}
-                      testId="operators-panel-salary-link"
-                    >
-                      {copy.stepSalaryEdit}
-                    </EmployeesLink>
-                  </>
-                ) : (
-                  <>
-                    {copy.stepSalaryEmpty}{" "}
-                    <EmployeesLink
-                      to={employeeHref}
-                      testId="operators-panel-salary-link"
-                    >
-                      {copy.stepSalaryEdit}
-                    </EmployeesLink>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-[28px_1fr] gap-3">
-            <StepGlyph state={accountState} index={3} />
-            <div>
-              <div className="text-sm font-semibold">{copy.stepAccount}</div>
-              <div className="mt-0.5 text-[13px] text-muted-foreground">
-                {operator.hasClabe ? (
-                  copy.stepAccountOk
-                ) : (
-                  <>
-                    {copy.stepAccountMissing}{" "}
-                    <EmployeesLink
-                      to={employeeHref}
-                      testId="operators-panel-clabe-link"
-                    >
-                      {copy.stepAccountEdit}
-                    </EmployeesLink>
-                  </>
-                )}
-              </div>
+        <div className="grid grid-cols-[28px_1fr] gap-3">
+          <StepGlyph state={accountState} index={3} />
+          <div>
+            <div className="text-sm font-semibold">{copy.stepAccount}</div>
+            <div className="mt-0.5 text-[13px] text-muted-foreground">
+              {operator.hasClabe ? (
+                copy.stepAccountOk
+              ) : (
+                <>
+                  {copy.stepAccountMissing}{" "}
+                  <EmployeesLink
+                    to={employeeHref}
+                    testId="operators-panel-clabe-link"
+                  >
+                    {copy.stepAccountEdit}
+                  </EmployeesLink>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {showAdvances ? (
+        <p
+          className="text-[13px] text-muted-foreground"
+          data-testid="operators-panel-advances"
+        >
+          {listCopy.columns.advances}:{" "}
+          <span className="font-mono tabular-nums">{advances}</span>
+        </p>
+      ) : null}
 
       {operator.status === "no_template" ? (
         <Alert variant="info" data-testid="operators-assign-info">

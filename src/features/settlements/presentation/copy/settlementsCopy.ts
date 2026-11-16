@@ -119,6 +119,7 @@ export const settlementsCopy = {
     title: "Anticipos",
     description:
       "Dinero que se le adelanta al operador y se descuenta en sus siguientes pagos.",
+    entityLabelPlural: "anticipos",
     deductInPayment: "Descontar en pago",
     viewInApprovals: "Ver en Aprobaciones",
     loadErrorTitle: "No se pudieron cargar los anticipos",
@@ -643,7 +644,9 @@ export const settlementsCopy = {
     freightRevenue: "Flete facturado",
     status: "Estado",
     action: "Acción",
-    deliveryDate: "Fecha de entrega",
+    deliveryDate: "Entrega",
+    /** Primary cuando `disbursedAt` es null (pre-entrega). */
+    deliveryPending: "Pendiente",
     validity: "Vigencia",
     rateFormula: "Tarifa / Fórmula",
     schemeSalary: "Esquema / Sueldo",

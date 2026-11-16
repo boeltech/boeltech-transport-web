@@ -242,15 +242,17 @@ export function OperatorPaymentsOperatorsPage() {
         renderTable={() =>
           showLoadError ? null : (
             <div
-              className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]"
+              className="grid items-stretch gap-0 lg:grid-cols-[minmax(0,1fr)_340px]"
               data-testid="operators-work-grid"
             >
-              <OperatorPaymentsTable
-                operators={filteredOperators}
-                isLoading={listQuery.isLoading || isBootstrapping}
-                selectedEmployeeId={selectedId}
-                onSelect={(row) => setSelectedId(row.employeeId)}
-              />
+              <div className="min-w-0 lg:border-r">
+                <OperatorPaymentsTable
+                  operators={filteredOperators}
+                  isLoading={listQuery.isLoading || isBootstrapping}
+                  selectedEmployeeId={selectedId}
+                  onSelect={(row) => setSelectedId(row.employeeId)}
+                />
+              </div>
               <OperatorPaymentReadinessPanel
                 operator={selectedOperator}
                 canAssign={canAssign}

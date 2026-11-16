@@ -1,9 +1,10 @@
 /**
  * OperatorPaymentsTable — listado Operate (`EntityListTable`).
  *
- * Operador · Tarifa · Sueldo · Anticipos · Estado. Selección puntual
- * (`bg-primary-50`) vía `onRowActivate` + `getRowClassName`. Empty → null.
- * `framed={false}` bajo ListPageShell.
+ * Operador · Tarifa · Sueldo · Estado. Selección puntual vía
+ * `data-state="selected"` + `bg-primary-50` + acento borde derecho.
+ * Empty → null. `framed={false}` bajo ListPageShell.
+ * Anticipos: solo en el panel de readiness (no en columnas).
  */
 
 import type { HTMLAttributes } from "react";
@@ -17,7 +18,6 @@ import type { OperatorPaymentReadiness } from "../../domain/entities";
 import { OperatorPaymentStatusBadge } from "../config/operatorPaymentStatusConfig";
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
-  formatOperatorAdvancesLabel,
   formatOperatorSalaryLabel,
   formatOperatorTariffLabel,
 } from "../utils/operatorPaymentDisplay";
@@ -79,23 +79,6 @@ function buildColumns(): EntityListColumnDef<OperatorPaymentReadiness>[] {
       },
     },
     {
-      id: "advances",
-      header: copy.columns.advances,
-      kind: "number",
-      accessor: (row) => {
-        const advances = formatOperatorAdvancesLabel(row);
-        return (
-          <span
-            className={cn(
-              advances === copy.advancesNone && "text-muted-foreground",
-            )}
-          >
-            {advances}
-          </span>
-        );
-      },
-    },
-    {
       id: "status",
       header: copy.columns.status,
       kind: "status",
@@ -125,11 +108,16 @@ export function OperatorPaymentsTable({
         isLoading={isLoading}
         onRowActivate={onSelect}
         getRowClassName={(row) =>
-          row.employeeId === selectedEmployeeId ? "bg-primary-50" : undefined
+          row.employeeId === selectedEmployeeId
+            ? "bg-primary-50 border-r-2 border-r-primary"
+            : undefined
         }
         getRowProps={(row) =>
           ({
             "data-testid": `operators-row-${row.employeeId}`,
+            ...(row.employeeId === selectedEmployeeId
+              ? { "data-state": "selected" as const }
+              : {}),
           }) as HTMLAttributes<HTMLTableRowElement>
         }
       />
