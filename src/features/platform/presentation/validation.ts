@@ -2,10 +2,11 @@ import { z } from "zod";
 import { platformCopy } from "./copy/platformCopy";
 
 const createValidation = platformCopy.tenants.create.validation;
+const loginValidation = platformCopy.login.validation;
 
 export const platformLoginSchema = z.object({
-  email: z.string().trim().email("Correo inválido"),
-  password: z.string().min(1, "La contraseña es requerida"),
+  email: z.string().trim().email(loginValidation.emailInvalid),
+  password: z.string().min(1, loginValidation.passwordRequired),
 });
 
 export type PlatformLoginFormData = z.infer<typeof platformLoginSchema>;
@@ -14,8 +15,8 @@ export const platformMfaCodeSchema = z.object({
   code: z
     .string()
     .trim()
-    .min(6, "Ingresa el código de 6 dígitos")
-    .max(64, "Código demasiado largo"),
+    .min(6, loginValidation.mfaCodeMin)
+    .max(64, loginValidation.mfaCodeMax),
 });
 
 export type PlatformMfaCodeFormData = z.infer<typeof platformMfaCodeSchema>;

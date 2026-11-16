@@ -25,6 +25,12 @@ export const platformCopy = {
     passwordLabel: "Contraseña",
     showPassword: "Mostrar contraseña",
     hidePassword: "Ocultar contraseña",
+    validation: {
+      emailInvalid: "Correo inválido",
+      passwordRequired: "La contraseña es requerida",
+      mfaCodeMin: "Ingresa el código de 6 dígitos",
+      mfaCodeMax: "Código demasiado largo",
+    },
     validationSummaryTitle: "Revisa tus credenciales",
     submit: "Entrar a plataforma",
     submitting: "Iniciando sesión…",

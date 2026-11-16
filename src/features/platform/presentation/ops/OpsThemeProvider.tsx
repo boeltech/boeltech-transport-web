@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
  * Provider de tema Ops — scope `.platform-ops` + `data-ops-theme`.
- * No toca ThemeProvider ERP ni `html.dark`.
+ * No toca ThemeProvider ERP ni la clase `html.dark`.
+ * Sí sincroniza `color-scheme` + fondo de `body` (H-P01-D04) para scroll bounce.
  */
 
 import {
@@ -9,6 +10,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -17,6 +19,7 @@ import {
   getInitialOpsResolvedTheme,
   getInitialOpsThemeMode,
   getSystemPrefersDark,
+  OPS_DOCUMENT_CANVAS_BG,
   resolveOpsTheme,
   writeStoredOpsThemeMode,
   type OpsResolvedTheme,
@@ -56,6 +59,23 @@ export function OpsThemeProvider({ children }: { children: ReactNode }) {
     registerOpsThemeBridge(resolved);
     return () => {
       clearOpsThemeBridge();
+    };
+  }, [resolved]);
+
+  /** Document surface: body canvas + html color-scheme while Ops is mounted. */
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const { body } = document;
+    const previousColorScheme = root.style.colorScheme;
+    const previousBackground = body.style.backgroundColor;
+
+    root.style.colorScheme = resolved;
+    body.style.backgroundColor = OPS_DOCUMENT_CANVAS_BG[resolved];
+
+    return () => {
+      if (window.location.pathname.startsWith("/platform")) return;
+      root.style.colorScheme = previousColorScheme;
+      body.style.backgroundColor = previousBackground;
     };
   }, [resolved]);
 

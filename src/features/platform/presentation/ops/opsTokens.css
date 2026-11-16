@@ -141,6 +141,9 @@
   z-index: 50;
 }
 
+/* Compound: login root has both classes on the same node (H-P01-D04).
+   Descendant: nested surfaces under `.platform-ops`. */
+.platform-ops.ops-bg,
 .platform-ops .ops-bg {
   background: var(--ops-bg);
 }

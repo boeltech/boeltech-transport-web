@@ -9,6 +9,12 @@ export type OpsResolvedTheme = "light" | "dark";
 export const OPS_THEME_STORAGE_KEY = "boeltech-ops-theme";
 export const OPS_THEME_DEFAULT_MODE: OpsThemeMode = "system";
 
+/** Canvas `--ops-bg` for document body while Ops is mounted (H-P01-D04). */
+export const OPS_DOCUMENT_CANVAS_BG: Record<OpsResolvedTheme, string> = {
+  light: "oklch(0.972 0.003 250)",
+  dark: "oklch(0.185 0.01 255)",
+};
+
 export function parseOpsThemeMode(raw: string | null): OpsThemeMode | null {
   if (raw === "light" || raw === "dark" || raw === "system") {
     return raw;

@@ -32,6 +32,11 @@ describe("Ops foundations F1 (Primer denso × Mando acero)", () => {
     expect(css).toMatch(/\.platform-ops \.ops-btn-outline\b/);
   });
 
+  it("applies ops-bg on the same .platform-ops node (H-P01-D04)", () => {
+    expect(css).toMatch(/\.platform-ops\.ops-bg\s*,/);
+    expect(css).toMatch(/\.platform-ops \.ops-bg\s*\{/);
+  });
+
   it("styles nav active as tick + fill (oficio GH sidebar)", () => {
     expect(css).toMatch(
       /\.ops-nav-link\[aria-current=["']page["']\]\s*\{[^}]*box-shadow:\s*inset var\(--ops-tick-w\)/,

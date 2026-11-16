@@ -8,7 +8,10 @@ import {
   clearOpsThemeBridge,
   getOpsThemeBridge,
 } from "./opsThemeBridge";
-import { OPS_THEME_STORAGE_KEY } from "./opsTheme";
+import {
+  OPS_DOCUMENT_CANVAS_BG,
+  OPS_THEME_STORAGE_KEY,
+} from "./opsTheme";
 
 function Probe() {
   const { mode, resolved, setMode } = useOpsTheme();
@@ -103,5 +106,70 @@ describe("OpsThemeProvider", () => {
     expect(getOpsThemeBridge()).toBe("light");
     unmount();
     expect(getOpsThemeBridge()).toBeNull();
+  });
+
+  it("syncs document color-scheme and body canvas (H-P01-D04)", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    );
+    window.history.pushState({}, "", "/");
+
+    const { unmount } = render(
+      <OpsThemeProvider>
+        <Probe />
+      </OpsThemeProvider>,
+    );
+
+    expect(document.documentElement.style.colorScheme).toBe("light");
+    expect(document.body.style.backgroundColor).toBe(
+      OPS_DOCUMENT_CANVAS_BG.light,
+    );
+
+    act(() => {
+      screen.getByRole("button", { name: "dark" }).click();
+    });
+    expect(document.documentElement.style.colorScheme).toBe("dark");
+    expect(document.body.style.backgroundColor).toBe(
+      OPS_DOCUMENT_CANVAS_BG.dark,
+    );
+
+    unmount();
+    expect(document.documentElement.style.colorScheme).toBe("");
+    expect(document.body.style.backgroundColor).toBe("");
+  });
+
+  it("keeps document surface when unmounting while still under /platform", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    );
+    window.history.pushState({}, "", "/platform/login");
+
+    const { unmount } = render(
+      <OpsThemeProvider>
+        <Probe />
+      </OpsThemeProvider>,
+    );
+    act(() => {
+      screen.getByRole("button", { name: "dark" }).click();
+    });
+    unmount();
+    expect(document.documentElement.style.colorScheme).toBe("dark");
+    expect(document.body.style.backgroundColor).toBe(
+      OPS_DOCUMENT_CANVAS_BG.dark,
+    );
+
+    window.history.pushState({}, "", "/");
+    document.documentElement.style.colorScheme = "";
+    document.body.style.backgroundColor = "";
   });
 });
