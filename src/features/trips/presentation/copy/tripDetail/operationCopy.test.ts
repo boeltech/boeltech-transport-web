@@ -37,8 +37,9 @@ describe("operationCopy — léxico operativo (Capa 1 D8 / D11)", () => {
     expect(operationCopy.state.clientUnavailable).not.toMatch(/ID:/);
   });
 
-  it("nombra facturación del viaje en léxico operativo", () => {
-    expect(operationCopy.label.tripType).toBe("Facturación del viaje");
+  it("nombra factura del viaje en léxico operativo (D6)", () => {
+    expect(operationCopy.section.client).toBe("Cliente y contrato");
+    expect(operationCopy.label.tripType).toBe("Factura del viaje");
     expect(operationCopy.label.routeType).toBe("Clase de ruta");
     expect(operationCopy.format.tripType("ingreso")).toBe("Servicio con factura");
     expect(operationCopy.format.tripType("traslado")).toBe("Solo traslado");
@@ -46,16 +47,30 @@ describe("operationCopy — léxico operativo (Capa 1 D8 / D11)", () => {
 
   it("identifica remolque por placa, no por clave SAT", () => {
     expect(operationCopy.format.trailerLine(1, "ABC-12-34")).toBe(
-      "ABC-12-34 · 1",
+      "ABC-12-34 · Posición 1",
     );
     expect(operationCopy.format.trailerLine(1, "ABC-12-34")).not.toMatch(
       /CTR|SubTipo/i,
     );
   });
 
-  it("no repite stats del header (distancia, duración, tarifa)", () => {
+  it("no repite distancia del header; km vive en Programación (D6)", () => {
     expect(visible).not.toMatch(/distancia/i);
-    expect(visible).not.toMatch(/duraci[oó]n/i);
-    expect(visible).not.toMatch(/tarifa/i);
+    expect(operationCopy.scheduleTable.mileageKm).toMatch(/Kilometraje/);
+    expect(operationCopy.rail.rate).toBe("Tarifa");
+  });
+
+  it("describe flota por estado (Q9b) y no inventa km sin GPS (Q7)", () => {
+    expect(operationCopy.fleetAssignment.sheetDescription).toMatch(
+      /antes de iniciar/i,
+    );
+    expect(operationCopy.fleetAssignment.sheetDescriptionInProgress).toMatch(
+      /en curso/i,
+    );
+    expect(operationCopy.fleetAssignment.sheetDescriptionInProgress).not.toMatch(
+      /antes de iniciar/i,
+    );
+    expect(operationCopy.fleetAssignment.vehicleDistanceUnknown).toBe("—");
+    expect(visible).not.toMatch(/a \d+ km/i);
   });
 });

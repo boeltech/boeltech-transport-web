@@ -6,7 +6,7 @@ import type { Trip, TripInternalStaff } from "@features/trips/domain";
  */
 export const operationCopy = {
   section: {
-    client: "Cliente (quien paga)",
+    client: "Cliente y contrato",
     schedule: "Programación",
     assignment: "Flota y tripulación",
     mileage: "Kilometraje",
@@ -14,15 +14,18 @@ export const operationCopy = {
   },
   hint: {
     client: "Quién contrata, paga y recibe la factura.",
-    schedule: "Salida y llegada programadas. Los tiempos reales se registran al operar.",
+    schedule: "Programado frente a real, más kilometraje al salir y al cerrar.",
     assignment: "Unidad, remolques, operador principal y equipo de apoyo.",
     mileage: "Kilometraje al salir y al cerrar.",
     notes: "Observaciones del canal (teléfono, mensaje, etc.).",
     staffSection: "Equipo de apoyo",
     paymentResponsible: "Responsable de pago",
     trailersSection: "Remolques",
+    cancelledFleetReadOnly:
+      "Asignación al momento de cancelar. Solo lectura.",
     routeType:
       "Define cómo se paga al operador: entrega urbana (Local), trayecto foráneo, o maniobra patio↔patio (Transfer / Patio). No es la facturación del viaje.",
+    sinCfdiClient: "Cobro operativo; este viaje no emite factura.",
   },
   action: {
     viewClient: "Ver cliente",
@@ -35,17 +38,70 @@ export const operationCopy = {
     liquidateEmployeeHint:
       "Abre el pago del período para este operador (incluye otros viajes del rango).",
     viewTripSettlements: "Ver pagos del viaje",
+    callDriver: "Llamar",
+    editSchedule: "Editar programación",
+    viewCosts: "Ver costos",
+    viewBilling: "Ver facturación",
+    viewCash: "Ver cobro",
+    viewAllActivity: "Ver toda la actividad",
     saveRouteType: "Guardar",
     savingRouteType: "Guardando…",
     cancel: "Cancelar",
+  },
+  rail: {
+    result: "Resultado del viaje",
+    resultEstimated: "Resultado estimado",
+    billing: "Facturación y cobro",
+    activity: "Actividad",
+    noBillingPending: "Sin pendientes de facturación",
+    freightInvoice: (folio: string) => `Factura de flete ${folio}`,
+    freightPending: "Flete",
+    cancelledNoCosts: "Sin registros de costos. El viaje no se realizó.",
+    marginWithQueued: (marginPct: string, queued: string) =>
+      `Margen ${marginPct} · hay ${queued} en revisión`,
+    marginOnly: (marginPct: string) => `Margen ${marginPct}`,
+    rate: "Tarifa",
+  },
+  scheduleTable: {
+    ariaLabel: "Programación programado frente a real",
+    event: "Concepto",
+    scheduled: "Programado",
+    actual: "Real",
+    difference: "Diferencia",
+    mileageKm: "Kilometraje (km)",
+    departure: "Salida",
+    arrival: "Llegada",
+    onTime: "A tiempo",
+    after: (label: string) => `${label} después`,
+    before: (label: string) => `${label} antes`,
+    footer: (parts: {
+      actualKm: string | null;
+      plannedKm: string | null;
+      duration: string | null;
+    }) => {
+      const bits: string[] = [];
+      if (parts.actualKm) bits.push(`Recorrido real ${parts.actualKm}`);
+      if (parts.plannedKm) bits.push(`Planeado ${parts.plannedKm}`);
+      if (parts.duration) bits.push(`Duración ${parts.duration}`);
+      return bits.join(" · ");
+    },
   },
   settlement: {
     sectionTitle: "Pagos a operadores",
   },
   fleetAssignment: {
     sheetTitle: "Flota y tripulación",
+    /** Antes de iniciar (draft / scheduled). */
     sheetDescription:
       "Modifica la asignación de tractocamión, remolques y operadores antes de iniciar el viaje.",
+    /** Mid-trip (in_progress) — Q9b / Ajuste-Flota. */
+    sheetDescriptionInProgress:
+      "Cambia la unidad, los remolques o los operadores del viaje en curso.",
+    /**
+     * Q7: no inventar «a N km» de unidad sin GPS.
+     * Si no hay señal GPS, la distancia se omite (—); no se calcula a ojo.
+     */
+    vehicleDistanceUnknown: "—",
     saveButton: "Guardar y reasignar",
     savingButton: "Guardando…",
     cancelButton: "Cancelar",
@@ -190,9 +246,10 @@ export const operationCopy = {
     tomorrowAtEight: "Mañana 08:00",
   },
   label: {
-    legalName: "Razón social",
-    tripType: "Facturación del viaje",
+    legalName: "Cliente",
+    tripType: "Factura del viaje",
     routeType: "Clase de ruta",
+    originBranch: "Sucursal de origen",
     scheduledDeparture: "Salida programada",
     scheduledArrival: "Llegada estimada",
     scheduledDepartureReadOnly: "Salida",
@@ -203,6 +260,8 @@ export const operationCopy = {
     driver: "Operador principal",
     mileageStart: "Inicial",
     mileageEnd: "Final",
+    facturadoVigente: "Facturado vigente",
+    cobradoViaje: "Cobrado del viaje",
   },
   state: {
     clientUnavailable: "Cliente no disponible en esta vista",
@@ -210,6 +269,8 @@ export const operationCopy = {
     noDriver: "Sin conductor asignado",
     noTrailers: "Sin remolques asignados",
     noSupportStaff: "Sin equipo de apoyo",
+    noOriginBranch: "Sin sucursal",
+    emptyDash: "—",
   },
   format: {
     tripType(intent: Trip["cfdiDocumentIntent"]): string {
@@ -219,7 +280,7 @@ export const operationCopy = {
       return "Servicio con factura";
     },
     trailerLine(position: 1 | 2, licensePlate: string): string {
-      return `${licensePlate} · ${position}`;
+      return `${licensePlate} · Posición ${position}`;
     },
     /** Rol en ruta del card (mismas etiquetas que fleetAssignment.labels). */
     staffRole(role: TripInternalStaff["internalRole"]): string {

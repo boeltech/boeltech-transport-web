@@ -1,39 +1,38 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
-  Banknote,
   Building2,
-  Calendar,
   ExternalLink,
-  Gauge,
+  Phone,
   Truck,
-  Users,
 } from "lucide-react";
 
 import type { Trip, TripStatusHistory } from "@features/trips/domain";
 import { TripStatus } from "@features/trips/domain";
-import { formatMileage } from "@features/trips";
+import { useTripExpenses } from "@features/trips/application";
 import { useDrivers } from "@features/drivers/application";
+import { useBranch } from "@features/branches/application";
 import {
   SETTLEMENTS_LIST_PATH,
   settlementCreatePath,
 } from "@features/settlements/application";
 import { usePermissions } from "@shared/permissions";
-import { formatDateTime } from "@shared/utils/dateUtils";
-import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { InfoRow } from "@shared/ui/data-display";
 import { Separator } from "@shared/ui/separator";
 
-import { TripScheduleInlineEditor } from "./TripScheduleInlineEditor";
 import { TripRouteTypeInlineEditor } from "./TripRouteTypeInlineEditor";
-import { TripDetailStatusHistory } from "./TripDetailStatusHistory";
-import { TripGpsOverlayCard } from "@features/monitoring/presentation";
+import { TripResumenActivityRail } from "./TripResumenActivityRail";
+import { TripResumenBillingRail } from "./TripResumenBillingRail";
+import { TripResumenFleetGpsStatus } from "./TripResumenFleetGpsStatus";
+import { TripResumenResultRail } from "./TripResumenResultRail";
+import { TripResumenScheduleCard } from "./TripResumenScheduleCard";
 import { TripFleetAssignmentSheet } from "../trip-fleet-assignment";
-import { TripFleetSnapshotCard } from "../trip-fleet-snapshot";
 import { TripOrderCard } from "../trip-order";
+import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { tripDetailCopy } from "../../copy";
 import {
   clearAssignFleetSearchParams,
@@ -52,7 +51,7 @@ function SettlementLiquidateLink({ employeeId }: { employeeId: string }) {
     >
       <Badge
         variant="outline"
-        className="text-[10px] hover:bg-accent cursor-pointer gap-0.5"
+        className="cursor-pointer gap-0.5 text-[10px] hover:bg-accent"
       >
         {copy.action.liquidateEmployee}
         <ArrowRight className="h-3 w-3" aria-hidden />
@@ -77,40 +76,55 @@ export interface TripDetailOperationTabProps {
   isClientPortalView?: boolean;
   /** Portal conductor: oculta Orden de viaje (documento de despacho). */
   isDriverPortalView?: boolean;
-  /** Administrador o gerente: «Sustituir factura» en el aviso de datos para Carta Porte. */
+  /** Administrador o gerente: legado F1; CP snapshot vive en Facturación (F5). */
   canSubstituteInvoice?: boolean;
   statusHistory?: readonly TripStatusHistory[];
 }
 
-function formatTripTypeLabel(intent: Trip["cfdiDocumentIntent"]): string {
-  return copy.format.tripType(intent);
+function formatTripTypeLabel(
+  trip: Trip,
+): string {
+  if (trip.cfdiEmissionIntent === "sin_cfdi_efectivo") {
+    return cfdiEmissionIntentCopy.options.sin_cfdi_efectivo;
+  }
+  return copy.format.tripType(trip.cfdiDocumentIntent);
 }
 
 function ClientContractCard({
   trip,
   showClientLink,
   canEditRouteType,
+  originBranchName,
 }: {
   trip: Trip;
   showClientLink: boolean;
   canEditRouteType: boolean;
+  originBranchName: string | null;
 }) {
-  const { id: tripId, client, cfdiDocumentIntent } = trip;
+  const { id: tripId, client } = trip;
+  const isSinCfdi = trip.cfdiEmissionIntent === "sin_cfdi_efectivo";
+
   return (
-    <Card>
+    <Card data-testid="trip-operation-client-card">
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Building2 className="h-4 w-4 shrink-0 text-primary" />
               {copy.section.client}
             </CardTitle>
             <CardDescription className="mt-1.5">
-              {copy.hint.client}
+              {isSinCfdi ? copy.hint.sinCfdiClient : copy.hint.client}
             </CardDescription>
           </div>
           {showClientLink && client ? (
-            <Button type="button" size="sm" variant="outline" className="shrink-0" asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="shrink-0"
+              asChild
+            >
               <Link
                 to={`/clients/${client.id}`}
                 state={{ from: `/trips/${tripId}` }}
@@ -122,9 +136,25 @@ function ClientContractCard({
           ) : null}
         </div>
       </CardHeader>
-      <CardContent className="pt-0 space-y-1">
+      <CardContent className="space-y-1 pt-0">
         {client ? (
-          <InfoRow variant="inline" label={copy.label.legalName} value={client.legalName} />
+          <InfoRow
+            variant="inline"
+            label={copy.label.legalName}
+            value={
+              showClientLink ? (
+                <Link
+                  to={`/clients/${client.id}`}
+                  state={{ from: `/trips/${tripId}` }}
+                  className="text-primary hover:underline"
+                >
+                  {client.legalName}
+                </Link>
+              ) : (
+                client.legalName
+              )
+            }
+          />
         ) : (
           <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
             {copy.state.clientUnavailable}
@@ -133,7 +163,15 @@ function ClientContractCard({
         <InfoRow
           variant="inline"
           label={copy.label.tripType}
-          value={formatTripTypeLabel(cfdiDocumentIntent)}
+          value={
+            isSinCfdi ? (
+              <Badge variant="warning" tone="soft" className="text-[10px]">
+                {formatTripTypeLabel(trip)}
+              </Badge>
+            ) : (
+              formatTripTypeLabel(trip)
+            )
+          }
         />
         <div className="pt-2">
           <TripRouteTypeInlineEditor
@@ -141,14 +179,18 @@ function ClientContractCard({
             readOnly={!canEditRouteType}
           />
         </div>
+        <InfoRow
+          variant="inline"
+          label={copy.label.originBranch}
+          value={originBranchName ?? copy.state.noOriginBranch}
+        />
       </CardContent>
     </Card>
   );
 }
 
 /**
- * Tab Operación — ficha patio-first (Ola 2 #1 / D7):
- * Flota → Programación → Cliente → staff → Orden → Datos CP → km/notas/historial.
+ * Tab Resumen (ex Operación) — D6 / F2: 2 columnas + riel.
  */
 export function TripDetailOperationTab({
   trip,
@@ -159,7 +201,6 @@ export function TripDetailOperationTab({
   showMileage = true,
   isClientPortalView = false,
   isDriverPortalView = false,
-  canSubstituteInvoice = false,
   statusHistory,
 }: TripDetailOperationTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -172,8 +213,15 @@ export function TripDetailOperationTab({
   const { hasPermission } = usePermissions();
   const canCreateSettlement = hasPermission("settlements", "create");
   const canReadSettlements = hasPermission("settlements", "read");
+  const canReadExpenses = hasPermission("expenses", "read");
   const isCompleted = trip.status === TripStatus.COMPLETED;
-  const showSettlementActions = isCompleted && !isClientPortalView;
+  const isCancelled = trip.status === TripStatus.CANCELLED;
+  const showSettlementActions =
+    isCompleted && !isClientPortalView && !isCancelled;
+  const canEditSchedule =
+    canEditStructural && !isCancelled && !isClientPortalView;
+  const canShowReassign =
+    canReassignFleet && !isCancelled && !isClientPortalView;
 
   const handleFleetAssignmentSheetOpenChange = (open: boolean) => {
     setIsFleetAssignmentSheetOpen(open);
@@ -182,6 +230,17 @@ export function TripDetailOperationTab({
         replace: true,
       });
     }
+  };
+
+  const setTab = (tab: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", tab);
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const resolvedDriverId = trip.driverId || trip.driver?.id;
@@ -196,6 +255,12 @@ export function TripDetailOperationTab({
     },
   );
 
+  const { data: expenses = [] } = useTripExpenses(trip.id, {
+    enabled: !isClientPortalView && canReadExpenses,
+  });
+
+  const { data: originBranch } = useBranch(trip.originBranchId ?? "");
+
   const driversData = driversPage?.data;
   const titularEmployeeId = useMemo(() => {
     if (!resolvedDriverId || !driversData) return null;
@@ -206,28 +271,32 @@ export function TripDetailOperationTab({
   }, [resolvedDriverId, driversData]);
 
   const tripSettlementsSearchHref = `${SETTLEMENTS_LIST_PATH}?search=${encodeURIComponent(trip.tripCode)}`;
+  const originBranchName = originBranch?.name ?? null;
+  const driverPhone = trip.driver?.phone?.trim() || null;
 
-  return (
-    <div className="space-y-6" data-testid="trip-detail-operation-tab">
-      {/* D7 — 1. Flota y tripulación (oculta en portal cliente) */}
+  const mainColumn = (
+    <div className="space-y-6 min-w-0">
       {!isClientPortalView ? (
         <Card data-testid="trip-operation-fleet-card">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <div className="space-y-1">
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Truck className="h-4 w-4 shrink-0 text-primary" />
                 {copy.section.assignment}
               </CardTitle>
               <CardDescription>
-                {copy.hint.assignment}
+                {isCancelled
+                  ? copy.hint.cancelledFleetReadOnly
+                  : copy.hint.assignment}
               </CardDescription>
             </div>
-            {canReassignFleet ? (
+            {canShowReassign ? (
               <Button
                 type="button"
                 size="sm"
+                variant="outline"
                 onClick={() => setIsFleetAssignmentSheetOpen(true)}
-                className="gap-1.5 shrink-0"
+                className="shrink-0 gap-1.5"
               >
                 <Truck className="h-3.5 w-3.5" />
                 {trip.vehicle || trip.driver
@@ -236,36 +305,30 @@ export function TripDetailOperationTab({
               </Button>
             ) : null}
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="space-y-3 pt-0">
             {trip.vehicle ? (
-              <>
-                <InfoRow variant="inline" label={copy.label.unit} value={trip.vehicle.unitNumber} />
-                <InfoRow variant="inline" label={copy.label.plate} value={trip.vehicle.licensePlate} />
-              </>
+              <div className="space-y-1">
+                <InfoRow
+                  variant="inline"
+                  label={copy.label.unit}
+                  value={
+                    <span className="font-medium">
+                      {trip.vehicle.unitNumber}
+                      {trip.vehicle.licensePlate
+                        ? ` · ${trip.vehicle.licensePlate}`
+                        : null}
+                    </span>
+                  }
+                />
+                <TripResumenFleetGpsStatus vehicleId={trip.vehicleId} />
+              </div>
             ) : (
               <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
                 {copy.state.noVehicle}
               </div>
             )}
 
-            <Separator className="my-3" />
-
-            {trip.driver ? (
-              <div className="flex items-start justify-between gap-2">
-                <InfoRow variant="inline" label={copy.label.driver} value={trip.driver.fullName} />
-                {showSettlementActions &&
-                canCreateSettlement &&
-                titularEmployeeId ? (
-                  <SettlementLiquidateLink employeeId={titularEmployeeId} />
-                ) : null}
-              </div>
-            ) : (
-              <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
-                {copy.state.noDriver}
-              </div>
-            )}
-
-            <Separator className="my-3" />
+            <Separator />
 
             <div className="space-y-2">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -294,79 +357,61 @@ export function TripDetailOperationTab({
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
-      ) : null}
 
-      {/* GPS corte 2 — overlay debajo de flota (CA-32–38); hide sin device */}
-      {!isClientPortalView ? (
-        <TripGpsOverlayCard
-          vehicleId={trip.vehicleId}
-          vehicleLabel={
-            trip.vehicle
-              ? [trip.vehicle.unitNumber, trip.vehicle.licensePlate]
-                  .filter(Boolean)
-                  .join(" · ")
-              : null
-          }
-        />
-      ) : null}
+            <Separator />
 
-      {/* D7 — 2. Programación */}
-      <Card data-testid="trip-operation-schedule-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Calendar className="h-4 w-4 shrink-0 text-primary" />
-            {copy.section.schedule}
-          </CardTitle>
-          <CardDescription>
-            {copy.hint.schedule}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <TripScheduleInlineEditor trip={trip} readOnly={!canEditStructural} />
-          {trip.actualDeparture ? (
-            <InfoRow
-              variant="inline"
-              label={copy.label.actualDeparture}
-              value={formatDateTime(trip.actualDeparture.toISOString())}
-            />
-          ) : null}
-          {trip.actualArrival ? (
-            <InfoRow
-              variant="inline"
-              label={copy.label.actualArrival}
-              value={formatDateTime(trip.actualArrival.toISOString())}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
+            {trip.driver ? (
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 space-y-1">
+                  <InfoRow
+                    variant="inline"
+                    label={copy.label.driver}
+                    value={trip.driver.fullName}
+                  />
+                  {driverPhone ? (
+                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <Phone className="h-3 w-3" aria-hidden />
+                        {driverPhone}
+                      </span>
+                      <a
+                        href={`tel:${driverPhone.replace(/\s+/g, "")}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {copy.action.callDriver}
+                      </a>
+                    </p>
+                  ) : null}
+                </div>
+                {showSettlementActions &&
+                canCreateSettlement &&
+                titularEmployeeId ? (
+                  <SettlementLiquidateLink employeeId={titularEmployeeId} />
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
+                {copy.state.noDriver}
+              </div>
+            )}
 
-      {/* D7 — 3. Cliente / contrato */}
-      <div data-testid="trip-operation-client-card">
-        <ClientContractCard
-          trip={trip}
-          showClientLink={showClientLink}
-          canEditRouteType={canEditRouteType && !isClientPortalView}
-        />
-      </div>
+            <Separator />
 
-      {/* D7 — 4. Staff interno (oculta en portal cliente) */}
-      {!isClientPortalView ? (
-        <Card data-testid="trip-operation-staff-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4 shrink-0 text-primary" />
-              {copy.hint.staffSection}
-              {trip.internalStaff && trip.internalStaff.length > 0 ? (
-                <Badge variant="secondary" className="ml-1 text-[10px] font-normal">
-                  {trip.internalStaff.length}
-                </Badge>
-              ) : null}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-2">
+            <div
+              className="space-y-2"
+              data-testid="trip-operation-staff-card"
+            >
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {copy.hint.staffSection}
+                {trip.internalStaff && trip.internalStaff.length > 0 ? (
+                  <Badge
+                    variant="secondary"
+                    className="ml-2 text-[10px] font-normal"
+                  >
+                    {trip.internalStaff.length}
+                  </Badge>
+                ) : null}
+              </div>
               {trip.internalStaff && trip.internalStaff.length > 0 ? (
                 trip.internalStaff.map((member) => (
                   <div
@@ -377,12 +422,14 @@ export function TripDetailOperationTab({
                       <p className="font-medium">{member.employeeFullName}</p>
                       <p className="text-muted-foreground">
                         {copy.format.staffRole(member.internalRole)}
+                        {member.isPaymentResponsible
+                          ? ` · ${copy.hint.paymentResponsible}`
+                          : null}
                       </p>
-                      {member.isPaymentResponsible ? (
-                        <p className="text-muted-foreground">{copy.hint.paymentResponsible}</p>
-                      ) : null}
                       {member.paymentNotes ? (
-                        <p className="mt-1 italic text-muted-foreground">{member.paymentNotes}</p>
+                        <p className="mt-1 italic text-muted-foreground">
+                          {member.paymentNotes}
+                        </p>
                       ) : null}
                     </div>
                     {showSettlementActions && canCreateSettlement ? (
@@ -395,62 +442,42 @@ export function TripDetailOperationTab({
                   {copy.state.noSupportStaff}
                 </div>
               )}
-            </div>
 
-            {showSettlementActions && canReadSettlements ? (
-              <>
-                <Separator className="my-3" />
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-                      <Banknote className="h-3.5 w-3.5 text-primary" />
-                      {copy.settlement.sectionTitle}
-                    </span>
-                    <Link to={tripSettlementsSearchHref}>
-                      <Badge variant="outline" className="text-xs hover:bg-accent cursor-pointer">
-                        {copy.action.viewTripSettlements}
-                        <ExternalLink className="ml-1.5 h-3 w-3 inline" aria-hidden />
-                      </Badge>
-                    </Link>
-                  </div>
+              {showSettlementActions && canReadSettlements ? (
+                <div className="pt-1">
+                  <Link
+                    to={tripSettlementsSearchHref}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {copy.action.viewTripSettlements}
+                    <ExternalLink className="ml-1 inline h-3 w-3" aria-hidden />
+                  </Link>
                 </div>
-              </>
-            ) : null}
+              ) : null}
+            </div>
           </CardContent>
         </Card>
       ) : null}
 
-      {/* D7 — 5. Orden de viaje · 6. Datos Carta Porte (una Card cada una; D9) */}
+      <TripResumenScheduleCard
+        trip={trip}
+        canEdit={canEditSchedule && showMileage}
+      />
+
+      <ClientContractCard
+        trip={trip}
+        showClientLink={showClientLink}
+        canEditRouteType={
+          canEditRouteType && !isClientPortalView && !isCancelled
+        }
+        originBranchName={originBranchName}
+      />
+
       <TripOrderCard
         trip={trip}
         isClientPortalView={isClientPortalView}
         isDriverPortalView={isDriverPortalView}
       />
-
-      <TripFleetSnapshotCard
-        trip={trip}
-        isClientPortalView={isClientPortalView}
-        canSubstituteInvoice={canSubstituteInvoice}
-      />
-
-      {/* D7 — 7. km / notas / historial */}
-      {showMileage ? (
-        <Card data-testid="trip-operation-mileage-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Gauge className="h-4 w-4 shrink-0 text-primary" />
-              {copy.section.mileage}
-            </CardTitle>
-            <CardDescription>
-              {copy.hint.mileage}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <InfoRow variant="inline" label={copy.label.mileageStart} value={formatMileage(trip.mileage.start)} />
-            <InfoRow variant="inline" label={copy.label.mileageEnd} value={formatMileage(trip.mileage.end)} />
-          </CardContent>
-        </Card>
-      ) : null}
 
       {!isClientPortalView && trip.notes ? (
         <Card data-testid="trip-operation-notes-card">
@@ -465,10 +492,42 @@ export function TripDetailOperationTab({
           </CardContent>
         </Card>
       ) : null}
+    </div>
+  );
 
-      <TripDetailStatusHistory entries={statusHistory ?? trip.statusHistory} />
+  const railColumn = !isClientPortalView ? (
+    <div className="space-y-6 xl:sticky xl:top-24">
+      <TripResumenResultRail
+        trip={trip}
+        expenses={expenses}
+        canReadCosts={canReadExpenses}
+        onOpenCostsTab={() => setTab("costs")}
+      />
+      <TripResumenBillingRail
+        trip={trip}
+        onOpenBillingTab={() => setTab("billing")}
+      />
+      <TripResumenActivityRail
+        entries={statusHistory ?? trip.statusHistory}
+      />
+    </div>
+  ) : (
+    <div className="space-y-6 xl:sticky xl:top-24">
+      <TripResumenActivityRail
+        entries={statusHistory ?? trip.statusHistory}
+      />
+    </div>
+  );
 
-      {!isClientPortalView && canReassignFleet ? (
+  return (
+    <div
+      className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]"
+      data-testid="trip-detail-operation-tab"
+    >
+      {mainColumn}
+      {railColumn}
+
+      {!isClientPortalView && canShowReassign && isFleetSheetOpen ? (
         <TripFleetAssignmentSheet
           trip={trip}
           open={isFleetSheetOpen}

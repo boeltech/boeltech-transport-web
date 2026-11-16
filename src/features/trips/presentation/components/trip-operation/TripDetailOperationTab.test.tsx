@@ -11,32 +11,18 @@ import { TripDetailOperationTab } from "./TripDetailOperationTab";
 vi.mock("@features/drivers/application", () => ({
   useDrivers: () => ({
     data: {
-      data: [{ id: "drv-1", employeeId: "emp-driver-1", displayName: "Ana Lopez" }],
+      data: [
+        {
+          id: "drv-1",
+          employeeId: "emp-driver-1",
+          displayName: "Ana Lopez",
+          employee: { fullName: "Ana Lopez", id: "emp-driver-1" },
+          status: "available",
+        },
+      ],
     },
     isLoading: false,
   }),
-}));
-
-const mockHasPermission = vi.fn(
-  (module: string, action: string) =>
-    module === "settlements" && (action === "create" || action === "read"),
-);
-
-vi.mock("@shared/permissions", () => ({
-  usePermissions: () => ({
-    hasPermission: (module: string, action: string) =>
-      mockHasPermission(module, action),
-  }),
-}));
-
-vi.mock("@features/auth", () => ({
-  useAuth: () => ({
-    user: { id: "user-1", role: "admin", email: "admin@test.com" },
-  }),
-}));
-
-vi.mock("@shared/hooks", () => ({
-  useToast: () => ({ toast: vi.fn() }),
 }));
 
 vi.mock("@features/trips/application", async (importOriginal) => {
@@ -44,6 +30,7 @@ vi.mock("@features/trips/application", async (importOriginal) => {
     await importOriginal<typeof import("@features/trips/application")>();
   return {
     ...actual,
+    useTripExpenses: () => ({ data: [], isLoading: false }),
     useTrips: () => ({ data: { data: [] } }),
     useActiveAssignmentTripsForBusy: () => ({
       data: { items: [], truncated: false },
@@ -65,12 +52,44 @@ vi.mock("@features/trips/application", async (importOriginal) => {
   };
 });
 
-vi.mock("@features/vehicles/application", () => ({
-  useAssignableVehicles: () => ({ data: [], isLoading: false }),
+vi.mock("@features/branches/application", () => ({
+  useBranch: () => ({ data: { id: "br-1", name: "Monterrey" }, isLoading: false }),
 }));
 
-vi.mock("@features/drivers/application", () => ({
-  useDrivers: () => ({ data: { data: [] }, isLoading: false }),
+vi.mock("@features/monitoring/application", () => ({
+  useGpsDevice: () => ({
+    data: null,
+    isPending: false,
+    isLoading: false,
+    isError: false,
+  }),
+}));
+
+const mockHasPermission = vi.fn(
+  (module: string, action: string) =>
+    (module === "settlements" && (action === "create" || action === "read")) ||
+    (module === "expenses" && action === "read"),
+);
+
+vi.mock("@shared/permissions", () => ({
+  usePermissions: () => ({
+    hasPermission: (module: string, action: string) =>
+      mockHasPermission(module, action),
+  }),
+}));
+
+vi.mock("@features/auth", () => ({
+  useAuth: () => ({
+    user: { id: "user-1", role: "admin", email: "admin@test.com" },
+  }),
+}));
+
+vi.mock("@shared/hooks", () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}));
+
+vi.mock("@features/vehicles/application", () => ({
+  useAssignableVehicles: () => ({ data: [], isLoading: false }),
 }));
 
 vi.mock("@features/employees", () => ({
@@ -100,9 +119,11 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     clientId: CLIENT_ID,
     client: { id: CLIENT_ID, legalName: "Transportes Alfa" },
     cfdiDocumentIntent: "ingreso",
+    cfdiEmissionIntent: "emitir_cfdi",
+    vehicleId: "veh-1",
     vehicle: { id: "veh-1", unitNumber: "U-12", licensePlate: "XYZ-98-76" },
     driverId: "drv-1",
-    driver: { id: "drv-1", fullName: "Ana Lopez" },
+    driver: { id: "drv-1", fullName: "Ana Lopez", phone: "8112345678" },
     trailers: [
       {
         trailerId: "tr-1",
@@ -114,6 +135,28 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
     ],
     notes: null,
     statusHistory: [],
+    costs: { baseRate: 28500, fuelCost: 0, tollCost: 0, otherCosts: 0, totalCost: 0 },
+    invoicing: {
+      hasActiveInvoice: false,
+      hasActivePrimaryInvoice: false,
+      hasActivePrincipalInvoice: false,
+      primaryTransportInvoiceId: null,
+      canGenerateInvoice: true,
+      canGenerateAccessoryInvoice: false,
+      canGenerateFalseTripInvoice: false,
+      hasActiveSplit: false,
+      splitLegsInvoiced: 0,
+      splitLegsTotal: 0,
+      canGenerateSplitShareInvoice: false,
+      cartaPorteAttached: false,
+      invoiceId: null,
+      invoiceFolio: null,
+      invoiceCfdiUuid: null,
+      invoiceStatus: null,
+      accessoryInvoices: [],
+      blockReason: null,
+    },
+    totalDistRec: 352,
     ...overrides,
   } as Trip;
 }
@@ -147,45 +190,51 @@ function renderTab(
   );
 }
 
-describe("TripDetailOperationTab — ficha operativa patio-first (Ola 2 F3 / D7–D9)", () => {
+describe("TripDetailOperationTab — Resumen 2 col + riel (F2 / D6)", () => {
   beforeEach(() => {
     mockHasPermission.mockImplementation(
       (module: string, action: string) =>
-        module === "settlements" && (action === "create" || action === "read"),
+        (module === "settlements" &&
+          (action === "create" || action === "read")) ||
+        (module === "expenses" && action === "read"),
     );
   });
 
-  it("ordena bloques patio-first: Flota → Programación → Cliente → staff → km (D7)", () => {
+  it("ordena columna principal: Flota → Programación → Cliente → notas; riel Resultado", () => {
     renderTab(makeTrip({ notes: "Nota al final" }));
 
     const fleet = screen.getByTestId("trip-operation-fleet-card");
     const schedule = screen.getByTestId("trip-operation-schedule-card");
     const client = screen.getByTestId("trip-operation-client-card");
     const staff = screen.getByTestId("trip-operation-staff-card");
-    const mileage = screen.getByTestId("trip-operation-mileage-card");
     const notes = screen.getByTestId("trip-operation-notes-card");
+    const result = screen.getByTestId("trip-resumen-result-rail");
+    const billing = screen.getByTestId("trip-resumen-billing-rail");
+    const activity = screen.getByTestId("trip-resumen-activity-rail");
 
     const following = Node.DOCUMENT_POSITION_FOLLOWING;
     expect(fleet.compareDocumentPosition(schedule) & following).toBeTruthy();
     expect(schedule.compareDocumentPosition(client) & following).toBeTruthy();
-    expect(client.compareDocumentPosition(staff) & following).toBeTruthy();
-    expect(staff.compareDocumentPosition(mileage) & following).toBeTruthy();
-    expect(mileage.compareDocumentPosition(notes) & following).toBeTruthy();
+    expect(client.compareDocumentPosition(notes) & following).toBeTruthy();
+    expect(fleet.compareDocumentPosition(staff) & following).toBeTruthy();
+    expect(result).toBeInTheDocument();
+    expect(billing).toBeInTheDocument();
+    expect(activity).toBeInTheDocument();
+    expect(screen.queryByTestId("trip-operation-mileage-card")).not.toBeInTheDocument();
   });
 
-  it("CTA Asignar/Reasignar flota es primaria; Ver cliente es secundaria (D8)", () => {
+  it("CTA Reasignar flota es outline (Qué sigue es la única sólida)", () => {
     renderTab(
       makeTrip({ status: TripStatus.SCHEDULED }),
       { canReassignFleet: true },
     );
 
     const reassign = screen.getByRole("button", { name: copy.action.reassignFleet });
-    expect(reassign.className).toMatch(/bg-primary/);
-    expect(reassign.className).not.toMatch(/border-input/);
+    expect(reassign.className).toMatch(/border/);
+    expect(reassign.className).not.toMatch(/bg-primary(?!\/)/);
 
     const viewClient = screen.getByRole("link", { name: copy.action.viewClient });
     expect(viewClient.className).toMatch(/border/);
-    expect(viewClient.className).not.toMatch(/bg-primary/);
   });
 
   it("muestra Asignar flota cuando no hay unidad ni conductor", () => {
@@ -205,28 +254,27 @@ describe("TripDetailOperationTab — ficha operativa patio-first (Ola 2 F3 / D7�
     ).toBeInTheDocument();
   });
 
-  it("muestra cliente, unidad, conductor, placa de remolque y facturación del viaje", () => {
+  it("muestra cliente, unidad, conductor, placa de remolque y factura del viaje", () => {
     renderTab();
 
     expect(screen.getByText("Transportes Alfa")).toBeInTheDocument();
     expect(screen.getByText(copy.section.assignment)).toBeInTheDocument();
-    expect(screen.getByText("U-12")).toBeInTheDocument();
+    expect(screen.getByText(/U-12/)).toBeInTheDocument();
     expect(screen.getByText("Ana Lopez")).toBeInTheDocument();
-    expect(screen.getByText("ABC-12-34 · 1")).toBeInTheDocument();
+    expect(screen.getByText("ABC-12-34 · Posición 1")).toBeInTheDocument();
     expect(screen.getByText(copy.label.tripType)).toBeInTheDocument();
     expect(screen.getByText(copy.format.tripType("ingreso"))).toBeInTheDocument();
     expect(screen.getByText(copy.label.routeType)).toBeInTheDocument();
     expect(screen.getByText("Foráneo")).toBeInTheDocument();
     expect(screen.getByText(copy.state.noSupportStaff)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: copy.action.viewClient })).toHaveAttribute(
-      "href",
-      `/clients/${CLIENT_ID}`,
-    );
+    expect(screen.getByText(copy.label.originBranch)).toBeInTheDocument();
+    expect(screen.getByText("Monterrey")).toBeInTheDocument();
   });
 
-  it("muestra equipo de apoyo con rol y vacío explícito cuando no hay integrantes", () => {
+  it("muestra equipo de apoyo dentro de flota con Armar pago en completado", async () => {
     renderTab(
       makeTrip({
+        status: TripStatus.COMPLETED,
         internalStaff: [
           {
             id: "staff-1",
@@ -241,48 +289,54 @@ describe("TripDetailOperationTab — ficha operativa patio-first (Ola 2 F3 / D7�
             createdAt: new Date("2026-05-28T07:00:00.000Z"),
             updatedAt: new Date("2026-05-28T07:00:00.000Z"),
           },
-          {
-            id: "staff-2",
-            tripId: "trip-1",
-            employeeId: "emp-sec-1",
-            employeeFullName: "Luis Segundo",
-            internalRole: "secondary_driver",
-            isPaymentResponsible: true,
-            paymentNotes: null,
-            employeeNumber: null,
-            employeeStatus: null,
-            createdAt: new Date("2026-05-28T07:00:00.000Z"),
-            updatedAt: new Date("2026-05-28T07:00:00.000Z"),
-          },
-          {
-            id: "staff-3",
-            tripId: "trip-1",
-            employeeId: "emp-null-1",
-            employeeFullName: "Sin Rol Nombrado",
-            internalRole: null,
-            isPaymentResponsible: false,
-            paymentNotes: null,
-            employeeNumber: null,
-            employeeStatus: null,
-            createdAt: new Date("2026-05-28T07:00:00.000Z"),
-            updatedAt: new Date("2026-05-28T07:00:00.000Z"),
-          },
         ],
       }),
     );
 
     expect(screen.getByText("Pedro Ayudante")).toBeInTheDocument();
     expect(screen.getByText(copy.format.staffRole("helper"))).toBeInTheDocument();
-    expect(screen.getByText("Luis Segundo")).toBeInTheDocument();
-    expect(
-      screen.getByText(copy.format.staffRole("secondary_driver")),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Sin Rol Nombrado")).toBeInTheDocument();
-    expect(screen.getByText(copy.format.staffRole(null))).toBeInTheDocument();
-    expect(screen.queryByText(copy.state.noSupportStaff)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(copy.action.liquidateEmployee).length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+    expect(screen.getByTestId("trip-resumen-result-rail")).toHaveTextContent(
+      /Utilidad confirmada|Resultado del viaje/,
+    );
   });
 
-  it("no muestra snapshot CP, SubTipoRem ni ID de cliente", () => {
+  it("cancelado: flota solo lectura y sin CTA reasignar", () => {
+    renderTab(
+      makeTrip({ status: TripStatus.CANCELLED }),
+      { canReassignFleet: true, canEditStructural: true },
+    );
+
+    expect(
+      screen.getByText(copy.hint.cancelledFleetReadOnly),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.action.reassignFleet }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(copy.rail.cancelledNoCosts),
+    ).toBeInTheDocument();
+  });
+
+  it("tabla de programación compara Programado vs Real", () => {
+    renderTab(
+      makeTrip({
+        actualDeparture: new Date("2026-05-28T08:05:00.000Z"),
+      }),
+    );
+
+    expect(screen.getByText(copy.scheduleTable.scheduled)).toBeInTheDocument();
+    expect(screen.getByText(copy.scheduleTable.actual)).toBeInTheDocument();
+    expect(screen.getByText(copy.scheduleTable.difference)).toBeInTheDocument();
+    expect(screen.getByText(copy.scheduleTable.departure)).toBeInTheDocument();
+    expect(screen.getByText(/5 min después/)).toBeInTheDocument();
+  });
+
+  it("no muestra snapshot CP ni ID de cliente", () => {
     renderTab(
       makeTrip({
         client: undefined,
@@ -294,6 +348,7 @@ describe("TripDetailOperationTab — ficha operativa patio-first (Ola 2 F3 / D7�
     expect(screen.queryByText(/SubTipoRem/i)).not.toBeInTheDocument();
     expect(screen.queryByText(CLIENT_ID)).not.toBeInTheDocument();
     expect(screen.getByText(copy.state.clientUnavailable)).toBeInTheDocument();
+    expect(screen.queryByTestId("trip-fleet-snapshot-card")).not.toBeInTheDocument();
   });
 
   it("oculta asignación y datos internos en portal cliente (D7 lean / CA6)", () => {
@@ -332,9 +387,6 @@ describe("TripDetailOperationTab — ficha operativa patio-first (Ola 2 F3 / D7�
     expect(screen.queryByTestId("trip-operation-staff-card")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: copy.action.reassignFleet }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: copy.action.assignFleet }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("U-12")).not.toBeInTheDocument();
     expect(screen.queryByText("Ana Lopez")).not.toBeInTheDocument();
@@ -423,8 +475,11 @@ describe("TripDetailOperationTab — ficha operativa patio-first (Ola 2 F3 / D7�
 
     await user.click(reassignButton);
     expect(
-      screen.getByText(copy.fleetAssignment.sheetDescription),
+      screen.getByText(copy.fleetAssignment.sheetDescriptionInProgress),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(copy.fleetAssignment.sheetDescription),
+    ).not.toBeInTheDocument();
   });
 
   it("oculta botón 'Reasignar flota' cuando canReassignFleet es false", () => {
@@ -490,7 +545,10 @@ describe("TripDetailOperationTab — ficha operativa patio-first (Ola 2 F3 / D7�
   });
 
   it("oculta CTAs de liquidación cuando el usuario no tiene permisos de settlements", () => {
-    mockHasPermission.mockReturnValue(false);
+    mockHasPermission.mockImplementation(
+      (module: string, action: string) =>
+        module === "expenses" && action === "read",
+    );
 
     renderTab(
       makeTrip({
@@ -511,10 +569,5 @@ describe("TripDetailOperationTab — ficha operativa patio-first (Ola 2 F3 / D7�
 
     expect(screen.queryByText(copy.action.liquidateEmployee)).not.toBeInTheDocument();
     expect(screen.queryByText(copy.action.viewTripSettlements)).not.toBeInTheDocument();
-
-    mockHasPermission.mockImplementation(
-      (module: string, action: string) =>
-        module === "settlements" && (action === "create" || action === "read"),
-    );
   });
 });
