@@ -203,6 +203,28 @@ export interface TripAccessoryInvoice {
   readonly total: number;
 }
 
+/** Q4 / F0b — espejo del último error de stamp (GET trip → invoicing). */
+export interface TripLastStampError {
+  readonly code: string;
+  readonly message: string;
+  readonly pacCode: string | null;
+  readonly hint: string | null;
+  readonly at: string;
+  readonly by: string | null;
+  readonly byName: string | null;
+  readonly stopId: string | null;
+}
+
+/** Q5 / F0b — detalle de Atención fiscal (GET trip). */
+export interface TripFiscalAttentionDetail {
+  readonly mutationKind: string;
+  readonly flaggedAt: string;
+  readonly flaggedBy: string | null;
+  readonly flaggedByName: string | null;
+  readonly reason: string;
+  readonly invoiceStatus: "stamped" | "cancellation_pending" | null;
+}
+
 export interface TripInvoicing {
   /** BC: equivale a hasActivePrimaryInvoice (ADR-0068). */
   readonly hasActiveInvoice: boolean;
@@ -232,6 +254,8 @@ export interface TripInvoicing {
   readonly invoiceStatus: TripInvoiceStatus | null;
   readonly accessoryInvoices: readonly TripAccessoryInvoice[];
   readonly blockReason: string | null;
+  /** Q4 — null si no hay error persistido. Ausente en fixtures antiguos. */
+  readonly lastStampError?: TripLastStampError | null;
 }
 
 /** ADR-0081 — estado del acuerdo de prorrateo. */
@@ -688,6 +712,12 @@ export interface Trip {
   readonly invoicing: TripInvoicing;
   /** Marca operativa: el viaje requiere acción fiscal (SAT / facturación). */
   readonly requiresFiscalAttention: boolean;
+  /** Q5 — instante de la bandera; null si apagada o el API no lo envía. */
+  readonly requiresFiscalAttentionAt?: string | null;
+  /**
+   * Q5 — detalle qué/cuándo/quién. Null si la bandera está apagada.
+   */
+  readonly fiscalAttention?: TripFiscalAttentionDetail | null;
   /**
    * Contexto puntual tras mutación (p. ej. cancelación con CFDI vigente).
    * En lecturas normales suele ser null.

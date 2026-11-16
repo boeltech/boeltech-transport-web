@@ -30,5 +30,6 @@ export function tripInvoicingFixture(
     invoiceStatus: overrides.invoiceStatus ?? null,
     accessoryInvoices: overrides.accessoryInvoices ?? [],
     blockReason: overrides.blockReason ?? null,
+    lastStampError: overrides.lastStampError ?? null,
   };
 }

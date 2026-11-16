@@ -129,6 +129,8 @@ export type {
   TripFiscalActionRequired,
   TripInvoicing,
   TripAccessoryInvoice,
+  TripLastStampError,
+  TripFiscalAttentionDetail,
   TripRevenueSplitStatus,
   TripRevenueSplitLeg,
   TripRevenueSplit,

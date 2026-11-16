@@ -73,6 +73,28 @@ export interface ApiTripAccessoryInvoice {
   total: number;
 }
 
+/** Q4 / F0b — espejo last_stamp_error en GET trip.invoicing. */
+export interface ApiTripLastStampError {
+  code: string;
+  message: string;
+  pac_code: string | null;
+  hint: string | null;
+  at: string;
+  by: string | null;
+  by_name: string | null;
+  stop_id: string | null;
+}
+
+/** Q5 / F0b — fiscal_attention en GET trip. */
+export interface ApiTripFiscalAttentionDetail {
+  mutation_kind: string;
+  flagged_at: string;
+  flagged_by: string | null;
+  flagged_by_name: string | null;
+  reason: string;
+  invoice_status: "stamped" | "cancellation_pending" | null;
+}
+
 export interface ApiTripInvoicingResponse {
   has_active_invoice?: boolean;
   has_active_primary_invoice?: boolean;
@@ -94,6 +116,7 @@ export interface ApiTripInvoicingResponse {
   invoice_status?: "draft" | "stamping" | "stamped" | "cancellation_pending" | "cancelled" | null;
   accessory_invoices?: ApiTripAccessoryInvoice[];
   block_reason?: string | null;
+  last_stamp_error?: ApiTripLastStampError | null;
 }
 
 /** ADR-0081 — respuesta GET/PUT/DELETE /trips/:id/revenue-split */
@@ -482,6 +505,8 @@ export interface ApiTripResponse {
   cancellation_reason: string | null;
   invoicing?: ApiTripInvoicingResponse;
   requires_fiscal_attention?: boolean;
+  requires_fiscal_attention_at?: string | null;
+  fiscal_attention?: ApiTripFiscalAttentionDetail | null;
   fiscal_action_required?: ApiTripFiscalActionRequiredResponse | null;
 
   // Carta Porte 3.1 — distancia registrada / id complemento (cuando aplique)

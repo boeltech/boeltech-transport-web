@@ -32,6 +32,8 @@ import type {
   TripTrailerRef,
   TripRevenueSplit,
   TripRevenueSplitLeg,
+  TripLastStampError,
+  TripFiscalAttentionDetail,
   OperationalCashCollectionStatus,
   OperationalCashReceipt,
   OperationalCashSummary,
@@ -45,6 +47,8 @@ import type {
   ApiTripListItemResponse,
   ApiTripInvoicingResponse,
   ApiTripFiscalActionRequiredResponse,
+  ApiTripFiscalAttentionDetail,
+  ApiTripLastStampError,
   ApiTripInternalStaffResponse,
   ApiTripTrailerResponse,
   ApiStopResponse,
@@ -188,6 +192,41 @@ function mapApiFiscalActionRequired(
   };
 }
 
+function mapApiTripLastStampError(
+  api: ApiTripLastStampError | null | undefined,
+): TripLastStampError | null {
+  if (!api) return null;
+  return {
+    code: api.code,
+    message: api.message,
+    pacCode: api.pac_code ?? null,
+    hint: api.hint ?? null,
+    at: api.at,
+    by: api.by ?? null,
+    byName: api.by_name ?? null,
+    stopId: api.stop_id ?? null,
+  };
+}
+
+function mapApiTripFiscalAttention(
+  api: ApiTripFiscalAttentionDetail | null | undefined,
+): TripFiscalAttentionDetail | null {
+  if (!api) return null;
+  const invoiceStatus =
+    api.invoice_status === "stamped" ||
+    api.invoice_status === "cancellation_pending"
+      ? api.invoice_status
+      : null;
+  return {
+    mutationKind: api.mutation_kind,
+    flaggedAt: api.flagged_at,
+    flaggedBy: api.flagged_by ?? null,
+    flaggedByName: api.flagged_by_name ?? null,
+    reason: api.reason ?? "",
+    invoiceStatus,
+  };
+}
+
 function mapApiTripInvoicing(
   api: ApiTripInvoicingResponse | undefined,
   tripStatus: Trip["status"],
@@ -245,6 +284,7 @@ function mapApiTripInvoicing(
     invoiceStatus,
     accessoryInvoices,
     blockReason: api?.block_reason ?? null,
+    lastStampError: mapApiTripLastStampError(api?.last_stamp_error),
   };
 }
 
@@ -752,6 +792,8 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     cancellationReason: api.cancellation_reason,
     invoicing: mapApiTripInvoicing(api.invoicing, api.status),
     requiresFiscalAttention: api.requires_fiscal_attention ?? false,
+    requiresFiscalAttentionAt: api.requires_fiscal_attention_at ?? null,
+    fiscalAttention: mapApiTripFiscalAttention(api.fiscal_attention),
     fiscalActionRequired: mapApiFiscalActionRequired(api.fiscal_action_required),
 
     // Carta Porte 3.1
