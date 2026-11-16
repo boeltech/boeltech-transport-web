@@ -1,7 +1,7 @@
 /**
  * TemplateAssignmentsTable — operadores asignados a una tarifa (`EntityListTable`).
  *
- * [expand?] · Operador · Desde · Hasta · Estado · Acciones.
+ * [expand?] · Operador · Vigencia (stacked) · Estado · Acciones.
  * density compact · framed false. Empty = EmptyState del detalle (host no aporta).
  * Foco D20 vía `data-focused` + querySelector (sin ref en EntityListTable).
  */
@@ -15,8 +15,9 @@ import {
   TableCell,
   TableRow,
   type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
-import { getTodayString } from "@shared/utils/dateUtils";
+import { formatDate, getTodayString } from "@shared/utils/dateUtils";
 import type { TemplateAssignment, TemplateFixedAllowance } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
 import { AssignmentDisplayStatusBadge } from "../config/compensationStatusConfig";
@@ -56,6 +57,10 @@ function sortByDisplayStatus(assignments: readonly TemplateAssignment[], today: 
     );
 }
 
+function operatorLabel(assignment: TemplateAssignment): string {
+  return assignment.employeeFullName ?? assignment.employeeId.slice(0, 8);
+}
+
 interface TemplateAssignmentsTableProps {
   assignments: TemplateAssignment[];
   fixedAllowances?: TemplateFixedAllowance[];
@@ -88,7 +93,7 @@ function buildColumns(
       id: "expand",
       header: "",
       kind: "status",
-      className: "w-10 py-2",
+      className: "w-8 px-1 py-2",
       accessor: ({ assignment }) => {
         const isExpanded = expandedId === assignment.id;
         return (
@@ -119,27 +124,34 @@ function buildColumns(
       id: "operator",
       header: copy.columns.operator,
       kind: "text",
-      accessor: ({ assignment }) =>
-        assignment.employeeFullName ?? assignment.employeeId.slice(0, 8),
+      className: "min-w-0",
+      accessor: ({ assignment }) => {
+        const name = operatorLabel(assignment);
+        return (
+          <span className="block truncate" title={name}>
+            {name}
+          </span>
+        );
+      },
     },
     {
-      id: "effectiveFrom",
-      header: copy.columns.effectiveFrom,
-      kind: "date",
+      id: "validity",
+      header: copy.columns.validity,
+      kind: "stacked",
+      stackedWeight: "normal",
       className: "whitespace-nowrap",
-      accessor: ({ assignment }) => assignment.effectiveFrom,
-    },
-    {
-      id: "effectiveTo",
-      header: copy.columns.effectiveTo,
-      kind: "date",
-      className: "whitespace-nowrap",
-      accessor: ({ assignment }) => assignment.effectiveTo,
+      accessor: ({ assignment }): EntityListStackedValue => ({
+        primary: formatDate(assignment.effectiveFrom),
+        secondary: assignment.effectiveTo
+          ? formatDate(assignment.effectiveTo)
+          : undefined,
+      }),
     },
     {
       id: "status",
       header: copy.columns.status,
       kind: "status",
+      className: "whitespace-nowrap",
       accessor: ({ assignment, status }) => (
         <AssignmentDisplayStatusBadge assignment={assignment} status={status} />
       ),
@@ -227,56 +239,55 @@ export function TemplateAssignmentsTable({
     );
   }
 
-  const colSpan = showOverrides ? 6 : 5;
+  const colSpan = showOverrides ? 5 : 4;
 
   return (
     <div className="space-y-2">
-      <div className="rounded-md border bg-card overflow-x-auto">
-        <EntityListTable
-          framed={false}
-          density="compact"
-          columns={buildColumns(
-            showOverrides,
-            expandedId,
-            setExpandedId,
-            onActionComplete,
-          )}
-          rows={visibleRows}
-          getRowId={(row) => row.assignment.id}
-          isLoading={Boolean(isLoading)}
-          aria-label={TABLE_ARIA_LABEL}
-          getRowClassName={({ assignment }) =>
-            assignment.id === focusedAssignmentId
-              ? "bg-accent hover:bg-accent"
-              : undefined
-          }
-          getRowProps={({ assignment }) => {
-            const isFocused = assignment.id === focusedAssignmentId;
-            return {
-              "data-focused": isFocused ? "true" : undefined,
-              "data-assignment-id": assignment.id,
-              tabIndex: isFocused ? -1 : undefined,
-            };
-          }}
-          renderAfterRow={({ assignment }) => {
-            if (!showOverrides || expandedId !== assignment.id) return null;
-            return (
-              <TableRow>
-                <TableCell colSpan={colSpan} className="bg-muted/20 p-0">
-                  <div className="p-4">
-                    <FixedAllowanceOverridePanel
-                      assignment={assignment}
-                      fixedAllowances={fixedAllowances}
-                      paymentPeriodStart={paymentPeriodStart}
-                      paymentPeriodEnd={paymentPeriodEnd}
-                    />
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          }}
-        />
-      </div>
+      <EntityListTable
+        framed={false}
+        className="rounded-md border"
+        density="compact"
+        columns={buildColumns(
+          showOverrides,
+          expandedId,
+          setExpandedId,
+          onActionComplete,
+        )}
+        rows={visibleRows}
+        getRowId={(row) => row.assignment.id}
+        isLoading={Boolean(isLoading)}
+        aria-label={TABLE_ARIA_LABEL}
+        getRowClassName={({ assignment }) =>
+          assignment.id === focusedAssignmentId
+            ? "bg-accent hover:bg-accent"
+            : undefined
+        }
+        getRowProps={({ assignment }) => {
+          const isFocused = assignment.id === focusedAssignmentId;
+          return {
+            "data-focused": isFocused ? "true" : undefined,
+            "data-assignment-id": assignment.id,
+            tabIndex: isFocused ? -1 : undefined,
+          };
+        }}
+        renderAfterRow={({ assignment }) => {
+          if (!showOverrides || expandedId !== assignment.id) return null;
+          return (
+            <TableRow>
+              <TableCell colSpan={colSpan} className="p-0">
+                <div className="border-t px-3 py-2">
+                  <FixedAllowanceOverridePanel
+                    assignment={assignment}
+                    fixedAllowances={fixedAllowances}
+                    paymentPeriodStart={paymentPeriodStart}
+                    paymentPeriodEnd={paymentPeriodEnd}
+                  />
+                </div>
+              </TableCell>
+            </TableRow>
+          );
+        }}
+      />
       {canCollapseDeactivated ? (
         <Button
           type="button"

@@ -160,21 +160,23 @@ export function FixedAllowanceOverridePanel({
   };
 
   return (
-    <div className="space-y-4 rounded-md border bg-muted/20 p-4">
+    <div className="space-y-3">
       <div>
         <p className="text-sm font-medium">{copy.title}</p>
         <p className="text-xs text-muted-foreground">{copy.description}</p>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="min-w-0 space-y-1.5">
         <Label>{copy.periodLabel}</Label>
         {salaryPeriod ? (
-          <PeriodStepper
-            salaryPeriod={salaryPeriod}
-            periodStart={periodStart}
-            periodEnd={periodEnd}
-            onChange={handleStepperChange}
-          />
+          <div className="w-full min-w-0">
+            <PeriodStepper
+              salaryPeriod={salaryPeriod}
+              periodStart={periodStart}
+              periodEnd={periodEnd}
+              onChange={handleStepperChange}
+            />
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -198,15 +200,16 @@ export function FixedAllowanceOverridePanel({
         <p className="text-xs text-muted-foreground">{copy.exactMatchHint}</p>
       </div>
 
-      <ul className="space-y-3">
+      <ul className="divide-y divide-border">
         {fixedAllowances.map((allowance) => {
           const allowanceId = allowance.id ?? allowance.label;
           const isSuspended = suspendedByAllowanceId.get(allowance.id ?? "") ?? false;
+          const included = !isSuspended;
 
           return (
             <li
               key={allowanceId}
-              className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
+              className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
             >
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{allowance.label}</p>
@@ -217,13 +220,13 @@ export function FixedAllowanceOverridePanel({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Label htmlFor={`suspend-${assignment.id}-${allowanceId}`} className="text-xs">
-                  {isSuspended ? copy.omitLabel : copy.includeLabel}
+                  {copy.includeLabel}
                 </Label>
                 <Switch
                   id={`suspend-${assignment.id}-${allowanceId}`}
-                  checked={isSuspended}
+                  checked={included}
                   disabled={!canUpdate || isLoading || upsertMutation.isPending || !allowance.id}
-                  onCheckedChange={(checked) => void handleToggle(allowance, checked)}
+                  onCheckedChange={(checked) => void handleToggle(allowance, !checked)}
                 />
               </div>
             </li>

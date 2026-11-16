@@ -830,6 +830,7 @@ export const compensationCopy = {
   assignments: {
     columns: {
       operator: "Operador",
+      validity: "Vigencia",
       effectiveFrom: "Desde",
       effectiveTo: "Hasta",
       status: "Estado",

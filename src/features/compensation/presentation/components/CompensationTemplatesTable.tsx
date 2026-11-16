@@ -17,6 +17,7 @@ import {
 import type { CompensationTemplate } from "../../domain/entities";
 import { compensationCopy } from "../copy/compensationCopy";
 import type { BranchNameMap } from "../utils/formatCorridorRoute";
+import { getTemplateUsageStatus } from "../utils/getTemplateCompleteness";
 import { getFamilySupersededOperators } from "../utils/getTemplateStatusLine";
 import { CompensationTemplateActions } from "./CompensationTemplateActions";
 import { isTemplateDimmed } from "../utils/templateListRow";
@@ -61,6 +62,30 @@ function rowKey(template: CompensationTemplate): string {
 function hasOtherVersions(template: CompensationTemplate): boolean {
   return (template.family?.versionsCount ?? 1) > 1;
 }
+
+/** Ancho de Acciones solo si alguna fila muestra CTA contextual (D5). */
+function rowNeedsContextualAction(
+  template: CompensationTemplate,
+  pendingEmployeeId?: string,
+): boolean {
+  const usage = getTemplateUsageStatus(template);
+  if (pendingEmployeeId && usage === "ready") return true;
+  if (usage === "needs_payment" || usage === "ready_to_activate") return true;
+  if (template.family?.draftVersion) return true;
+  return false;
+}
+
+function listNeedsWideActions(
+  templates: readonly CompensationTemplate[],
+  pendingEmployeeId?: string,
+): boolean {
+  return templates.some((template) =>
+    rowNeedsContextualAction(template, pendingEmployeeId),
+  );
+}
+
+/** SoT actions = w-12; con CTA contextual deja que el contenido defina el ancho. */
+const ACTIONS_WIDE_CLASS = "w-auto min-w-32";
 
 /** Nombre como botón enfocable: Enter abre el panel de Operadores (PRD D1). */
 function TemplateNameButton({
@@ -212,6 +237,7 @@ function buildColumns(
   > & {
     expanded: ReadonlySet<string>;
     setExpanded: (familyId: string, expanded: boolean) => void;
+    wideActions: boolean;
   },
 ): EntityListColumnDef<CompensationTemplate>[] {
   const {
@@ -221,6 +247,7 @@ function buildColumns(
     onDeleted,
     expanded,
     setExpanded,
+    wideActions,
   } = props;
 
   return [
@@ -280,8 +307,8 @@ function buildColumns(
       id: "actions",
       header: "",
       kind: "actions",
-      className: "w-56",
-      headerClassName: "w-56",
+      className: wideActions ? ACTIONS_WIDE_CLASS : undefined,
+      headerClassName: wideActions ? ACTIONS_WIDE_CLASS : undefined,
       accessor: (template) => (
         <CompensationTemplateActions
           template={template}
@@ -339,6 +366,7 @@ export function CompensationTemplatesTable({
     );
   }
 
+  const wideActions = listNeedsWideActions(templates, pendingEmployeeId);
   const columns = buildColumns({
     pendingEmployeeId,
     branchNameMap,
@@ -346,6 +374,7 @@ export function CompensationTemplatesTable({
     onDeleted,
     expanded,
     setExpanded,
+    wideActions,
   });
 
   return (
@@ -367,6 +396,7 @@ export function CompensationTemplatesTable({
             containerId={familyVersionsContainerId(template)}
             pendingEmployeeId={pendingEmployeeId}
             branchNameMap={branchNameMap}
+            actionsClassName={wideActions ? ACTIONS_WIDE_CLASS : undefined}
             onOpenOperators={onOpenOperators}
             onDeleted={onDeleted}
           />

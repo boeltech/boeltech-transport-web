@@ -60,6 +60,8 @@ interface FamilyVersionsProps {
   containerId: string;
   pendingEmployeeId?: string;
   branchNameMap?: BranchNameMap;
+  /** Alinea el ancho de Acciones con la fila padre (D5). */
+  actionsClassName?: string;
   onOpenOperators: (templateId: string, assignEmployeeId?: string) => void;
   onDeleted?: () => void;
 }
@@ -160,6 +162,7 @@ export function TemplateFamilyVersionRows({
   containerId,
   pendingEmployeeId,
   branchNameMap,
+  actionsClassName,
   onOpenOperators,
   onDeleted,
 }: FamilyVersionsProps) {
@@ -209,7 +212,7 @@ export function TemplateFamilyVersionRows({
               <TemplateOperatorsCount template={version} />
             </TableCell>
             <TableCell
-              className="w-56 text-right"
+              className={cn("text-right", actionsClassName ?? "w-12")}
               onClick={(event) => event.stopPropagation()}
             >
               <CompensationTemplateActions

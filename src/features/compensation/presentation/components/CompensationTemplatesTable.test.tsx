@@ -261,6 +261,35 @@ describe("CompensationTemplatesTable — «Cómo se paga» (PRD D7–D9)", () =>
   });
 });
 
+describe("CompensationTemplatesTable — ancho Acciones (D5)", () => {
+  it("sin CTA contextual no fija w-56 en la columna Acciones", () => {
+    renderTable([activeTemplate()]);
+
+    const headers = screen.getAllByRole("columnheader");
+    const actionsHeader = headers[headers.length - 1];
+    expect(actionsHeader.className).not.toMatch(/\bw-56\b/);
+    expect(actionsHeader.className).toMatch(/\bw-12\b/);
+  });
+
+  it("con borrador listo para activar ensancha Acciones sin w-56", () => {
+    renderTable([
+      makeCompensationTemplate({
+        id: "tpl-draft",
+        name: "Borrador listo",
+        status: "draft",
+        version: 1,
+        ...complete,
+      }),
+    ]);
+
+    const headers = screen.getAllByRole("columnheader");
+    const actionsHeader = headers[headers.length - 1];
+    expect(actionsHeader.className).not.toMatch(/\bw-56\b/);
+    expect(actionsHeader.className).toMatch(/\bmin-w-32\b/);
+    expect(screen.getByRole("button", { name: "Activar" })).toBeInTheDocument();
+  });
+});
+
 describe("CompensationTemplatesTable — fila y acciones (PRD D1–D3)", () => {
   const mixed = () => [
     makeCompensationTemplate({ id: "tpl-draft", name: "Borrador", status: "draft" }),

@@ -113,19 +113,28 @@ describe("TemplateAssignmentsTable", () => {
     ]);
   });
 
-  it("muestra las fechas con formatDate, sin saltos de línea", () => {
+  it("apila Desde/Hasta en Vigencia con formatDate (D2)", () => {
     renderTable([
       makeAssignment({ id: "c", effectiveFrom: "2026-07-01", effectiveTo: "2026-08-31" }),
     ]);
 
     const [row] = bodyRows();
     const cells = within(row).getAllByRole("cell");
-    // EntityListTable: whitespace-nowrap vive en la celda (kind date + className)
+    expect(cells).toHaveLength(4);
     expect(cells[1]).toHaveClass("whitespace-nowrap");
-    expect(cells[2]).toHaveClass("whitespace-nowrap");
-    expect(within(row).getByText(formatDate("2026-07-01"))).toBeInTheDocument();
-    expect(within(row).getByText(formatDate("2026-08-31"))).toBeInTheDocument();
+    expect(within(cells[1]).getByText(formatDate("2026-07-01"))).toBeInTheDocument();
+    expect(within(cells[1]).getByText(formatDate("2026-08-31"))).toBeInTheDocument();
     expect(within(row).queryByText("2026-07-01")).not.toBeInTheDocument();
+  });
+
+  it("trunca el nombre del operador con title del nombre completo (D2)", () => {
+    const longName = "Xochitl Casas Chavez de la Sierra Norte";
+    renderTable([makeAssignment({ id: "long", employeeFullName: longName })]);
+
+    const [row] = bodyRows();
+    const name = within(row).getByText(longName);
+    expect(name).toHaveAttribute("title", longName);
+    expect(name).toHaveClass("truncate");
   });
 
   it("la insignia explica el estado con tooltip enfocable con teclado", async () => {
@@ -165,7 +174,7 @@ describe("TemplateAssignmentsTable", () => {
       renderTable([makeAssignment({ id: "d", isActive: false, isUsedInSettlement: true })]);
 
       const [row] = bodyRows();
-      expect(within(row).getAllByRole("cell")).toHaveLength(5);
+      expect(within(row).getAllByRole("cell")).toHaveLength(4);
       expect(screen.getByTestId("actions-in-use")).toHaveTextContent("true");
     });
   });
