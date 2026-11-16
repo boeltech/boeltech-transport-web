@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { defaultCfdiEmissionIntentFromProfile } from "@boeltech/cfdi-domain/reglas/cfdi-emission-intent";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, FileText } from "lucide-react";
 
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@shared/ui/dialog";
+import { EmptyState } from "@shared/ui/feedback-states";
 import { FieldInlineError, FormValidationSummary } from "@shared/ui/form";
 import { getFieldErrorAriaProps } from "@shared/ui/form/fieldErrorAria";
 import { Label } from "@shared/ui/label";
@@ -128,6 +129,14 @@ export function TripLiquidacionChip({
             : g.useSinCfdi;
 
   const exception = trip.settlementException ?? governance?.openRequest ?? null;
+  const historyEmptyByProfile =
+    exception == null &&
+    (isSinFactura || trip.client?.cfdiReceptorProfile === "comercial_only");
+  const historyEmptyTitle = historyEmptyByProfile
+    ? g.historyEmptyByProfile
+    : g.historyEmpty;
+  const requesterDisplay =
+    exception?.requestedByName?.trim() || g.requesterUnknown;
   const showSinCta =
     governance?.canOpenSinCfdi === true &&
     !isSinFactura &&
@@ -307,7 +316,9 @@ export function TripLiquidacionChip({
         <SheetContent>
           <SheetHeader>
             <SheetTitle>{g.historyTitle}</SheetTitle>
-            <SheetDescription>{g.historyEmpty}</SheetDescription>
+            <SheetDescription className="sr-only">
+              {g.historyDescription}
+            </SheetDescription>
           </SheetHeader>
           {exception ? (
             <dl className="mt-4 space-y-2 text-sm">
@@ -323,9 +334,26 @@ export function TripLiquidacionChip({
                 <dt className="text-muted-foreground">Registrada</dt>
                 <dd>{formatDateTime(exception.createdAt.toISOString())}</dd>
               </div>
+              <div>
+                <dt className="text-muted-foreground">{g.requesterLabel}</dt>
+                <dd>{requesterDisplay}</dd>
+              </div>
+              {exception.status === "in_progress" &&
+              governance?.approvalsHref ? (
+                <div className="pt-1">
+                  <Button type="button" variant="link" size="sm" asChild className="h-auto px-0">
+                    <Link to={governance.approvalsHref}>{g.approvalsLink}</Link>
+                  </Button>
+                </div>
+              ) : null}
             </dl>
           ) : (
-            <p className="mt-4 text-sm text-muted-foreground">{g.historyEmpty}</p>
+            <EmptyState
+              icon={<FileText />}
+              title={historyEmptyTitle}
+              size="sm"
+              className="mt-2"
+            />
           )}
         </SheetContent>
       </Sheet>

@@ -58,6 +58,22 @@ describe("cfdiEmissionIntentCopy — Factura del viaje (D3′)", () => {
     expect(freezeBlob).not.toMatch(/Cobro en efectivo/i);
   });
 
+  it("Sheet Historial: título sentence-case; description ≠ empties", () => {
+    const g = cfdiEmissionIntentCopy.governance;
+    expect(g.historyTitle).toBe("Historial de factura del viaje");
+    expect(g.historyTitle).not.toMatch(/CFDI/i);
+    expect(g.historyDescription).toMatch(/Sin factura/);
+    expect(g.historyDescription).not.toBe(g.historyEmpty);
+    expect(g.historyDescription).not.toBe(g.historyEmptyByProfile);
+    expect(g.historyEmpty).toBe(
+      "Aún no hay una solicitud de Sin factura en este viaje.",
+    );
+    expect(g.historyEmptyByProfile).toBe(
+      "Este viaje es Sin factura por el perfil del cliente. No hay solicitudes de excepción.",
+    );
+    expect(g.requesterLabel).toBe("Solicitante");
+  });
+
   it("dialog bodies: un description por caso; regularize no reusa copy Sin", () => {
     const g = cfdiEmissionIntentCopy.governance;
     expect(g.dialogBodySin).toBe(

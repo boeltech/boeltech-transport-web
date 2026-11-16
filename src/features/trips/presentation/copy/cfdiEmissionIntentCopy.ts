@@ -170,8 +170,15 @@ export const cfdiEmissionIntentCopy = {
     cashFreezeHint:
       "En Costos, en Cobro sin factura, usa Anular en cada abono activo del Historial de abonos.",
     history: "Historial",
-    historyTitle: "Historial de Factura del viaje",
+    historyTitle: "Historial de factura del viaje",
+    /** Propósito estable del Sheet (nunca el empty). */
+    historyDescription:
+      "Consulta la solicitud de Sin factura de este viaje y su estado de autorización.",
     historyEmpty: "Aún no hay una solicitud de Sin factura en este viaje.",
+    historyEmptyByProfile:
+      "Este viaje es Sin factura por el perfil del cliente. No hay solicitudes de excepción.",
+    requesterLabel: "Solicitante",
+    requesterUnknown: "—",
     applied: "El viaje quedó Sin factura",
     requested:
       "Solicitud registrada. El viaje sigue Con factura hasta que se autorice.",

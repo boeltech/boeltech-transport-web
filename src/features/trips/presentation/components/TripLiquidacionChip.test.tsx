@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
@@ -19,6 +19,7 @@ function makeOpenRequest(
     status: "in_progress",
     reason: "Motivo de solicitud largo",
     requestedBy: "user-1",
+    requestedByName: "Ana López",
     approvalInstanceId: null,
     createdAt: new Date("2026-11-01T12:00:00.000Z"),
     updatedAt: new Date("2026-11-01T12:00:00.000Z"),
@@ -241,6 +242,94 @@ describe("TripLiquidacionChip — header meta (ADR-0096)", () => {
     expect(screen.queryByText(g.dialogBodySin)).not.toBeInTheDocument();
     expect(
       screen.queryByText(cfdiEmissionIntentCopy.complianceNotice),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("TripLiquidacionChip — Sheet Historial (F1 Conform)", () => {
+  const g = cfdiEmissionIntentCopy.governance;
+
+  it("título sentence-case; description ≠ empty; empty Con factura una sola vez", async () => {
+    const user = userEvent.setup();
+    renderChip(makeTrip({ cfdiEmissionIntent: "emitir_cfdi" }));
+    await user.click(screen.getByRole("button", { name: g.history }));
+
+    expect(
+      screen.getByRole("heading", { name: g.historyTitle }),
+    ).toBeInTheDocument();
+    expect(g.historyTitle).toBe("Historial de factura del viaje");
+    expect(screen.getByText(g.historyDescription)).toBeInTheDocument();
+    expect(screen.getByText(g.historyEmpty)).toBeInTheDocument();
+    expect(screen.queryByText(g.historyEmptyByProfile)).not.toBeInTheDocument();
+    expect(screen.getAllByText(g.historyEmpty)).toHaveLength(1);
+    expect(screen.queryByText(g.historyEmpty)).not.toBe(
+      screen.getByText(g.historyDescription),
+    );
+  });
+
+  it("empty por perfil Sin factura sin excepción", async () => {
+    const user = userEvent.setup();
+    renderChip(
+      makeTrip({
+        cfdiEmissionIntent: "sin_cfdi_efectivo",
+        client: { cfdiReceptorProfile: "comercial_only" } as Trip["client"],
+        settlementException: null,
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: g.history }));
+    expect(screen.getByText(g.historyEmptyByProfile)).toBeInTheDocument();
+    expect(screen.queryByText(g.historyEmpty)).not.toBeInTheDocument();
+    expect(screen.getByText(g.historyDescription)).toBeInTheDocument();
+  });
+
+  it("con solicitud: estado · motivo · registrada · solicitante · link Aprobaciones", async () => {
+    const user = userEvent.setup();
+    const exception = makeOpenRequest();
+    renderChip(
+      makeTrip({
+        cfdiEmissionIntent: "emitir_cfdi",
+        settlementException: exception,
+      }),
+      {
+        canOpenSinCfdi: false,
+        changeKind: "request",
+        canRegularize: false,
+        regularizeCashLocked: false,
+        openRequest: exception,
+        canApprove: false,
+        canCancel: false,
+        approvalsHref: "/finance/approvals?tab=sin_cfdi",
+      },
+    );
+    await user.click(screen.getByRole("button", { name: g.history }));
+
+    const sheet = screen.getByRole("dialog");
+    expect(sheet).toHaveTextContent(g.status.in_progress);
+    expect(sheet).toHaveTextContent(exception.reason);
+    expect(sheet).toHaveTextContent(g.requesterLabel);
+    expect(sheet).toHaveTextContent("Ana López");
+    expect(
+      within(sheet).getByRole("link", { name: g.approvalsLink }),
+    ).toHaveAttribute("href", "/finance/approvals?tab=sin_cfdi");
+    expect(within(sheet).queryByText(g.historyEmpty)).not.toBeInTheDocument();
+  });
+
+  it("solicitante cae a fallback si requestedByName es null", async () => {
+    const user = userEvent.setup();
+    const exception = makeOpenRequest({
+      requestedByName: null,
+      status: "approved",
+    });
+    renderChip(
+      makeTrip({
+        cfdiEmissionIntent: "sin_cfdi_efectivo",
+        settlementException: exception,
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: g.history }));
+    expect(screen.getByText(g.requesterUnknown)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: g.approvalsLink }),
     ).not.toBeInTheDocument();
   });
 });

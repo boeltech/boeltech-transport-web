@@ -6,6 +6,7 @@ import {
   mapApiTrip,
   mapApiTripListItem,
   mapApiTripRevenueSplit,
+  mapSettlementException,
 } from "./mappers";
 import type {
   ApiExpenseResponse,
@@ -501,5 +502,44 @@ describe("mapApiOperationalCash* (ADR-0096 addendum)", () => {
       receiptCount: 1,
     });
     expect(trip.operationalCashAmount).toBe(10000);
+  });
+});
+
+describe("mapSettlementException — requested_by_name (F1a)", () => {
+  const base = {
+    id: "ex-1",
+    trip_id: "trip-1",
+    status: "in_progress" as const,
+    reason: "Motivo de solicitud largo",
+    requested_by: "user-1",
+    approval_instance_id: null,
+    created_at: "2026-11-01T12:00:00.000Z",
+    updated_at: "2026-11-01T12:00:00.000Z",
+    closed_at: null,
+    approval: null,
+  };
+
+  it("mapea requested_by_name → requestedByName", () => {
+    const mapped = mapSettlementException({
+      ...base,
+      requested_by_name: "Ana López",
+    });
+    expect(mapped).toMatchObject({
+      requestedBy: "user-1",
+      requestedByName: "Ana López",
+      status: "in_progress",
+    });
+  });
+
+  it("null / blank / ausente → requestedByName null", () => {
+    expect(
+      mapSettlementException({ ...base, requested_by_name: null })
+        ?.requestedByName,
+    ).toBeNull();
+    expect(
+      mapSettlementException({ ...base, requested_by_name: "  " })
+        ?.requestedByName,
+    ).toBeNull();
+    expect(mapSettlementException(base)?.requestedByName).toBeNull();
   });
 });

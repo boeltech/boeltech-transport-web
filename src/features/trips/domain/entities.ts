@@ -620,6 +620,8 @@ export interface TripSettlementException {
   readonly status: TripSettlementExceptionStatus;
   readonly reason: string;
   readonly requestedBy: string;
+  /** Nombre del solicitante (API `requested_by_name`); null si no hay nombre usable. */
+  readonly requestedByName: string | null;
   readonly approvalInstanceId: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;

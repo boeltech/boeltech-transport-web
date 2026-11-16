@@ -674,6 +674,7 @@ export function mapSettlementException(
     status: raw.status,
     reason: raw.reason,
     requestedBy: raw.requested_by,
+    requestedByName: raw.requested_by_name?.trim() || null,
     approvalInstanceId: raw.approval_instance_id,
     createdAt: toDate(raw.created_at),
     updatedAt: toDate(raw.updated_at),

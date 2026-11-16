@@ -513,6 +513,8 @@ export interface ApiTripResponse {
     status: "in_progress" | "approved" | "rejected" | "cancelled" | "superseded";
     reason: string;
     requested_by: string;
+    /** Nombre del solicitante; null si el JOIN no trae nombre usable. */
+    requested_by_name?: string | null;
     approval_instance_id: string | null;
     created_at: string;
     updated_at: string;
