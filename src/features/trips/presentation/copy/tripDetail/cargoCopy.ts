@@ -10,11 +10,14 @@ export const cargoCopy = {
     route: "Dónde va",
     pickup: "Recogida",
     delivery: "Entrega",
+    quantities: "Cantidades",
     insurance: "Seguro",
     notes: "Notas",
     /** Usado en Seguimiento (cargas en parada). */
     atStop: "Cargas en esta parada",
     cargoTimeline: "Hitos de carga",
+    /** Franja 3 cells Operate (artboard Cargas). */
+    summary: "Resumen de cargas",
   },
   hint: {
     /** Una sola línea above-the-fold (planeación vs Seguimiento). */
@@ -37,7 +40,46 @@ export const cargoCopy = {
     /** Mid-trip: append permitido, edición estructural no. */
     appendOnlyBanner:
       "En ruta solo puedes agregar cargas. Para corregir o eliminar, el viaje debe estar en reserva o programado.",
+    /**
+     * Q6 / DOM: solo con CFDI de flete stamped|cancellation_pending.
+     * Sin factura o sin flete timbrado → no usar este hint.
+     */
+    appendFiscalAttentionHint:
+      "Al agregar la carga se marcará Atención fiscal (hay CFDI de flete vigente). La operación puede continuar; sustituye la factura después.",
     statusInTracking: "Estado en patio",
+  },
+  /** Cards resumen Operate (F4b artboard). */
+  summary: {
+    cargosTitle: "Cargas",
+    noVehicleValue: "Sin unidad asignada",
+    noVehicleDetail: "Asigna flota para ver la capacidad.",
+    percentOfCapacity: (percentage: number, unitNumber: string) =>
+      `${percentage.toFixed(0)}% de la capacidad de ${unitNumber}`,
+    loadedOfCapacityKg: (loaded: string, capacity: string) =>
+      `${loaded} de ${capacity} kg`,
+    loadedOnlyKg: (loaded: string) => `${loaded} kg`,
+    cargosLine: (count: number, units: number) => {
+      const countPart = `${count} ${count === 1 ? "carga" : "cargas"}`;
+      if (units <= 0) return countPart;
+      return `${countPart} · ${units.toLocaleString("es-MX")} uds`;
+    },
+    pickedUpAt: (stopLabel: string) => `Recogidas en ${stopLabel}`,
+    totalWeightDetail: (weightKg: number) =>
+      `${weightKg.toLocaleString("es-MX")} kg en total`,
+    emptyCargosDetail: "No bloquea confirmar ni iniciar",
+    yardLine: (inTransit: number, delivered: number) =>
+      `${inTransit.toLocaleString("es-MX")} en tránsito · ${delivered.toLocaleString("es-MX")} entregadas`,
+    yardEmpty: "—",
+    yardHint:
+      "Se actualiza al registrar recogida o entrega en Seguimiento",
+  },
+  /** Columnas EntityListTable (Est-Cargas*). */
+  table: {
+    cargo: "Carga",
+    weightKg: "Peso (kg)",
+    route: "Dónde va",
+    status: "Estado",
+    ariaLabel: "Cargas del viaje",
   },
   alert: {
     noPickupTitle: "Falta parada de recogida",
@@ -105,6 +147,11 @@ export const cargoCopy = {
     missingDelivery: "Sin entrega",
     /** Lectura histórica cuando ya entregó/cerró sin parada planificada. */
     missingDeliveryHistorical: "Sin parada de entrega planificada",
+    /**
+     * Alias UI de `pending` en draft/scheduled (Q9e / D51).
+     * No es enum API — el dominio sigue siendo `pending`.
+     */
+    planned: "Planeada",
   },
   label: {
     totalWeight: "Peso",
@@ -209,6 +256,17 @@ export const cargoCopy = {
       if (weightKg <= 0) return countPart;
       return `${countPart} · ${weightKg.toLocaleString("es-MX")} kg`;
     },
+    /** Pie de tabla artboard (columna Carga): N cargas · M uds o meta sin peso. */
+    tableFooterPrimary: (count: number, units: number, weightKg: number) => {
+      const countPart = `${count} ${count === 1 ? "carga" : "cargas"}`;
+      if (units > 0) {
+        return `${countPart} · ${units.toLocaleString("es-MX")} uds`;
+      }
+      if (count > 0 && weightKg <= 0) {
+        return `${countPart} · sin peso capturado`;
+      }
+      return countPart;
+    },
     stopNumber: (displayOrder: number) => `Parada #${displayOrder}`,
     stopLabelFallback: (stopIndex: number) => `Parada #${stopIndex + 1}`,
     volume: (volume: string | number) => `${volume} m³`,
@@ -217,7 +275,11 @@ export const cargoCopy = {
     pickupAtStop: (stopLabel: string) => `Recoge: ${stopLabel}`,
     deliveryAtStop: (stopLabel: string) => `Entrega: ${stopLabel}`,
     weightKg: (kg: number) => `${kg.toLocaleString("es-MX")} kg`,
+    kgNumber: (kg: number) => kg.toLocaleString("es-MX"),
     unitsCount: (units: number) => `${units} uds`,
     quantitiesLine: (parts: readonly string[]) => parts.join(" · "),
+    movementCompletedAt: (actionLabel: string, time: string) =>
+      `${actionLabel} ${time}`,
+    movementPending: "Pendiente",
   },
 } as const;

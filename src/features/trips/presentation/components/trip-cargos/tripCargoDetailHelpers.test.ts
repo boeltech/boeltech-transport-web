@@ -17,7 +17,9 @@ import {
   listUnloadStops,
   resolveCargoMutationErrorMessage,
   resolveCargoRemoveErrorToast,
+  resolveCargoStatusLabel,
   resolveMissingDeliveryAlert,
+  shouldWarnFiscalAttentionOnCargoAppend,
 } from "./tripCargoDetailHelpers";
 import { tripDetailCopy } from "../../copy";
 
@@ -140,6 +142,58 @@ describe("isCargoPlanningGapMuted", () => {
     expect(isCargoPlanningGapMuted("cancelled")).toBe(true);
     expect(isCargoPlanningGapMuted("pending")).toBe(false);
     expect(isCargoPlanningGapMuted("in_transit")).toBe(false);
+  });
+});
+
+describe("resolveCargoStatusLabel (Q9e Planeada)", () => {
+  it("aliases pending → Planeada only in draft/scheduled", () => {
+    expect(resolveCargoStatusLabel("pending", "draft")).toBe(
+      copy.state.planned,
+    );
+    expect(resolveCargoStatusLabel("pending", "scheduled")).toBe(
+      copy.state.planned,
+    );
+    expect(resolveCargoStatusLabel("pending", "in_progress")).toBe("Pendiente");
+    expect(resolveCargoStatusLabel("in_transit", "draft")).toBe("En Tránsito");
+  });
+});
+
+describe("shouldWarnFiscalAttentionOnCargoAppend (Q6)", () => {
+  it("warns only with active primary stamped/cancellation_pending", () => {
+    expect(
+      shouldWarnFiscalAttentionOnCargoAppend({
+        hasActivePrimaryInvoice: true,
+        invoiceStatus: "stamped",
+      }),
+    ).toBe(true);
+    expect(
+      shouldWarnFiscalAttentionOnCargoAppend({
+        hasActivePrimaryInvoice: true,
+        invoiceStatus: "cancellation_pending",
+      }),
+    ).toBe(true);
+  });
+
+  it("does not warn for Sin factura or without stamped freight", () => {
+    expect(
+      shouldWarnFiscalAttentionOnCargoAppend({
+        cfdiEmissionIntent: "sin_cfdi_efectivo",
+        hasActivePrimaryInvoice: true,
+        invoiceStatus: "stamped",
+      }),
+    ).toBe(false);
+    expect(
+      shouldWarnFiscalAttentionOnCargoAppend({
+        hasActivePrimaryInvoice: false,
+        invoiceStatus: "stamped",
+      }),
+    ).toBe(false);
+    expect(
+      shouldWarnFiscalAttentionOnCargoAppend({
+        hasActivePrimaryInvoice: true,
+        invoiceStatus: "draft",
+      }),
+    ).toBe(false);
   });
 });
 

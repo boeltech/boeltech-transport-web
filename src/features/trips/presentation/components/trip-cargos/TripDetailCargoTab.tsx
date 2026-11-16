@@ -34,14 +34,20 @@ import {
   getCargoWeightKg,
   resolveCargoMutationErrorMessage,
   resolveCargoRemoveErrorToast,
+  shouldWarnFiscalAttentionOnCargoAppend,
 } from "./tripCargoDetailHelpers";
 import {
   formValuesToUpdateCargoInput,
   tripCargoToFormValues,
 } from "./tripCargoFormBridge";
+import { TripCargoSummaryStrip } from "./TripCargoSummaryStrip";
 import { TripDetailCargoMasterDetail } from "./TripDetailCargoMasterDetail";
+import {
+  countCargoYardStatus,
+  resolveSharedPickupLabel,
+  sumCargoUnits,
+} from "./tripCargoSummaryHelpers";
 import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
-import { CargoCapacityStrip } from "../../pages/create/components/CargoCapacityStrip";
 import {
   CargoMovementSheet,
   type CargoSheetDeliveryStop,
@@ -56,14 +62,10 @@ const copy = tripDetailCopy.cargo;
 function CargosSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-16 w-full" />
-      <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
-        <Skeleton className="h-64 w-full" />
+      <Skeleton className="h-[5.5rem] w-full rounded-xl" />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,21rem)]">
+        <Skeleton className="h-72 w-full rounded-xl" />
+        <Skeleton className="hidden h-72 w-full rounded-xl lg:block" />
       </div>
     </div>
   );
@@ -99,6 +101,9 @@ export interface TripDetailCargoTabProps {
   canAppendCargo?: boolean;
   /** ADR-0096 — empty advisory cuando liquidación sin CFDI. */
   cfdiEmissionIntent?: CfdiEmissionIntent;
+  /** Q6: primaria de flete activa stamped|cancellation_pending. */
+  hasActivePrimaryInvoice?: boolean;
+  invoiceStatus?: string | null;
   /** Unidad asignada — capacidad advisory (loadCapacity t→kg). */
   vehicleId?: string | null;
   onRetry: () => void;
@@ -153,6 +158,8 @@ export function TripDetailCargoTab({
   canEditStructural,
   canAppendCargo = false,
   cfdiEmissionIntent,
+  hasActivePrimaryInvoice = false,
+  invoiceStatus = null,
   vehicleId = null,
   onRetry,
   onCargosChanged,
@@ -245,43 +252,32 @@ export function TripDetailCargoTab({
     !isLoadingVehicle &&
     (vehicleCapacityKg == null || vehicleCapacityKg === 0);
 
-  const showCapacityStrip = Boolean(vehicleId) || cargos.length > 0;
-
   const capacityMutable =
     tripStatus === TripStatus.DRAFT ||
     tripStatus === TripStatus.SCHEDULED ||
     tripStatus === TripStatus.IN_PROGRESS;
 
-  const capacityStrip = showCapacityStrip ? (
-    <CargoCapacityStrip
+  const yardCounts = useMemo(() => countCargoYardStatus(cargos), [cargos]);
+  const totalUnits = useMemo(() => sumCargoUnits(cargos), [cargos]);
+  const pickupSummaryLabel = useMemo(
+    () => resolveSharedPickupLabel(cargos, orderedStops),
+    [cargos, orderedStops],
+  );
+
+  const summaryStrip = (
+    <TripCargoSummaryStrip
       capacityKg={vehicleCapacityKg}
       loadedKg={totalWeightKg}
-      vehicleLabel={
-        vehicle
-          ? copy.capacity.vehicleSubtitle(
-              vehicle.unitNumber,
-              vehicle.brand,
-              vehicle.model,
-            )
-          : null
-      }
+      unitNumber={vehicle?.unitNumber ?? null}
       isCapacityUnknown={isCapacityUnknown}
-      sticky={false}
-      messages={{
-        title: copy.capacity.title,
-        unknownTitle: copy.capacity.unknownTitle,
-        unknownBody: copy.capacity.unknownBody,
-        overCapacityHint: capacityMutable
-          ? copy.capacity.overCapacityHint
-          : copy.capacity.overCapacityHintReadonly,
-        usage: copy.capacity.usage,
-        loadedOfCapacity: copy.capacity.loadedOfCapacity,
-        available: copy.capacity.available,
-        excess: copy.capacity.excess,
-        formatWeight: copy.capacity.formatWeight,
-      }}
+      capacityMutable={capacityMutable}
+      cargoCount={cargos.length}
+      totalUnits={totalUnits}
+      pickupSummaryLabel={pickupSummaryLabel}
+      inTransitCount={yardCounts.inTransit}
+      deliveredCount={yardCounts.delivered}
     />
-  ) : null;
+  );
 
   const cargosAtActivePickup = activePickupStop
     ? cargos.filter((cargo) =>
@@ -553,7 +549,7 @@ export function TripDetailCargoTab({
     return (
       <>
         <div className="space-y-4">
-          {capacityStrip}
+          {summaryStrip}
           <div className="rounded-xl border border-dashed bg-card">
             <EmptyState
               icon={<Package />}
@@ -590,14 +586,20 @@ export function TripDetailCargoTab({
   return (
     <>
       <div className="space-y-4">
-        {capacityStrip}
+        {summaryStrip}
         <TripDetailCargoMasterDetail
           cargos={cargos}
           orderedStops={orderedStops}
+          tripStatus={tripStatus}
           canEditStructural={canEditStructural}
           canDeleteCargo={canDeleteCargo}
           canAppendCargo={canEditStructural || canAppendCargo}
           showAppendOnlyBanner={canAppendCargo && !canEditStructural}
+          appendMarksFiscalAttention={shouldWarnFiscalAttentionOnCargoAppend({
+            cfdiEmissionIntent,
+            hasActivePrimaryInvoice,
+            invoiceStatus,
+          })}
           onAddCargo={() => openAddCargo()}
           onEditCargo={openEditCargo}
           onRemoveCargo={handleRemoveCargo}

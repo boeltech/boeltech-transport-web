@@ -412,18 +412,21 @@ describe("TripDetailCargoTab", () => {
     expect(screen.queryByText(/H87/)).not.toBeInTheDocument();
     // Insurance is on the read panel when insured — not SAT codes
     expect(screen.queryByText(/50192100|ClaveProdServ|CFDI/i)).not.toBeInTheDocument();
-    expect(screen.getByText(copy.format.metaLine(1, 200))).toBeInTheDocument();
-    expect(screen.getByText(copy.section.route)).toBeInTheDocument();
     expect(
-      screen.getAllByText(copy.format.quantitiesLine(["200 kg", "4 uds"]))
-        .length,
+      screen.getAllByText(copy.format.tableFooterPrimary(1, 4, 200)).length,
     ).toBeGreaterThan(0);
+    expect(screen.getAllByText(copy.section.route).length).toBeGreaterThan(0);
+    expect(screen.getByText(copy.section.quantities)).toBeInTheDocument();
+    expect(screen.getByText(copy.format.weightKg(200))).toBeInTheDocument();
+    expect(screen.getAllByText(copy.format.unitsCount(4)).length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByText(copy.hint.list)).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(copy.hint.statusInTracking))).toBeInTheDocument();
-    expect(screen.queryByText(copy.hint.manageInTracking)).not.toBeInTheDocument();
+    expect(screen.getByText(copy.hint.statusInTracking)).toBeInTheDocument();
+    expect(screen.getByText(copy.summary.yardHint)).toBeInTheDocument();
     expect(screen.queryByText(copy.section.list)).toBeInTheDocument();
     expect(screen.queryByText(/Por estado/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Resumen de cargas/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("trip-cargo-summary-strip")).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: copy.action.editCargo }),
@@ -551,6 +554,7 @@ describe("TripDetailCargoTab", () => {
               ...sampleCargo,
               weight: 0,
               weightInKg: 0,
+              units: null,
             },
           ]}
           orderedStops={[pickupStop]}
@@ -564,12 +568,14 @@ describe("TripDetailCargoTab", () => {
     );
 
     expect(
-      screen.getByText(copy.format.metaLine(1, 0)),
+      screen.getByText(copy.format.tableFooterPrimary(1, 0, 0)),
     ).toBeInTheDocument();
-    expect(copy.format.metaLine(1, 0)).toContain("sin peso capturado");
+    expect(copy.format.tableFooterPrimary(1, 0, 0)).toContain(
+      "sin peso capturado",
+    );
   });
 
-  it("shows capacity strip and wires vehicleCapacityKg to the sheet", async () => {
+  it("shows Operate summary strip and wires vehicleCapacityKg to the sheet", async () => {
     const user = userEvent.setup();
     mockUseVehicle.mockReturnValue({
       data: {
@@ -599,20 +605,22 @@ describe("TripDetailCargoTab", () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByTestId("trip-cargo-summary-strip")).toBeInTheDocument();
     expect(screen.getByText(copy.capacity.title)).toBeInTheDocument();
     expect(
-      screen.getByText(copy.capacity.vehicleSubtitle("ECO-1", "Kenworth", "T680")),
-    ).toBeInTheDocument();
-    expect(
       screen.getByText(
-        copy.capacity.loadedOfCapacity(
-          copy.capacity.formatWeight(200),
-          copy.capacity.formatWeight(20_000),
+        copy.summary.loadedOfCapacityKg(
+          (200).toLocaleString("es-MX"),
+          (20_000).toLocaleString("es-MX"),
         ),
       ),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(copy.summary.percentOfCapacity(1, "ECO-1")),
+    ).toBeInTheDocument();
     expect(screen.getByText(copy.hint.appendOnlyBanner)).toBeInTheDocument();
-    expect(screen.getByText(copy.hint.manageInTracking)).toBeInTheDocument();
+    expect(screen.getByText(copy.summary.yardHint)).toBeInTheDocument();
+    expect(screen.getByText(copy.section.detail)).toBeInTheDocument();
 
     // Header + posible CTA del alert «Falta entrega» (F4) comparten label.
     await user.click(
@@ -658,9 +666,7 @@ describe("TripDetailCargoTab", () => {
     expect(
       screen.getByText(copy.state.missingDeliveryHistorical),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(new RegExp(copy.hint.statusInTracking)),
-    ).toBeInTheDocument();
+    expect(screen.getByText(copy.hint.statusInTracking)).toBeInTheDocument();
     expect(screen.getAllByText("Entregada").length).toBeGreaterThan(0);
   });
 
@@ -704,6 +710,7 @@ describe("TripDetailCargoTab", () => {
     expect(
       screen.queryByText(copy.capacity.overCapacityHint),
     ).not.toBeInTheDocument();
+    expect(screen.getByTestId("trip-cargo-summary-weight")).toBeInTheDocument();
   });
 
   it("hides Eliminar when trips.delete is denied (Opción A)", () => {

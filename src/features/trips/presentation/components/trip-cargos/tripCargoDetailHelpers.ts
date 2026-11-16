@@ -1,14 +1,50 @@
 import {
+  CARGO_STATUS_LABELS,
   StopType,
+  TripStatus,
   type CargoStatusType,
   type CreateCargoInput,
   type TripCargo,
+  type TripStatusType,
   type TripStop,
 } from "@features/trips/domain";
 
 import { cargoCopy } from "../../copy/tripDetail/cargoCopy";
 import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
 import { hasStopType } from "../trip-route/tripRouteDetailHelpers";
+
+/**
+ * Badge de estado en Cargas (Q9e): en Reserva/Programado, `pending` → «Planeada».
+ * Sin nuevo enum API — solo alias de lectura.
+ */
+export function resolveCargoStatusLabel(
+  status: CargoStatusType | TripCargo["status"],
+  tripStatus?: TripStatusType | null,
+): string {
+  const isPlanningTrip =
+    tripStatus === TripStatus.DRAFT || tripStatus === TripStatus.SCHEDULED;
+  if (isPlanningTrip && status === "pending") {
+    return cargoCopy.state.planned;
+  }
+  return CARGO_STATUS_LABELS[status as CargoStatusType] || status;
+}
+
+/**
+ * Q6 copy gate: Atención fiscal al append solo con flete stamped|cancellation_pending.
+ * Sin factura (`sin_cfdi_efectivo`) o sin primaria activa → false.
+ */
+export function shouldWarnFiscalAttentionOnCargoAppend(args: {
+  cfdiEmissionIntent?: string | null;
+  hasActivePrimaryInvoice?: boolean;
+  invoiceStatus?: string | null;
+}): boolean {
+  if (args.cfdiEmissionIntent === "sin_cfdi_efectivo") return false;
+  if (!args.hasActivePrimaryInvoice) return false;
+  return (
+    args.invoiceStatus === "stamped" ||
+    args.invoiceStatus === "cancellation_pending"
+  );
+}
 
 /**
  * Parada tipo descarga (unload): `delivery` y/o `destination`.

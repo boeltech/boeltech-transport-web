@@ -164,9 +164,72 @@ describe("TripDetailCargoMasterDetail — Falta entrega alert (F4/F5)", () => {
     expect(
       screen.queryByText(copy.state.missingDelivery, { exact: true }),
     ).not.toBeInTheDocument();
+    expect(screen.getAllByText("#1 Origen").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("#2 Destino").length).toBeGreaterThan(0);
+  });
+
+  it("aliases pending as Planeada in draft/scheduled (Q9e)", () => {
+    render(
+      <TripDetailCargoMasterDetail
+        cargos={[cargo]}
+        orderedStops={orderedStops}
+        tripStatus="draft"
+        canEditStructural
+        canDeleteCargo
+        onAddCargo={vi.fn()}
+        onEditCargo={vi.fn()}
+        onRemoveCargo={vi.fn()}
+      />,
+    );
+
+    // Badge de estado de carga (Q9e) — no el «Pendiente» de hito recogida/entrega.
+    expect(screen.getAllByText(copy.state.planned).length).toBeGreaterThan(0);
+    const statusBadges = screen.getAllByTitle(copy.hint.statusInTracking);
     expect(
-      screen.getByText(copy.format.routeSummary("#1 Origen", "#2 Destino")),
+      statusBadges.some((el) => el.textContent === copy.state.planned),
+    ).toBe(true);
+    expect(
+      statusBadges.some((el) => el.textContent === "Pendiente"),
+    ).toBe(false);
+  });
+
+  it("shows Q6 Atención fiscal hint only when appendMarksFiscalAttention", () => {
+    const { rerender } = render(
+      <TripDetailCargoMasterDetail
+        cargos={[cargo]}
+        orderedStops={orderedStops}
+        canEditStructural={false}
+        canAppendCargo
+        showAppendOnlyBanner
+        appendMarksFiscalAttention
+        onAddCargo={vi.fn()}
+        onEditCargo={vi.fn()}
+        onRemoveCargo={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(copy.hint.appendOnlyBanner)).toBeInTheDocument();
+    expect(
+      screen.getByText(copy.hint.appendFiscalAttentionHint),
     ).toBeInTheDocument();
+
+    rerender(
+      <TripDetailCargoMasterDetail
+        cargos={[cargo]}
+        orderedStops={orderedStops}
+        canEditStructural={false}
+        canAppendCargo
+        showAppendOnlyBanner
+        appendMarksFiscalAttention={false}
+        onAddCargo={vi.fn()}
+        onEditCargo={vi.fn()}
+        onRemoveCargo={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByText(copy.hint.appendFiscalAttentionHint),
+    ).not.toBeInTheDocument();
   });
 
   it("with 1 unload residual gap does not offer Corregir carga; offers Agregar carga / Ir a Ruta", () => {
