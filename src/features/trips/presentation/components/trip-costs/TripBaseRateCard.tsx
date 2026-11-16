@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { DollarSign } from "lucide-react";
 
 import { usePatchTripBaseRate } from "@features/trips/application";
 import { useToast } from "@shared/hooks";
@@ -35,7 +34,10 @@ function TripBaseRateCardEditor({
   cfdiDocumentIntent,
   clientId,
   expenseLines,
-}: Omit<TripBaseRateCardProps, "readOnly">) {
+  onCancel,
+}: Omit<TripBaseRateCardProps, "readOnly" | "incomeSourceLabel"> & {
+  onCancel: () => void;
+}) {
   const { toast } = useToast();
   const [draft, setDraft] = useState<number | undefined>(
     baseRate > 0 ? baseRate : undefined,
@@ -45,6 +47,7 @@ function TripBaseRateCardEditor({
   const patchBaseRate = usePatchTripBaseRate(tripId, {
     onSuccess: () => {
       toast({ title: copy.toast.baseRateUpdated, variant: "success" });
+      onCancel();
     },
     onError: (error) => {
       toast({
@@ -96,6 +99,7 @@ function TripBaseRateCardEditor({
   const handleCancel = () => {
     setDraft(baseRate > 0 ? baseRate : undefined);
     setFieldError(null);
+    onCancel();
   };
 
   return (
@@ -126,29 +130,38 @@ function TripBaseRateCardEditor({
           )}
         />
       </FormFieldShell>
-      {isDirty ? (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => void handleSave()}
-            disabled={patchBaseRate.isPending}
-          >
-            {patchBaseRate.isPending ? copy.action.savingBaseRate : copy.action.saveBaseRate}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handleCancel}
-            disabled={patchBaseRate.isPending}
-          >
-            {copy.action.cancel}
-          </Button>
-        </div>
-      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void handleSave()}
+          disabled={patchBaseRate.isPending || !isDirty}
+        >
+          {patchBaseRate.isPending ? copy.action.savingBaseRate : copy.action.saveBaseRate}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={handleCancel}
+          disabled={patchBaseRate.isPending}
+        >
+          {copy.action.cancel}
+        </Button>
+      </div>
     </div>
   );
+}
+
+function baseRateHint(
+  cfdiDocumentIntent: "ingreso" | "traslado",
+  clientId: string | undefined,
+): string {
+  if (cfdiDocumentIntent === "traslado") return copy.hint.baseRateTraslado;
+  if (wizardHasContractingClient(clientId)) {
+    return copy.hint.baseRateIngresoRequired;
+  }
+  return copy.hint.baseRateIngresoOptional;
 }
 
 export function TripBaseRateCard({
@@ -160,11 +173,13 @@ export function TripBaseRateCard({
   readOnly,
   incomeSourceLabel,
 }: TripBaseRateCardProps) {
+  const [editing, setEditing] = useState(false);
+  const showEditor = !readOnly && editing;
+
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
-          <DollarSign className="h-5 w-5 shrink-0" />
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-3">
+        <CardTitle className="flex flex-wrap items-center gap-2 text-base">
           {copy.section.baseRate}
           {incomeSourceLabel ? (
             <Badge variant="neutral" tone="soft" className="text-xs font-medium">
@@ -172,15 +187,19 @@ export function TripBaseRateCard({
             </Badge>
           ) : null}
         </CardTitle>
+        {!readOnly && !editing ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditing(true)}
+          >
+            {copy.action.edit}
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent>
-        {readOnly ? (
-          <InfoRow
-            variant="inline"
-            label={copy.label.baseRate}
-            value={formatMxCurrency(baseRate)}
-          />
-        ) : (
+        {showEditor ? (
           <TripBaseRateCardEditor
             key={baseRate}
             tripId={tripId}
@@ -188,7 +207,19 @@ export function TripBaseRateCard({
             cfdiDocumentIntent={cfdiDocumentIntent}
             clientId={clientId}
             expenseLines={expenseLines}
+            onCancel={() => setEditing(false)}
           />
+        ) : (
+          <div className="space-y-2">
+            <InfoRow
+              variant="inline"
+              label={copy.label.baseRate}
+              value={formatMxCurrency(baseRate)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {baseRateHint(cfdiDocumentIntent, clientId)}
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>

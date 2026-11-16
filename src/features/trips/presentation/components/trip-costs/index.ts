@@ -1,4 +1,5 @@
 export { TripBaseRateCard } from "./TripBaseRateCard";
+export { TripCostsFormulaStrip } from "./TripCostsFormulaStrip";
 export { TripDetailCostsTab } from "./TripDetailCostsTab";
 export type { TripDetailCostsTabProps } from "./TripDetailCostsTab";
 export { RegisterOperationalCashSheet } from "./RegisterOperationalCashSheet";

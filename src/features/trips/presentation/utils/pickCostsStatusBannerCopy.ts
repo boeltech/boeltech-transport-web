@@ -24,6 +24,8 @@ export type CostsStatusBannerCopy = {
 export function pickCostsStatusBannerCopy(input: {
   isOperator: boolean;
   pendingExpenseCount: number;
+  /** Monto formateado de pendientes (título artboard Costos). */
+  pendingExpenseAmountLabel?: string;
   canApproveExpenses: boolean;
   expenseWindowOpen: boolean;
   expenseWindowClosed: boolean;
@@ -38,6 +40,7 @@ export function pickCostsStatusBannerCopy(input: {
   const {
     isOperator,
     pendingExpenseCount,
+    pendingExpenseAmountLabel = "",
     canApproveExpenses,
     expenseWindowOpen,
     expenseWindowClosed,
@@ -61,7 +64,10 @@ export function pickCostsStatusBannerCopy(input: {
   if (pendingExpenseCount > 0) {
     return {
       kind: "pending",
-      title: costsCopy.alert.pendingApprovalTitle,
+      title: costsCopy.alert.pendingApprovalTitle(
+        pendingExpenseCount,
+        pendingExpenseAmountLabel || "—",
+      ),
       body: canApproveExpenses
         ? costsCopy.alert.pendingApprovalBodyCanApprove
         : isOperator

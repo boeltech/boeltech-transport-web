@@ -9,6 +9,30 @@ export const costsCopy = {
     indirect: "Del operador y extras",
     breakdown: "Por tipo",
   },
+  /** Subtítulos de panel (Operate-Viaje-Costos). */
+  sectionDescription: {
+    operational: "Combustible, casetas y otros costos de la unidad.",
+  },
+  /** Pie de tabla por bolsillo. */
+  footer: {
+    operational: "Ruta y unidad",
+    indirect: "Operador y extras",
+  },
+  /** Franja fórmula Operate (F4c). */
+  formula: {
+    ariaLabel: "Resultado estimado del viaje",
+    income: "Ingreso",
+    operational: "Ruta y unidad",
+    indirect: "Operador y extras",
+    utilityEstimated: "Utilidad estimada",
+    utilityConfirmed: "Utilidad confirmada",
+    records: (count: number) =>
+      count === 1 ? "1 registro" : `${count} registros`,
+    includesReview: "incluye registros en revisión",
+    approvedOnly: "solo registros aprobados",
+    marginLine: (pctLabel: string, hint: string) =>
+      `Margen ${pctLabel} · ${hint}`,
+  },
   hint: {
     inProgress:
       "Registre costos y gastos reales en curso. Puede ajustar la tarifa base aquí; los gastos no sustituyen la tarifa ni el ingreso facturado.",
@@ -25,12 +49,10 @@ export const costsCopy = {
     /** Operador (D11): solo lectura, sin SAT ni reabrir. */
     postCloseWindowClosedOperator:
       "El plazo para gastos ya cerró ({deadline}). Los registros quedan en solo lectura.",
-    breakdown: "Distribución de lo registrado por tipo.",
+    breakdown: "Distribución de lo registrado.",
     baseRateTraslado: "Opcional en viajes solo de traslado.",
     baseRateIngresoRequired: "Obligatoria para viajes con factura de servicio y cliente.",
     baseRateIngresoOptional: "Opcional si el viaje no tiene cliente contratante.",
-    breakdownToggleShow: "Ver desglose por tipo",
-    breakdownToggleHide: "Ocultar desglose",
     /** F1 tres bolsillos: orientación del canal «Del operador» (gasto del viaje). */
     indirectChannels:
       "Comprobante sin adelanto → aquí. Efectivo adelantado → Anticipos. Pago fijo de tarifa → en Tarifas.",
@@ -47,9 +69,13 @@ export const costsCopy = {
     /** Operador (D12): no apunta a tarifa. */
     marginCriticalBodyOperator:
       "El margen estimado está por debajo del 10%. Revise los registros de ruta y del operador.",
-    pendingApprovalTitle: "Registros en revisión",
+    /** Artboard Costos: «N registros en revisión por $X». */
+    pendingApprovalTitle: (count: number, amountLabel: string) =>
+      count === 1
+        ? `1 registro en revisión por ${amountLabel}`
+        : `${count} registros en revisión por ${amountLabel}`,
     pendingApprovalBody:
-      "Los registros en revisión aún no cuentan en Finanzas hasta que alguien con permiso los apruebe.",
+      "Aún no cuentan en Finanzas hasta que alguien con permiso los apruebe.",
     /** Operador (D10): nombra quién aprueba; sin bandeja. */
     pendingApprovalBodyOperator:
       "Avisa a un admin, gerente o contador para que los apruebe. No se aprueban aquí.",
@@ -76,8 +102,18 @@ export const costsCopy = {
     approve: "Aprobar",
     reject: "Rechazar",
     reviewGroup: "Revisión",
-    more: "Más acciones",
+    /** D52 / Est-CostosAprobar: botón «Más» en fila. */
+    more: "Más",
     saveAndResubmit: "Guardar y reenviar",
+  },
+  /** Columnas EntityListTable (Est-Costos*). */
+  table: {
+    concept: "Concepto",
+    date: "Fecha",
+    fundedBy: "Quién fondeó",
+    status: "Estado",
+    amount: "Importe",
+    ariaLabel: "Registros de costos del viaje",
   },
   label: {
     baseRate: "Tarifa base",
@@ -135,6 +171,8 @@ export const costsCopy = {
   paymentSource: {
     sectionTitle: "¿Quién fondeó?",
     driver: "Pagó el operador (de su bolsillo)",
+    /** Celda compacta en EntityListTable. */
+    driverShort: "Pagó el operador",
     company: "Pagó la empresa (tarjeta, TAG)",
     advance: "Con anticipo de la empresa",
     required: "Elige quién fondeó este gasto",
@@ -142,6 +180,7 @@ export const costsCopy = {
       "Debes elegir una opción. Operador = reembolso en su pago; empresa o anticipo = no se reembolsa.",
     hintDriver:
       "Reembolso: este monto se suma al pago del operador en la liquidación.",
+    hintDriverShort: "Reembolso en su pago",
     hintCompany:
       "No es reembolso. Queda como costo del viaje a cargo de la empresa.",
     hintAdvance:

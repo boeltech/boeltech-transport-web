@@ -40,7 +40,7 @@ describe("TripExpenseEditableList autoaprobación (ADR-0098)", () => {
     renderList([pendingExpense], () => "normal");
 
     expect(screen.getByRole("button", { name: "Aprobar" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Más acciones" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Más" })).toBeInTheDocument();
     expect(screen.queryByText("Enviada por ti")).not.toBeInTheDocument();
   });
 
@@ -49,7 +49,7 @@ describe("TripExpenseEditableList autoaprobación (ADR-0098)", () => {
 
     expect(screen.getByText("Enviada por ti")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Aprobar" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Más acciones" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Más" })).not.toBeInTheDocument();
   });
 
   it("self_confirm: conserva las acciones (la confirmación vive en el tab)", () => {

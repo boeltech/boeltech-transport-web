@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
-  Banknote,
   CircleDollarSign,
   Plus,
   Receipt,
@@ -36,24 +35,18 @@ import {
   useReturnExpense,
   useUpdateExpense,
 } from "@features/trips/application/hooks/expense/useExpenseOperations";
-import { useOperationalCashReceipts } from "@features/trips/application";
 import {
   TripStatus,
   tripQueryKeys,
   isExpenseNotMutableError,
-  canRegisterOperationalCashAbono,
-  resolveOperationalCashSummary,
   type CfdiEmissionIntent,
   type ExpensesSummary,
-  type OperationalCashReceipt,
   type OperationalCashSummary,
   type TripExpense,
   type TripInvoiceStatus,
   type TripOperationalOutcomeType,
   type TripStop,
 } from "@features/trips/domain";
-import { OPERATIONAL_PAYMENT_INSTRUMENT_LABELS } from "@features/finance/domain";
-import { OperationalReceiptBatchSheet } from "@features/finance/presentation/components";
 import { useVehicle } from "@features/vehicles/application";
 import { ROLES } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
@@ -67,19 +60,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
-import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
+import { DetailAlertCard } from "@shared/ui/data-display";
 import { TripBaseRateCard } from "./TripBaseRateCard";
-import { RegisterOperationalCashSheet } from "./RegisterOperationalCashSheet";
-import { VoidOperationalCashReceiptSheet } from "./VoidOperationalCashReceiptSheet";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatDate, formatDateTime } from "@shared/utils/dateUtils";
-import {
-  operationalCashStatusBadgeVariant,
-  operationalCashStatusLabel,
-} from "../../utils/operationalCashUi";
 
 import { hasUnmarkedRouteFuel } from "../trip-financial/emptyReturnFuel";
 import {
@@ -89,11 +75,11 @@ import {
   isIndirectExpenseCategory,
   isOperationalExpenseCategory,
   TripExpenseSheet,
-  TripWizardFinancialSummary,
   buildTripWizardFinancialSnapshot,
 } from "../trip-financial";
 import type { TripExpenseFormValues } from "../../pages/create/components/validation";
 import { TripCostsCategoryBreakdown } from "./TripCostsCategoryBreakdown";
+import { TripCostsFormulaStrip } from "./TripCostsFormulaStrip";
 import { TripExpenseEditableList, type TripExpenseListItem } from "./TripExpenseEditableList";
 import {
   formValuesToCreateExpenseInput,
@@ -109,7 +95,6 @@ import {
   isReturnedExpense,
 } from "./tripExpenseMutability";
 import { tripDetailCopy } from "../../copy";
-import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { pickCostsStatusBannerCopy } from "../../utils/pickCostsStatusBannerCopy";
 
 const copy = tripDetailCopy.costs;
@@ -176,13 +161,16 @@ export interface TripDetailCostsTabProps {
 
 function CostsTabSkeleton() {
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="space-y-6">
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
+    <div className="space-y-6">
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-16 w-full" />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-6">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+        <Skeleton className="h-72 w-full" />
       </div>
-      <Skeleton className="h-96 w-full" />
     </div>
   );
 }
@@ -226,6 +214,7 @@ type CostsStatusBanner = {
 function resolveCostsStatusBanner(input: {
   isOperator: boolean;
   pendingExpenseCount: number;
+  pendingExpenseAmountLabel: string;
   canApproveExpenses: boolean;
   canViewApprovalsHub: boolean;
   approvalsHubPath: string;
@@ -254,6 +243,7 @@ function resolveCostsStatusBanner(input: {
   const picked = pickCostsStatusBannerCopy({
     isOperator: input.isOperator,
     pendingExpenseCount,
+    pendingExpenseAmountLabel: input.pendingExpenseAmountLabel,
     canApproveExpenses,
     expenseWindowOpen,
     expenseWindowClosed,
@@ -325,13 +315,10 @@ export function TripDetailCostsTab({
   tripId,
   tripStatus,
   baseRate,
-  facturadoVigente = null,
-  cobradoViaje = null,
+  facturadoVigente: _facturadoVigente = null,
+  cobradoViaje: _cobradoViaje = null,
   cfdiDocumentIntent,
   cfdiEmissionIntent,
-  operationalCashCollectedAt = null,
-  operationalCashAmount = null,
-  operationalCash = null,
   clientId,
   vehicleId,
   stops,
@@ -362,57 +349,22 @@ export function TripDetailCostsTab({
   const role = useRole();
   const isOperator = role === ROLES.OPERATOR;
   const canViewApprovalsHub = hasPermission("finance_approvals", "read");
-  const canCreateOperationalCash = hasPermission("operational_cash", "create");
-  const canVoidOperationalCash = hasPermission("operational_cash", "void");
   const isSinCfdiEfectivo = cfdiEmissionIntent === "sin_cfdi_efectivo";
-  const cashCopy = cfdiEmissionIntentCopy.cash;
-  const cashSummary = resolveOperationalCashSummary(
-    {
-      operationalCash,
-      operationalCashCollectedAt,
-      operationalCashAmount,
-    },
-    baseRate,
-  );
-  const canRegisterAbono = canRegisterOperationalCashAbono(cashSummary);
-  const [cashSheetOpen, setCashSheetOpen] = useState(false);
-  const [batchSheetId, setBatchSheetId] = useState<string | null>(null);
-  const [voidReceipt, setVoidReceipt] = useState<OperationalCashReceipt | null>(
-    null,
-  );
-  const {
-    data: cashReceipts = [],
-    isLoading: isLoadingCashReceipts,
-    isError: isCashReceiptsError,
-    refetch: refetchCashReceipts,
-  } = useOperationalCashReceipts(tripId, {
-    includeVoided: true,
-    enabled: isSinCfdiEfectivo,
-  });
   const [searchParams, setSearchParams] = useSearchParams();
+  /** D15 / Q11: cobro vive en tab Cobro; deep-link legado → billing. */
   useEffect(() => {
     if (!isSinCfdiEfectivo) return;
     if (searchParams.get("focus") !== "operational-cash") return;
-    const timer = window.setTimeout(() => {
-      document
-        .getElementById("trip-operational-cash")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete("focus");
-          return next;
-        },
-        { replace: true },
-      );
-    }, 50);
-    return () => window.clearTimeout(timer);
-  }, [isSinCfdiEfectivo, searchParams, setSearchParams]);
-  const sortedCashReceipts = useMemo(() => {
-    return [...cashReceipts].sort(
-      (a, b) => b.collectedAt.getTime() - a.collectedAt.getTime(),
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("focus");
+        next.set("tab", "billing");
+        return next;
+      },
+      { replace: true },
     );
-  }, [cashReceipts]);
+  }, [isSinCfdiEfectivo, searchParams, setSearchParams]);
   const approvalsHubPath = useMemo(
     () =>
       buildApprovalsInboxPath({
@@ -528,23 +480,39 @@ export function TripDetailCostsTab({
       : copy.incomeSource.rateRegistered;
   }, [invoiceStatus, isCompleted]);
 
-  const calculationStatusHint = isCompleted
-    ? copy.financialSummary.hint.calculationApprovedOnly
-    : copy.financialSummary.hint.calculationEstimated;
-
-  const queuedCostsHint =
-    isCompleted && financialSnapshot.queuedCostsTotal > 0
-      ? copy.financialSummary.hint.queuedMayLower(
-          formatMxCurrency(financialSnapshot.queuedCostsTotal),
-        )
-      : null;
+  const operationalListTotal = useMemo(
+    () => operationalItems.reduce((sum, item) => sum + item.amount, 0),
+    [operationalItems],
+  );
+  const indirectListTotal = useMemo(
+    () => indirectItems.reduce((sum, item) => sum + item.amount, 0),
+    [indirectItems],
+  );
+  const pendingExpenseAmount = useMemo(
+    () =>
+      expenses
+        .filter((item) => item.status === "pending" || item.status === "documented")
+        .reduce((sum, item) => sum + item.amount, 0),
+    [expenses],
+  );
 
   const categoryEntries = useMemo(() => {
     if (expensesSummary && Object.keys(expensesSummary.byCategory).length > 0) {
-      return Object.entries(expensesSummary.byCategory) as [string, number][];
+      return Object.entries(expensesSummary.byCategory)
+        .filter(([, amount]) => amount > 0)
+        .sort((a, b) => b[1] - a[1]) as [string, number][];
     }
-    return null;
-  }, [expensesSummary]);
+    const byCategory = new Map<string, number>();
+    for (const expense of expenses) {
+      byCategory.set(
+        expense.category,
+        (byCategory.get(expense.category) ?? 0) + expense.amount,
+      );
+    }
+    return [...byCategory.entries()]
+      .filter(([, amount]) => amount > 0)
+      .sort((a, b) => b[1] - a[1]) as [string, number][];
+  }, [expenses, expensesSummary]);
 
   const showAddButtons = canCreateExpenses;
   const showExpenseSheet = canCreateExpenses || canUpdatePendingExpenses || canUpdateReturnedExpenses;
@@ -838,6 +806,7 @@ export function TripDetailCostsTab({
   const statusBanner = resolveCostsStatusBanner({
     isOperator,
     pendingExpenseCount,
+    pendingExpenseAmountLabel: formatMxCurrency(pendingExpenseAmount),
     canApproveExpenses,
     canViewApprovalsHub,
     approvalsHubPath,
@@ -868,7 +837,29 @@ export function TripDetailCostsTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-costs-layout="operate-costos">
+      <TripCostsFormulaStrip
+        income={financial.baseRate}
+        incomeHint={
+          incomeSourceLabel ?? copy.financialSummary.label.baseRate
+        }
+        operationalTotal={financial.totalOperationalCosts}
+        operationalCount={
+          isCompleted
+            ? financialSnapshot.operationalCosts.length
+            : operationalItems.length
+        }
+        indirectTotal={financial.totalIndirectExpenses}
+        indirectCount={
+          isCompleted
+            ? financialSnapshot.indirectExpenses.length
+            : indirectItems.length
+        }
+        utility={financial.margin}
+        marginPct={financial.marginPct}
+        confirmed={isCompleted}
+      />
+
       {statusBanner ? (
         <DetailAlertCard
           severity={statusBanner.severity}
@@ -878,200 +869,18 @@ export function TripDetailCostsTab({
         />
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
-          <TripBaseRateCard
-            tripId={tripId}
-            baseRate={baseRate}
-            cfdiDocumentIntent={cfdiDocumentIntent}
-            clientId={clientId}
-            expenseLines={expenseLines}
-            readOnly={baseRateReadOnly}
-            incomeSourceLabel={incomeSourceLabel}
-          />
-
-          {isSinCfdiEfectivo ? (
-            <Card id="trip-operational-cash">
-              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3">
-                <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
-                  <Banknote className="h-5 w-5 shrink-0" />
-                  {cashCopy.sectionTitle}
-                  <Badge
-                    variant={operationalCashStatusBadgeVariant(
-                      cashSummary.status,
-                    )}
-                    tone="soft"
-                    className="text-xs font-medium"
-                  >
-                    {operationalCashStatusLabel(cashSummary.status)}
-                  </Badge>
-                </CardTitle>
-                {canCreateOperationalCash ? (
-                  canRegisterAbono ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCashSheetOpen(true)}
-                    >
-                      {cashCopy.ctaRegister}
-                    </Button>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      {cashCopy.ctaDisabledCollected}
-                    </span>
-                  )
-                ) : null}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <InfoRow
-                    variant="inline"
-                    label={cashCopy.scorecardAccumulatedLabel}
-                    value={formatMxCurrency(cashSummary.collectedTotal)}
-                  />
-                  <InfoRow
-                    variant="inline"
-                    label={cashCopy.scorecardPendingLabel}
-                    value={formatMxCurrency(cashSummary.pendingAmount)}
-                  />
-                  {cashSummary.status === "pending" ? (
-                    <p className="text-sm text-muted-foreground">
-                      {cfdiEmissionIntentCopy.banner}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">
-                    {cashCopy.historyTitle}
-                  </p>
-                  {isLoadingCashReceipts ? (
-                    <Skeleton className="h-16 w-full" />
-                  ) : isCashReceiptsError ? (
-                    <DetailAlertCard
-                      severity="critical"
-                      icon={<AlertCircle className="h-4 w-4" />}
-                      title={cashCopy.historyLoadError}
-                      action={
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            void refetchCashReceipts();
-                          }}
-                        >
-                          {cashCopy.historyRetry}
-                        </Button>
-                      }
-                    />
-                  ) : sortedCashReceipts.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {cashCopy.emptyHistory}
-                    </p>
-                  ) : (
-                    <ul className="divide-y divide-border rounded-md border border-border">
-                      {sortedCashReceipts.map((receipt) => {
-                        const isVoided = receipt.voidedAt != null;
-                        const inBatch = Boolean(receipt.batchId);
-                        const instrumentLabel =
-                          OPERATIONAL_PAYMENT_INSTRUMENT_LABELS[
-                            receipt.paymentInstrument
-                          ] ?? "Efectivo";
-                        return (
-                          <li
-                            key={receipt.id}
-                            className="flex flex-wrap items-start justify-between gap-2 px-3 py-2.5"
-                          >
-                            <div className="min-w-0 space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span
-                                  className={
-                                    isVoided
-                                      ? "text-sm text-muted-foreground line-through"
-                                      : "text-sm font-medium text-foreground"
-                                  }
-                                >
-                                  {formatMxCurrency(receipt.amount)}
-                                </span>
-                                <Badge
-                                  variant={isVoided ? "neutral" : "info"}
-                                  tone="soft"
-                                  className="text-xs"
-                                >
-                                  {isVoided
-                                    ? cashCopy.receiptVoided
-                                    : cashCopy.receiptActive}
-                                </Badge>
-                                {inBatch ? (
-                                  <Badge
-                                    variant="neutral"
-                                    tone="soft"
-                                    className="text-xs"
-                                  >
-                                    {cashCopy.batchChip}
-                                  </Badge>
-                                ) : null}
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                {formatDateTime(receipt.collectedAt.toISOString())}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {cashCopy.instrumentLine(
-                                  instrumentLabel,
-                                  receipt.reference,
-                                )}
-                              </p>
-                              {receipt.note ? (
-                                <p className="text-xs text-muted-foreground">
-                                  {receipt.note}
-                                </p>
-                              ) : null}
-                              {isVoided && receipt.voidReason ? (
-                                <p className="text-xs text-muted-foreground">
-                                  {receipt.voidReason}
-                                </p>
-                              ) : null}
-                            </div>
-                            {inBatch ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  setBatchSheetId(receipt.batchId)
-                                }
-                              >
-                                {cashCopy.viewBatchCta}
-                              </Button>
-                            ) : !isVoided && canVoidOperationalCash ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive"
-                                onClick={() => setVoidReceipt(receipt)}
-                              >
-                                {cashCopy.voidCta}
-                              </Button>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-
           <Card>
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <CircleDollarSign className="h-5 w-5 shrink-0" />
-                {copy.section.operational}
-              </CardTitle>
+              <div className="min-w-0 space-y-1">
+                <CardTitle className="text-base">
+                  {copy.section.operational}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {copy.sectionDescription.operational}
+                </p>
+              </div>
               {showAddButtons ? (
                 <Button
                   type="button"
@@ -1090,6 +899,8 @@ export function TripDetailCostsTab({
                 items={operationalListItems}
                 showDetailMeta
                 readOnly={listReadOnly}
+                footerLabel={copy.footer.operational}
+                footerTotal={operationalListTotal}
                 emptyTitle={copy.state.emptyOperationalTitle}
                 emptyDescription={
                   emptyEditable
@@ -1105,11 +916,12 @@ export function TripDetailCostsTab({
           <Card>
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 pb-3">
               <div className="min-w-0 space-y-1">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Receipt className="h-5 w-5 shrink-0" />
+                <CardTitle className="text-base">
                   {copy.section.indirect}
                 </CardTitle>
-                <p className="text-xs text-muted-foreground">{copy.hint.indirectChannels}</p>
+                <p className="text-xs text-muted-foreground">
+                  {copy.hint.indirectChannels}
+                </p>
               </div>
               {showAddButtons ? (
                 <Button
@@ -1129,6 +941,8 @@ export function TripDetailCostsTab({
                 items={indirectListItems}
                 showDetailMeta
                 readOnly={listReadOnly}
+                footerLabel={copy.footer.indirect}
+                footerTotal={indirectListTotal}
                 emptyTitle={copy.state.emptyIndirectTitle}
                 emptyDescription={
                   emptyEditable
@@ -1143,37 +957,16 @@ export function TripDetailCostsTab({
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-24">
-          <TripWizardFinancialSummary
-            className="h-fit"
-            snapshot={financialSnapshot}
-            variant="totals"
-            summaryCopy={copy.financialSummary}
-            facturadoVigente={isSinCfdiEfectivo ? null : facturadoVigente}
-            cobradoViaje={isSinCfdiEfectivo ? null : cobradoViaje}
-            operationalCashAmount={
-              isSinCfdiEfectivo ? cashSummary.collectedTotal : null
-            }
-            operationalCashPendingAmount={
-              isSinCfdiEfectivo ? cashSummary.pendingAmount : null
-            }
-            showOperationalCash={isSinCfdiEfectivo}
-            title={
-              isCompleted
-                ? copy.financialSummary.section.title
-                : copy.financialSummary.section.titleEstimated
-            }
-            incomeSourceLabel={isSinCfdiEfectivo ? null : incomeSourceLabel}
-            calculationStatusHint={calculationStatusHint}
-            queuedCostsHint={queuedCostsHint}
-            marginLabel={
-              isCompleted
-                ? copy.financialSummary.label.marginConfirmed
-                : undefined
-            }
+          <TripBaseRateCard
+            tripId={tripId}
+            baseRate={baseRate}
+            cfdiDocumentIntent={cfdiDocumentIntent}
+            clientId={clientId}
+            expenseLines={expenseLines}
+            readOnly={baseRateReadOnly}
+            incomeSourceLabel={incomeSourceLabel}
           />
-          {categoryEntries ? (
-            <TripCostsCategoryBreakdown entries={categoryEntries} />
-          ) : null}
+          <TripCostsCategoryBreakdown entries={categoryEntries} />
         </div>
       </div>
 
@@ -1290,34 +1083,6 @@ export function TripDetailCostsTab({
         />
       ) : null}
 
-      {isSinCfdiEfectivo && canCreateOperationalCash ? (
-        <RegisterOperationalCashSheet
-          tripId={tripId}
-          open={cashSheetOpen}
-          onOpenChange={setCashSheetOpen}
-          pendingAmount={cashSummary.pendingAmount}
-          onOpenBatch={(id) => setBatchSheetId(id)}
-        />
-      ) : null}
-
-      {isSinCfdiEfectivo && canVoidOperationalCash ? (
-        <VoidOperationalCashReceiptSheet
-          tripId={tripId}
-          receipt={voidReceipt}
-          open={voidReceipt != null}
-          onOpenChange={(open) => {
-            if (!open) setVoidReceipt(null);
-          }}
-        />
-      ) : null}
-
-      <OperationalReceiptBatchSheet
-        batchId={batchSheetId}
-        open={Boolean(batchSheetId)}
-        onOpenChange={(open) => {
-          if (!open) setBatchSheetId(null);
-        }}
-      />
     </div>
   );
 }

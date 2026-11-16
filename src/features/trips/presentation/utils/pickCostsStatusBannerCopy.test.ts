@@ -119,7 +119,11 @@ describe("pickCostsStatusBannerCopy", () => {
     const pending = pickCostsStatusBannerCopy({
       ...staffBanners,
       pendingExpenseCount: 1,
+      pendingExpenseAmountLabel: "$100.00",
     });
     expect(pending?.body).toBe(costsCopy.alert.pendingApprovalBody);
+    expect(pending?.title).toBe(
+      costsCopy.alert.pendingApprovalTitle(1, "$100.00"),
+    );
   });
 });

@@ -195,7 +195,7 @@ function renderCostsTab(
 }
 
 function rowFor(description: string): HTMLElement {
-  const row = screen.getByText(description).closest("div.flex.items-start");
+  const row = screen.getByText(description).closest("tr");
   if (!(row instanceof HTMLElement)) throw new Error(`Fila no encontrada: ${description}`);
   return row;
 }
