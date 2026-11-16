@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { UserManagementEvent } from "../../domain";
-import { UserActivityFeed } from "./UserActivityFeed";
+import { UserActivityFeed, UserActivityFeedSkeleton } from "./UserActivityFeed";
 
 function buildEvent(overrides: Partial<UserManagementEvent> = {}): UserManagementEvent {
   return {
@@ -51,6 +51,22 @@ describe("UserActivityFeed", () => {
     ]);
 
     expect(screen.getByText("2 movimientos")).toBeInTheDocument();
+  });
+
+  it("keeps day labels in sentence-case (no CSS uppercase)", () => {
+    renderFeed([buildEvent()]);
+
+    const heading = screen.getByRole("heading", { level: 3 });
+    expect(heading.className).not.toMatch(/uppercase/);
+    expect(heading.textContent).toMatch(/^[A-ZÁÉÍÓÚÑ0-9]/u);
+    expect(heading.textContent).not.toBe(heading.textContent?.toUpperCase());
+  });
+
+  it("renders a feed-shaped skeleton with day sections", () => {
+    const { container } = render(<UserActivityFeedSkeleton rows={4} />);
+
+    expect(container.querySelectorAll("section")).toHaveLength(2);
+    expect(container.querySelector('[aria-busy="true"]')).toBeTruthy();
   });
 
   it("does not link an account that no longer exists", () => {

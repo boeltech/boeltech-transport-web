@@ -8,7 +8,7 @@ import { mapBackendError } from "@shared/utils/errorMapper";
 import { userQueryKeys } from "../../domain";
 import { usersApi } from "../../infrastructure";
 import { userActivityPageCopy } from "../copy/userActivityPageCopy";
-import { UserActivityFeed } from "./UserActivityFeed";
+import { UserActivityFeed, UserActivityFeedSkeleton } from "./UserActivityFeed";
 
 const PAGE_SIZE = 20;
 
@@ -71,8 +71,8 @@ export function UserActivitySection({
     return (
       <Card>
         {header}
-        <CardContent className="text-muted-foreground text-sm">
-          {copy.loading}
+        <CardContent>
+          <UserActivityFeedSkeleton rows={4} />
         </CardContent>
       </Card>
     );

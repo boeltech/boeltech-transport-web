@@ -22,6 +22,14 @@ import {
 } from "../helpers/userActivityCopy";
 import { groupUserActivityByDay } from "../helpers/userActivityGrouping";
 
+/**
+ * Feed/bitácora cronológica (no listado Operate).
+ *
+ * Excepción al padrón §7 `EntityListTable` / filas de grupo: la unidad de lectura
+ * es una frase narrativa por evento, agrupada por día civil como encabezado de
+ * sección. Paralelo: historial de Approvals (`ApprovalHistorySheet`).
+ */
+
 const CATEGORY_ICONS: Record<UserActivityCategory, LucideIcon> = {
   alta: UserPlus,
   rol: ShieldCheck,
@@ -83,23 +91,26 @@ function UserActivityRow({
   const Icon = CATEGORY_ICONS[description.category];
 
   return (
-    <li className="flex items-start gap-3 py-2">
-      <span className="w-20 shrink-0 pt-1 text-xs tabular-nums text-muted-foreground">
+    <li className="flex items-start gap-3 py-2.5">
+      <time
+        dateTime={event.createdAt}
+        className="w-16 shrink-0 pt-1 text-xs tabular-nums text-muted-foreground"
+      >
         {formatTime(event.createdAt)}
-      </span>
+      </time>
       <span
         className={cn(
-          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
           description.emphasis
             ? "bg-warning-soft text-warning-soft-foreground"
             : "bg-muted text-muted-foreground",
         )}
         aria-hidden="true"
       >
-        <Icon className="h-3.5 w-3.5" />
+        <Icon className="h-4 w-4" />
       </span>
-      <div className="min-w-0 space-y-0.5">
-        <p className="text-sm">
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="text-sm leading-snug">
           {description.sentence.map((segment, index) =>
             segment.kind === "person" ? (
               <PersonSegment
@@ -113,10 +124,35 @@ function UserActivityRow({
           )}
         </p>
         {description.detail ? (
-          <p className="text-xs text-muted-foreground">{description.detail}</p>
+          <p className="text-xs leading-snug text-muted-foreground">
+            {description.detail}
+          </p>
         ) : null}
       </div>
     </li>
+  );
+}
+
+function FeedDaySkeleton({ rows }: { rows: number }) {
+  return (
+    <section className="space-y-1">
+      <div className="flex items-baseline gap-2 border-b border-border pb-2">
+        <Skeleton className="h-4 w-14" />
+        <Skeleton className="h-3 w-28" />
+      </div>
+      <ul className="divide-y divide-border">
+        {Array.from({ length: rows }).map((_, index) => (
+          <li key={index} className="flex items-start gap-3 py-2.5">
+            <Skeleton className="mt-1 h-3 w-12 shrink-0" />
+            <Skeleton className="mt-0.5 h-8 w-8 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1.5 pt-1">
+              <Skeleton className="h-3.5 w-full max-w-md" />
+              <Skeleton className="h-3 w-40 max-w-full" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -132,18 +168,19 @@ export function UserActivityFeed({
   if (groups.length === 0) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {groups.map((group) => (
         <section key={group.key || "undated"} className="space-y-1">
-          <div className="flex items-baseline gap-2 border-b pb-1">
-            <h3 className="text-xs font-semibold uppercase tracking-wide">
+          <div className="flex items-baseline gap-2 border-b border-border pb-2">
+            {/* Sentence-case: sin `uppercase` CSS (P7 / D5). */}
+            <h3 className="text-sm font-medium text-foreground">
               {group.label}
             </h3>
             <span className="text-xs text-muted-foreground">
               {userActivityPageCopy.groups.count(group.events.length)}
             </span>
           </div>
-          <ul className="divide-y">
+          <ul className="divide-y divide-border">
             {group.events.map((event) => (
               <UserActivityRow
                 key={event.id}
@@ -160,18 +197,15 @@ export function UserActivityFeed({
   );
 }
 
-/** Placeholder del feed durante la primera carga. */
+/** Placeholder del feed durante la primera carga (misma forma: día + filas). */
 export function UserActivityFeedSkeleton({ rows = 6 }: { rows?: number }) {
+  const firstGroup = Math.max(2, Math.ceil(rows / 2));
+  const secondGroup = Math.max(2, rows - firstGroup);
+
   return (
-    <div className="space-y-1">
-      <Skeleton className="h-4 w-24" />
-      {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="flex items-start gap-3 py-2">
-          <Skeleton className="h-4 w-16 shrink-0" />
-          <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
-          <Skeleton className="h-4 w-full max-w-md" />
-        </div>
-      ))}
+    <div className="space-y-8" aria-busy="true" aria-hidden="true">
+      <FeedDaySkeleton rows={firstGroup} />
+      <FeedDaySkeleton rows={secondGroup} />
     </div>
   );
 }

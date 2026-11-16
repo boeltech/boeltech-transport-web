@@ -1,6 +1,9 @@
 /**
  * UserManagementActivityPage — bitácora de usuarios (`ListPageShell`).
  *
+ * Feed cronológico dentro de la card T1 del shell (toolbar fuera; pie T8).
+ * No usa `EntityListTable` ni filas de grupo §7: ver `UserActivityFeed`.
+ *
  * El periodo es la lente (riel). Tipo / persona / actor son recortes del
  * panel «Filtros (n)». No hay «Limpiar filtros» en el riel: quitar recortes
  * no escribe `period=all`.
@@ -307,13 +310,16 @@ export function UserManagementActivityPage() {
           : emptyCopy.description,
         cta: emptyCta,
       }}
-      renderTable={() =>
-        isLoading ? (
-          <UserActivityFeedSkeleton />
-        ) : (
-          <UserActivityFeed events={events} subjectNames={namesById} />
-        )
-      }
+      renderTable={() => (
+        // ListingResultsFrame es edge-to-edge (tablas); el feed necesita inset.
+        <div className="px-4 py-4 sm:px-6">
+          {isLoading ? (
+            <UserActivityFeedSkeleton />
+          ) : (
+            <UserActivityFeed events={events} subjectNames={namesById} />
+          )}
+        </div>
+      )}
     />
   );
 }
