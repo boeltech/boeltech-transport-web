@@ -1,5 +1,5 @@
-/**
- * Página «Registrar cobro por lote» (PRD D2–D4).
+﻿/**
+ * Página «Registrar cobro por lote» (PRD Conform D1–D6).
  * Reparto solo vía `@boeltech/cfdi-domain` (HB-T7).
  */
 
@@ -45,16 +45,13 @@ import {
   UnsavedChangesDialog,
   getFieldErrorAriaProps,
 } from "@shared/ui/form";
+import { FormSectionCard } from "@shared/ui/form-section-card";
 import { Input } from "@shared/ui/input";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
-import { Skeleton } from "@shared/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
 import { cn } from "@shared/lib/utils/cn";
 import {
@@ -549,6 +546,190 @@ export function OperationalReceiptBatchCreatePage() {
   const isSubmitting = createMutation.isPending;
   const hasCandidates = candidates.length > 0;
 
+  const tripColumns = useMemo((): EntityListColumnDef<OperationalReceiptBatchCandidate>[] => {
+    return [
+      {
+        id: "select",
+        header: "",
+        kind: "text",
+        className: "w-10",
+        headerClassName: "w-10",
+        accessor: (trip) => {
+          const checked = selectedIds.has(trip.tripId);
+          const disabled =
+            isSubmitting || disabledTrips.has(trip.tripId);
+          return (
+            <Checkbox
+              checked={checked}
+              disabled={disabled}
+              onCheckedChange={(v) => {
+                setSelectedIds((prev) => {
+                  const next = new Set(prev);
+                  if (v) next.add(trip.tripId);
+                  else {
+                    next.delete(trip.tripId);
+                    setAmounts((a) => ({
+                      ...a,
+                      [trip.tripId]: 0,
+                    }));
+                  }
+                  return next;
+                });
+              }}
+              aria-label={trip.tripCode}
+            />
+          );
+        },
+      },
+      {
+        id: "trip",
+        header: copy.page.columns.trip,
+        kind: "stacked",
+        accessor: (trip): EntityListStackedValue => {
+          const notEligible = disabledTrips.has(trip.tripId);
+          return {
+            primary: (
+              <>
+                <span className="font-mono">{trip.tripCode}</span>
+                {notEligible ? (
+                  <span className="mt-0.5 block text-xs font-normal text-destructive">
+                    {copy.page.notEligible}
+                  </span>
+                ) : null}
+              </>
+            ),
+            secondary: trip.scheduledDeparture
+              ? `${copy.page.columns.departure} ${formatDate(trip.scheduledDeparture)}`
+              : undefined,
+          };
+        },
+      },
+      {
+        id: "status",
+        header: copy.page.columns.status,
+        kind: "status",
+        accessor: (trip) => (
+          <TripStatusBadge status={trip.status as TripStatusType} />
+        ),
+      },
+      {
+        id: "pendingBefore",
+        header: copy.page.columns.pendingBefore,
+        kind: "money",
+        // T4: ReactNode amount-only — number iría por formatMxCurrency con `$`.
+        accessor: (trip) => formatBatchTableMoney(trip.pendingAmount),
+      },
+      {
+        id: "amount",
+        header: copy.page.columns.amount,
+        // `actions` evita el wrapper truncate de `text` sobre MoneyInput.
+        kind: "actions",
+        headerClassName: "text-right w-auto",
+        className: "w-auto min-w-[9rem] text-right",
+        accessor: (trip) => {
+          const checked = selectedIds.has(trip.tripId);
+          const lineAmt = checked ? (amounts[trip.tripId] ?? 0) : 0;
+          const disabled =
+            isSubmitting || disabledTrips.has(trip.tripId);
+          if (!checked || disabledTrips.has(trip.tripId)) {
+            return (
+              <>
+                <span className="text-xs text-muted-foreground">
+                  {copy.page.noAllocation}
+                </span>
+                {lineErrors[trip.tripId] ? (
+                  <p className="mt-0.5 text-xs text-destructive">
+                    {lineErrors[trip.tripId]}
+                  </p>
+                ) : null}
+              </>
+            );
+          }
+          return (
+            <>
+              <MoneyInput
+                className="ml-auto max-w-[8rem]"
+                value={lineAmt || undefined}
+                aria-label={`Abono al viaje ${trip.tripCode}`}
+                disabled={disabled}
+                error={Boolean(lineErrors[trip.tripId])}
+                onValueChange={(v) => {
+                  setEdited(true);
+                  setAmounts((prev) => ({
+                    ...prev,
+                    [trip.tripId]: (v as number) || 0,
+                  }));
+                  setLineErrors((prev) => {
+                    const next = { ...prev };
+                    delete next[trip.tripId];
+                    return next;
+                  });
+                }}
+              />
+              {lineErrors[trip.tripId] ? (
+                <p className="mt-0.5 text-xs text-destructive">
+                  {lineErrors[trip.tripId]}
+                </p>
+              ) : null}
+            </>
+          );
+        },
+      },
+      {
+        id: "pendingAfter",
+        header: copy.page.columns.pendingAfter,
+        kind: "money",
+        accessor: (trip) => {
+          const checked = selectedIds.has(trip.tripId);
+          const lineAmt = checked ? (amounts[trip.tripId] ?? 0) : 0;
+          return formatBatchTableMoney(
+            Math.max(0, trip.pendingAmount - lineAmt),
+          );
+        },
+      },
+    ];
+  }, [
+    amounts,
+    disabledTrips,
+    isSubmitting,
+    lineErrors,
+    selectedIds,
+  ]);
+
+  const tripsFooter = (
+    <div
+      className={cn(
+        "flex flex-wrap gap-4 text-sm text-foreground",
+        showUnallocatedWarning && "text-warning-foreground",
+      )}
+    >
+      <span>
+        {copy.page.footer.selectedPending}:{" "}
+        <strong className="font-mono tabular-nums">
+          {formatBatchTableMoney(selectedPending)}
+        </strong>
+      </span>
+      <span>
+        {copy.page.footer.allocated}:{" "}
+        <strong className="font-mono tabular-nums">
+          {formatBatchTableMoney(allocatedTotal)}
+        </strong>
+      </span>
+      {hasPaymentAmount ? (
+        <span>
+          {copy.page.footer.unallocated}:{" "}
+          <strong className="font-mono tabular-nums">
+            {formatBatchTableMoney(unallocated)}
+          </strong>
+        </span>
+      ) : (
+        <span className="text-muted-foreground">
+          {copy.page.footer.unallocatedIdle}
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <>
       <FormPageShell
@@ -576,10 +757,7 @@ export function OperationalReceiptBatchCreatePage() {
           onSubmit={onSubmit}
           noValidate
         >
-          <section className="space-y-4" aria-labelledby="zone-payment">
-            <h2 id="zone-payment" className="text-base font-semibold">
-              {copy.page.zonePayment}
-            </h2>
+          <FormSectionCard title={copy.page.zonePayment}>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormFieldShell
                 fieldId="batch-amount"
@@ -662,7 +840,7 @@ export function OperationalReceiptBatchCreatePage() {
                 />
               </div>
             </div>
-          </section>
+          </FormSectionCard>
 
           <section className="space-y-3" aria-labelledby="zone-trips">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -699,11 +877,15 @@ export function OperationalReceiptBatchCreatePage() {
             ) : null}
 
             {candidatesQuery.isLoading ? (
-              <div className="space-y-2" aria-busy="true">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
-              </div>
+              <EntityListTable
+                framed
+                density="list"
+                aria-label={copy.page.zoneTrips}
+                columns={tripColumns}
+                rows={[]}
+                getRowId={(row) => row.tripId}
+                isLoading
+              />
             ) : candidatesQuery.isError ? (
               <DetailAlertCard
                 severity="critical"
@@ -772,159 +954,23 @@ export function OperationalReceiptBatchCreatePage() {
                   </span>
                 </div>
 
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10" />
-                        <TableHead>{copy.page.columns.trip}</TableHead>
-                        <TableHead>{copy.page.columns.departure}</TableHead>
-                        <TableHead>{copy.page.columns.status}</TableHead>
-                        <TableHead className="text-right">
-                          {copy.page.columns.pendingBefore}
-                        </TableHead>
-                        <TableHead className="text-right">
-                          {copy.page.columns.amount}
-                        </TableHead>
-                        <TableHead className="text-right">
-                          {copy.page.columns.pendingAfter}
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((trip) => {
-                        const checked = selectedIds.has(trip.tripId);
-                        const lineAmt = checked
-                          ? (amounts[trip.tripId] ?? 0)
-                          : 0;
-                        const after = Math.max(0, trip.pendingAmount - lineAmt);
-                        const disabled =
-                          isSubmitting || disabledTrips.has(trip.tripId);
-                        const muted = !checked || lineAmt <= MXN_EPS;
-                        return (
-                          <TableRow
-                            key={trip.tripId}
-                            className={cn(muted && "opacity-60")}
-                          >
-                            <TableCell>
-                              <Checkbox
-                                checked={checked}
-                                disabled={disabled}
-                                onCheckedChange={(v) => {
-                                  setSelectedIds((prev) => {
-                                    const next = new Set(prev);
-                                    if (v) next.add(trip.tripId);
-                                    else {
-                                      next.delete(trip.tripId);
-                                      setAmounts((a) => ({
-                                        ...a,
-                                        [trip.tripId]: 0,
-                                      }));
-                                    }
-                                    return next;
-                                  });
-                                }}
-                                aria-label={trip.tripCode}
-                              />
-                            </TableCell>
-                            <TableCell className="font-mono font-medium">
-                              {trip.tripCode}
-                              {disabledTrips.has(trip.tripId) ? (
-                                <span className="mt-0.5 block text-xs text-destructive">
-                                  {copy.page.notEligible}
-                                </span>
-                              ) : null}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {trip.scheduledDeparture
-                                ? formatDate(trip.scheduledDeparture)
-                                : "—"}
-                            </TableCell>
-                            <TableCell>
-                              <TripStatusBadge
-                                status={trip.status as TripStatusType}
-                              />
-                            </TableCell>
-                            <TableCell className="text-right font-mono tabular-nums">
-                              {formatBatchTableMoney(trip.pendingAmount)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {checked && !disabledTrips.has(trip.tripId) ? (
-                                <MoneyInput
-                                  className="ml-auto max-w-[8rem]"
-                                  value={lineAmt || undefined}
-                                  aria-label={`Abono al viaje ${trip.tripCode}`}
-                                  disabled={disabled}
-                                  error={Boolean(lineErrors[trip.tripId])}
-                                  onValueChange={(v) => {
-                                    setEdited(true);
-                                    setAmounts((prev) => ({
-                                      ...prev,
-                                      [trip.tripId]: (v as number) || 0,
-                                    }));
-                                    setLineErrors((prev) => {
-                                      const next = { ...prev };
-                                      delete next[trip.tripId];
-                                      return next;
-                                    });
-                                  }}
-                                />
-                              ) : (
-                                <span className="text-xs text-muted-foreground">
-                                  {copy.page.noAllocation}
-                                </span>
-                              )}
-                              {lineErrors[trip.tripId] ? (
-                                <p className="mt-0.5 text-xs text-destructive">
-                                  {lineErrors[trip.tripId]}
-                                </p>
-                              ) : null}
-                            </TableCell>
-                            <TableCell className="text-right font-mono tabular-nums">
-                              {formatBatchTableMoney(after)}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div
-                  className={cn(
-                    "sticky bottom-16 z-10 flex flex-wrap gap-4 rounded-md border bg-card px-3 py-2 text-sm shadow-sm",
-                    showUnallocatedWarning && "border-warning",
-                  )}
-                >
-                  <span>
-                    {copy.page.footer.selectedPending}:{" "}
-                    <strong className="font-mono tabular-nums">
-                      {formatBatchTableMoney(selectedPending)}
-                    </strong>
-                  </span>
-                  <span>
-                    {copy.page.footer.allocated}:{" "}
-                    <strong className="font-mono tabular-nums">
-                      {formatBatchTableMoney(allocatedTotal)}
-                    </strong>
-                  </span>
-                  {hasPaymentAmount ? (
-                    <span
-                      className={cn(
-                        showUnallocatedWarning && "text-warning-foreground",
-                      )}
-                    >
-                      {copy.page.footer.unallocated}:{" "}
-                      <strong className="font-mono tabular-nums">
-                        {formatBatchTableMoney(unallocated)}
-                      </strong>
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      {copy.page.footer.unallocatedIdle}
-                    </span>
-                  )}
-                </div>
+                <EntityListTable
+                  framed
+                  density="list"
+                  aria-label={copy.page.zoneTrips}
+                  columns={tripColumns}
+                  rows={filtered}
+                  getRowId={(row) => row.tripId}
+                  getRowClassName={(trip) => {
+                    const checked = selectedIds.has(trip.tripId);
+                    const lineAmt = checked
+                      ? (amounts[trip.tripId] ?? 0)
+                      : 0;
+                    const muted = !checked || lineAmt <= MXN_EPS;
+                    return muted ? "opacity-60" : undefined;
+                  }}
+                  footer={tripsFooter}
+                />
               </>
             )}
           </section>

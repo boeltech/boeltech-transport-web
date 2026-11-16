@@ -25,7 +25,8 @@ export const operationalReceiptBatchCopy = {
       trip: "Viaje",
       departure: "Salida",
       status: "Estado",
-      pendingBefore: "Saldo antes (MXN)",
+      /** T4: unidad en header; celdas amount-only sin `$`. */
+      pendingBefore: "Saldo (MXN)",
       amount: "Abono (MXN)",
       pendingAfter: "Saldo después (MXN)",
     },

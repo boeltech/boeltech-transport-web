@@ -262,8 +262,10 @@ describe("OperationalReceiptBatchCreatePage", () => {
     expect(
       await screen.findByRole("heading", { name: copy.page.title }),
     ).toBeInTheDocument();
-    // Skeletons de la zona de viajes (query aún loading).
-    expect(document.querySelector('[aria-busy="true"]')).toBeTruthy();
+    // Skeleton framed de EntityListTable (query aún loading).
+    expect(
+      screen.getByRole("table", { name: copy.page.zoneTrips }),
+    ).toBeInTheDocument();
   });
 
   it("tras load con candidatos, monto vacío no entra en loop de setAmounts", async () => {
@@ -295,6 +297,44 @@ describe("OperationalReceiptBatchCreatePage", () => {
     expect(screen.queryByText(/Por repartir/i)).not.toBeInTheDocument();
     expect(copy.page.notePlaceholder).not.toMatch(/excedente/i);
     expect(copy.page.disclaimer).toMatch(/\(REP\)/);
+  });
+
+  it("D1–D5: EntityListTable framed, columnas T4 amount-only, FormSectionCard pago", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: copy.page.title });
+
+    expect(
+      screen.getByRole("heading", { name: copy.page.zonePayment }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: copy.page.zoneTrips }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("table", { name: copy.page.zoneTrips }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("columnheader", { name: copy.page.columns.pendingBefore }),
+    ).toHaveTextContent("Saldo (MXN)");
+    expect(
+      screen.getByRole("columnheader", { name: copy.page.columns.amount }),
+    ).toHaveTextContent("Abono (MXN)");
+    expect(
+      screen.getByRole("columnheader", {
+        name: copy.page.columns.pendingAfter,
+      }),
+    ).toHaveTextContent("Saldo después (MXN)");
+    expect(
+      screen.queryByRole("columnheader", { name: /^Salida$/ }),
+    ).not.toBeInTheDocument();
+
+    // Celdas Saldo / Saldo después: amount-only (sin `$` ni sufijo MXN).
+    const saldoCells = screen.getAllByText("8,000.00");
+    expect(saldoCells.length).toBeGreaterThanOrEqual(1);
+    for (const cell of saldoCells) {
+      expect(cell.textContent).not.toMatch(/\$|MXN/);
+    }
+    expect(screen.queryByText(/\$8,?000/)).not.toBeInTheDocument();
   });
 
   it("con monto y abonos: CTA con monto×N y Por repartir en cero", async () => {
