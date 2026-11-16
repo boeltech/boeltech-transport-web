@@ -15,7 +15,6 @@ import {
   TripLiquidacionChip,
   type TripLiquidacionGovernance,
 } from "@features/trips/presentation/components/TripLiquidacionChip";
-import { TripDetailCostsTab } from "@features/trips/presentation/components/trip-costs/TripDetailCostsTab";
 import { buildTripLiquidacionGovernance } from "@features/trips/presentation/utils/sinCfdiGovernance";
 import { FiscalPolicySettingsPage } from "@features/settings/presentation/pages/FiscalPolicySettingsPage";
 import { ApprovalRowSinCfdiException } from "@features/approvals/presentation/components/ApprovalRowSinCfdiException";
@@ -332,44 +331,12 @@ describe("gobierno Sin factura", () => {
     ).toBeInTheDocument();
   });
 
-  it("el despachador registra abono y no ve Anular", async () => {
-    smokeState.role = "dispatcher";
-    render(
-      <Providers>
-        <TripDetailCostsTab
-          tripId="trip-1"
-          tripStatus={TripStatus.COMPLETED}
-          baseRate={1000}
-          cfdiDocumentIntent="ingreso"
-          cfdiEmissionIntent="sin_cfdi_efectivo"
-          operationalCashCollectedAt={null}
-          operationalCashAmount={null}
-          operationalCash={{
-            status: "partial",
-            collectedTotal: 500,
-            pendingAmount: 500,
-            baseRate: 1000,
-            receiptCount: 1,
-          }}
-          stops={[]}
-          expenses={[]}
-          isLoading={false}
-          isError={false}
-          onRetry={() => undefined}
-          canEditBaseRate={false}
-          canCreateExpenses={false}
-          canUpdatePendingExpenses={false}
-          canDeletePendingExpenses={false}
-          canApproveExpenses={false}
-        />
-      </Providers>,
+  it("Q11: header copy Registrar cobro; cobro ya no vive en Costos", () => {
+    expect(cfdiEmissionIntentCopy.cash.ctaRegister).toBe("Registrar cobro");
+    expect(cfdiEmissionIntentCopy.cash.historyTitle).toBe(
+      "Cobros de este viaje",
     );
-    expect(
-      await screen.findByRole("button", { name: "Registrar abono" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Anular" }),
-    ).not.toBeInTheDocument();
-    smokeState.role = "admin";
+    expect(cfdiEmissionIntentCopy.banner).toMatch(/tab Cobro/);
+    expect(cfdiEmissionIntentCopy.banner).not.toMatch(/Costos/);
   });
 });

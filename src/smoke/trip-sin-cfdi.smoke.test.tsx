@@ -1,19 +1,17 @@
 /**
- * Smoke ADR-0096 — viaje liquidado sin CFDI (efectivo) + ledger de abonos.
+ * Smoke ADR-0096 — viaje liquidado sin CFDI + ledger de cobros (F5 / Q11).
  * Mock de API; no requiere backend.
  *
  * Flujo UI: intent sin_cfdi → oculta CTAs Facturar/false_trip/split →
- * Costos muestra Pendiente / parcial / cobrado → Registrar abono / void →
- * scorecard «Efectivo acumulado» + «Por cobrar» (no «Cobrado del viaje»).
- *
- * Gap F5: collected+CTA off · void Anulado · emitir_cfdi sin card · RO sin trips.update.
+ * tab Cobro (no Costos) con «Cobros de este viaje» → Registrar cobro (header/sheet) / Anular sin batch.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Button } from "@shared/ui/button";
 
 import {
   TripStatus,
@@ -28,10 +26,12 @@ import { buildTripWizardFinancialSnapshot } from "@features/trips/presentation/c
 import { tripDetailCopy } from "@features/trips/presentation/copy";
 import { tripFiscalCopy } from "@features/trips/presentation/copy/tripFiscalCopy";
 import { cfdiEmissionIntentCopy } from "@features/trips/presentation/copy/cfdiEmissionIntentCopy";
-import { TripDetailCostsTab } from "@features/trips/presentation/components/trip-costs/TripDetailCostsTab";
-import type { TripDetailCostsTabProps } from "@features/trips/presentation/components/trip-costs/TripDetailCostsTab";
+import { TripDetailBillingTab } from "@features/trips/presentation/components/trip-billing/TripDetailBillingTab";
+import { RegisterOperationalCashSheet } from "@features/trips/presentation/components/trip-costs/RegisterOperationalCashSheet";
+import { billingCopy } from "@features/trips/presentation/copy/tripDetail/billingCopy";
 
 const cashCopy = cfdiEmissionIntentCopy.cash;
+const sinCfdiCopy = billingCopy.sinCfdi;
 
 const {
   mockNavigate,
@@ -82,6 +82,19 @@ vi.mock("@features/vehicles/application", () => ({
   useVehicle: () => ({ data: undefined, isLoading: false }),
 }));
 
+vi.mock("@features/trips/presentation/components/trip-fleet-snapshot", () => ({
+  TripFleetSnapshotCard: () => null,
+}));
+
+vi.mock("@features/finance/presentation/components", () => ({
+  OperationalReceiptBatchSheet: () => null,
+}));
+
+vi.mock("@features/invoicing/application", () => ({
+  useInvoice: () => ({ data: undefined }),
+  buildInvoiceCreateHref: () => "/invoices/new",
+}));
+
 vi.mock("@features/approvals", async () => ({
   ...(await import("@features/approvals/testing/selfApprovalTestModule")),
   SelfApprovalConfirmDialog: () => null,
@@ -110,6 +123,9 @@ function makeReceipt(
     amount: 10000,
     collectedAt: new Date("2026-10-04T12:00:00.000Z"),
     note: null,
+    paymentInstrument: "cash",
+    reference: null,
+    batchId: null,
     createdBy: "u1",
     createdAt: new Date("2026-10-04T12:00:00.000Z"),
     voidedAt: null,
@@ -157,42 +173,63 @@ function TestProviders({ children }: { children: ReactNode }) {
   );
 }
 
-function renderCostsTab(
-  overrides: Partial<TripDetailCostsTabProps> & {
-    operationalCash: OperationalCashSummary;
-  },
-) {
-  const { operationalCash, ...rest } = overrides;
+function CobroHarness({
+  trip,
+  pendingAmount,
+  withRegisterCta = false,
+}: {
+  trip: Trip;
+  pendingAmount: number;
+  withRegisterCta?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      {withRegisterCta ? (
+        <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+          {cashCopy.ctaRegister}
+        </Button>
+      ) : null}
+      <TripDetailBillingTab trip={trip} canSubstituteInvoice={false} />
+      {withRegisterCta ? (
+        <RegisterOperationalCashSheet
+          tripId={TRIP_ID}
+          open={open}
+          onOpenChange={setOpen}
+          pendingAmount={pendingAmount}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function renderCobroTab(args: {
+  operationalCash: OperationalCashSummary;
+  withRegisterCta?: boolean;
+  tripOverrides?: Partial<Trip>;
+}) {
+  const { operationalCash, withRegisterCta = false, tripOverrides } = args;
+  const trip = makeSinCfdiTrip({
+    costs: {
+      baseRate: operationalCash.baseRate,
+      fuelCost: 0,
+      tollCost: 0,
+      otherCosts: 0,
+      totalCost: 0,
+    },
+    operationalCash,
+    operationalCashAmount:
+      operationalCash.collectedTotal > 0
+        ? operationalCash.collectedTotal
+        : null,
+    ...tripOverrides,
+  });
   return render(
     <TestProviders>
-      <TripDetailCostsTab
-        tripId={TRIP_ID}
-        tripStatus={TripStatus.COMPLETED}
-        baseRate={operationalCash.baseRate}
-        cfdiDocumentIntent="ingreso"
-        cfdiEmissionIntent="sin_cfdi_efectivo"
-        operationalCashCollectedAt={
-          operationalCash.collectedTotal > 0
-            ? new Date("2026-10-04T12:00:00.000Z")
-            : null
-        }
-        operationalCashAmount={
-          operationalCash.collectedTotal > 0
-            ? operationalCash.collectedTotal
-            : null
-        }
-        operationalCash={operationalCash}
-        stops={[]}
-        expenses={[]}
-        isLoading={false}
-        isError={false}
-        onRetry={() => undefined}
-        canEditBaseRate={false}
-        canCreateExpenses={false}
-        canUpdatePendingExpenses={false}
-        canDeletePendingExpenses={false}
-        canApproveExpenses={false}
-        {...rest}
+      <CobroHarness
+        trip={trip}
+        pendingAmount={operationalCash.pendingAmount}
+        withRegisterCta={withRegisterCta}
       />
     </TestProviders>,
   );
@@ -246,10 +283,10 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("en Costos muestra Pendiente y registra abono (POST ledger)", async () => {
+  it("tab Cobro: Tarifa/Por cobrar y registra cobro (POST ledger)", async () => {
     const user = userEvent.setup();
-    renderCostsTab({
-      baseRate: 8500,
+    renderCobroTab({
+      withRegisterCta: true,
       operationalCash: {
         status: "pending",
         collectedTotal: 0,
@@ -259,16 +296,10 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
       },
     });
 
-    expect(screen.getByText(cashCopy.statusPending)).toBeInTheDocument();
-    expect(
-      screen.queryByText(tripDetailCopy.costs.financialSummary.label.cobradoViaje!),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getAllByText(cashCopy.scorecardAccumulatedLabel).length,
-    ).toBeGreaterThanOrEqual(2);
-    expect(
-      screen.getAllByText(cashCopy.scorecardPendingLabel).length,
-    ).toBeGreaterThanOrEqual(2);
+    expect(screen.getByTestId("trip-billing-sin-cfdi-cobro")).toBeInTheDocument();
+    expect(screen.getByText(sinCfdiCopy.tableTitle)).toBeInTheDocument();
+    expect(screen.getByText(sinCfdiCopy.tarifa)).toBeInTheDocument();
+    expect(screen.getByText(sinCfdiCopy.porCobrar)).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: cashCopy.ctaRegister }),
@@ -277,6 +308,9 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
     const sheet = screen.getByRole("dialog");
     expect(
       within(sheet).getByRole("heading", { name: cashCopy.sheet.title }),
+    ).toBeInTheDocument();
+    expect(
+      within(sheet).getByText(cashCopy.sheet.paymentInstrument),
     ).toBeInTheDocument();
 
     const submit = sheet.querySelector<HTMLButtonElement>(
@@ -332,10 +366,10 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("parcial: badge Cobro parcial y CTA Registrar abono visible", async () => {
+  it("parcial: Cobrado parcial y tabla Cobros de este viaje", async () => {
     mockListOperationalCashReceipts.mockResolvedValue([makeReceipt()]);
 
-    renderCostsTab({
+    renderCobroTab({
       operationalCash: {
         status: "partial",
         collectedTotal: 10000,
@@ -345,18 +379,19 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
       },
     });
 
+    expect(await screen.findByText(sinCfdiCopy.tableTitle)).toBeInTheDocument();
+    expect(screen.getByText(sinCfdiCopy.cobrado)).toBeInTheDocument();
+    expect(screen.getByText(/\$10[,.]000/)).toBeInTheDocument();
     expect(
-      await screen.findByText(cashCopy.statusPartial),
+      await screen.findByText(sinCfdiCopy.statusActive),
     ).toBeInTheDocument();
+    // Q11: CTA Registrar cobro vive en header, no en el panel.
     expect(
-      screen.getByRole("button", { name: cashCopy.ctaRegister }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getAllByText(cashCopy.scorecardPendingLabel).length,
-    ).toBeGreaterThanOrEqual(2);
+      screen.queryByRole("button", { name: cashCopy.ctaRegister }),
+    ).not.toBeInTheDocument();
   });
 
-  it("collected: badge Cobrado y CTA registrar off con razón observable", async () => {
+  it("collected: por cobrar 0 y sin Anular en filas", async () => {
     mockListOperationalCashReceipts.mockResolvedValue([
       makeReceipt({ id: "r1", amount: 10000 }),
       makeReceipt({
@@ -367,7 +402,7 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
       }),
     ]);
 
-    renderCostsTab({
+    renderCobroTab({
       operationalCash: {
         status: "collected",
         collectedTotal: BASE_RATE,
@@ -377,21 +412,19 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
       },
     });
 
-    expect(
-      await screen.findByText(cashCopy.statusCollected),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(sinCfdiCopy.porCobrar)).toBeInTheDocument();
+    expect(screen.getByText(/\$0[,.]00/)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: cashCopy.ctaRegister }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(cashCopy.ctaDisabledCollected)).toBeInTheDocument();
   });
 
-  it("void: sheet anula abono con motivo (POST void)", async () => {
+  it("void: Anular sin batchId abre sheet (POST void)", async () => {
     const user = userEvent.setup();
     const active = makeReceipt();
     mockListOperationalCashReceipts.mockResolvedValue([active]);
 
-    renderCostsTab({
+    renderCobroTab({
       operationalCash: {
         status: "partial",
         collectedTotal: 10000,
@@ -401,7 +434,6 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
       },
     });
 
-    expect(await screen.findByText(cashCopy.statusPartial)).toBeInTheDocument();
     await user.click(
       await screen.findByRole("button", { name: cashCopy.voidCta }),
     );
@@ -433,71 +465,75 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
     );
   });
 
-  it("post-void: historial Anulado, por cobrar vuelve y CTA Registrar visible", async () => {
+  it("post-void: fila Anulado sin acción; batch usa Ver cobro", async () => {
     mockListOperationalCashReceipts.mockResolvedValue([
       makeReceipt({
         voidedAt: new Date("2026-10-04T13:00:00.000Z"),
         voidedBy: "u1",
         voidReason: "Error de captura",
       }),
+      makeReceipt({
+        id: "r-batch",
+        amount: 6000,
+        batchId: "batch-1",
+        collectedAt: new Date("2026-10-04T14:00:00.000Z"),
+      }),
     ]);
 
-    renderCostsTab({
-      operationalCashCollectedAt: null,
-      operationalCashAmount: null,
+    renderCobroTab({
       operationalCash: {
-        status: "pending",
-        collectedTotal: 0,
-        pendingAmount: BASE_RATE,
+        status: "partial",
+        collectedTotal: 6000,
+        pendingAmount: BASE_RATE - 6000,
         baseRate: BASE_RATE,
-        receiptCount: 0,
+        receiptCount: 1,
       },
     });
 
-    expect(await screen.findByText(cashCopy.receiptVoided)).toBeInTheDocument();
-    expect(screen.getByText(cashCopy.statusPending)).toBeInTheDocument();
+    expect(await screen.findByText(sinCfdiCopy.statusVoided)).toBeInTheDocument();
+    expect(screen.getByText(sinCfdiCopy.batchPartOfMulti)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: cashCopy.ctaRegister }),
+      screen.getByRole("button", { name: sinCfdiCopy.viewCobro }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText(cashCopy.ctaDisabledCollected),
-    ).not.toBeInTheDocument();
-    // Sin abonos activos no hay CTA Anular en filas voided.
     expect(
       screen.queryByRole("button", { name: cashCopy.voidCta }),
     ).not.toBeInTheDocument();
   });
 
-  it("emitir_cfdi: no muestra card Cobro en efectivo", () => {
-    renderCostsTab({
-      cfdiEmissionIntent: "emitir_cfdi",
-      operationalCash: {
-        status: "pending",
-        collectedTotal: 0,
-        pendingAmount: BASE_RATE,
-        baseRate: BASE_RATE,
-        receiptCount: 0,
-      },
-    });
+  it("emitir_cfdi: hogar Facturación (no panel Cobro sin factura)", () => {
+    render(
+      <TestProviders>
+        <TripDetailBillingTab
+          trip={makeSinCfdiTrip({
+            cfdiEmissionIntent: "emitir_cfdi",
+            invoicing: tripInvoicingFixture({
+              invoiceId: "inv-1",
+              invoiceFolio: "F-1",
+              invoiceStatus: "stamped",
+              hasActiveInvoice: true,
+              hasActivePrimaryInvoice: true,
+              hasActivePrincipalInvoice: true,
+            }),
+          })}
+          canSubstituteInvoice={false}
+        />
+      </TestProviders>,
+    );
 
-    expect(screen.queryByText(cashCopy.sectionTitle)).not.toBeInTheDocument();
+    expect(screen.getByTestId("trip-billing-tab")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: cashCopy.ctaRegister }),
+      screen.queryByTestId("trip-billing-sin-cfdi-cobro"),
     ).not.toBeInTheDocument();
-    expect(mockListOperationalCashReceipts).not.toHaveBeenCalled();
   });
 
-  it("sin operational_cash create/void: sin CTAs Registrar ni Anular", async () => {
+  it("sin operational_cash void: sin Anular en fila", async () => {
     mockHasPermission.mockImplementation(
       (module: string, action: string) =>
-        !(
-          module === "operational_cash" &&
-          (action === "create" || action === "void")
-        ),
+        !(module === "operational_cash" && action === "void"),
     );
     mockListOperationalCashReceipts.mockResolvedValue([makeReceipt()]);
 
-    renderCostsTab({
+    renderCobroTab({
       operationalCash: {
         status: "partial",
         collectedTotal: 10000,
@@ -507,18 +543,9 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
       },
     });
 
-    expect(
-      await screen.findByText(cashCopy.statusPartial),
-    ).toBeInTheDocument();
-    expect(screen.getByText(cashCopy.sectionTitle)).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: cashCopy.ctaRegister }),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByText(sinCfdiCopy.tableTitle)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: cashCopy.voidCta }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(cashCopy.ctaDisabledCollected),
     ).not.toBeInTheDocument();
   });
 

@@ -4,10 +4,12 @@
 export const historyCopy = {
   section: {
     statusHistory: "Historial de estados",
+    activity: "Actividad",
   },
   action: {
     expand: "Ver historial de estados",
     collapse: "Ocultar historial",
+    viewAll: "Ver toda la actividad",
   },
   state: {
     empty: "No hay historial de cambios disponible.",
@@ -19,5 +21,10 @@ export const historyCopy = {
   format: {
     mileageLine: (formattedMileage: string) =>
       `Kilometraje: ${formattedMileage}`,
+    passedTo: (statusLabel: string) => `Pasó a ${statusLabel}`,
+    createdAs: (statusLabel: string) =>
+      statusLabel === "Reserva" || statusLabel === "Borrador"
+        ? "Reserva creada"
+        : statusLabel,
   },
 } as const;

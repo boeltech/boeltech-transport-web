@@ -40,22 +40,28 @@ describe("cfdiEmissionIntentCopy — Factura del viaje (D3′)", () => {
     expect(blob).not.toMatch(/\bREP\b/);
   });
 
-  it("D7=A: cashFreeze title + hint sin CTA ni «congelado» / efectivo canal", () => {
+  it("Q11: cashFreeze apunta a tab Cobro / Ver cobro (no Costos ni lote)", () => {
     const g = cfdiEmissionIntentCopy.governance;
-    expect(g.cashFreeze).toBe(
-      "No se puede pasar a Con factura mientras haya abonos activos.",
-    );
-    expect(g.cashFreezeHint).toBe(
-      "En Costos, en Cobro sin factura, usa Anular en cada abono activo del Historial de abonos.",
-    );
-    expect(g.cashFreezeHint).toMatch(/Costos/);
-    expect(g.cashFreezeHint).toMatch(/Cobro sin factura/);
-    expect(g.cashFreezeHint).toMatch(/Anular/);
-    expect(g.cashFreezeHint).toMatch(/Historial de abonos/);
+    expect(g.cashFreeze).toMatch(/cobros activos/i);
+    expect(g.cashFreeze).toMatch(/Ver cobro/);
+    expect(g.cashFreezeHint).toMatch(/tab Cobro/);
+    expect(g.cashFreezeHint).toMatch(/Ver cobro|Anular/);
+    expect(g.cashFreezeHint).not.toMatch(/Costos/);
+    expect(g.cashFreezeHint).not.toMatch(/Historial de abonos/);
     const freezeBlob = `${g.cashFreeze}\n${g.cashFreezeHint}`;
     expect(freezeBlob).not.toMatch(/congelado/i);
     expect(freezeBlob).not.toMatch(/\befectivo\b/i);
     expect(freezeBlob).not.toMatch(/Cobro en efectivo/i);
+  });
+
+  it("Q11: sheet y CTA usan Registrar cobro / Forma de pago", () => {
+    const cash = cfdiEmissionIntentCopy.cash;
+    expect(cash.ctaRegister).toBe("Registrar cobro");
+    expect(cash.sheet.title).toBe("Registrar cobro");
+    expect(cash.sheet.submit).toBe("Registrar cobro");
+    expect(cash.sheet.paymentInstrument).toBe("Forma de pago");
+    expect(cash.historyTitle).toBe("Cobros de este viaje");
+    expect(cash.viewBatchCta).toBe("Ver cobro");
   });
 
   it("Sheet Historial: título sentence-case; description ≠ empties", () => {

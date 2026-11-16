@@ -20,6 +20,7 @@ export {
   routeCopy,
   cargoCopy,
   costsCopy,
+  billingCopy,
   historyCopy,
   shellCopy,
 } from "./tripDetail";

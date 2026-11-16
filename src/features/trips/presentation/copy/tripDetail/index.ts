@@ -1,3 +1,4 @@
+import { billingCopy } from "./billingCopy";
 import { cargoCopy } from "./cargoCopy";
 import { costsCopy } from "./costsCopy";
 import { fleetSnapshotCopy } from "./fleetSnapshotCopy";
@@ -22,11 +23,13 @@ export const tripDetailCopy = {
   progress: progressCopy,
   cargo: cargoCopy,
   costs: costsCopy,
+  billing: billingCopy,
   history: historyCopy,
   shell: shellCopy,
 } as const;
 
 export {
+  billingCopy,
   cargoCopy,
   costsCopy,
   fleetSnapshotCopy,

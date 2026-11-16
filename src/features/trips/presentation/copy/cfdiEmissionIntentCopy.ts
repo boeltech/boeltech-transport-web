@@ -33,7 +33,7 @@ export const cfdiEmissionIntentCopy = {
     goToClient: "Completar datos del cliente",
   },
   banner:
-    "Este viaje no se factura. Registra el cobro en Costos.",
+    "Este viaje no se factura. Registra el cobro en el tab Cobro.",
   /** Tooltip opcional si quedara un CTA fiscal deshabilitado. */
   fiscalCtaDisabledTooltip: "Este viaje es Sin factura",
   /**
@@ -60,26 +60,30 @@ export const cfdiEmissionIntentCopy = {
     scorecardLabel: "Cobrado",
     scorecardAccumulatedLabel: "Cobrado",
     scorecardPendingLabel: "Por cobrar",
-    ctaRegister: "Registrar abono",
+    /** Q11: CTA unificado con header. */
+    ctaRegister: "Registrar cobro",
     ctaDisabledCollected: "El cobro ya cubre la tarifa",
-    emptyHistory: "Aún no hay abonos registrados.",
-    historyLoadError: "No se pudo cargar el historial de abonos.",
+    emptyHistory: "Aún no hay cobros registrados.",
+    historyLoadError: "No se pudo cargar los cobros de este viaje.",
     historyRetry: "Reintentar",
-    historyTitle: "Historial de abonos",
+    /** Q11: tabla «Cobros de este viaje». */
+    historyTitle: "Cobros de este viaje",
     receiptVoided: "Anulado",
     receiptActive: "Activo",
     voidCta: "Anular",
+    /** @deprecated Q11: sin chip Lote; usar Ver cobro. */
     batchChip: "Lote",
-    viewBatchCta: "Ver lote",
+    /** Q11: abre detalle/lote del cobro. */
+    viewBatchCta: "Ver cobro",
     instrumentLine: (instrument: string, reference: string | null) =>
       reference ? `${instrument} · ref ${reference}` : instrument,
     pendingHint: (amountLabel: string) => `Por cobrar: ${amountLabel}`,
     sheet: {
-      title: "Registrar abono",
+      title: "Registrar cobro",
       description:
-        "Registra un abono del flete Sin factura. No genera factura ni afecta Cobrado del viaje con factura.",
+        "Registra un cobro del flete Sin factura. No genera factura ni afecta Cobrado del viaje con factura.",
       amount: "Monto del abono (MXN)",
-      paymentInstrument: "Instrumento",
+      paymentInstrument: "Forma de pago",
       reference: "Referencia",
       referencePlaceholder: {
         cash: "Opcional",
@@ -90,7 +94,7 @@ export const cfdiEmissionIntentCopy = {
       collectedAt: "Fecha y hora del cobro",
       note: "Nota (opcional)",
       notePlaceholder: "Referencia interna, folio de caja…",
-      submit: "Registrar abono",
+      submit: "Registrar cobro",
       submitting: "Registrando…",
       cancel: "Cancelar",
       pendingHint: (amountLabel: string) =>
@@ -101,26 +105,26 @@ export const cfdiEmissionIntentCopy = {
         `El abono no puede exceder el saldo por cobrar (${amountLabel}).`,
     },
     voidSheet: {
-      title: "Anular abono",
+      title: "Anular cobro",
       description:
-        "El abono quedará en el historial como anulado. Para corregir el monto, registra un abono nuevo después.",
+        "El cobro quedará en el historial como anulado. Para corregir el monto, registra un cobro nuevo después.",
       reason: "Motivo de anulación",
       reasonPlaceholder: "Error de captura, cobro duplicado…",
-      submit: "Anular abono",
+      submit: "Anular cobro",
       submitting: "Anulando…",
       cancel: "Cancelar",
       amountLabel: "Monto a anular",
     },
     toast: {
-      success: "Abono registrado",
-      error: "No se pudo registrar el abono",
-      voidSuccess: "Abono anulado",
-      voidError: "No se pudo anular el abono",
+      success: "Cobro registrado",
+      error: "No se pudo registrar el cobro",
+      voidSuccess: "Cobro anulado",
+      voidError: "No se pudo anular el cobro",
       exceedsRate: "El abono excede el saldo por cobrar",
       notAllowed: "Este viaje no admite cobros sin factura",
-      alreadyVoided: "Este abono ya estaba anulado",
-      inBatch: "Este abono pertenece a un lote",
-      viewBatchCta: "Ver lote",
+      alreadyVoided: "Este cobro ya estaba anulado",
+      inBatch: "Este cobro pertenece a un lote",
+      viewBatchCta: "Ver cobro",
     },
     validation: {
       amountRequired: "Indica el monto del abono",
@@ -166,9 +170,9 @@ export const cfdiEmissionIntentCopy = {
     approveBody:
       "El viaje pasará a Sin factura. No emitirá CFDI ni Carta Porte.",
     cashFreeze:
-      "No se puede pasar a Con factura mientras haya abonos activos.",
+      "No se puede pasar a Con factura mientras haya cobros activos. Anúlalos desde su detalle (Ver cobro).",
     cashFreezeHint:
-      "En Costos, en Cobro sin factura, usa Anular en cada abono activo del Historial de abonos.",
+      "En el tab Cobro, usa Ver cobro (o Anular si aún no hay detalle) en cada cobro activo.",
     history: "Historial",
     historyTitle: "Historial de factura del viaje",
     /** Propósito estable del Sheet (nunca el empty). */
