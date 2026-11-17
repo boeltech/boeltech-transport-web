@@ -115,11 +115,13 @@ vi.mock("../application/hooks/useDashboardLayout", () => ({
   useDashboardLayout: () => ({
     visibleWidgets: mockLayoutWidgets().visible,
     customizableWidgets: mockLayoutWidgets().customizable,
+    fixedZoneLabels: ["Lo que te toca"],
     getSpanClass: () => "",
     canReadTrips: mockCanReadTrips(),
     showFinance: false,
     setVisible: vi.fn(),
     reorder: vi.fn(),
+    applyLayoutDraft: vi.fn(),
     resetToRoleDefault: vi.fn(),
     resetToSystemDefault: vi.fn(),
   }),

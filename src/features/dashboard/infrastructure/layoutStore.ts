@@ -1,23 +1,16 @@
 /**
- * Dashboard layout persistence — localStorage now, API-ready interface.
+ * Dashboard layout persistence — localStorage v2, API-ready interface.
  *
- * ## Future API contract (not implemented)
- *
- * User layout (authenticated user):
- * - `GET  /api/v1/dashboard/layout` → `DashboardLayout`
- * - `PUT  /api/v1/dashboard/layout` → body `DashboardLayout`, returns saved layout
- *
- * Role default (admin, per tenant):
- * - `GET  /api/v1/dashboard/layout/role/:role` → `DashboardLayout`
- * - `PUT  /api/v1/dashboard/layout/role/:role` → body `DashboardLayout`
- *
- * Payload shape matches {@link DashboardLayout} in `domain/layout.ts`.
- * Migrate by implementing `apiDashboardLayoutStore` with the same interface and
- * swapping the export in `useDashboardLayout`.
+ * Claves v2: `boeltech-dashboard-layout:v2:user:` / `:role:`.
+ * Al leer: v2 → si falta, migra v1 (Q12) y escribe v2.
  */
 
 import type { UserRole } from "@shared/constants/roles";
-import { normalizeLayout, type DashboardLayout } from "../domain/layout";
+import {
+  migrateLayoutV1toV2,
+  normalizeLayout,
+  type DashboardLayout,
+} from "../domain/layout";
 
 // ============================================================================
 // Store interface
@@ -37,15 +30,25 @@ export interface DashboardLayoutStore {
 // Storage keys
 // ============================================================================
 
-const USER_KEY_PREFIX = "boeltech-dashboard-layout:user:";
-const ROLE_KEY_PREFIX = "boeltech-dashboard-layout:role:";
+const USER_KEY_PREFIX_V2 = "boeltech-dashboard-layout:v2:user:";
+const ROLE_KEY_PREFIX_V2 = "boeltech-dashboard-layout:v2:role:";
+const USER_KEY_PREFIX_V1 = "boeltech-dashboard-layout:user:";
+const ROLE_KEY_PREFIX_V1 = "boeltech-dashboard-layout:role:";
 
-function userStorageKey(userId: string): string {
-  return `${USER_KEY_PREFIX}${userId}`;
+function userStorageKeyV2(userId: string): string {
+  return `${USER_KEY_PREFIX_V2}${userId}`;
 }
 
-function roleStorageKey(tenantId: string, role: UserRole): string {
-  return `${ROLE_KEY_PREFIX}${tenantId}:${role}`;
+function roleStorageKeyV2(tenantId: string, role: UserRole): string {
+  return `${ROLE_KEY_PREFIX_V2}${tenantId}:${role}`;
+}
+
+function userStorageKeyV1(userId: string): string {
+  return `${USER_KEY_PREFIX_V1}${userId}`;
+}
+
+function roleStorageKeyV1(tenantId: string, role: UserRole): string {
+  return `${ROLE_KEY_PREFIX_V1}${tenantId}:${role}`;
 }
 
 // ============================================================================
@@ -94,33 +97,53 @@ function safeRemoveItem(key: string): void {
   }
 }
 
+function readMigrating(
+  v2Key: string,
+  v1Key: string,
+): DashboardLayout | null {
+  const v2 = parseLayout(safeGetItem(v2Key));
+  if (v2) return v2;
+
+  const v1 = parseLayout(safeGetItem(v1Key));
+  if (!v1) return null;
+
+  const migrated = migrateLayoutV1toV2(v1);
+  safeSetItem(v2Key, serializeLayout(migrated));
+  return migrated;
+}
+
 // ============================================================================
 // localStorage implementation
 // ============================================================================
 
 export const localDashboardLayoutStore: DashboardLayoutStore = {
   getUserLayout(userId) {
-    return parseLayout(safeGetItem(userStorageKey(userId)));
+    return readMigrating(userStorageKeyV2(userId), userStorageKeyV1(userId));
   },
 
   setUserLayout(userId, layout) {
-    safeSetItem(userStorageKey(userId), serializeLayout(layout));
+    safeSetItem(userStorageKeyV2(userId), serializeLayout(layout));
   },
 
   clearUserLayout(userId) {
-    safeRemoveItem(userStorageKey(userId));
+    safeRemoveItem(userStorageKeyV2(userId));
+    safeRemoveItem(userStorageKeyV1(userId));
   },
 
   getRoleLayout(tenantId, role) {
-    return parseLayout(safeGetItem(roleStorageKey(tenantId, role)));
+    return readMigrating(
+      roleStorageKeyV2(tenantId, role),
+      roleStorageKeyV1(tenantId, role),
+    );
   },
 
   setRoleLayout(tenantId, role, layout) {
-    safeSetItem(roleStorageKey(tenantId, role), serializeLayout(layout));
+    safeSetItem(roleStorageKeyV2(tenantId, role), serializeLayout(layout));
   },
 
   clearRoleLayout(tenantId, role) {
-    safeRemoveItem(roleStorageKey(tenantId, role));
+    safeRemoveItem(roleStorageKeyV2(tenantId, role));
+    safeRemoveItem(roleStorageKeyV1(tenantId, role));
   },
 };
 

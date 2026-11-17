@@ -220,26 +220,60 @@ export const dashboardCopy = {
     retry: "Reintentar",
   },
   customize: {
-    title: "Personalizar Inicio",
+    title: "Personalizar",
     description:
-      "Muestra u oculta bloques de Inicio y arrastra para cambiar el orden. Solo verás widgets permitidos por tu rol.",
+      "Los cambios son solo para ti. Restablecer vuelve a lo de tu rol.",
     personalizeButton: "Personalizar",
     hiddenWidgetsCount: (count: number) =>
       `${count} oculto${count === 1 ? "" : "s"}`,
+    alwaysVisible: "Siempre visibles",
+    addBelow: "Agregar abajo",
+    footerPrompt: "Agrega abajo, solo para ti:",
+    analysisHint: "Completo en Análisis",
     visibleLabel: "Visible",
-    resetRole: "Restaurar predeterminado del rol",
-    resetSystem: "Restaurar predeterminado del sistema",
-    done: "Listo",
+    reset: "Restablecer",
+    /** @deprecated Preferir reset */
+    resetRole: "Restablecer",
+    /** @deprecated Preferir reset */
+    resetSystem: "Restablecer",
+    cancel: "Cancelar",
+    save: "Guardar",
+    /** @deprecated Preferir save */
+    done: "Guardar",
     roleSettingsTitle: "Widgets de Inicio",
     roleSettingsDescription:
-      "Elige un rol, edita sus widgets y cierra con Listo. Los cambios se guardan al instante; cada usuario puede personalizar después.",
+      "Elige un rol, edita sus extras y cierra con Guardar. Cada usuario puede personalizar después.",
     selectRole: "Rol a configurar",
     roleSettingsSteps:
-      "1. Elige el rol · 2. Edita los widgets · 3. Cierra con Listo",
+      "1. Elige el rol · 2. Edita los extras · 3. Cierra con Guardar",
     /** CTA que abre el sheet de edición (no es un submit separado). */
     editRoleLayout: "Editar widgets del rol",
     /** @deprecated Preferir editRoleLayout */
     saveRoleLayout: "Editar widgets del rol",
+    fixedZones: {
+      attention: "Lo que te toca",
+      opsDay: "Viajes de hoy",
+      fleetAvailability: "Disponibles ahora",
+      scorecard: "Resumen del mes",
+      collectionsWeek: "Cobrado esta semana",
+    },
+  },
+  /** I10 — Cobrado esta semana (contador). */
+  collectionsWeek: {
+    title: "Cobrado esta semana",
+    subtitle: "Lo que entró, por día de registro. Abre Cobros registrados.",
+    footer: "Excluye cobros anulados.",
+    columns: {
+      day: "Día",
+      withInvoice: "Con factura",
+      withoutInvoice: "Sin factura",
+      total: "Total",
+    },
+    empty: "Sin cobros esta semana",
+    errorTitle: "No se pudo cargar el cobrado de la semana.",
+    retry: "Reintentar",
+    tableAriaLabel: "Cobrado esta semana",
+    weekTotal: (amount: string) => `Total semana · ${amount}`,
   },
   scorecard: {
     /** Cluster Aurora: hero Margen (+ $/viaje) | stack Cobrado·Por cobrar·Vencido. */

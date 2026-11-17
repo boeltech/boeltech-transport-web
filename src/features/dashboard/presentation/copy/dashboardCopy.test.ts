@@ -170,9 +170,23 @@ describe("dashboardCopy.page", () => {
 });
 
 describe("dashboardCopy.customize", () => {
-  it("usa Inicio en el copy visible de personalizar", () => {
-    expect(dashboardCopy.customize.title).toBe("Personalizar Inicio");
-    expect(dashboardCopy.customize.description).toMatch(/Inicio/);
+  it("copy PRD F3 Personalizar + pie extras", () => {
+    expect(dashboardCopy.customize.title).toBe("Personalizar");
+    expect(dashboardCopy.customize.description).toMatch(/solo para ti/i);
+    expect(dashboardCopy.customize.alwaysVisible).toMatch(/Siempre visibles/i);
+    expect(dashboardCopy.customize.addBelow).toMatch(/Agregar abajo/i);
+    expect(dashboardCopy.customize.footerPrompt).toMatch(/Agrega abajo/i);
+    expect(dashboardCopy.customize.reset).toBe("Restablecer");
+    expect(dashboardCopy.customize.save).toBe("Guardar");
+    expect(dashboardCopy.customize.cancel).toBe("Cancelar");
     expect(dashboardCopy.customize.roleSettingsTitle).toMatch(/Inicio/);
+  });
+});
+
+describe("dashboardCopy.collectionsWeek", () => {
+  it("copy PRD Cobrado esta semana", () => {
+    expect(dashboardCopy.collectionsWeek.title).toBe("Cobrado esta semana");
+    expect(dashboardCopy.collectionsWeek.subtitle).toMatch(/Cobros registrados/i);
+    expect(dashboardCopy.collectionsWeek.footer).toMatch(/anulados/i);
   });
 });

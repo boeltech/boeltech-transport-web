@@ -20,6 +20,15 @@ export const useFinanceSummary = (options?: { enabled?: boolean }) =>
     staleTime: 60_000,
   });
 
+/** GET /finance/collections-week — «Cobrado esta semana» (contador). */
+export const useCollectionsWeek = (options?: { enabled?: boolean }) =>
+  useQuery({
+    queryKey: financeQueryKeys.collectionsWeek(),
+    queryFn: () => financeApi.getCollectionsWeek(),
+    enabled: options?.enabled ?? true,
+    staleTime: 60_000,
+  });
+
 export const useAccountStatement = (options?: {
   enabled?: boolean;
   clientRfc?: string;

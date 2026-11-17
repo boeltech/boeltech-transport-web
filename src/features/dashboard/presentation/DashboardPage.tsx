@@ -1,6 +1,6 @@
 /**
- * DashboardPage — F1 encabezado + Lo que te toca; F2 Viajes de hoy + Disponibles ahora.
- * Widgets legacy / Personalizar completo → F3.
+ * DashboardPage — F1–F3: encabezado, Lo que te toca, Viajes/Disponibles,
+ * K10, Cobrado esta semana, Personalizar v2, extras debajo.
  */
 
 import { useMemo, useState } from "react";
@@ -36,16 +36,18 @@ import {
 import type { FinancialTrendMonths } from "./components";
 import { DashboardActivationChecklist } from "./components/DashboardActivationChecklist";
 import { DashboardAttentionZone } from "./components/DashboardAttentionZone";
+import { DashboardCollectionsWeekZone } from "./components/DashboardCollectionsWeekZone";
 import { DashboardCustomizePanel } from "./components/DashboardCustomizePanel";
 import { DashboardFleetAvailabilityZone } from "./components/DashboardFleetAvailabilityZone";
 import { DashboardOpsDayZone } from "./components/DashboardOpsDayZone";
-import { getWidgetRegistryEntry } from "./widgets/registry";
+import { getWidgetRegistryEntry, getWidgetTitle } from "./widgets/registry";
 import type { DashboardWidgetContext, TripsDayRange } from "./widgets/types";
 import { dashboardCopy } from "./copy/dashboardCopy";
 import {
   buildDayLine,
   formatAttentionEyebrow,
 } from "../domain/attentionQueue";
+import type { WidgetId } from "../domain/layout";
 
 import { Button } from "@/shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
@@ -81,37 +83,16 @@ function DashboardPage() {
     getSpanClass,
     canReadTrips,
     showFinance,
+    setVisible,
   } = layoutApi;
-  const hiddenWidgetsCount = Math.max(
-    0,
-    customizableWidgets.length - visibleWidgets.length,
-  );
+  const offExtraWidgets = customizableWidgets.filter((w) => !w.visible);
+  const hiddenWidgetsCount = offExtraWidgets.length;
 
   const { hasPermission } = usePermissions();
   const canCreateTrip = hasPermission("trips", "create");
 
   const { rows: attentionRows, snapshot: attention, isLoading: attentionLoading } =
     useDashboardAttention({ showFinance });
-
-  const auroraClusterPref = visibleWidgets.find(
-    (pref) => pref.id === "metric_trends",
-  );
-  const pinnedExpenseRankingPref = auroraClusterPref
-    ? visibleWidgets.find((pref) => pref.id === "vehicle_expense_ranking")
-    : undefined;
-  const pinnedChartPref = auroraClusterPref
-    ? visibleWidgets.find((pref) => pref.id === "financial_comparison")
-    : undefined;
-  const pinnedChromeIds = new Set(
-    [
-      auroraClusterPref?.id,
-      pinnedExpenseRankingPref?.id,
-      pinnedChartPref?.id,
-    ].filter((id): id is NonNullable<typeof id> => id != null),
-  );
-  const gridWidgets = visibleWidgets.filter(
-    (pref) => !pinnedChromeIds.has(pref.id),
-  );
 
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [tripsDays, setTripsDays] = useState<TripsDayRange>(30);
@@ -122,12 +103,24 @@ function DashboardPage() {
     [],
   );
 
+  const extrasNeedTripsByDay = visibleWidgets.some((w) => w.id === "trips_by_day");
+  const extrasNeedFinance =
+    showFinance &&
+    visibleWidgets.some(
+      (w) =>
+        w.id === "financial_comparison" ||
+        w.id === "vehicle_expense_ranking" ||
+        w.id === "invoices_month",
+    );
+
   const { data: tripsByDay, isLoading: tripsByDayLoading } = useTripsByDay(
     tripsDays,
-    { enabled: canReadTrips },
+    { enabled: canReadTrips && extrasNeedTripsByDay },
   );
   const { data: financialTrend, isLoading: financialTrendLoading } =
-    useFinancialTrend(financialTrendMonths, { enabled: showFinance });
+    useFinancialTrend(financialTrendMonths, {
+      enabled: showFinance && extrasNeedFinance,
+    });
 
   const { data: financeSummary, isLoading: financeSummaryLoading } =
     useFinanceSummary({
@@ -143,7 +136,11 @@ function DashboardPage() {
       sortBy: "total",
       sortOrder: "desc",
     },
-    { enabled: showFinance },
+    {
+      enabled:
+        showFinance &&
+        visibleWidgets.some((w) => w.id === "vehicle_expense_ranking"),
+    },
   );
 
   const financeLoading = financeSummaryLoading;
@@ -250,13 +247,17 @@ function DashboardPage() {
   /** I4/I5: ops zones — trips.read, no portal, no contador (PRD). */
   const showOpsDayZones =
     isStaff && canReadTrips && user?.role !== ROLES.ACCOUNTANT;
+  /** K10 zona fija cuando showFinance (gerente/admin/contador). */
+  const showK10 = isStaff && showFinance && canReadTrips;
+  /** Cobrado esta semana — solo contador. */
+  const showCollectionsWeek =
+    isStaff && showFinance && user?.role === ROLES.ACCOUNTANT;
+
   const firstName = user?.firstName?.trim() || null;
   const greetingTitle =
     isStaff && activationGuideVisible && firstName
       ? dashboardCopy.attention.helloGreeting(firstName)
-      : isStaff
-        ? getGreeting(user)
-        : getGreeting(user);
+      : getGreeting(user);
 
   const dayLine = isStaff
     ? buildDayLine({
@@ -280,7 +281,7 @@ function DashboardPage() {
       })
     : undefined;
 
-  // Portales: keep OrientationAlert-style bridges via orientation prop (sin ATF alert).
+  // Portales: bridges vía orientation (sin OrientationAlert ATF).
   const portalOrientation = isClientPortal
     ? {
         text: dashboardCopy.page.subtitleClient,
@@ -299,6 +300,10 @@ function DashboardPage() {
         }
       : undefined;
 
+  function enableExtra(id: WidgetId) {
+    setVisible(id, true);
+  }
+
   return (
     <>
       <ReportsReturnLink />
@@ -312,7 +317,6 @@ function DashboardPage() {
       >
         {isStaff ? (
           <>
-            {/* Checklist siempre montado (dismiss/localStorage); si visible, ocupa la zona. */}
             <section
               className={
                 activationGuideVisible
@@ -364,6 +368,14 @@ function DashboardPage() {
 
         {showOpsDayZones ? <DashboardOpsDayZone role={user?.role} /> : null}
 
+        {showK10 ? (
+          <div className="min-w-0">
+            {getWidgetRegistryEntry("metric_trends")?.render(widgetCtx)}
+          </div>
+        ) : null}
+
+        {showCollectionsWeek ? <DashboardCollectionsWeekZone /> : null}
+
         {isError ? (
           <DetailAlertCard
             severity="critical"
@@ -384,30 +396,9 @@ function DashboardPage() {
           />
         ) : null}
 
-        {canReadTrips ? (
+        {canReadTrips && visibleWidgets.length > 0 ? (
           <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:items-stretch">
-            {auroraClusterPref || pinnedExpenseRankingPref ? (
-              <div className="flex h-full min-h-0 min-w-0 flex-col gap-6 lg:col-span-12">
-                {auroraClusterPref
-                  ? getWidgetRegistryEntry("metric_trends")?.render(widgetCtx)
-                  : null}
-                {pinnedExpenseRankingPref
-                  ? getWidgetRegistryEntry("vehicle_expense_ranking")?.render(
-                      widgetCtx,
-                    )
-                  : null}
-              </div>
-            ) : null}
-
-            {pinnedChartPref ? (
-              <div className="h-full min-h-0 min-w-0 lg:col-span-12">
-                {getWidgetRegistryEntry("financial_comparison")?.render(
-                  widgetCtx,
-                )}
-              </div>
-            ) : null}
-
-            {gridWidgets.map((pref) => {
+            {visibleWidgets.map((pref) => {
               const entry = getWidgetRegistryEntry(pref.id);
               if (!entry) return null;
               return (
@@ -419,6 +410,22 @@ function DashboardPage() {
                 </div>
               );
             })}
+          </div>
+        ) : null}
+
+        {!hideDashboardCustomize && offExtraWidgets.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+            <span>{dashboardCopy.customize.footerPrompt}</span>
+            {offExtraWidgets.map((pref) => (
+              <button
+                key={pref.id}
+                type="button"
+                className="inline-flex items-center rounded-full border border-border bg-card px-2.5 py-0.5 text-[12px] font-medium text-foreground hover:bg-muted"
+                onClick={() => enableExtra(pref.id)}
+              >
+                {getWidgetTitle(pref.id)}
+              </button>
+            ))}
           </div>
         ) : null}
       </HubPageShell>

@@ -18,11 +18,14 @@ export type {
   ExpensesByDimensionFilters,
   FinanceRepExceptionItem,
   PaginatedFinanceRepExceptions,
+  CollectionsWeek,
+  CollectionsWeekDay,
 } from "./domain";
 
 export {
   financeQueryKeys,
   useFinanceSummary,
+  useCollectionsWeek,
   useAccountStatement,
   useAgingSummary,
   useAgingByClient,
@@ -36,6 +39,8 @@ export {
   useInvoicesByStatusMonth,
   getCurrentMonthExpenseRange,
   buildFinanceCobrosPath,
+  buildFinanceCobrosDayPath,
+  FINANCE_COBROS_DATE_PARAM,
   buildFinanceAnalysisSearchParams,
   resolveLegacyFinanceLocation,
   FINANCE_DISPATCH_PATH,

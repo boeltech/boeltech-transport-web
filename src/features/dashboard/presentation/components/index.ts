@@ -4,6 +4,7 @@ export { DemoPurgeConfirmSheet } from "./DemoPurgeConfirmSheet";
 export { DemoSeedLoadSheet } from "./DemoSeedLoadSheet";
 export { DashboardAlertsPanel } from "./DashboardAlertsPanel";
 export { DashboardAttentionZone } from "./DashboardAttentionZone";
+export { DashboardCollectionsWeekZone } from "./DashboardCollectionsWeekZone";
 export { DashboardCustomizePanel } from "./DashboardCustomizePanel";
 export { DashboardFleetAvailabilityZone } from "./DashboardFleetAvailabilityZone";
 export { DashboardOpsDayZone } from "./DashboardOpsDayZone";

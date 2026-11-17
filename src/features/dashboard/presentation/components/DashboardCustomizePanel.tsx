@@ -1,8 +1,8 @@
 /**
- * Panel para personalizar orden y visibilidad de widgets del dashboard.
+ * Panel Personalizar — zonas fijas (solo lectura) + extras debajo (v2).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -42,19 +42,20 @@ import { dashboardCopy } from "../copy/dashboardCopy";
 type LayoutApi = Pick<
   ReturnType<typeof useDashboardLayout>,
   | "customizableWidgets"
-  | "setVisible"
-  | "reorder"
+  | "fixedZoneLabels"
   | "resetToRoleDefault"
-  | "resetToSystemDefault"
+  | "applyLayoutDraft"
 >;
 
 interface DashboardCustomizePanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   layoutApi: LayoutApi;
-  /** Oculta acciones de reset de rol (p. ej. en settings de rol) */
+  /** Reservado (settings de rol); Restablecer siempre visible en v2. */
   showUserResetActions?: boolean;
 }
+
+type DraftPref = { id: WidgetId; visible: boolean };
 
 function SortableWidgetRow({
   id,
@@ -101,6 +102,9 @@ function SortableWidgetRow({
       </button>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium truncate">{title}</p>
+        <p className="text-xs text-muted-foreground">
+          {dashboardCopy.customize.analysisHint}
+        </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <Label htmlFor={`widget-visible-${id}`} className="text-xs text-muted-foreground">
@@ -116,30 +120,25 @@ function SortableWidgetRow({
   );
 }
 
-export function DashboardCustomizePanel({
-  open,
-  onOpenChange,
-  layoutApi,
-  showUserResetActions = true,
-}: DashboardCustomizePanelProps) {
-  const {
-    customizableWidgets,
-    setVisible,
-    reorder,
-    resetToRoleDefault,
-    resetToSystemDefault,
-  } = layoutApi;
-
-  const orderedIds = useMemo(
-    () => customizableWidgets.map((w: DashboardWidgetPref) => w.id),
-    [customizableWidgets],
+function CustomizeDraftBody({
+  customizableWidgets,
+  fixedZoneLabels,
+  resetToRoleDefault,
+  applyLayoutDraft,
+  onClose,
+}: {
+  customizableWidgets: DashboardWidgetPref[];
+  fixedZoneLabels: string[];
+  resetToRoleDefault: () => void;
+  applyLayoutDraft: ReturnType<typeof useDashboardLayout>["applyLayoutDraft"];
+  onClose: () => void;
+}) {
+  const initialIds = customizableWidgets.map((w) => w.id);
+  const [localIds, setLocalIds] = useState<WidgetId[]>(initialIds);
+  const [draftVisible, setDraftVisible] = useState<DraftPref[]>(() =>
+    customizableWidgets.map((w) => ({ id: w.id, visible: w.visible })),
   );
-
-  const [localIds, setLocalIds] = useState<WidgetId[]>(orderedIds);
-
-  useEffect(() => {
-    setLocalIds(orderedIds);
-  }, [orderedIds]);
+  const [dirty, setDirty] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -149,17 +148,14 @@ export function DashboardCustomizePanel({
   );
 
   const displayIds =
-    localIds.length === orderedIds.length &&
-    localIds.every((id) => orderedIds.includes(id))
+    localIds.length === initialIds.length &&
+    localIds.every((id) => initialIds.includes(id))
       ? localIds
-      : orderedIds;
+      : initialIds;
 
-  const prefById = useMemo(
-    () =>
-      new Map<WidgetId, DashboardWidgetPref>(
-        customizableWidgets.map((w: DashboardWidgetPref) => [w.id, w]),
-      ),
-    [customizableWidgets],
+  const visibleById = useMemo(
+    () => new Map(draftVisible.map((d) => [d.id, d.visible])),
+    [draftVisible],
   );
 
   function handleDragEnd(event: DragEndEvent) {
@@ -172,8 +168,126 @@ export function DashboardCustomizePanel({
 
     const next = arrayMove(displayIds, oldIndex, newIndex) as WidgetId[];
     setLocalIds(next);
-    reorder(next);
+    setDirty(true);
   }
+
+  function handleSave() {
+    if (dirty) {
+      applyLayoutDraft({
+        orderedIds: displayIds,
+        visibility: draftVisible,
+      });
+    }
+    onClose();
+  }
+
+  function handleReset() {
+    resetToRoleDefault();
+    onClose();
+  }
+
+  return (
+    <>
+      <div className="flex-1 space-y-6 overflow-y-auto py-4">
+        {fixedZoneLabels.length > 0 ? (
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold text-foreground">
+              {dashboardCopy.customize.alwaysVisible}
+            </h3>
+            <ul className="space-y-1.5">
+              {fixedZoneLabels.map((label) => (
+                <li
+                  key={label}
+                  className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+                >
+                  {label}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold text-foreground">
+            {dashboardCopy.customize.addBelow}
+          </h3>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={displayIds}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {displayIds.map((id: WidgetId) => {
+                  const visible = visibleById.get(id) ?? false;
+                  return (
+                    <SortableWidgetRow
+                      key={id}
+                      id={id}
+                      title={getWidgetTitle(id)}
+                      visible={visible}
+                      onVisibleChange={(v) => {
+                        setDraftVisible((prev) =>
+                          prev.map((p) =>
+                            p.id === id ? { ...p, visible: v } : p,
+                          ),
+                        );
+                        setDirty(true);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </section>
+      </div>
+
+      <SheetFooter className="flex-col gap-2 sm:flex-col">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={handleReset}
+        >
+          {dashboardCopy.customize.reset}
+        </Button>
+        <div className="flex w-full gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            onClick={onClose}
+          >
+            {dashboardCopy.customize.cancel}
+          </Button>
+          <Button type="button" className="flex-1" onClick={handleSave}>
+            {dashboardCopy.customize.save}
+          </Button>
+        </div>
+      </SheetFooter>
+    </>
+  );
+}
+
+export function DashboardCustomizePanel({
+  open,
+  onOpenChange,
+  layoutApi,
+}: DashboardCustomizePanelProps) {
+  const {
+    customizableWidgets,
+    fixedZoneLabels,
+    resetToRoleDefault,
+    applyLayoutDraft,
+  } = layoutApi;
+
+  const draftKey = customizableWidgets
+    .map((w) => `${w.id}:${w.visible ? 1 : 0}:${w.order}`)
+    .join("|");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -186,82 +300,16 @@ export function DashboardCustomizePanel({
           <SheetDescription>{dashboardCopy.customize.description}</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto py-4">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={displayIds}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-2">
-                {displayIds.map((id: WidgetId) => {
-                  const pref = prefById.get(id);
-                  if (!pref) return null;
-                  return (
-                    <SortableWidgetRow
-                      key={id}
-                      id={id}
-                      title={getWidgetTitle(id)}
-                      visible={pref.visible}
-                      onVisibleChange={(v) => setVisible(id, v)}
-                    />
-                  );
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </div>
-
-        <SheetFooter className="flex-col gap-2 sm:flex-col">
-          {showUserResetActions ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  resetToRoleDefault();
-                  setLocalIds(orderedIds);
-                }}
-              >
-                {dashboardCopy.customize.resetRole}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  resetToSystemDefault();
-                  setLocalIds(orderedIds);
-                }}
-              >
-                {dashboardCopy.customize.resetSystem}
-              </Button>
-            </>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                resetToSystemDefault();
-                setLocalIds(orderedIds);
-              }}
-            >
-              {dashboardCopy.customize.resetSystem}
-            </Button>
-          )}
-          <Button
-            type="button"
-            className="w-full"
-            onClick={() => onOpenChange(false)}
-          >
-            {dashboardCopy.customize.done}
-          </Button>
-        </SheetFooter>
+        {open ? (
+          <CustomizeDraftBody
+            key={draftKey}
+            customizableWidgets={customizableWidgets}
+            fixedZoneLabels={fixedZoneLabels}
+            resetToRoleDefault={resetToRoleDefault}
+            applyLayoutDraft={applyLayoutDraft}
+            onClose={() => onOpenChange(false)}
+          />
+        ) : null}
       </SheetContent>
     </Sheet>
   );

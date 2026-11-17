@@ -227,6 +227,15 @@ export function buildFinanceCobrosPath(rfc?: string | null): string {
   return `${FINANCE_COBROS_PATH}?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(normalized)}`;
 }
 
+/** Deep-link Cobros registrados filtrado por día de registro (Inicio · Cobrado esta semana). */
+export const FINANCE_COBROS_DATE_PARAM = "date";
+
+export function buildFinanceCobrosDayPath(date: string): string {
+  const day = date.trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return FINANCE_COBROS_PATH;
+  return `${FINANCE_COBROS_PATH}?${FINANCE_COBROS_DATE_PARAM}=${encodeURIComponent(day)}`;
+}
+
 /** Deep-link bandeja operativa; opcional filtro por cliente (F3). */
 export function buildFinanceEfectivoPorCobrarPath(
   clientId?: string | null,

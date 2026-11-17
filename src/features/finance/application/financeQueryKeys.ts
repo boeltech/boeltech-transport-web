@@ -100,4 +100,7 @@ export const financeQueryKeys = {
     [...financeQueryKeys.collectionDetailRoot(), "payment", paymentId] as const,
   receiptCollectionDetail: (receiptId: string) =>
     [...financeQueryKeys.collectionDetailRoot(), "receipt", receiptId] as const,
+  /** GET /finance/collections-week — Cobrado esta semana. */
+  collectionsWeek: () =>
+    [...financeQueryKeys.all, "collections-week"] as const,
 };

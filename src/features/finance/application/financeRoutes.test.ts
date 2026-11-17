@@ -3,6 +3,7 @@ import {
   FINANCE_APPROVALS_PATH,
   FINANCE_COBROS_LEGACY_PATH,
   FINANCE_COBROS_PATH,
+  buildFinanceCobrosDayPath,
   FINANCE_EFECTIVO_POR_COBRAR_LEGACY_PATH,
   FINANCE_EFECTIVO_POR_COBRAR_PATH,
   FINANCE_HUB_PATH,
@@ -45,6 +46,9 @@ describe("financeRoutes", () => {
     );
     expect(buildFinanceCobrosPath("xaxx010101000")).toBe(
       "/finance/payments?rfc=XAXX010101000",
+    );
+    expect(buildFinanceCobrosDayPath("2026-11-16")).toBe(
+      "/finance/payments?date=2026-11-16",
     );
   });
 

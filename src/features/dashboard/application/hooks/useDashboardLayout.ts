@@ -2,7 +2,11 @@ import { useCallback, useMemo, useState, useEffect } from "react";
 
 import { useAuth } from "@/features/auth";
 import type { UserRole } from "@shared/constants/roles";
-import { isClientPortalRole, isDriverPortalRole } from "@shared/constants/roles";
+import {
+  isClientPortalRole,
+  isDriverPortalRole,
+  ROLES,
+} from "@shared/constants/roles";
 import {
   usePermissions,
   canAccessFinanceSummaryRoute,
@@ -25,6 +29,7 @@ import {
   getWidgetRegistryEntry,
   getWidgetSpanClass,
 } from "../../presentation/widgets/registry";
+import { dashboardCopy } from "../../presentation/copy/dashboardCopy";
 
 export type DashboardLayoutPersistMode = "user" | "role";
 
@@ -61,6 +66,31 @@ function resolveStoredLayout(
   return mergeWithDefaults(roleLayout, product);
 }
 
+function buildFixedZoneLabels(options: {
+  role: UserRole | undefined;
+  isPortal: boolean;
+  canReadTrips: boolean;
+  showFinance: boolean;
+}): string[] {
+  if (options.isPortal) return [];
+  const labels: string[] = [dashboardCopy.customize.fixedZones.attention];
+  const isAccountant = options.role === ROLES.ACCOUNTANT;
+  const showOps =
+    options.canReadTrips && !isAccountant && options.role != null;
+
+  if (showOps) {
+    labels.push(dashboardCopy.customize.fixedZones.opsDay);
+    labels.push(dashboardCopy.customize.fixedZones.fleetAvailability);
+  }
+  if (options.showFinance) {
+    labels.push(dashboardCopy.customize.fixedZones.scorecard);
+  }
+  if (isAccountant && options.showFinance) {
+    labels.push(dashboardCopy.customize.fixedZones.collectionsWeek);
+  }
+  return labels;
+}
+
 export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
@@ -80,6 +110,7 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
   const showFinance = canAccessFinanceSummaryRoute(gateRole);
   const isClientPortal = isClientPortalRole(gateRole);
   const isDriverPortal = isDriverPortalRole(gateRole);
+  const isPortal = isClientPortal || isDriverPortal;
 
   const gateCtx: DashboardWidgetGateContext = useMemo(
     () => ({
@@ -140,6 +171,17 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
     [layout, gateCtx],
   );
 
+  const fixedZoneLabels = useMemo(
+    () =>
+      buildFixedZoneLabels({
+        role: gateRole,
+        isPortal,
+        canReadTrips,
+        showFinance,
+      }),
+    [gateRole, isPortal, canReadTrips, showFinance],
+  );
+
   const setVisible = useCallback(
     (id: WidgetId, visible: boolean) => {
       persist(setWidgetVisibility(layout, id, visible));
@@ -150,6 +192,20 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
   const reorder = useCallback(
     (orderedIds: WidgetId[]) => {
       persist(reorderWidgets(layout, orderedIds));
+    },
+    [layout, persist],
+  );
+
+  const applyLayoutDraft = useCallback(
+    (draft: {
+      orderedIds: WidgetId[];
+      visibility: { id: WidgetId; visible: boolean }[];
+    }) => {
+      let next = reorderWidgets(layout, draft.orderedIds);
+      for (const pref of draft.visibility) {
+        next = setWidgetVisibility(next, pref.id, pref.visible);
+      }
+      persist(next);
     },
     [layout, persist],
   );
@@ -165,12 +221,8 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
     if (userId) {
       dashboardLayoutStore.clearUserLayout(userId);
       const product = buildRoleDefaultLayout(userRole);
-      if (tenantId && userRole) {
-        const roleLayout = dashboardLayoutStore.getRoleLayout(tenantId, userRole);
-        setLayout(mergeWithDefaults(roleLayout, product));
-      } else {
-        setLayout(product);
-      }
+      // Restablecer = default de producto del rol (v2), no layout de rol del tenant.
+      setLayout(product);
     }
   }, [persistMode, tenantId, roleForEdit, userId, userRole]);
 
@@ -200,9 +252,11 @@ export function useDashboardLayout(options: UseDashboardLayoutOptions = {}) {
     gateCtx,
     customizableWidgets,
     visibleWidgets,
+    fixedZoneLabels,
     widgetsRegistry: DASHBOARD_WIDGETS,
     setVisible,
     reorder,
+    applyLayoutDraft,
     resetToRoleDefault,
     resetToSystemDefault,
     getSpanClass,

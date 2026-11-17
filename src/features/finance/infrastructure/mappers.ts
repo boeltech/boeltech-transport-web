@@ -21,6 +21,8 @@ import type {
   ProfitabilityStatus,
   ProfitabilityTripItem,
   ProfitabilityTripsResponse,
+  CollectionsWeek,
+  CollectionsWeekDay,
 } from "@features/finance/domain";
 import { parseMarginBasis } from "@features/finance/domain";
 
@@ -527,5 +529,30 @@ export function mapInvoicesByStatusMonth(
       cancellationPending: toNumberArray(seriesRaw.cancellation_pending),
       cancelled: toNumberArray(seriesRaw.cancelled),
     },
+  };
+}
+
+function mapCollectionsWeekDay(
+  raw: Record<string, unknown>,
+): CollectionsWeekDay {
+  return {
+    date: asString(raw.date).slice(0, 10),
+    withInvoice: asNumber(raw.with_invoice),
+    withoutInvoice: asNumber(raw.without_invoice),
+    total: asNumber(raw.total),
+  };
+}
+
+/** GET /finance/collections-week → camelCase. */
+export function mapCollectionsWeek(
+  raw: Record<string, unknown>,
+): CollectionsWeek {
+  const daysRaw = Array.isArray(raw.days) ? raw.days : [];
+  return {
+    weekStart: asString(raw.week_start).slice(0, 10),
+    weekEnd: asString(raw.week_end).slice(0, 10),
+    days: daysRaw.map((item) =>
+      mapCollectionsWeekDay((item ?? {}) as Record<string, unknown>),
+    ),
   };
 }

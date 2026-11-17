@@ -20,6 +20,7 @@ import type {
   ProfitabilityAggregateItem,
   ProfitabilityTripsFilters,
   ProfitabilityTripsResponse,
+  CollectionsWeek,
 } from "@features/finance/domain";
 import {
   mapAccountStatementItem,
@@ -27,6 +28,7 @@ import {
   mapAgingByClientItem,
   mapAgingClientInvoiceItem,
   mapAgingSummary,
+  mapCollectionsWeek,
   mapExpensesByCategory,
   mapExpensesByDimensionItem,
   mapFinanceSummary,
@@ -111,6 +113,16 @@ export const financeApi = {
       `${FINANCE_BASE}/summary`,
     );
     return mapFinanceSummary(response.data as Record<string, unknown>);
+  },
+
+  /** GET /finance/collections-week — Cobrado esta semana (lun–dom CDMX). */
+  getCollectionsWeek: async (): Promise<CollectionsWeek> => {
+    const response = await apiClient.get<{ data: unknown }>(
+      `${FINANCE_BASE}/collections-week`,
+    );
+    return mapCollectionsWeek(
+      (response.data ?? {}) as Record<string, unknown>,
+    );
   },
 
   getAccountStatement: async (): Promise<AccountStatementItem[]> => {

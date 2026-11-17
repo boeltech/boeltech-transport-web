@@ -532,3 +532,18 @@ export interface FinanceOpenPpdSummary {
   readonly repExceptions: number;
   readonly totalBalance: number;
 }
+
+/** Día de `GET /finance/collections-week` (lun–dom CDMX). */
+export interface CollectionsWeekDay {
+  readonly date: string;
+  readonly withInvoice: number;
+  readonly withoutInvoice: number;
+  readonly total: number;
+}
+
+/** Response `GET /finance/collections-week` — Cobrado esta semana. */
+export interface CollectionsWeek {
+  readonly weekStart: string;
+  readonly weekEnd: string;
+  readonly days: CollectionsWeekDay[];
+}

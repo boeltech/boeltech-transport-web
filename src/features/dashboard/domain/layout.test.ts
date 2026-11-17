@@ -3,8 +3,10 @@ import {
   applyRbac,
   buildRoleDefaultLayout,
   buildSystemDefaultLayout,
+  getCustomizableWidgets,
   getVisibleWidgetsInOrder,
   mergeWithDefaults,
+  migrateLayoutV1toV2,
   normalizeLayout,
   reorderWidgets,
   setWidgetVisibility,
@@ -12,7 +14,7 @@ import {
   type WidgetId,
 } from "./layout";
 
-describe("dashboard layout", () => {
+describe("dashboard layout v2", () => {
   it("normalizeLayout sorts by order and drops unknown ids", () => {
     const result = normalizeLayout({
       widgets: [
@@ -27,15 +29,52 @@ describe("dashboard layout", () => {
     ]);
   });
 
-  it("mergeWithDefaults fills missing widgets from base", () => {
+  it("mergeWithDefaults fills missing widgets and clears fixed-zone prefs", () => {
     const system = buildSystemDefaultLayout();
     const merged = mergeWithDefaults(
-      { widgets: [{ id: "alerts", visible: false, order: 0 }] },
+      {
+        widgets: [
+          { id: "alerts", visible: true, order: 0 },
+          { id: "financial_comparison", visible: true, order: 1 },
+        ],
+      },
       system,
     );
-    const alerts = merged.widgets.find((w) => w.id === "alerts");
-    expect(alerts?.visible).toBe(false);
+    expect(merged.widgets.find((w) => w.id === "alerts")?.visible).toBe(false);
+    expect(
+      merged.widgets.find((w) => w.id === "financial_comparison")?.visible,
+    ).toBe(true);
     expect(merged.widgets.length).toBe(system.widgets.length);
+  });
+
+  it("migrateLayoutV1toV2 forces Q11 off and ignores fixed-zone prefs", () => {
+    const v1: DashboardLayout = {
+      widgets: [
+        { id: "alerts", visible: true, order: 0 },
+        { id: "metric_trends", visible: true, order: 1 },
+        { id: "financial_comparison", visible: true, order: 2 },
+        { id: "vehicle_expense_ranking", visible: true, order: 3 },
+        { id: "invoices_month", visible: true, order: 4 },
+        { id: "trips_by_day", visible: true, order: 5 },
+        { id: "branch_kpis", visible: false, order: 6 },
+      ],
+    };
+    const v2 = migrateLayoutV1toV2(v1);
+    expect(v2.widgets.find((w) => w.id === "alerts")?.visible).toBe(false);
+    expect(v2.widgets.find((w) => w.id === "metric_trends")?.visible).toBe(
+      false,
+    );
+    expect(
+      v2.widgets.find((w) => w.id === "financial_comparison")?.visible,
+    ).toBe(false);
+    expect(
+      v2.widgets.find((w) => w.id === "vehicle_expense_ranking")?.visible,
+    ).toBe(false);
+    expect(v2.widgets.find((w) => w.id === "invoices_month")?.visible).toBe(
+      false,
+    );
+    expect(v2.widgets.find((w) => w.id === "trips_by_day")?.visible).toBe(true);
+    expect(v2.widgets.find((w) => w.id === "branch_kpis")?.visible).toBe(false);
   });
 
   it("stored layout with retired financial_trend still loads and keeps prefs", () => {
@@ -62,15 +101,7 @@ describe("dashboard layout", () => {
     expect(
       merged.widgets.find((w) => w.id === "financial_comparison")?.visible,
     ).toBe(false);
-    expect(merged.widgets.find((w) => w.id === "alerts")?.visible).toBe(true);
-
-    const visible = getVisibleWidgetsInOrder(merged, {
-      canReadTrips: true,
-      showFinance: true,
-      canReadBranches: true,
-    }).map((w) => w.id);
-    expect(visible).not.toContain("financial_comparison");
-    expect(visible).toContain("alerts");
+    expect(merged.widgets.find((w) => w.id === "alerts")?.visible).toBe(false);
   });
 
   it("applyRbac removes finance widgets when showFinance is false", () => {
@@ -92,55 +123,20 @@ describe("dashboard layout", () => {
     expect(filtered.widgets.some((w) => w.id === "metric_trends")).toBe(
       false,
     );
-    expect(filtered.widgets[0]?.id).toBe("alerts");
   });
 
-  it("system default matches compact finance+ops baseline order and visibility", () => {
+  it("system default: Q11 extras off; recent_trips on for portals catalog", () => {
     const layout = buildSystemDefaultLayout();
-    expect(layout.widgets.map((w) => w.id)).toEqual([
-      "alerts",
-      "operations_snapshot",
-      "metric_trends",
-      "invoices_month",
-      "vehicle_expense_ranking",
-      "financial_comparison",
-      "recent_trips",
-      "fleet_drivers",
-      "trips_by_day",
-      "branch_kpis",
-    ]);
     expect(
       layout.widgets.filter((w) => w.visible).map((w) => w.id),
-    ).toEqual([
-      "alerts",
-      "operations_snapshot",
-      "metric_trends",
-      "invoices_month",
-      "vehicle_expense_ranking",
-      "financial_comparison",
-      "recent_trips",
-    ]);
+    ).toEqual(["metric_trends", "recent_trips"]);
 
-    const withFinance = applyRbac(layout, {
+    const extras = getVisibleWidgetsInOrder(layout, {
       canReadTrips: true,
       showFinance: true,
       canReadBranches: true,
-    });
-    expect(
-      getVisibleWidgetsInOrder(withFinance, {
-        canReadTrips: true,
-        showFinance: true,
-        canReadBranches: true,
-      }).map((w) => w.id),
-    ).toEqual([
-      "alerts",
-      "operations_snapshot",
-      "metric_trends",
-      "invoices_month",
-      "vehicle_expense_ranking",
-      "financial_comparison",
-      "recent_trips",
-    ]);
+    }).map((w) => w.id);
+    expect(extras).toEqual(["recent_trips"]);
   });
 
   it("portal default shows recent_trips without ops widgets", () => {
@@ -162,63 +158,48 @@ describe("dashboard layout", () => {
     expect(driverVisible).toEqual(["recent_trips"]);
   });
 
-  it("setWidgetVisibility and reorderWidgets update prefs", () => {
+  it("setWidgetVisibility ignores fixed zones; reorder only extras", () => {
     const base = buildSystemDefaultLayout();
-    const hidden = setWidgetVisibility(base, "alerts", false);
-    expect(hidden.widgets.find((w) => w.id === "alerts")?.visible).toBe(
+    const ignored = setWidgetVisibility(base, "alerts", true);
+    expect(ignored.widgets.find((w) => w.id === "alerts")?.visible).toBe(
       false,
     );
 
-    const ids = base.widgets.map((w) => w.id);
-    const reversed = [...ids].reverse();
-    const reordered = reorderWidgets(base, reversed);
-    expect(reordered.widgets[0]?.id).toBe(reversed[0]);
+    const withExtra = setWidgetVisibility(base, "trips_by_day", true);
+    expect(withExtra.widgets.find((w) => w.id === "trips_by_day")?.visible).toBe(
+      true,
+    );
+
+    const reordered = reorderWidgets(withExtra, [
+      "trips_by_day",
+      "branch_kpis",
+      "recent_trips",
+    ]);
+    const extras = reordered.widgets.filter(
+      (w) =>
+        w.id === "trips_by_day" ||
+        w.id === "branch_kpis" ||
+        w.id === "recent_trips",
+    );
+    expect(extras[0]?.id).toBe("trips_by_day");
   });
 
-  it("applyRbac hides fleet widgets for client portal", () => {
-    const layout = buildSystemDefaultLayout();
-    const filtered = applyRbac(layout, {
+  it("getCustomizableWidgets excludes fixed zones", () => {
+    const layout = buildRoleDefaultLayout("admin");
+    const customizable = getCustomizableWidgets(layout, {
       canReadTrips: true,
-      showFinance: false,
-      canReadBranches: false,
-      isClientPortal: true,
-    });
-    expect(
-      filtered.widgets.some((w) => w.id === "operations_snapshot"),
-    ).toBe(false);
-    expect(filtered.widgets.some((w) => w.id === "alerts")).toBe(false);
-    expect(filtered.widgets.some((w) => w.id === "fleet_drivers")).toBe(
-      false,
-    );
-    expect(filtered.widgets.some((w) => w.id === "recent_trips")).toBe(
-      true,
-    );
+      showFinance: true,
+      canReadBranches: true,
+    }).map((w) => w.id);
+    expect(customizable).not.toContain("alerts");
+    expect(customizable).not.toContain("metric_trends");
+    expect(customizable).not.toContain("operations_snapshot");
+    expect(customizable).not.toContain("fleet_drivers");
+    expect(customizable).toContain("financial_comparison");
+    expect(customizable).toContain("trips_by_day");
   });
 
-  it("applyRbac hides ops/alerts/fleet widgets for driver portal", () => {
-    const layout = buildSystemDefaultLayout();
-    const filtered = applyRbac(layout, {
-      canReadTrips: true,
-      showFinance: false,
-      canReadBranches: false,
-      isDriverPortal: true,
-    });
-    expect(
-      filtered.widgets.some((w) => w.id === "operations_snapshot"),
-    ).toBe(false);
-    expect(filtered.widgets.some((w) => w.id === "alerts")).toBe(false);
-    expect(filtered.widgets.some((w) => w.id === "fleet_drivers")).toBe(
-      false,
-    );
-    expect(filtered.widgets.some((w) => w.id === "recent_trips")).toBe(
-      true,
-    );
-    expect(filtered.widgets.some((w) => w.id === "trips_by_day")).toBe(
-      true,
-    );
-  });
-
-  it("role product defaults: visible order after RBAC", () => {
+  it("role product defaults v2: staff extras empty; portals recent_trips", () => {
     const financeStaff = {
       canReadTrips: true,
       showFinance: true,
@@ -235,60 +216,35 @@ describe("dashboard layout", () => {
         buildRoleDefaultLayout("admin"),
         financeStaff,
       ).map((w) => w.id),
-    ).toEqual([
-      "metric_trends",
-      "vehicle_expense_ranking",
-      "financial_comparison",
-      "alerts",
-      "invoices_month",
-    ]);
+    ).toEqual([]);
 
     expect(
       getVisibleWidgetsInOrder(
         buildRoleDefaultLayout("manager"),
         financeStaff,
       ).map((w) => w.id),
-    ).toEqual([
-      "metric_trends",
-      "financial_comparison",
-      "alerts",
-      "fleet_drivers",
-    ]);
+    ).toEqual([]);
 
     expect(
       getVisibleWidgetsInOrder(
         buildRoleDefaultLayout("accountant"),
         financeStaff,
       ).map((w) => w.id),
-    ).toEqual([
-      "metric_trends",
-      "vehicle_expense_ranking",
-      "alerts",
-      "invoices_month",
-      "financial_comparison",
-    ]);
-
-    // Manager: ranking queda en Personalizar (densidad ops)
-    expect(
-      getVisibleWidgetsInOrder(
-        buildRoleDefaultLayout("manager"),
-        financeStaff,
-      ).map((w) => w.id),
-    ).not.toContain("vehicle_expense_ranking");
+    ).toEqual([]);
 
     expect(
       getVisibleWidgetsInOrder(
         buildRoleDefaultLayout("dispatcher"),
         opsStaff,
       ).map((w) => w.id),
-    ).toEqual(["alerts", "fleet_drivers", "operations_snapshot"]);
+    ).toEqual([]);
 
     expect(
       getVisibleWidgetsInOrder(
         buildRoleDefaultLayout("operator"),
         opsStaff,
       ).map((w) => w.id),
-    ).toEqual(["operations_snapshot"]);
+    ).toEqual([]);
 
     expect(
       getVisibleWidgetsInOrder(buildRoleDefaultLayout("driver"), {

@@ -89,6 +89,8 @@ export type {
   FinanceRepStatusItem,
   FinanceOpenPpdSummary,
   FinanceOpenPpdByClient,
+  CollectionsWeekDay,
+  CollectionsWeek,
 } from "./entities";
 export {
   REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
