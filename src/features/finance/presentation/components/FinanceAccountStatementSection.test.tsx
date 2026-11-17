@@ -7,18 +7,39 @@ import type { AccountStatementItem } from "@features/finance/domain";
 import { financeCopy } from "../copy";
 import { FinanceAccountStatementSection } from "./FinanceAccountStatementSection";
 
+vi.mock("@features/finance/application", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@features/finance/application")>();
+  return {
+    ...actual,
+    useDownloadAccountStatementPdf: () => ({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
+    useDownloadAccountStatementCsv: () => ({
+      mutate: vi.fn(),
+      isPending: false,
+    }),
+  };
+});
+
 function buildRow(
   overrides: Partial<AccountStatementItem> = {},
 ): AccountStatementItem {
   return {
+    clientId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     clientRfc: "IIA040805DZ4",
     clientName: "INDUSTRIA ILUMINADORA DE ALMACENES",
     totalInvoiced: 31920,
     totalPaid: 0,
     balanceDue: 0,
+    operationalBalance: 0,
     invoiceCount: 1,
     openInvoiceCount: 0,
+    operationalTripCount: 0,
     overdueAmount: 0,
+    lastCollectionAt: null,
+    lastCollectionChannel: null,
     ...overrides,
   };
 }
@@ -28,123 +49,61 @@ function renderSection(ui: ReactElement): ReturnType<typeof render> {
 }
 
 describe("FinanceAccountStatementSection", () => {
-  it("shows settled Pagado for stamped PUE when total_paid is raw 0", () => {
-    renderSection(
-      <FinanceAccountStatementSection rows={[buildRow()]} isLoading={false} />,
-    );
-
-    const row = screen.getByRole("row", {
-      name: /INDUSTRIA ILUMINADORA DE ALMACENES/i,
-    });
-
-    // Facturado + Pagado (display) both show the invoice total; Saldo is $0.
-    expect(within(row).getAllByText("$31,920.00")).toHaveLength(2);
-    expect(within(row).getByText("$0.00")).toBeInTheDocument();
-  });
-
-  it("keeps Pagado equal to registered payments for partial PPD", () => {
+  it("muestra columnas multi-canal (K6) y no Relación / Resumen (PDF)", () => {
     renderSection(
       <FinanceAccountStatementSection
         rows={[
           buildRow({
-            totalInvoiced: 5000,
-            totalPaid: 2000,
-            balanceDue: 3000,
-            invoiceCount: 1,
-            openInvoiceCount: 1,
+            balanceDue: 46_960,
+            operationalBalance: 22_600,
+            openInvoiceCount: 2,
+            operationalTripCount: 4,
+            lastCollectionAt: "2026-11-12T18:00:00.000Z",
+            lastCollectionChannel: "without_invoice",
           }),
         ]}
         isLoading={false}
-      />,
-    );
-
-    const row = screen.getByRole("row", {
-      name: /INDUSTRIA ILUMINADORA DE ALMACENES/i,
-    });
-
-    expect(within(row).getByText("$5,000.00")).toBeInTheDocument();
-    expect(within(row).getByText("$2,000.00")).toBeInTheDocument();
-    expect(within(row).getByText("$3,000.00")).toBeInTheDocument();
-  });
-
-  it("shows Abiertas badge from openInvoiceCount, not invoiceCount", () => {
-    renderSection(
-      <FinanceAccountStatementSection
-        rows={[
-          buildRow({
-            invoiceCount: 9,
-            openInvoiceCount: 6,
-            balanceDue: 12000,
-          }),
-        ]}
-        isLoading={false}
+        canDownloadStatement
+        showCollectAction
       />,
     );
 
     expect(
       screen.getByRole("columnheader", {
-        name: financeCopy.summary.table.invoices,
+        name: financeCopy.summary.table.withInvoice,
       }),
-    ).toHaveTextContent("Abiertas");
-
-    const row = screen.getByRole("row", {
-      name: /INDUSTRIA ILUMINADORA DE ALMACENES/i,
-    });
-    expect(within(row).getByText("6")).toBeInTheDocument();
-    expect(within(row).queryByText("9")).not.toBeInTheDocument();
-  });
-
-  it("shows Cobrar with deep-link /finance/payments?rfc= when openInvoiceCount > 0", () => {
-    renderSection(
-      <FinanceAccountStatementSection
-        rows={[
-          buildRow({
-            invoiceCount: 9,
-            openInvoiceCount: 6,
-            balanceDue: 12000,
-          }),
-        ]}
-        isLoading={false}
-        showCollectAction
-      />,
-    );
-
-    const collect = screen.getByRole("link", {
-      name: financeCopy.summary.accountStatement.collectActionAria(
-        "INDUSTRIA ILUMINADORA DE ALMACENES",
-      ),
-    });
-    expect(collect).toHaveAttribute(
-      "href",
-      "/finance/payments?rfc=IIA040805DZ4",
-    );
-  });
-
-  it("hides Cobrar when openInvoiceCount is 0 even if balanceDue > 0", () => {
-    renderSection(
-      <FinanceAccountStatementSection
-        rows={[
-          buildRow({
-            invoiceCount: 3,
-            openInvoiceCount: 0,
-            balanceDue: 5000,
-          }),
-        ]}
-        isLoading={false}
-        showCollectAction
-      />,
-    );
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", {
+        name: financeCopy.summary.table.withoutInvoice,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", {
+        name: financeCopy.summary.table.lastCollection,
+      }),
+    ).toBeInTheDocument();
 
     expect(
-      screen.queryByRole("link", {
-        name: /Cobrar/i,
+      screen.queryByRole("button", {
+        name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
+          "INDUSTRIA ILUMINADORA DE ALMACENES",
+        ),
       }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("Resumen (PDF)")).not.toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", {
+        name: financeCopy.summary.accountStatement.downloadActionAria(
+          "INDUSTRIA ILUMINADORA DE ALMACENES",
+        ),
+      }),
+    ).toHaveTextContent("Estado de cuenta");
   });
 
-  it("shows Resumen (PDF) in the overflow menu and calls onDownloadPdf with client RFC", async () => {
+  it("abre menú ⋯ con Registrar cobro hacia /finance/collections/new", async () => {
     const user = userEvent.setup();
-    const onDownloadPdf = vi.fn();
     const clientName = "INDUSTRIA ILUMINADORA DE ALMACENES";
 
     renderSection(
@@ -152,12 +111,11 @@ describe("FinanceAccountStatementSection", () => {
         rows={[
           buildRow({
             openInvoiceCount: 1,
-            balanceDue: 12000,
+            balanceDue: 12_000,
           }),
         ]}
         isLoading={false}
         showCollectAction
-        onDownloadPdf={onDownloadPdf}
       />,
     );
 
@@ -166,46 +124,74 @@ describe("FinanceAccountStatementSection", () => {
         name: financeCopy.summary.accountStatement.moreActionsAria(clientName),
       }),
     );
-    const download = await screen.findByRole("menuitem", {
-      name: financeCopy.summary.accountStatement.downloadPdfActionAria(
-        clientName,
-      ),
+    const collect = await screen.findByRole("menuitem", {
+      name: financeCopy.summary.accountStatement.collectActionAria(clientName),
     });
-    expect(download).toHaveTextContent(
-      financeCopy.summary.accountStatement.downloadPdfAction,
+    expect(collect).toHaveAttribute(
+      "href",
+      expect.stringContaining("/finance/collections/new?"),
     );
-    await user.click(download);
-    expect(onDownloadPdf).toHaveBeenCalledWith("IIA040805DZ4");
+    expect(collect.getAttribute("href")).toContain("channel=with_invoice");
   });
 
-  it("disables Resumen (PDF) in the overflow menu while downloadingRfc matches the row", async () => {
+  it("filtra por canal Con factura / Sin factura / Con vencido", async () => {
     const user = userEvent.setup();
-    const clientName = "INDUSTRIA ILUMINADORA DE ALMACENES";
-
     renderSection(
       <FinanceAccountStatementSection
-        rows={[buildRow({ openInvoiceCount: 1, balanceDue: 100 })]}
+        rows={[
+          buildRow({
+            clientName: "Solo factura",
+            clientRfc: "AAA010101AAA",
+            balanceDue: 10_000,
+            operationalBalance: 0,
+            openInvoiceCount: 1,
+          }),
+          buildRow({
+            clientName: "Solo operativo",
+            clientRfc: "",
+            clientId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            balanceDue: 5_000,
+            operationalBalance: 5_000,
+            openInvoiceCount: 0,
+            operationalTripCount: 2,
+          }),
+          buildRow({
+            clientName: "Con vencido",
+            clientRfc: "CCC010101CCC",
+            balanceDue: 8_000,
+            operationalBalance: 0,
+            openInvoiceCount: 1,
+            overdueAmount: 8_000,
+          }),
+        ]}
         isLoading={false}
-        onDownloadPdf={vi.fn()}
-        downloadingRfc="IIA040805DZ4"
       />,
     );
 
     await user.click(
       screen.getByRole("button", {
-        name: financeCopy.summary.accountStatement.moreActionsAria(clientName),
+        name: new RegExp(financeCopy.summary.accountStatement.filters.overdue),
+      }),
+    );
+    expect(screen.getByRole("row", { name: /Con vencido/i })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /Solo factura/i })).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: new RegExp(
+          financeCopy.summary.accountStatement.filters.withoutInvoice,
+        ),
       }),
     );
     expect(
-      await screen.findByRole("menuitem", {
-        name: financeCopy.summary.accountStatement.downloadPdfActionAria(
-          clientName,
-        ),
-      }),
-    ).toHaveAttribute("aria-disabled", "true");
+      screen.getByRole("row", { name: /Solo operativo/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("row", { name: /Con vencido/i }),
+    ).not.toBeInTheDocument();
   });
 
-  it("filtra client-side por RFC (CA 6)", async () => {
+  it("filtra client-side por RFC", async () => {
     const user = userEvent.setup();
     renderSection(
       <FinanceAccountStatementSection
@@ -213,12 +199,13 @@ describe("FinanceAccountStatementSection", () => {
           buildRow({
             clientRfc: "IIA040805DZ4",
             clientName: "INDUSTRIA ILUMINADORA DE ALMACENES",
+            balanceDue: 1000,
+            openInvoiceCount: 1,
           }),
           buildRow({
             clientRfc: "XAXX010101000",
             clientName: "CLIENTE GENERICO",
             totalInvoiced: 1000,
-            totalPaid: 0,
             balanceDue: 1000,
             openInvoiceCount: 1,
           }),
@@ -246,7 +233,7 @@ describe("FinanceAccountStatementSection", () => {
     const user = userEvent.setup();
     renderSection(
       <FinanceAccountStatementSection
-        rows={[buildRow()]}
+        rows={[buildRow({ balanceDue: 100, openInvoiceCount: 1 })]}
         isLoading={false}
       />,
     );
@@ -263,85 +250,26 @@ describe("FinanceAccountStatementSection", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows Relación when balanceDue > 0 and onDownloadPdf is set", () => {
-    renderSection(
-      <FinanceAccountStatementSection
-        rows={[buildRow({ balanceDue: 12000, openInvoiceCount: 1 })]}
-        isLoading={false}
-        onDownloadPdf={vi.fn()}
-      />,
-    );
-
-    const relation = screen.getByRole("button", {
-      name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
-        "INDUSTRIA ILUMINADORA DE ALMACENES",
-      ),
-    });
-    expect(relation).toHaveTextContent(
-      financeCopy.summary.accountStatement.pendingRelation.action,
-    );
-  });
-
-  it("hides Relación when balanceDue is 0", () => {
-    renderSection(
-      <FinanceAccountStatementSection
-        rows={[buildRow({ balanceDue: 0, openInvoiceCount: 2 })]}
-        isLoading={false}
-        onDownloadPdf={vi.fn()}
-      />,
-    );
-
-    expect(
-      screen.queryByRole("button", {
-        name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
-          "INDUSTRIA ILUMINADORA DE ALMACENES",
-        ),
-      }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("shows Relación and hides Cobrar when openInvoiceCount is 0", () => {
+  it("resalta vencido en ámbar", () => {
     renderSection(
       <FinanceAccountStatementSection
         rows={[
           buildRow({
-            openInvoiceCount: 0,
-            balanceDue: 5000,
+            balanceDue: 15_600,
+            openInvoiceCount: 1,
+            overdueAmount: 15_600,
           }),
         ]}
         isLoading={false}
-        showCollectAction
-        onDownloadPdf={vi.fn()}
       />,
     );
 
-    expect(
-      screen.getByRole("button", {
-        name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
-          "INDUSTRIA ILUMINADORA DE ALMACENES",
-        ),
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /Cobrar/i }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("hides Relación without onDownloadPdf even if there is balance", () => {
-    renderSection(
-      <FinanceAccountStatementSection
-        rows={[buildRow({ balanceDue: 8000, openInvoiceCount: 1 })]}
-        isLoading={false}
-        showCollectAction
-      />,
-    );
-
-    expect(
-      screen.queryByRole("button", {
-        name: financeCopy.summary.accountStatement.pendingRelation.actionAria(
-          "INDUSTRIA ILUMINADORA DE ALMACENES",
-        ),
-      }),
-    ).not.toBeInTheDocument();
+    const row = screen.getByRole("row", {
+      name: /INDUSTRIA ILUMINADORA DE ALMACENES/i,
+    });
+    const overdue = within(row)
+      .getAllByText("$15,600.00")
+      .find((el) => el.className.includes("text-warning"));
+    expect(overdue).toBeTruthy();
   });
 });

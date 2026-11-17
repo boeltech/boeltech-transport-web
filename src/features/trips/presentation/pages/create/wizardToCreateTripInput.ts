@@ -28,7 +28,10 @@ function mapWizardTrailers(
 export type BuildCreateTripInputOptions = {
   /** ADR-0071: hold comercial sin stops/cargos. */
   createIntent?: "reserve" | "full";
-  /** ADR-0078: paradas clonadas del corredor en reserve. */
+  /**
+   * ADR-0078 / F8 Q14: stops en reserve — corredor clonado **o**
+   * 1–2 lugares put-ready del canvas (ciudad-only no entra aquí).
+   */
   clonedStops?: CreateStopInput[];
   /**
    * ADR-0066: intención explícita del operador (checkbox).

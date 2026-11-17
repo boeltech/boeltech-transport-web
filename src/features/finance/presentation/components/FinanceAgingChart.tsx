@@ -1,13 +1,14 @@
 import { useMemo, type ReactNode } from "react";
-import { BoeltechBarChart, ChartCard } from "@shared/ui/data-display";
+import { ChartCard } from "@shared/ui/data-display";
 import { Skeleton } from "@shared/ui/skeleton";
-import type { AgingSummary } from "@features/finance/domain";
-import {
-  FINANCE_AGING_BUCKET_KEYS,
-  FINANCE_AGING_SERIES,
-} from "../config/financeChartConfig";
+import { cn } from "@shared/lib/utils/cn";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import type {
+  AgingBucket,
+  AgingSummary,
+  OperationalAgingBucket,
+} from "@features/finance/domain";
 import { financeCopy } from "../copy";
-import { financeCurrencyValueFormatter } from "../utils/financeChartHelpers";
 
 interface FinanceAgingChartProps {
   agingSummary?: AgingSummary;
@@ -15,60 +16,164 @@ interface FinanceAgingChartProps {
   exportAction?: ReactNode;
 }
 
+type AgingRowKey = OperationalAgingBucket;
+
+const OVERDUE_KEYS: ReadonlySet<AgingBucket> = new Set([
+  "31-60",
+  "61-90",
+  "90+",
+]);
+
+const ROW_ORDER: AgingRowKey[] = [
+  "upcoming",
+  "0-30",
+  "31-60",
+  "61-90",
+  "90+",
+];
+
+function bucketLabel(key: AgingRowKey): string {
+  return financeCopy.summary.agingBuckets[key];
+}
+
+/**
+ * Antigüedad apilada por canal (K5) — barras horizontales + tramo Por salir.
+ */
 export function FinanceAgingChart({
   agingSummary,
   isLoading = false,
   exportAction,
 }: FinanceAgingChartProps) {
-  const chartData = useMemo(
-    () =>
-      agingSummary
-        ? FINANCE_AGING_BUCKET_KEYS.map((key) => ({
-            label: financeCopy.summary.agingBuckets[key],
-            balance: agingSummary.buckets[key].totalBalance,
-          }))
-        : [],
-    [agingSummary],
-  );
+  const copy = financeCopy.summary.charts.agingBuckets;
 
-  const dsoBadge = isLoading ? (
-    <Skeleton className="h-8 w-32" />
-  ) : (
-    <div className="rounded-md border bg-muted/40 px-3 py-1.5 text-right">
-      <p className="text-[11px] font-medium text-muted-foreground">
-        {financeCopy.summary.dsoTitle}
-      </p>
-      <p className="text-sm font-semibold tabular-nums">
-        {agingSummary?.dso30d ?? 0} {financeCopy.summary.daysSuffix}
-      </p>
-    </div>
+  const rows = useMemo(() => {
+    if (!agingSummary) return [];
+    const withInv = agingSummary.byChannel?.withInvoice.buckets;
+    const withoutInv = agingSummary.byChannel?.withoutInvoice.buckets;
+    return ROW_ORDER.map((key) => {
+      const withBalance =
+        key === "upcoming"
+          ? 0
+          : (withInv?.[key]?.totalBalance ??
+            agingSummary.buckets[key]?.totalBalance ??
+            0);
+      const withoutBalance =
+        withoutInv?.[key]?.totalBalance ??
+        (key === "upcoming" ? 0 : 0);
+      const total = withBalance + withoutBalance;
+      return {
+        key,
+        label: bucketLabel(key),
+        withBalance,
+        withoutBalance,
+        total,
+        overdue: key !== "upcoming" && OVERDUE_KEYS.has(key),
+      };
+    }).filter(
+      (row) => row.key !== "upcoming" || row.withoutBalance > 0.009,
+    );
+  }, [agingSummary]);
+
+  const maxTotal = useMemo(
+    () => Math.max(1, ...rows.map((r) => r.total)),
+    [rows],
   );
 
   return (
     <ChartCard
-      title={financeCopy.summary.charts.agingBuckets.title}
-      description={financeCopy.summary.charts.agingBuckets.description}
+      title={copy.title}
+      description={copy.description}
       isLoading={isLoading}
-      aria-label="Gráfico de barras: antigüedad de saldos"
-      tools={
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {exportAction}
-          {dsoBadge}
-        </div>
-      }
+      aria-label="Antigüedad de saldos por canal"
+      tools={exportAction}
       footer={
         agingSummary ? (
-          <p className="text-xs text-muted-foreground">
-            {financeCopy.summary.charts.agingBuckets.footer}
-          </p>
+          <p className="text-xs text-muted-foreground">{copy.footer}</p>
         ) : undefined
       }
     >
-      <BoeltechBarChart
-        data={chartData}
-        series={FINANCE_AGING_SERIES}
-        valueFormatter={financeCurrencyValueFormatter}
-      />
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((row) => {
+            const withPct = (row.withBalance / maxTotal) * 100;
+            const withoutPct = (row.withoutBalance / maxTotal) * 100;
+            return (
+              <div
+                key={row.key}
+                className={cn(
+                  "grid grid-cols-[7.5rem_1fr_auto] items-center gap-3",
+                  row.overdue && "text-warning",
+                )}
+              >
+                <span
+                  className={cn(
+                    "text-sm text-muted-foreground",
+                    row.overdue && "text-warning",
+                  )}
+                >
+                  {row.label}
+                </span>
+                <div className="flex h-3 min-w-0 overflow-hidden rounded-sm bg-muted">
+                  {withPct > 0 ? (
+                    <span
+                      className={cn(
+                        "h-full",
+                        row.overdue
+                          ? "bg-warning"
+                          : "bg-[var(--chart-1)]",
+                      )}
+                      style={{ width: `${withPct}%` }}
+                    />
+                  ) : null}
+                  {withoutPct > 0 ? (
+                    <span
+                      className={cn(
+                        "h-full opacity-80",
+                        row.overdue
+                          ? "bg-warning/70"
+                          : "bg-[var(--chart-2)]",
+                      )}
+                      style={{ width: `${withoutPct}%` }}
+                    />
+                  ) : null}
+                </div>
+                <span className="min-w-[7.5rem] text-right text-sm tabular-nums">
+                  <span className="font-medium">
+                    {formatMxCurrency(row.total)}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                    {formatMxCurrency(row.withBalance).replace("$", "")} ·{" "}
+                    {formatMxCurrency(row.withoutBalance).replace("$", "")}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="inline-block h-2 w-2 rounded-sm bg-[var(--chart-1)]"
+                aria-hidden
+              />
+              {copy.withInvoice}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="inline-block h-2 w-2 rounded-sm bg-[var(--chart-2)]"
+                aria-hidden
+              />
+              {copy.withoutInvoice}
+            </span>
+            <span className="text-muted-foreground/80">{copy.figuresHint}</span>
+          </div>
+        </div>
+      )}
     </ChartCard>
   );
 }

@@ -3,7 +3,10 @@
  */
 
 import type { ClientAddress } from "@features/clients/domain/entities";
-import type { UpdateClientAddressDTO } from "@features/clients/domain";
+import type {
+  CreateClientAddressDTO,
+  UpdateClientAddressDTO,
+} from "@features/clients/domain";
 import { isClientTripAddressType } from "@features/clients/presentation/config/clientAddressPurpose";
 import {
   CLIENT_ADDRESS_TYPES,
@@ -192,6 +195,63 @@ export function canOfferClientAddressWriteBack(
 ): boolean {
   if (!canUpdateClient || catalog == null) return false;
   return isClientTripAddressType(catalog.addressType);
+}
+
+/**
+ * Q15 / D61 / D70 — create write-back solo con el mismo gate que update
+ * (`clients.update`). Dispatcher: casilla deshabilitada.
+ */
+export function canOfferClientAddressCreate(
+  canUpdateClient: boolean,
+  tripClientId: string | null | undefined,
+): boolean {
+  return Boolean(canUpdateClient && tripClientId?.trim());
+}
+
+/**
+ * D61 — default marcado para lugar de mapa / nuevo (sin id de catálogo).
+ */
+export function shouldDefaultSaveNewAddressToClient(input: {
+  canCreate: boolean;
+  hasCatalogAddressId: boolean;
+  sourceIsMapOrCreate: boolean;
+}): boolean {
+  return (
+    input.canCreate &&
+    !input.hasCatalogAddressId &&
+    input.sourceIsMapOrCreate
+  );
+}
+
+export function stopDialogToClientAddressCreateDto(
+  form: StopDialogFormValues,
+): CreateClientAddressDTO {
+  const hasCoordinates = form.latitude != null && form.longitude != null;
+  return {
+    addressType: "shipping",
+    isPrimary: false,
+    locationName: form.locationName,
+    street: form.street,
+    exteriorNumber: form.exteriorNumber,
+    interiorNumber: form.interiorNumber ?? undefined,
+    reference: form.reference ?? undefined,
+    postalCode: form.postalCode,
+    satCountryCode: form.satCountryCode || "MEX",
+    satStateCode: form.satStateCode,
+    satMunicipalityCode: form.satMunicipalityCode ?? undefined,
+    satLocalityCode: form.satLocalityCode ?? undefined,
+    localityName: form.localityName ?? undefined,
+    satNeighborhoodCode: form.satNeighborhoodCode ?? undefined,
+    neighborhoodName: form.neighborhoodName ?? undefined,
+    rfcRemitenteDestinatario: form.rfcRemitenteDestinatario || undefined,
+    nombreRemitenteDestinatario: form.nombreRemitenteDestinatario || undefined,
+    latitude: hasCoordinates ? form.latitude : null,
+    longitude: hasCoordinates ? form.longitude : null,
+    geolocationPending: !hasCoordinates,
+    geocodingSource: hasCoordinates ? "manual" : null,
+    contactName: form.contactName || undefined,
+    contactPhone: form.contactPhone || undefined,
+  };
 }
 
 /** Quita vínculo al catálogo: la parada viaja con domicilio inline en el wizard. */

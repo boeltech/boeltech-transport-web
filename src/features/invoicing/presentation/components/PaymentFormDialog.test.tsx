@@ -179,7 +179,7 @@ describe("PaymentFormDialog", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Registrar pago" }),
+      screen.getByRole("heading", { name: "Registrar cobro" }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/PPD\s*\/\s*REP/i)).not.toBeInTheDocument();
     expect(screen.getByText("A-10 · Cliente Demo SA")).toBeInTheDocument();
@@ -201,7 +201,7 @@ describe("PaymentFormDialog", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", { name: /^Registrar pago$/i }),
+      screen.getByRole("button", { name: /^Registrar cobro$/i }),
     ).toBeDisabled();
     expect(mutateMock).not.toHaveBeenCalled();
   });
@@ -215,7 +215,7 @@ describe("PaymentFormDialog", () => {
       }),
     );
 
-    await user.click(screen.getByRole("button", { name: /^Registrar pago$/i }));
+    await user.click(screen.getByRole("button", { name: /^Registrar cobro$/i }));
 
     expect(mutateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -267,7 +267,7 @@ describe("PaymentFormDialog", () => {
       screen.queryByRole("button", { name: /Más sobre factura a crédito/i }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /^Registrar pago$/i }));
+    await user.click(screen.getByRole("button", { name: /^Registrar cobro$/i }));
 
     expect(mutateMock).toHaveBeenCalledWith(
       expect.objectContaining({

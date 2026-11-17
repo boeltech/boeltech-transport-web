@@ -1,27 +1,37 @@
 /**
- * Host deep-link `?batch=<uuid>` en ficha cliente (PRD A1–A4).
+ * Host deep-link hoja «Cobro» en ficha cliente (F3).
+ * Soporta `?batch=` · `?payment=` · `?receipt=`.
  * Vive fuera de la card de saldo: monta aunque la card haga `return null`.
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import {
+  COLLECTION_PAYMENT_PARAM,
+  COLLECTION_RECEIPT_PARAM,
   OPERATIONAL_RECEIPT_BATCH_PARAM,
 } from "@features/finance/application";
-import { OperationalReceiptBatchSheet } from "@features/finance/presentation/components";
+import type { CollectionDetailTarget } from "@features/finance/domain";
+import { CollectionDetailSheet } from "@features/finance/presentation/components";
 
 /** UUID canónico (RFC 4122 variant/version bits). */
-const BATCH_ID_RE =
+const ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function parseBatchId(raw: string | null): string | null {
+function parseId(raw: string | null): string | null {
   if (!raw) return null;
-  return BATCH_ID_RE.test(raw) ? raw : null;
+  return ID_RE.test(raw) ? raw : null;
 }
 
+const COLLECTION_PARAMS = [
+  OPERATIONAL_RECEIPT_BATCH_PARAM,
+  COLLECTION_PAYMENT_PARAM,
+  COLLECTION_RECEIPT_PARAM,
+] as const;
+
 export interface ClientOperationalReceiptBatchDeepLinkHostProps {
-  /** Fuerza tab Datos al aterrizar con `?batch=` (A3). */
+  /** Fuerza tab Datos al aterrizar con deep-link de cobro. */
   onBatchPresent?: () => void;
 }
 
@@ -29,36 +39,103 @@ export function ClientOperationalReceiptBatchDeepLinkHost({
   onBatchPresent,
 }: ClientOperationalReceiptBatchDeepLinkHostProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const raw = searchParams.get(OPERATIONAL_RECEIPT_BATCH_PARAM);
-  const batchId = parseBatchId(raw);
+
+  const rawBatch = searchParams.get(OPERATIONAL_RECEIPT_BATCH_PARAM);
+  const rawPayment = searchParams.get(COLLECTION_PAYMENT_PARAM);
+  const rawReceipt = searchParams.get(COLLECTION_RECEIPT_PARAM);
+
+  const batchId = parseId(rawBatch);
+  const paymentId = parseId(rawPayment);
+  const receiptId = parseId(rawReceipt);
+
+  const target: CollectionDetailTarget | null = useMemo(() => {
+    if (paymentId) return { kind: "payment", paymentId };
+    if (batchId) return { kind: "batch", batchId };
+    if (receiptId) return { kind: "receipt", receiptId };
+    return null;
+  }, [paymentId, batchId, receiptId]);
 
   useEffect(() => {
-    if (raw != null && batchId == null) {
-      setSearchParams(
-        (prev) => {
-          if (!prev.has(OPERATIONAL_RECEIPT_BATCH_PARAM)) return prev;
-          const next = new URLSearchParams(prev);
-          next.delete(OPERATIONAL_RECEIPT_BATCH_PARAM);
-          return next;
-        },
-        { replace: true },
-      );
+    const invalids: string[] = [];
+    if (rawBatch != null && batchId == null) {
+      invalids.push(OPERATIONAL_RECEIPT_BATCH_PARAM);
     }
-  }, [raw, batchId, setSearchParams]);
+    if (rawPayment != null && paymentId == null) {
+      invalids.push(COLLECTION_PAYMENT_PARAM);
+    }
+    if (rawReceipt != null && receiptId == null) {
+      invalids.push(COLLECTION_RECEIPT_PARAM);
+    }
+    if (invalids.length === 0) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        let changed = false;
+        for (const key of invalids) {
+          if (next.has(key)) {
+            next.delete(key);
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      },
+      { replace: true },
+    );
+  }, [
+    rawBatch,
+    rawPayment,
+    rawReceipt,
+    batchId,
+    paymentId,
+    receiptId,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
-    if (batchId) onBatchPresent?.();
-  }, [batchId, onBatchPresent]);
+    if (target) onBatchPresent?.();
+  }, [target, onBatchPresent]);
+
+  const clearParams = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        let changed = false;
+        const next = new URLSearchParams(prev);
+        for (const key of COLLECTION_PARAMS) {
+          if (next.has(key)) {
+            next.delete(key);
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (open) return;
+      clearParams();
+    },
+    [clearParams],
+  );
+
+  const handleNavigateTarget = useCallback(
+    (next: CollectionDetailTarget) => {
       setSearchParams(
         (prev) => {
-          if (!prev.has(OPERATIONAL_RECEIPT_BATCH_PARAM)) return prev;
-          const next = new URLSearchParams(prev);
-          next.delete(OPERATIONAL_RECEIPT_BATCH_PARAM);
-          return next;
+          const params = new URLSearchParams(prev);
+          for (const key of COLLECTION_PARAMS) {
+            params.delete(key);
+          }
+          if (next.kind === "payment") {
+            params.set(COLLECTION_PAYMENT_PARAM, next.paymentId);
+          } else if (next.kind === "batch") {
+            params.set(OPERATIONAL_RECEIPT_BATCH_PARAM, next.batchId);
+          } else {
+            params.set(COLLECTION_RECEIPT_PARAM, next.receiptId);
+          }
+          return params;
         },
         { replace: true },
       );
@@ -67,10 +144,11 @@ export function ClientOperationalReceiptBatchDeepLinkHost({
   );
 
   return (
-    <OperationalReceiptBatchSheet
-      batchId={batchId}
-      open={Boolean(batchId)}
+    <CollectionDetailSheet
+      target={target}
+      open={Boolean(target)}
       onOpenChange={handleOpenChange}
+      onNavigateTarget={handleNavigateTarget}
     />
   );
 }

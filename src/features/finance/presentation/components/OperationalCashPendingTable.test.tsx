@@ -19,8 +19,8 @@ vi.mock("@shared/permissions", async () =>
   (await import("@/test/mocks/permissions")).permissionsModuleMock(),
 );
 
-vi.mock("./OperationalReceiptBatchSheet", () => ({
-  OperationalReceiptBatchSheet: () => null,
+vi.mock("./CollectionDetailSheet", () => ({
+  CollectionDetailSheet: () => null,
 }));
 
 const copy = financeCopy.efectivoPorCobrar;

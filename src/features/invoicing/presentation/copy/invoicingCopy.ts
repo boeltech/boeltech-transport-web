@@ -409,7 +409,9 @@ export const invoicingCopy = {
       linkedTripsClient: (count: number) =>
         count === 1 ? "Envío vinculado" : `Envíos vinculados (${count})`,
       payments: (count: number) =>
-        count === 1 ? "Pagos recibidos" : `Pagos recibidos (${count})`,
+        count === 1
+          ? "Cobros de esta factura · 1"
+          : `Cobros de esta factura · ${count}`,
       notes: "Notas internas",
       cancellation: "Cancelada ante el SAT",
       cancellationPending: "Esperando al receptor",
@@ -495,10 +497,32 @@ export const invoicingCopy = {
       submitting: "Guardando...",
       previewInstallment: (n: number) => `Será el cobro parcial nº ${n}`,
     },
+    cobrosSection: {
+      title: (n: number) =>
+        n === 1
+          ? "Cobros de esta factura · 1"
+          : `Cobros de esta factura · ${n}`,
+      empty: "Aún no hay cobros registrados en esta factura.",
+      registerCta: "Registrar cobro",
+      registerCtaAria: "Registrar cobro de esta factura",
+      total: "Total",
+      collected: "Cobrado",
+      balanceDue: "Por cobrar",
+      columns: {
+        date: "Fecha",
+        form: "Forma de pago",
+        reference: "Referencia",
+        installment: "Parcialidad",
+        amount: "Abono (MXN)",
+        balanceAfter: "Saldo después (MXN)",
+        comprobante: "Comprobante",
+      },
+      emDash: "—",
+    },
     paymentForm: {
-      title: "Registrar pago",
+      title: "Registrar cobro",
       ppdHint:
-        "Factura a crédito. Este pago es una parcialidad de esta factura y genera un comprobante de pago (REP). Para cobrar varias facturas a la vez por el saldo completo, usa Facturas a crédito.",
+        "Factura a crédito. Este cobro es una parcialidad de esta factura y genera un comprobante de pago (REP). Para cobrar varias facturas a la vez por el saldo completo, usa Facturas a crédito.",
       ppdHintLabel: "Más sobre factura a crédito",
       contextLine: (serie: string, folio: number, clientName: string) =>
         `${serie}-${folio} · ${clientName}`,
@@ -506,7 +530,7 @@ export const invoicingCopy = {
       total: "Total",
       paid: "Cobrado",
       settledMessage:
-        "Esta factura ya está liquidada; no se pueden registrar más pagos.",
+        "Esta factura ya está liquidada; no se pueden registrar más cobros.",
       /** PPD no-MXN: bloqueo UX (paridad API REP_CURRENCY_NOT_SUPPORTED). */
       nonMxnBlockedTitle: "Solo MXN para comprobante de pago",
       nonMxnBlockedDescription: (currency: string) =>
@@ -523,15 +547,15 @@ export const invoicingCopy = {
       referencePlaceholder: "Número de transferencia, cheque…",
       notes: "Notas (opcional)",
       notesPlaceholder: "Notas adicionales",
-      validationSummaryTitle: "Revisa los datos del pago",
+      validationSummaryTitle: "Revisa los datos del cobro",
       cancel: "Cancelar",
-      submit: "Registrar pago",
+      submit: "Registrar cobro",
       submitting: "Guardando...",
       noBalanceTitle: "Sin saldo por cobrar",
       noBalanceDescription: "Esta factura ya no tiene saldo por cobrar.",
       amountExceedsTitle: "Monto inválido",
       amountExceedsDescription:
-        "El pago no puede exceder el importe por cobrar.",
+        "El cobro no puede exceder el importe por cobrar.",
       validation: {
         amountRequired: "Monto requerido",
         amountPositive: "El monto debe ser mayor a 0",
@@ -848,7 +872,8 @@ export const invoicingCopy = {
       stamping: "Timbrando...",
       editDraft: "Editar",
       deleteDraft: "Eliminar borrador",
-      registerPayment: "Registrar pago",
+      registerPayment: "Registrar cobro",
+      viewCobro: "Ver cobro",
       substitute: "Sustituir factura",
       substituteBlockedTitle: "No se puede sustituir con cobros",
       substituteBlocked:

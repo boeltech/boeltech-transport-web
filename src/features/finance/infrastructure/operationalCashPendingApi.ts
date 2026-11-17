@@ -29,6 +29,9 @@ export const operationalCashPendingApi = {
     if (clientId) {
       search.set("client_id", clientId);
     }
+    if (params.cobrosBucket === "open" || params.cobrosBucket === "partial") {
+      search.set("cobros_bucket", params.cobrosBucket);
+    }
     const raw = await apiClient.get<ApiOperationalCashPendingResponseRaw>(
       `${ENDPOINT}?${search.toString()}`,
     );

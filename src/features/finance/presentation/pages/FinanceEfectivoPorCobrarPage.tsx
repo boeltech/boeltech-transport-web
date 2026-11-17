@@ -5,9 +5,9 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCircle, ArrowUpRight, HandCoins, Search, Send } from "lucide-react";
-import { WorkbenchPageShell, type WorkbenchBucket } from "@shared/ui/page-shells";
+import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
@@ -35,6 +35,7 @@ import { useActiveClients } from "@features/clients/application";
 import { getClientDisplayName } from "@features/clients/domain";
 import {
   buildRegisterCollectionPath,
+  FINANCE_COBROS_BUCKET_PARAM,
   FINANCE_COBROS_PATH,
   FINANCE_EFECTIVO_CLIENT_ID_PARAM,
   FINANCE_EFECTIVO_POR_COBRAR_PATH,
@@ -44,6 +45,7 @@ import {
 } from "@features/finance/application";
 import {
   OPERATIONAL_PAYMENT_INSTRUMENT_LABELS,
+  type OperationalCashCobrosBucket,
   type OperationalCashPendingTrip,
 } from "@features/finance/domain";
 import type { TripStatusType } from "@features/trips/domain";
@@ -55,12 +57,18 @@ import {
 } from "../utils/groupOperationalCashPending";
 import { FinanceCobrosTodayTray } from "../components/FinanceCobrosTodayTray";
 import {
-  clearCobrosTodayTray,
+  clearCobrosTodayTrayChannel,
+  isWithoutInvoiceTrayEntry,
   readCobrosTodayTray,
   removeCobrosTodayEntry,
   writeCobrosTodayTray,
   type CobrosTodayEntry,
 } from "../utils/cobrosFollowThrough";
+import {
+  DEFAULT_EFECTIVO_BUCKET,
+  isEfectivoCobrosBucket,
+  mapEfectivoWorkbenchBuckets,
+} from "../utils/mapEfectivoWorkbenchBuckets";
 import { useQueryErrorToast } from "@shared/hooks";
 
 const copy = financeCopy.efectivoPorCobrar;
@@ -267,6 +275,7 @@ function SinFacturaRegisterBar({
 
 export function FinanceEfectivoPorCobrarPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { hasPermission } = usePermissions();
   const canCreate = hasPermission("operational_cash", "create");
 
@@ -280,6 +289,14 @@ export function FinanceEfectivoPorCobrarPage() {
   });
 
   const clientId = filters.filters.clientId || null;
+  const bucketFromUrl = searchParams.get(FINANCE_COBROS_BUCKET_PARAM) ?? "";
+  const activeBucket: OperationalCashCobrosBucket = isEfectivoCobrosBucket(
+    bucketFromUrl,
+  )
+    ? bucketFromUrl
+    : DEFAULT_EFECTIVO_BUCKET;
+  const otherBucket: OperationalCashCobrosBucket =
+    activeBucket === "open" ? "partial" : "open";
 
   const { data: activeClients = [], isLoading: isLoadingClients } =
     useActiveClients();
@@ -289,6 +306,15 @@ export function FinanceEfectivoPorCobrarPage() {
       page: filters.page,
       limit: OPERATIONAL_CASH_PENDING_PAGE_SIZE,
       clientId,
+      cobrosBucket: activeBucket,
+    });
+
+  const { data: otherBucketData, isLoading: otherBucketLoading } =
+    useOperationalCashPending({
+      page: 1,
+      limit: 1,
+      clientId,
+      cobrosBucket: otherBucket,
     });
 
   useQueryErrorToast({
@@ -297,38 +323,57 @@ export function FinanceEfectivoPorCobrarPage() {
     title: copy.loadErrorTitle,
   });
 
-  // Cobros de hoy session (C11)
-  const [todayTray, setTodayTray] = useState<CobrosTodayEntry[]>(() => {
-    const all = readCobrosTodayTray();
-    return all.filter((e) => !e.invoices?.length || e.invoices.length === 0);
-  });
+  // Cobros de hoy session (C11) — solo canal sin factura
+  const [todayTray, setTodayTray] = useState<CobrosTodayEntry[]>(() =>
+    readCobrosTodayTray().filter(isWithoutInvoiceTrayEntry),
+  );
 
   const handleDismissTray = useCallback(() => {
-    clearCobrosTodayTray();
+    clearCobrosTodayTrayChannel("without_invoice");
     setTodayTray([]);
   }, []);
 
   const handleDismissEntry = useCallback((paymentId: string) => {
-    setTodayTray((prev) => removeCobrosTodayEntry(prev, paymentId));
+    const next = removeCobrosTodayEntry(readCobrosTodayTray(), paymentId);
+    setTodayTray(next.filter(isWithoutInvoiceTrayEntry));
   }, []);
 
   const handleEntryLiveUpdate = useCallback(
     (paymentId: string, live: { repStatus: string }) => {
-      setTodayTray((prev) => {
-        const idx = prev.findIndex((e) => e.paymentId === paymentId);
-        if (idx < 0) return prev;
-        if (prev[idx].repStatus === live.repStatus) return prev;
-        const next = [...prev];
-        next[idx] = { ...next[idx], repStatus: live.repStatus };
-        writeCobrosTodayTray(next);
-        return next;
-      });
+      const full = readCobrosTodayTray();
+      const idx = full.findIndex((e) => e.paymentId === paymentId);
+      if (idx < 0) return;
+      if (full[idx].repStatus === live.repStatus) return;
+      const next = [...full];
+      next[idx] = { ...next[idx], repStatus: live.repStatus };
+      writeCobrosTodayTray(next);
+      setTodayTray(next.filter(isWithoutInvoiceTrayEntry));
     },
     [],
   );
 
   // Selection state
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+
+  const handleBucketChange = useCallback(
+    (bucket: OperationalCashCobrosBucket) => {
+      setSelected({});
+      filters.setPage(1);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (bucket === DEFAULT_EFECTIVO_BUCKET) {
+            next.delete(FINANCE_COBROS_BUCKET_PARAM);
+          } else {
+            next.set(FINANCE_COBROS_BUCKET_PARAM, bucket);
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [filters, setSearchParams],
+  );
 
   const trips = data?.data ?? [];
   const byClient = data?.meta?.byClient ?? [];
@@ -476,36 +521,35 @@ export function FinanceEfectivoPorCobrarPage() {
     await refetch();
   }, [refetch]);
 
-  // Buckets
-  const openCount = totals?.tripCount ?? 0;
-  const partialCount = groups.reduce(
-    (sum, g) =>
-      sum + g.trips.filter((t) => t.operationalCash.collectedTotal > 0 && t.operationalCash.pendingAmount > 0).length,
-    0,
-  );
+  // Buckets — conteo + monto del universo filtrado por cobros_bucket (API)
+  const activeTripCount = totals?.tripCount ?? 0;
+  const activePendingAmount = totals?.pendingAmount ?? 0;
+  const otherTripCount = otherBucketData?.meta?.totals?.tripCount ?? 0;
+  const otherPendingAmount = otherBucketData?.meta?.totals?.pendingAmount ?? 0;
 
-  const buckets: WorkbenchBucket[] = useMemo(
-    () => [
-      {
-        id: "open",
-        label: "Por cobrar",
-        count: openCount,
-        description: totals ? formatMxCurrency(totals.pendingAmount) : undefined,
-        isActive: true,
-        onClick: (): void => undefined,
-        tone: (openCount > 0 ? "success" : "default") as WorkbenchBucket["tone"],
-      },
-      {
-        id: "partial",
-        label: "Con abono parcial",
-        count: partialCount,
-        isActive: false,
-        onClick: (): void => undefined,
-        tone: (partialCount > 0 ? "warning" : "default") as WorkbenchBucket["tone"],
-      },
-    ],
-    [openCount, partialCount, totals],
-  );
+  const buckets = useMemo(() => {
+    const activeTotals = {
+      tripCount: activeTripCount,
+      pendingAmount: activePendingAmount,
+    };
+    const otherTotals = {
+      tripCount: otherTripCount,
+      pendingAmount: otherPendingAmount,
+    };
+    return mapEfectivoWorkbenchBuckets({
+      open: activeBucket === "open" ? activeTotals : otherTotals,
+      partial: activeBucket === "partial" ? activeTotals : otherTotals,
+      activeBucket,
+      onBucketChange: handleBucketChange,
+    });
+  }, [
+    activeBucket,
+    activeTripCount,
+    activePendingAmount,
+    otherTripCount,
+    otherPendingAmount,
+    handleBucketChange,
+  ]);
 
   const hasClientFilter = Boolean(clientId);
   const showLoadError = isError && !data;
@@ -639,7 +683,7 @@ export function FinanceEfectivoPorCobrarPage() {
       }
       buckets={buckets}
       bucketsAriaLabel="Estado de cobros sin factura"
-      bucketsLoading={isLoading}
+      bucketsLoading={isLoading || otherBucketLoading}
       isDegraded={showLoadError}
       degradedMessage={copy.loadError}
       toolbar={{

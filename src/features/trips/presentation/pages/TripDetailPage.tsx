@@ -89,7 +89,7 @@ import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
 import { TripJourneyStrip } from "../components/trip-shell/TripJourneyStrip";
 import { TripShellAlertsStack } from "../components/trip-shell/TripShellAlertsStack";
 import { TripPhaseOperateSheets } from "../components/trip-shell/TripPhaseOperateSheets";
-import { RegisterOperationalCashSheet } from "../components/trip-costs/RegisterOperationalCashSheet";
+import { buildRegisterCollectionPath } from "@features/finance/application";
 import { buildTripJourneyStripModel } from "../helpers/buildTripJourneyStripModel";
 import {
   formatTripLateDelayChip,
@@ -111,6 +111,7 @@ import { TripConfirmReserveButton } from "../components/trip-readiness/TripConfi
 import { TripNextStepBlock } from "../components/trip-readiness/TripNextStepBlock";
 import { TripReadinessRail } from "../components/trip-readiness/TripReadinessRail";
 import { listLinkedTripInvoiceDrafts } from "../helpers/listLinkedTripInvoiceDrafts";
+import { resolveDraftRouteGap } from "../helpers/resolveDraftRouteGap";
 import { resolveTripNextStepActions } from "../helpers/resolveTripNextStepActions";
 import { resolveTripNextStepDescription } from "../helpers/resolveTripNextStepDescription";
 import {
@@ -395,8 +396,6 @@ export function TripDetailPage() {
   const [phaseOperateOpen, setPhaseOperateOpen] = useState(false);
   /** D44 — edición local en tab Ruta (drafts / sheet parada). */
   const [routeEditing, setRouteEditing] = useState(false);
-  const [cashSheetOpen, setCashSheetOpen] = useState(false);
-
   useEffect(() => {
     const id = window.setInterval(() => {
       setComparisonNowMs(Date.now());
@@ -493,6 +492,9 @@ export function TripDetailPage() {
       status: displayStatus ?? trip.status,
       routeReady,
       cargoReady,
+      draftRouteGap: routeReady
+        ? null
+        : resolveDraftRouteGap(trip.stops ?? []),
       canUpdateTrip,
       canInvoice: canInvoiceNextStep,
       requiresFiscalAttention: Boolean(trip.requiresFiscalAttention),
@@ -1462,11 +1464,20 @@ export function TripDetailPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setCashSheetOpen(true)}
+                    asChild
                     data-testid="trip-header-register-cash"
                   >
-                    <Wallet className="mr-1.5 h-4 w-4" />
-                    {shell.action.registerCash}
+                    <Link
+                      to={buildRegisterCollectionPath({
+                        channel: "without_invoice",
+                        tripId: trip.id,
+                        clientId: trip.clientId,
+                        from: tripDetailFromHref,
+                      })}
+                    >
+                      <Wallet className="mr-1.5 h-4 w-4" />
+                      {shell.action.registerCash}
+                    </Link>
                   </Button>
                 ) : (
                   <TripInvoiceActions
@@ -1811,22 +1822,6 @@ export function TripDetailPage() {
           open={phaseOperateOpen}
           onOpenChange={setPhaseOperateOpen}
           onFallbackToTracking={goToTrackingTab}
-        />
-      ) : null}
-      {!isLeanTripPortal &&
-      trip &&
-      trip.cfdiEmissionIntent === "sin_cfdi_efectivo" ? (
-        <RegisterOperationalCashSheet
-          tripId={trip.id}
-          open={cashSheetOpen}
-          onOpenChange={setCashSheetOpen}
-          pendingAmount={
-            trip.operationalCash?.pendingAmount ??
-            Math.max(
-              0,
-              (trip.costs.baseRate ?? 0) - (trip.operationalCashAmount ?? 0),
-            )
-          }
         />
       ) : null}
     </>

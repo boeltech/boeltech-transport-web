@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   mapAgingSummary,
   mapAccountStatementItem,
+  mapDso30d,
   mapPendingRelationCount,
   mapFinanceSummary,
   mapMonthlyPerformance,
@@ -145,6 +146,31 @@ describe("mapFinanceSummary", () => {
     expect(summary.totalReceivable).toBe(1160);
     expect(summary.collectedThisMonth).toBe(500);
     expect(summary.totalOverdue).toBe(200);
+    expect(summary.byChannel).toBeUndefined();
+  });
+
+  it("maps by_channel when present (Q21)", () => {
+    const summary = mapFinanceSummary({
+      total_receivable: 173_940,
+      collected_this_month: 92_700,
+      total_overdue: 25_200,
+      expenses_this_month: 0,
+      invoices_by_status: {},
+      by_channel: {
+        with_invoice: {
+          receivable: 120_640,
+          collected_this_month: 61_000,
+          overdue: 15_600,
+        },
+        without_invoice: {
+          receivable: 53_300,
+          collected_this_month: 31_700,
+          overdue: 9_600,
+        },
+      },
+    });
+    expect(summary.byChannel?.withInvoice.receivable).toBe(120_640);
+    expect(summary.byChannel?.withoutInvoice.collectedThisMonth).toBe(31_700);
   });
 
   it("maps by_channel overdue when present (Inicio I3)", () => {
@@ -188,6 +214,8 @@ describe("mapAccountStatementItem", () => {
     expect(row.totalPaid).toBe(0);
     expect(row.invoiceCount).toBe(2);
     expect(row.openInvoiceCount).toBe(1);
+    expect(row.operationalBalance).toBe(0);
+    expect(row.lastCollectionAt).toBeNull();
     expect(getAccountStatementDisplayPaid(row)).toBe(31920);
     expect(getAccountStatementDisplayPaid(row)).not.toBe(row.totalPaid);
   });
@@ -204,6 +232,29 @@ describe("mapAccountStatementItem", () => {
     });
     expect(row.openInvoiceCount).toBe(0);
     expect(row.invoiceCount).toBe(3);
+  });
+
+  it("maps multi-canal fields and last_collection_* (K6)", () => {
+    const row = mapAccountStatementItem({
+      client_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      client_rfc: "ALU920314KJ8",
+      client_name: "Abarrotes La Luz",
+      total_invoiced: 40_000,
+      total_paid: 15_640,
+      balance_due: 46_960,
+      operational_balance: 22_600,
+      invoice_count: 2,
+      open_invoice_count: 2,
+      operational_trip_count: 4,
+      overdue_amount: 0,
+      last_collection_at: "2026-11-12T18:00:00.000Z",
+      last_collection_channel: "without_invoice",
+    });
+    expect(row.clientId).toBe("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    expect(row.operationalBalance).toBe(22_600);
+    expect(row.operationalTripCount).toBe(4);
+    expect(row.lastCollectionChannel).toBe("without_invoice");
+    expect(getAccountStatementDisplayPaid(row)).toBe(15_640);
   });
 });
 
@@ -445,7 +496,67 @@ describe("mapAgingSummary", () => {
       },
     });
     expect(aging.totalReceivable).toBe(2320);
-    expect(aging.dso30d).toBe(18);
+    expect(aging.dso30d).toEqual({
+      invoiced: 18,
+      operational: null,
+      blended: 18,
+    });
     expect(aging.buckets["0-30"].totalBalance).toBe(1160);
+  });
+
+  it("maps dso_30d object and by_channel with upcoming (Q18/Q19)", () => {
+    const aging = mapAgingSummary({
+      total_receivable: 173_940,
+      dso_30d: { invoiced: 22, operational: 12, blended: 18 },
+      buckets: {
+        "0-30": { invoice_count: 4, total_balance: 105_040 },
+        "31-60": { invoice_count: 1, total_balance: 15_600 },
+        "61-90": { invoice_count: 0, total_balance: 0 },
+        "90+": { invoice_count: 0, total_balance: 0 },
+      },
+      by_channel: {
+        with_invoice: {
+          total_receivable: 120_640,
+          buckets: {
+            "0-30": { invoice_count: 3, total_balance: 105_040 },
+            "31-60": { invoice_count: 1, total_balance: 15_600 },
+            "61-90": { invoice_count: 0, total_balance: 0 },
+            "90+": { invoice_count: 0, total_balance: 0 },
+          },
+        },
+        without_invoice: {
+          total_receivable: 53_300,
+          buckets: {
+            upcoming: { invoice_count: 1, total_balance: 2_800 },
+            "0-30": { invoice_count: 2, total_balance: 43_700 },
+            "31-60": { invoice_count: 1, total_balance: 6_400 },
+            "61-90": { invoice_count: 1, total_balance: 3_200 },
+            "90+": { invoice_count: 0, total_balance: 0 },
+          },
+        },
+      },
+    });
+    expect(aging.dso30d.blended).toBe(18);
+    expect(aging.byChannel?.withoutInvoice.buckets.upcoming.totalBalance).toBe(
+      2_800,
+    );
+    expect(aging.byChannel?.withInvoice.buckets["31-60"].totalBalance).toBe(
+      15_600,
+    );
+  });
+});
+
+describe("mapDso30d", () => {
+  it("accepts nullish and incomplete objects", () => {
+    expect(mapDso30d(null)).toEqual({
+      invoiced: null,
+      operational: null,
+      blended: null,
+    });
+    expect(mapDso30d({ invoiced: 10 })).toEqual({
+      invoiced: 10,
+      operational: null,
+      blended: null,
+    });
   });
 });

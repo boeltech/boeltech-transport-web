@@ -15,9 +15,10 @@ import {
   isFinanceAnalyticsEnabled,
   useOperationalReceiptBatchCandidates,
 } from "@features/finance/application";
+import type { CollectionDetailTarget } from "@features/finance/domain";
 import {
   ClientOperationalReceiptBatchesSheet,
-  OperationalReceiptBatchSheet,
+  CollectionDetailSheet,
 } from "@features/finance/presentation/components";
 import { operationalReceiptBatchCopy } from "@features/finance/presentation/copy";
 import { isClientPortalRole } from "@shared/constants/roles";
@@ -65,7 +66,8 @@ export function ClientOperationalCashPendingCard({
   );
 
   const [listOpen, setListOpen] = useState(false);
-  const [batchId, setBatchId] = useState<string | null>(null);
+  const [collectionTarget, setCollectionTarget] =
+    useState<CollectionDetailTarget | null>(null);
 
   if (!canSeeCard || !clientId) return null;
   if (isLoading || isError || !data) return null;
@@ -167,14 +169,17 @@ export function ClientOperationalCashPendingCard({
         clientId={clientId}
         open={listOpen}
         onOpenChange={setListOpen}
-        onOpenBatch={(id) => setBatchId(id)}
+        onOpenBatch={(id) =>
+          setCollectionTarget({ kind: "batch", batchId: id })
+        }
       />
-      <OperationalReceiptBatchSheet
-        batchId={batchId}
-        open={Boolean(batchId)}
+      <CollectionDetailSheet
+        target={collectionTarget}
+        open={collectionTarget != null}
         onOpenChange={(open) => {
-          if (!open) setBatchId(null);
+          if (!open) setCollectionTarget(null);
         }}
+        onNavigateTarget={setCollectionTarget}
       />
     </>
   );

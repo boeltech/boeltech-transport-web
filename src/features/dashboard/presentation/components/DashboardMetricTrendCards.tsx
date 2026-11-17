@@ -7,7 +7,7 @@ import { formatMxCurrencyWhole } from "@shared/utils/formatMxCurrency";
 import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
 import {
   buildFinanceAnalysisHref,
-  FINANCE_COBROS_PATH,
+  FINANCE_HUB_PATH,
 } from "@features/finance/application";
 import type { useFinanceSummary } from "@features/finance";
 import type { useDashboard } from "../../application/hooks/useDashboard";
@@ -71,6 +71,43 @@ function ScorecardDelta({ delta }: { delta: PercentDelta }) {
   );
 }
 
+function ChannelBar({
+  withInvoice,
+  withoutInvoice,
+  tone = "default",
+}: {
+  withInvoice: number;
+  withoutInvoice: number;
+  tone?: "default" | "warning";
+}) {
+  const total = withInvoice + withoutInvoice;
+  if (total <= 0) return null;
+  const withPct = (withInvoice / total) * 100;
+  const withoutPct = (withoutInvoice / total) * 100;
+  return (
+    <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+      {withPct > 0 ? (
+        <span
+          className={cn(
+            "h-full",
+            tone === "warning" ? "bg-warning" : "bg-[var(--chart-1)]",
+          )}
+          style={{ width: `${withPct}%` }}
+        />
+      ) : null}
+      {withoutPct > 0 ? (
+        <span
+          className={cn(
+            "h-full opacity-80",
+            tone === "warning" ? "bg-warning/70" : "bg-[var(--chart-2)]",
+          )}
+          style={{ width: `${withoutPct}%` }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function ArStripCell({
   title,
   subtitle,
@@ -80,6 +117,10 @@ function ArStripCell({
   tone = "default",
   ariaLabel,
   className,
+  withInvoice,
+  withoutInvoice,
+  withLabel,
+  withoutLabel,
 }: {
   title: string;
   subtitle?: string;
@@ -89,10 +130,18 @@ function ArStripCell({
   tone?: "default" | "warning";
   ariaLabel: string;
   className?: string;
+  withInvoice?: number;
+  withoutInvoice?: number;
+  withLabel?: string;
+  withoutLabel?: string;
 }) {
   // En bg-card usar text-card-foreground / text-warning — nunca *-foreground sólido.
   const valueClass =
     tone === "warning" && !isLoading ? "text-warning" : "text-card-foreground";
+  const showChannels =
+    withInvoice != null &&
+    withoutInvoice != null &&
+    (withInvoice > 0 || withoutInvoice > 0);
 
   return (
     <button
@@ -113,14 +162,39 @@ function ArStripCell({
       {isLoading ? (
         <Skeleton className="h-7 w-24 shrink-0" />
       ) : (
-        <p
-          className={cn(
-            "shrink-0 pb-0.5 text-xl font-semibold leading-snug tabular-nums tracking-tight sm:text-2xl",
-            valueClass,
-          )}
-        >
-          {value}
-        </p>
+        <div className="space-y-2">
+          <p
+            className={cn(
+              "shrink-0 pb-0.5 text-xl font-semibold leading-snug tabular-nums tracking-tight sm:text-2xl",
+              valueClass,
+            )}
+          >
+            {value}
+          </p>
+          {showChannels ? (
+            <>
+              <ChannelBar
+                withInvoice={withInvoice}
+                withoutInvoice={withoutInvoice}
+                tone={tone}
+              />
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                <span>
+                  {withLabel}{" "}
+                  <span className="tabular-nums text-card-foreground">
+                    {formatMxCurrencyWhole(withInvoice)}
+                  </span>
+                </span>
+                <span>
+                  {withoutLabel}{" "}
+                  <span className="tabular-nums text-card-foreground">
+                    {formatMxCurrencyWhole(withoutInvoice)}
+                  </span>
+                </span>
+              </div>
+            </>
+          ) : null}
+        </div>
       )}
     </button>
   );
@@ -160,6 +234,8 @@ export function DashboardMetricTrendCards({
   );
 
   const arLoading = isLoading || financeLoading;
+  const byChannel = financeSummary?.byChannel;
+  const goToCartera = () => navigate(FINANCE_HUB_PATH, { state: navState });
 
   const marginValueClass =
     isProvisional && !isLoading ? "text-warning" : "text-card-foreground";
@@ -285,9 +361,13 @@ export function DashboardMetricTrendCards({
                 : "—"
             }
             isLoading={arLoading}
-            onClick={() => navigate(FINANCE_COBROS_PATH, { state: navState })}
+            onClick={goToCartera}
             ariaLabel={dashboardCopy.scorecard.collected.ariaLabel}
             className="border-b border-border"
+            withInvoice={byChannel?.withInvoice.collectedThisMonth}
+            withoutInvoice={byChannel?.withoutInvoice.collectedThisMonth}
+            withLabel={dashboardCopy.scorecard.collected.withInvoice}
+            withoutLabel={dashboardCopy.scorecard.collected.withoutInvoice}
           />
           <ArStripCell
             title={dashboardCopy.scorecard.receivable.title}
@@ -298,18 +378,26 @@ export function DashboardMetricTrendCards({
                 : "—"
             }
             isLoading={arLoading}
-            onClick={() => navigate(FINANCE_COBROS_PATH, { state: navState })}
+            onClick={goToCartera}
             ariaLabel={dashboardCopy.scorecard.receivable.ariaLabel}
             className="border-b border-border"
+            withInvoice={byChannel?.withInvoice.receivable}
+            withoutInvoice={byChannel?.withoutInvoice.receivable}
+            withLabel={dashboardCopy.scorecard.receivable.withInvoice}
+            withoutLabel={dashboardCopy.scorecard.receivable.withoutInvoice}
           />
           <ArStripCell
             title={dashboardCopy.scorecard.overdue.title}
             subtitle={dashboardCopy.scorecard.overdue.subtitle}
             value={financeSummary ? formatMxCurrencyWhole(overdue) : "—"}
             isLoading={arLoading}
-            onClick={() => navigate(FINANCE_COBROS_PATH, { state: navState })}
+            onClick={goToCartera}
             tone={hasOverdue ? "warning" : "default"}
             ariaLabel={dashboardCopy.scorecard.overdue.ariaLabel}
+            withInvoice={byChannel?.withInvoice.overdue}
+            withoutInvoice={byChannel?.withoutInvoice.overdue}
+            withLabel={dashboardCopy.scorecard.overdue.withInvoice}
+            withoutLabel={dashboardCopy.scorecard.overdue.withoutInvoice}
           />
         </div>
       </div>

@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { Download, Loader2, MoreHorizontal, Receipt, Search } from "lucide-react";
+import { MoreHorizontal, Receipt, Search } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import {
   DropdownMenu,
@@ -27,22 +26,32 @@ import {
   TableRow,
 } from "@shared/ui/table";
 import { EmptyState } from "@shared/ui/feedback-states";
+import { cn } from "@shared/lib/utils/cn";
+import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { AccountStatementItem } from "@features/finance/domain";
-import { buildFinanceCobrosPath } from "@features/finance/application";
+import {
+  buildRegisterCollectionPath,
+  FINANCE_HUB_PATH,
+} from "@features/finance/application";
 import { financeCopy } from "../copy";
-import { getAccountStatementDisplayPaid } from "../utils/accountStatementDisplayPaid";
-import { PendingRelationSheet } from "./PendingRelationSheet";
+import {
+  accountStatementHasInvoiceChannel,
+  accountStatementHasOperationalChannel,
+  getAccountStatementInvoicedBalance,
+  getAccountStatementOperationalBalance,
+} from "../utils/accountStatementChannels";
+import { AccountStatementSheet } from "./AccountStatementSheet";
+
+type StatementFilter = "all" | "overdue" | "withInvoice" | "withoutInvoice";
 
 interface FinanceAccountStatementSectionProps {
   rows: AccountStatementItem[];
   isLoading?: boolean;
-  /** CTA Cobrar → /finance/payments?rfc= (deep-link observable). */
+  /** Menú ⋯ → Registrar cobro / Ver cliente. */
   showCollectAction?: boolean;
-  /** Descarga PDF estado de cuenta (finance.read). */
-  onDownloadPdf?: (clientRfc: string) => void;
-  /** RFC en descarga activa (loading por fila). */
-  downloadingRfc?: string | null;
+  /** Abre hoja Estado de cuenta (finance.read). */
+  canDownloadStatement?: boolean;
 }
 
 function matchesClientFilter(
@@ -57,181 +66,298 @@ function matchesClientFilter(
   );
 }
 
+function matchesChannelFilter(
+  row: AccountStatementItem,
+  filter: StatementFilter,
+): boolean {
+  if (filter === "all") return true;
+  if (filter === "overdue") return row.overdueAmount > 0.009;
+  if (filter === "withInvoice") return accountStatementHasInvoiceChannel(row);
+  return accountStatementHasOperationalChannel(row);
+}
+
+function registerHref(row: AccountStatementItem): string {
+  const hasInvoice = accountStatementHasInvoiceChannel(row);
+  const hasOperational = accountStatementHasOperationalChannel(row);
+  const channel =
+    hasInvoice && !hasOperational
+      ? "with_invoice"
+      : !hasInvoice && hasOperational
+        ? "without_invoice"
+        : "with_invoice";
+  return buildRegisterCollectionPath({
+    channel,
+    clientId: row.clientId,
+    receiverRfc: row.clientRfc || null,
+    from: FINANCE_HUB_PATH,
+  });
+}
+
 export function FinanceAccountStatementSection({
   rows,
   isLoading = false,
   showCollectAction = false,
-  onDownloadPdf,
-  downloadingRfc = null,
+  canDownloadStatement = false,
 }: FinanceAccountStatementSectionProps) {
   const [filterQuery, setFilterQuery] = useState("");
+  const [channelFilter, setChannelFilter] = useState<StatementFilter>("all");
   const [selectedRow, setSelectedRow] = useState<AccountStatementItem | null>(
     null,
   );
-  const showDownload = typeof onDownloadPdf === "function";
-  const showActions = showCollectAction || showDownload;
   const copy = financeCopy.summary.accountStatement;
-  const relationCopy = copy.pendingRelation;
+  const showActions = showCollectAction || canDownloadStatement;
+
+  const filterCounts = useMemo(() => {
+    const searched = rows.filter((row) => matchesClientFilter(row, filterQuery));
+    return {
+      all: searched.length,
+      overdue: searched.filter((r) => r.overdueAmount > 0.009).length,
+      withInvoice: searched.filter((r) =>
+        accountStatementHasInvoiceChannel(r),
+      ).length,
+      withoutInvoice: searched.filter((r) =>
+        accountStatementHasOperationalChannel(r),
+      ).length,
+    };
+  }, [rows, filterQuery]);
 
   const filteredRows = useMemo(
-    () => rows.filter((row) => matchesClientFilter(row, filterQuery)),
-    [rows, filterQuery],
+    () =>
+      rows.filter(
+        (row) =>
+          matchesClientFilter(row, filterQuery) &&
+          matchesChannelFilter(row, channelFilter),
+      ),
+    [rows, filterQuery, channelFilter],
   );
+
+  const filterChips: Array<{ id: StatementFilter; label: string; count: number }> =
+    [
+      { id: "all", label: copy.filters.all, count: filterCounts.all },
+      {
+        id: "overdue",
+        label: copy.filters.overdue,
+        count: filterCounts.overdue,
+      },
+      {
+        id: "withInvoice",
+        label: copy.filters.withInvoice,
+        count: filterCounts.withInvoice,
+      },
+      {
+        id: "withoutInvoice",
+        label: copy.filters.withoutInvoice,
+        count: filterCounts.withoutInvoice,
+      },
+    ];
 
   return (
     <>
-    <Card>
-      <CardHeader className="space-y-3">
-        <div className="space-y-1.5">
-          <CardTitle>{financeCopy.summary.sections.accountStatement}</CardTitle>
-          <CardDescription>{copy.description}</CardDescription>
-        </div>
-        {!isLoading && rows.length > 0 ? (
-          <div className="relative max-w-sm">
-            <Search
-              className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              value={filterQuery}
-              onChange={(event) => setFilterQuery(event.target.value)}
-              placeholder={copy.searchPlaceholder}
-              aria-label={copy.searchAriaLabel}
-              className="pl-8"
-            />
+      <Card>
+        <CardHeader className="space-y-3">
+          <div className="space-y-1.5">
+            <CardTitle>
+              {financeCopy.summary.sections.accountStatement}
+            </CardTitle>
+            <CardDescription>{copy.description}</CardDescription>
           </div>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className="h-12 w-full" />
-            ))}
-          </div>
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={<Receipt className="h-10 w-10 text-muted-foreground" />}
-            title={financeCopy.summary.empty.title}
-            description={financeCopy.summary.empty.description}
-          />
-        ) : filteredRows.length === 0 ? (
-          <EmptyState
-            icon={<Search className="h-10 w-10 text-muted-foreground" />}
-            title={copy.filterEmpty.title}
-            description={copy.filterEmpty.description}
-          />
-        ) : (
-          <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{financeCopy.summary.table.client}</TableHead>
-                  <TableHead>{financeCopy.summary.table.rfc}</TableHead>
-                  <TableHead className="text-right">
-                    {financeCopy.summary.table.invoiced}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {financeCopy.summary.table.paid}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {financeCopy.summary.table.balance}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {financeCopy.summary.table.overdue}
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {financeCopy.summary.table.invoices}
-                  </TableHead>
-                  {showActions ? (
+          {!isLoading && rows.length > 0 ? (
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="relative max-w-sm flex-1">
+                <Search
+                  className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden
+                />
+                <Input
+                  type="search"
+                  value={filterQuery}
+                  onChange={(event) => setFilterQuery(event.target.value)}
+                  placeholder={copy.searchPlaceholder}
+                  aria-label={copy.searchAriaLabel}
+                  className="pl-8"
+                />
+              </div>
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label="Filtros de canal"
+              >
+                {filterChips.map((chip) => (
+                  <Button
+                    key={chip.id}
+                    type="button"
+                    size="sm"
+                    variant={channelFilter === chip.id ? "default" : "outline"}
+                    onClick={() => setChannelFilter(chip.id)}
+                  >
+                    {chip.label}
+                    <span className="ml-1.5 tabular-nums text-xs opacity-80">
+                      {chip.count}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : rows.length === 0 ? (
+            <EmptyState
+              icon={<Receipt className="h-10 w-10 text-muted-foreground" />}
+              title={financeCopy.summary.empty.title}
+              description={financeCopy.summary.empty.description}
+            />
+          ) : filteredRows.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-10 w-10 text-muted-foreground" />}
+              title={copy.filterEmpty.title}
+              description={copy.filterEmpty.description}
+            />
+          ) : (
+            <div className="overflow-hidden rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{financeCopy.summary.table.client}</TableHead>
                     <TableHead className="text-right">
-                      {financeCopy.summary.table.actions}
+                      {financeCopy.summary.table.withInvoice}
                     </TableHead>
-                  ) : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRows.map((row) => {
-                  const isDownloading = downloadingRfc === row.clientRfc;
-                  const cobrosHref = buildFinanceCobrosPath(row.clientRfc);
-                  const showCollect =
-                    showCollectAction && row.openInvoiceCount > 0;
-                  const showRelation = showDownload && row.balanceDue > 0;
+                    <TableHead className="text-right">
+                      {financeCopy.summary.table.withoutInvoice}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {financeCopy.summary.table.balance}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {financeCopy.summary.table.overdue}
+                    </TableHead>
+                    <TableHead>
+                      {financeCopy.summary.table.lastCollection}
+                    </TableHead>
+                    {showActions ? (
+                      <TableHead className="text-right">
+                        {financeCopy.summary.table.actions}
+                      </TableHead>
+                    ) : null}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRows.map((row) => {
+                    const invoiced = getAccountStatementInvoicedBalance(row);
+                    const operational =
+                      getAccountStatementOperationalBalance(row);
+                    const rowKey =
+                      row.clientRfc ||
+                      row.clientId ||
+                      `${row.clientName}-${row.balanceDue}`;
+                    const canOpenStatement =
+                      canDownloadStatement &&
+                      Boolean(row.clientRfc.trim()) &&
+                      row.balanceDue > 0.009;
+                    const showCollect =
+                      showCollectAction &&
+                      (accountStatementHasInvoiceChannel(row) ||
+                        accountStatementHasOperationalChannel(row));
+                    const showViewClient = Boolean(row.clientId);
 
-                  return (
-                    <TableRow key={row.clientRfc}>
-                      <TableCell className="font-medium">
-                        {row.clientName}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground">
-                        {row.clientRfc}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatMxCurrency(row.totalInvoiced)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-success">
-                        {formatMxCurrency(getAccountStatementDisplayPaid(row))}
-                      </TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
-                        {row.balanceDue > 0 ? (
-                          <span className="text-destructive">
-                            {formatMxCurrency(row.balanceDue)}
-                          </span>
-                        ) : (
-                          <span className="text-success">
-                            {formatMxCurrency(0)}
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.overdueAmount > 0 ? (
-                          <span className="font-medium text-destructive">
-                            {formatMxCurrency(row.overdueAmount)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">
-                          {row.openInvoiceCount}
-                        </Badge>
-                      </TableCell>
-                      {showActions ? (
-                        <TableCell className="text-right">
-                          {showRelation || showDownload || showCollect ? (
-                            <div className="flex flex-nowrap items-center justify-end gap-2">
-                              {showRelation ? (
+                    return (
+                      <TableRow key={rowKey}>
+                        <TableCell>
+                          <div className="min-w-0 space-y-0.5">
+                            {row.clientId ? (
+                              <Link
+                                to={`/clients/${row.clientId}`}
+                                className="font-medium text-foreground hover:underline"
+                              >
+                                {row.clientName}
+                              </Link>
+                            ) : (
+                              <span className="font-medium">
+                                {row.clientName}
+                              </span>
+                            )}
+                            <p className="font-mono text-xs text-muted-foreground">
+                              {row.clientRfc || copy.noRfcHint}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {invoiced > 0.009 ? (
+                            <div>
+                              <p>{formatMxCurrency(invoiced)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {copy.invoiceCountUnder(row.openInvoiceCount)}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {operational > 0.009 ? (
+                            <div>
+                              <p>{formatMxCurrency(operational)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {copy.tripCountUnder(row.operationalTripCount)}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          {formatMxCurrency(row.balanceDue)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.overdueAmount > 0.009 ? (
+                            <span className="font-medium text-warning">
+                              {formatMxCurrency(row.overdueAmount)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {row.lastCollectionAt ? (
+                            <div className="space-y-0.5">
+                              <p>{formatDate(row.lastCollectionAt)}</p>
+                              {row.lastCollectionChannel ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {
+                                    copy.lastCollectionChannel[
+                                      row.lastCollectionChannel
+                                    ]
+                                  }
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        {showActions ? (
+                          <TableCell className="text-right">
+                            <div className="flex flex-nowrap items-center justify-end gap-1">
+                              {canOpenStatement ? (
                                 <Button
                                   type="button"
                                   size="sm"
-                                  variant="default"
-                                  aria-label={relationCopy.actionAria(
+                                  variant="ghost"
+                                  aria-label={copy.downloadActionAria(
                                     row.clientName,
                                   )}
                                   onClick={() => setSelectedRow(row)}
                                 >
-                                  {relationCopy.action}
+                                  {copy.downloadAction}
                                 </Button>
                               ) : null}
-                              {showCollect ? (
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  variant="outline"
-                                >
-                                  <Link
-                                    to={cobrosHref}
-                                    aria-label={copy.collectActionAria(
-                                      row.clientName,
-                                    )}
-                                  >
-                                    {copy.collectAction}
-                                  </Link>
-                                </Button>
-                              ) : null}
-                              {showDownload ? (
+                              {showCollect || showViewClient ? (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button
@@ -247,51 +373,65 @@ export function FinanceAccountStatementSection({
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                    <DropdownMenuItem
-                                      disabled={isDownloading}
-                                      aria-label={copy.downloadPdfActionAria(
-                                        row.clientName,
-                                      )}
-                                      onSelect={() =>
-                                        onDownloadPdf?.(row.clientRfc)
-                                      }
-                                    >
-                                      {isDownloading ? (
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Download className="mr-2 h-4 w-4" />
-                                      )}
-                                      {copy.downloadPdfAction}
-                                    </DropdownMenuItem>
+                                    {showCollect ? (
+                                      <DropdownMenuItem asChild>
+                                        <Link
+                                          to={registerHref(row)}
+                                          aria-label={copy.collectActionAria(
+                                            row.clientName,
+                                          )}
+                                        >
+                                          {copy.collectAction}
+                                        </Link>
+                                      </DropdownMenuItem>
+                                    ) : null}
+                                    {showViewClient && row.clientId ? (
+                                      <DropdownMenuItem asChild>
+                                        <Link
+                                          to={`/clients/${row.clientId}`}
+                                          aria-label={copy.viewClientActionAria(
+                                            row.clientName,
+                                          )}
+                                        >
+                                          {copy.viewClientAction}
+                                        </Link>
+                                      </DropdownMenuItem>
+                                    ) : null}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               ) : null}
                             </div>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                      ) : null}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-    {selectedRow ? (
-      <PendingRelationSheet
-        key={selectedRow.clientRfc}
-        open
-        clientName={selectedRow.clientName}
-        clientRfc={selectedRow.clientRfc}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setSelectedRow(null);
-        }}
-      />
-    ) : null}
+                          </TableCell>
+                        ) : null}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {!isLoading && filteredRows.length > 0 ? (
+            <div
+              className={cn(
+                "flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground",
+              )}
+            >
+              <span>{copy.footerNote(filteredRows.length)}</span>
+              <span>{copy.footerActionsHint}</span>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+      {selectedRow ? (
+        <AccountStatementSheet
+          key={selectedRow.clientRfc || selectedRow.clientId || "row"}
+          open
+          row={selectedRow}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setSelectedRow(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }

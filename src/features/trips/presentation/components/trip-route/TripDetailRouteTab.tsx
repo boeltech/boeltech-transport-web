@@ -35,7 +35,6 @@ import { Button } from "@shared/ui/button";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { FormValidationSummary } from "@shared/ui/form";
 
-import { StopFormSheet } from "../../pages/create/components/StopFormSheet";
 import {
   addressSearchItemToDialogSlice,
   dialogToStopFormData,
@@ -44,12 +43,15 @@ import {
 } from "../../pages/create/components/stopDialogAddressMapper";
 import { mapStopToReplaceStopInput } from "../trip-detail-patch/mapStopToCreateStopInput";
 import { CorridorPicker } from "../corridor/CorridorPicker";
+import { filterCorridorsMatchingCityPair } from "./corridorMatchesCityPair";
+import { resolveRouteSearchProximity } from "./resolveRouteSearchProximity";
 import { TripDetailRouteStopCard } from "./TripDetailRouteStopCard";
 import { TripRouteComposer, TripRouteSlotCapture } from "./TripRouteComposer";
 import { TripRouteDistancesCard } from "./TripRouteDistancesCard";
 import { TripRouteMapPanel } from "./TripRouteMapPanel";
 import { TripRouteTimeline } from "./TripRouteTimeline";
 import { TripRouteUnsavedBar } from "./TripRouteUnsavedBar";
+import { TripStopSearchConfirmSheet } from "./TripStopSearchConfirmSheet";
 import {
   buildReplanAfterRemoveWaypoint,
   buildReplanAfterReorderWaypoint,
@@ -338,7 +340,9 @@ export function TripDetailRouteTab({
   const runReplace = async (stops: CreateStopInput[]) => {
     if (replaceStops.isPending) return false;
     try {
-      await replaceStops.mutateAsync(stops);
+      // Q17 — distancias vía finalizeReplaceStopsPayload (misma que «Calcular distancias»).
+      // Si no se pueden rellenar, la ruta igual queda; el aviso «Faltan distancias» + CTA.
+      await replaceStops.mutateAsync(finalizeReplaceStopsPayload(stops));
       toast({ title: copy.toast.stopsSaved, variant: "success" });
       setEndpointDraft({});
       setCaptureError(null);
@@ -807,9 +811,11 @@ export function TripDetailRouteTab({
     ? copy.hint.sheetDescriptionEdit
     : copy.hint.sheetDescriptionComplete;
 
-  const stopForm =
+  /** F9 — alta usa panel Confirmar (inline en detalle); mid-trip conserva sheet. */
+  const confirmPanelVariant = canEditStructural ? "inline" : "sheet";
+  const stopConfirmPanel =
     completeTarget != null ? (
-      <StopFormSheet
+      <TripStopSearchConfirmSheet
         key={
           completeTarget.kind === "edit"
             ? completeTarget.stopId
@@ -828,17 +834,37 @@ export function TripDetailRouteTab({
         tripContractingClientId={trip.clientId ?? undefined}
         originBranchId={trip.originBranchId ?? undefined}
         keepBillingCollapsed
-        variant="sheet"
+        variant={confirmPanelVariant}
         isPending={isRouteMutationPending}
       />
     ) : null;
 
   const corridors = corridorsQuery.data ?? [];
+  const matchingCorridors = filterCorridorsMatchingCityPair(
+    corridors,
+    originCityHint,
+    destinationCityHint,
+  );
+  // D57 — corredor solo si el par de ciudades coincide.
   const showCorridorPicker =
     canEditStructural &&
     orderedStops.length === 0 &&
     Boolean(trip.clientId) &&
-    (corridorsQuery.isLoading || corridors.length > 0);
+    Boolean(originCityHint && destinationCityHint) &&
+    (corridorsQuery.isLoading || matchingCorridors.length > 0);
+
+  const captureProximity = resolveRouteSearchProximity({
+    category:
+      selectedRow?.category === "origin" ||
+      selectedRow?.category === "destination" ||
+      selectedRow?.category === "waypoint"
+        ? selectedRow.category
+        : "destination",
+    originStop: origin,
+    destinationStop: destination,
+    originPick: endpointDraft.origin,
+    destinationPick: endpointDraft.destination,
+  });
 
   if (orderedStops.length === 0 && !canMutateRoute) {
     return (
@@ -892,6 +918,11 @@ export function TripDetailRouteTab({
     canMutateRoute;
 
   const detailPanel = (() => {
+    // F9 D58/D68 — Confirmar / Completar domicilio en el mismo panel (inline alta).
+    if (completeTarget != null && canEditStructural && stopConfirmPanel) {
+      return stopConfirmPanel;
+    }
+
     if (!selectedRow) {
       return (
         <p className="py-12 text-center text-sm text-muted-foreground">
@@ -940,6 +971,8 @@ export function TripDetailRouteTab({
                   ? destinationCityHint || null
                   : captureHint || null
             }
+            proximity={captureProximity}
+            clientId={trip.clientId ?? null}
             disabled={isRouteMutationPending}
             onPick={handlePick}
             onCompleteLabel={openCompleteLabel}
@@ -1161,7 +1194,8 @@ export function TripDetailRouteTab({
           }}
         />
         <div className="space-y-4">
-          {showComposerCapture ? (
+          {showComposerCapture ||
+          (completeTarget != null && canEditStructural) ? (
             <div className="rounded-xl border bg-card p-4">{detailPanel}</div>
           ) : (
             <TripRouteMapPanel stops={ordered} />
@@ -1215,7 +1249,7 @@ export function TripDetailRouteTab({
           corridor={
             showCorridorPicker ? (
               <CorridorPicker
-                corridors={corridors}
+                corridors={matchingCorridors}
                 isLoading={corridorsQuery.isLoading}
                 disabled={replaceStops.isPending}
                 onSelect={handleCorridorSelect}
@@ -1236,7 +1270,8 @@ export function TripDetailRouteTab({
       {artboardLayout}
       {emptyComposerLayout}
 
-      {stopForm}
+      {/* Mid-trip / no-alta: Confirmar sigue en sheet. Alta = inline en detailPanel. */}
+      {!canEditStructural ? stopConfirmPanel : null}
 
       <AlertDialog
         open={removeDialog?.kind === "confirm"}

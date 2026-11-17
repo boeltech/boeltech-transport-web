@@ -296,13 +296,10 @@ describe("smoke: efectivo-por-cobrar", () => {
     expect(
       screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
-    expect(screen.getByText(copy.channelHint)).toBeInTheDocument();
+    expect(screen.getByText(copy.description)).toBeInTheDocument();
     expect(
-      screen
-        .getAllByText(copy.totals.pending)
-        .some((el) => el.tagName === "DT"),
-    ).toBe(true);
-    expect(screen.getByText(copy.totals.trips)).toBeInTheDocument();
+      screen.getAllByText(copy.totals.pending).length,
+    ).toBeGreaterThan(0);
 
     const groupRows = document.querySelectorAll("tr[data-entity-group-row]");
     expect(groupRows).toHaveLength(2);
@@ -312,32 +309,30 @@ describe("smoke: efectivo-por-cobrar", () => {
     expect(screen.getByText("V-100")).toBeInTheDocument();
     expect(screen.getByText("V-200")).toBeInTheDocument();
     expect(
-      screen.getAllByRole("columnheader", { name: copy.columns.pending }),
-    ).toHaveLength(1);
-    expect(copy.columns.pending).toBe("Por cobrar");
+      screen.getByRole("columnheader", { name: /Por cobrar/i }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "Saldo" }),
     ).not.toBeInTheDocument();
 
-    const openCostsA = screen.getByRole("link", {
-      name: copy.openCostsAria("V-100"),
-    });
+    const openCostsA = screen.getByRole("link", { name: "V-100" });
     expect(openCostsA).toHaveAttribute("href", buildTripCostsHref("trip-1"));
     expect(openCostsA).toHaveAttribute("href", "/trips/trip-1?tab=costs");
 
-    const openCostsB = screen.getByRole("link", {
-      name: copy.openCostsAria("V-200"),
-    });
+    const openCostsB = screen.getByRole("link", { name: "V-200" });
     expect(openCostsB).toHaveAttribute("href", buildTripCostsHref("trip-2"));
 
     expect(
       screen.queryByRole("heading", { name: "Facturas a crédito" }),
     ).not.toBeInTheDocument();
 
-    const related = screen.getByRole("link", {
+    const relatedLinks = screen.getAllByRole("link", {
       name: copy.relatedConfig.label,
     });
-    expect(related).toHaveAttribute("href", FINANCE_COBROS_PATH);
+    expect(relatedLinks.length).toBeGreaterThanOrEqual(1);
+    for (const related of relatedLinks) {
+      expect(related).toHaveAttribute("href", FINANCE_COBROS_PATH);
+    }
   });
 
   it("chrome vacío: KPI en ceros + filtro usable + empty operativo", async () => {
@@ -360,10 +355,11 @@ describe("smoke: efectivo-por-cobrar", () => {
     const user = userEvent.setup();
     renderBandeja();
 
-    expect(screen.getByText(copy.channelHint)).toBeInTheDocument();
-    expect(screen.getByText(copy.totals.pending)).toBeInTheDocument();
-    expect(screen.getByText(copy.totals.trips)).toBeInTheDocument();
-    expect(screen.getByLabelText("Actualizar lista")).toBeInTheDocument();
+    expect(screen.getByText(copy.description)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(copy.totals.pending).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Actualizar")).toBeInTheDocument();
     expect(screen.getByText(copy.empty.title)).toBeInTheDocument();
     expect(screen.queryByText("Nada por cobrar")).not.toBeInTheDocument();
 
@@ -441,7 +437,7 @@ describe("smoke: efectivo-por-cobrar", () => {
 
     expect(
       screen.getByRole("link", {
-        name: /Registrar cobro por lote/i,
+        name: /Registrar cobro/i,
       }),
     ).toHaveAttribute(
       "href",

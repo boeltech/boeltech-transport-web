@@ -73,6 +73,11 @@ import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
 import { operationalReceiptBatchCopy } from "../copy/operationalReceiptBatchCopy";
 import { registerCollectionCopy } from "../copy/registerCollectionCopy";
 import {
+  appendCobrosTodayEntry,
+  buildWithoutInvoiceCobrosTodayEntry,
+  readCobrosTodayTray,
+} from "../utils/cobrosFollowThrough";
+import {
   resolveOperationalReceiptBatchCreateBackHref,
   resolveOperationalReceiptBatchCreateSuccessHref,
 } from "../utils/operationalCashPendingWayfinding";
@@ -336,6 +341,11 @@ export function WithoutInvoiceCollectionForm({
 
   const createMutation = useCreateOperationalReceiptBatch(clientId, {
     onSuccess: (batch) => {
+      const receiverRfc = clientQuery.data?.taxId?.trim() ?? "";
+      appendCobrosTodayEntry(
+        readCobrosTodayTray(),
+        buildWithoutInvoiceCobrosTodayEntry(batch, receiverRfc),
+      );
       allowLeave();
       const landingHref = resolveOperationalReceiptBatchCreateSuccessHref(
         from ?? undefined,

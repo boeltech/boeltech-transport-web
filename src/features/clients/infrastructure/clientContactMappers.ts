@@ -166,4 +166,66 @@ export function mapClientTripHistory(
   };
 }
 
+// ============================================================================
+// Last-collection + by_channel mappers (F4)
+// ============================================================================
+
+import type {
+  LastCollection,
+  LastCollectionRef,
+  ClientByChannel,
+  ByChannelEntry,
+  CollectionChannel,
+} from "../domain/entities";
+
+function parseLastCollectionRef(raw: Record<string, unknown>): LastCollectionRef {
+  const channel = raw.channel as string;
+  if (channel === "with_invoice") {
+    return { channel: "with_invoice", paymentId: String(raw.payment_id ?? "") };
+  }
+  const kind = (raw.kind as string) ?? "batch";
+  if (kind === "receipt") {
+    return { channel: "without_invoice", kind: "receipt", receiptId: String(raw.receipt_id ?? "") };
+  }
+  return { channel: "without_invoice", kind: "batch", batchId: String(raw.batch_id ?? "") };
+}
+
+export function mapLastCollection(raw: unknown): LastCollection | null {
+  if (raw == null) return null;
+  const obj = raw as Record<string, unknown>;
+  const ref = obj.ref != null
+    ? parseLastCollectionRef(obj.ref as Record<string, unknown>)
+    : parseLastCollectionRef(obj);
+  return {
+    channel: (obj.channel as CollectionChannel) ?? ref.channel,
+    ref,
+    amount: Number(obj.amount ?? 0),
+    at: String(obj.at ?? ""),
+    label: String(obj.label ?? ""),
+  };
+}
+
+function mapByChannelEntry(raw: Record<string, unknown> | undefined): ByChannelEntry {
+  if (!raw) return { balance: 0, count: 0, oldestAt: null };
+  return {
+    balance: Number(raw.balance ?? 0),
+    count: Number(raw.count ?? 0),
+    oldestAt: raw.oldest_at != null ? String(raw.oldest_at) : null,
+  };
+}
+
+export function mapClientByChannel(raw: unknown): ClientByChannel {
+  if (raw == null) {
+    return {
+      withInvoice: { balance: 0, count: 0, oldestAt: null },
+      withoutInvoice: { balance: 0, count: 0, oldestAt: null },
+    };
+  }
+  const obj = raw as Record<string, unknown>;
+  return {
+    withInvoice: mapByChannelEntry(obj.with_invoice as Record<string, unknown> | undefined),
+    withoutInvoice: mapByChannelEntry(obj.without_invoice as Record<string, unknown> | undefined),
+  };
+}
+
 export { mapClientContactToDomain as mapPrimaryContactFromApi };

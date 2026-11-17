@@ -8,15 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
 import { NotFoundState } from "@shared/ui/feedback-states";
-import { useToast } from "@shared/hooks";
 import { usePermissions, useRole } from "@shared/permissions";
 import { isClientPortalRole, ROLES } from "@shared/constants/roles";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
-import {
-  useInvoice,
-  useRetryRepStamp,
-} from "@features/invoicing/application";
+import { useInvoice } from "@features/invoicing/application";
 import {
   getInvoiceDisplayAmounts,
   parseInvoiceBillingScope,
@@ -34,10 +30,10 @@ import {
   buildInvoiceStats,
   InvoiceDetailContextStrip,
   InvoiceDetailAmountsPanel,
-  InvoicePaymentRepRow,
   InvoiceBillingScopeBadge,
   resolveInvoiceBillingScope,
 } from "../components";
+import { InvoiceCobrosBlock } from "@widgets/invoice-cobros";
 import { InvoiceDetailConceptsCard } from "../components/InvoiceDetailConceptsCard";
 import { InvoiceDetailPaymentTermsCard } from "../components/InvoiceDetailFiscalLabels";
 import { InvoiceDetailFiscalDossier } from "../components/InvoiceDetailFiscalDossier";
@@ -78,21 +74,14 @@ export function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const role = useRole();
   const isClientPortal = isClientPortalRole(role);
   const canAdminManagerFiscal =
     role === ROLES.ADMIN || role === ROLES.MANAGER;
-  // Lockstep with API: GET pdf/xml require invoices.read (no separate export).
-  const canExportFiles = hasPermission("invoices", "read");
   const canExecuteInvoice = hasPermission("invoices", "execute");
-  const canRetryRep = canExecuteInvoice;
   const canEditInvoice = hasPermission("invoices", "update");
   const fromState = location.state?.from as string | undefined;
-  const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(
-    null,
-  );
   const [interactionBusy, setInteractionBusy] = useState(false);
   const [openSubstituteRequestKey, setOpenSubstituteRequestKey] = useState(0);
   const [openCancelRequestKey, setOpenCancelRequestKey] = useState(0);
@@ -248,21 +237,6 @@ export function InvoiceDetailPage() {
     showPostCancelFiscalAttention,
     linkedTripIdForFiscal,
   ]);
-
-  const { mutate: retryRep } = useRetryRepStamp(invoice?.id ?? "", {
-    onMutate: (paymentId) => setRetryingPaymentId(paymentId),
-    onSettled: () => setRetryingPaymentId(null),
-    onSuccess: () => {
-      toast({ title: copy.toast.repRetrySuccess });
-    },
-    onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: copy.toast.repRetryError,
-        description: getErrorMessage(err),
-      });
-    },
-  });
 
   const handleBack = () => {
     navigate(invoiceBackHref(fromState, invoice));
@@ -913,29 +887,18 @@ export function InvoiceDetailPage() {
 
         <InvoiceDetailPaymentTermsCard invoice={invoice} />
 
-        {invoice.payments.length > 0 ? (
-          <Card id="invoice-payments">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">
-                {copy.section.payments(invoice.payments.length)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {invoice.payments.map((payment) => (
-                <InvoicePaymentRepRow
-                  key={payment.id}
-                  payment={payment}
-                  invoiceId={invoice.id}
-                  invoiceSerieFolio={`${invoice.serie}-${invoice.folio}`}
-                  canExportFiles={canExportFiles}
-                  canRetryRep={canRetryRep}
-                  canSendRep={canExecuteInvoice}
-                  onRetry={retryRep}
-                  retryingPaymentId={retryingPaymentId}
-                />
-              ))}
-            </CardContent>
-          </Card>
+        {!isClientPortal &&
+        (invoice.payments.length > 0 ||
+          (canExecuteInvoice &&
+            canRegisterFinancialPayment(toInvoiceLike(invoice)))) ? (
+          <InvoiceCobrosBlock
+            invoice={invoice}
+            canRegister={
+              canExecuteInvoice &&
+              canRegisterFinancialPayment(toInvoiceLike(invoice))
+            }
+            fromPath={location.pathname}
+          />
         ) : null}
 
         {invoice.notes ? (

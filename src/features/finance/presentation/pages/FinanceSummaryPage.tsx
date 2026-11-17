@@ -9,32 +9,31 @@ import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { HubPageShell } from "@shared/ui/page-shells";
 import { ReportsReturnLink } from "@shared/ui/reports-return/ReportsReturnLink";
+import { useDispatchDocuments } from "@features/invoicing/application";
+import { useInvoiceableWorkbenchSummary } from "@features/trips/application";
 import {
   buildFinanceAnalysisHref,
-  buildFinanceCobrosPath,
   useAccountStatement,
   useAgingByClient,
   useAgingSummary,
-  useDownloadAccountStatementPdf,
   useFinanceSummary,
-  useIncomeByMonth,
   useMonthlyPerformance,
+  useOpenPpdSummary,
+  useOperationalCashPending,
 } from "@features/finance/application";
 import {
   FinanceAccountStatementSection,
   FinanceAgingChart,
   FinanceCycleStepper,
-  FinancePulseCards,
-  FinanceSummaryCards,
+  FinanceMonthPanel,
+  FinanceReceivableKpis,
 } from "../components";
 import { financeCopy } from "../copy";
 import { buildFinanceCycleSteps } from "../utils/financeHubNav";
 import { exportAgingByClientCsv } from "../utils/financeExportHelpers";
 import {
-  FINANCE_COLLECTED_TREND_MONTHS,
   FINANCE_PULSE_PERFORMANCE_MONTHS,
   resolveFinancePulseMonth,
-  toCollectedTrendData,
 } from "../utils/financePulse";
 import { formatPerformanceMonth } from "../utils/monthlyPerformanceFormat";
 
@@ -89,10 +88,6 @@ export function FinanceSummaryPage() {
     refetch: refetchPerformance,
   } = useMonthlyPerformance(FINANCE_PULSE_PERFORMANCE_MONTHS);
   const {
-    data: incomeByMonth,
-    isLoading: incomeLoading,
-  } = useIncomeByMonth({ months: FINANCE_COLLECTED_TREND_MONTHS });
-  const {
     data: statement,
     isLoading: stmtLoading,
     isError: stmtError,
@@ -108,20 +103,31 @@ export function FinanceSummaryPage() {
   } = useAgingSummary();
   const { data: agingByClient } = useAgingByClient();
 
-  const downloadPdf = useDownloadAccountStatementPdf({
-    onError: (err) => {
-      toast({
-        variant: "destructive",
-        title: financeCopy.summary.accountStatement.downloadPdfError,
-        description: getErrorMessage(err),
-      });
-    },
+  const canInvoiceable = hasPermission("invoices", "create");
+  const canDispatch =
+    user?.role === ROLES.ADMIN ||
+    user?.role === ROLES.MANAGER ||
+    user?.role === ROLES.ACCOUNTANT;
+  const canCobros = hasPermission("finance", "create");
+  const canOperational = hasPermission("operational_cash", "create");
+
+  const { data: invoiceableSummary } = useInvoiceableWorkbenchSummary();
+  const { data: dispatchPending } = useDispatchDocuments(
+    { bucket: "pending", limit: 1, page: 1 },
+    canDispatch,
+  );
+  const { data: openPpdSummary } = useOpenPpdSummary({
+    enabled: canCobros || canReadFinance,
   });
+  const { data: operationalPending } = useOperationalCashPending(
+    { page: 1, limit: 1 },
+    { enabled: canOperational || canReadFinance },
+  );
 
   const rows = statement ?? [];
-  const collectedTrendData = useMemo(
-    () => toCollectedTrendData(incomeByMonth),
-    [incomeByMonth],
+  const overdueClientCount = useMemo(
+    () => rows.filter((row) => row.overdueAmount > 0.009).length,
+    [rows],
   );
 
   const pulseMonth = useMemo(
@@ -132,7 +138,6 @@ export function FinanceSummaryPage() {
     ? formatPerformanceMonth(pulseMonth.period)
     : null;
   const analysisHref = buildFinanceAnalysisHref("performance");
-  const cobrosHref = buildFinanceCobrosPath();
 
   const agingExportAction = useMemo(() => {
     if (!agingByClient?.length) return undefined;
@@ -156,16 +161,40 @@ export function FinanceSummaryPage() {
   }, [agingByClient, toast]);
 
   const cycleSteps = useMemo(() => {
-    const role = user?.role;
-    return buildFinanceCycleSteps({
-      invoiceable: hasPermission("invoices", "create"),
-      dispatch:
-        role === ROLES.ADMIN ||
-        role === ROLES.MANAGER ||
-        role === ROLES.ACCOUNTANT,
-      cobros: hasPermission("finance", "create"),
-    });
-  }, [hasPermission, user?.role]);
+    const openCount =
+      (openPpdSummary?.open ?? 0) + (openPpdSummary?.partial ?? 0);
+    return buildFinanceCycleSteps(
+      {
+        invoiceable: canInvoiceable,
+        dispatch: canDispatch,
+        cobros: canCobros,
+        operational: canOperational || canReadFinance,
+      },
+      {
+        invoiceable: invoiceableSummary?.total,
+        dispatch: dispatchPending?.pagination.total,
+        cobros: openCount,
+        cobrosBalance: openPpdSummary?.totalBalance,
+        cobrosRepExceptions: openPpdSummary?.repExceptions,
+        operational: operationalPending?.meta.totals.tripCount,
+        operationalBalance: operationalPending?.meta.totals.pendingAmount,
+      },
+    );
+  }, [
+    canCobros,
+    canDispatch,
+    canInvoiceable,
+    canOperational,
+    canReadFinance,
+    dispatchPending?.pagination.total,
+    invoiceableSummary?.total,
+    openPpdSummary?.open,
+    openPpdSummary?.partial,
+    openPpdSummary?.repExceptions,
+    openPpdSummary?.totalBalance,
+    operationalPending?.meta.totals.pendingAmount,
+    operationalPending?.meta.totals.tripCount,
+  ]);
 
   const hub = financeCopy.page.hub;
 
@@ -221,45 +250,37 @@ export function FinanceSummaryPage() {
         />
       ) : null}
 
-      <FinancePulseCards
+      <FinanceReceivableKpis
         summary={summary}
-        pulseMonth={pulseMonth}
+        agingSummary={agingSummary}
         isSummaryLoading={isLoading}
-        isPerformanceLoading={performanceLoading}
-        analysisHref={analysisHref}
-        receivableHref={cobrosHref}
-        overdueHref={cobrosHref}
+        isAgingLoading={agingLoading}
+        overdueClientCount={overdueClientCount}
         periodLabel={pulsePeriodLabel}
       />
-      <FinanceSummaryCards
-        summary={summary}
-        isLoading={isLoading}
-        collectedTrendData={collectedTrendData}
-        collectedTrendLoading={incomeLoading}
-        keys={["collectedThisMonth", "expensesThisMonth"]}
-        density="stat"
-        sectionTitle={hub.monthContextTitle}
-      />
+
       <FinanceCycleStepper steps={cycleSteps} />
 
-      <FinanceAgingChart
-        agingSummary={agingSummary}
-        isLoading={agingLoading}
-        exportAction={agingExportAction}
-      />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <FinanceAgingChart
+          agingSummary={agingSummary}
+          isLoading={agingLoading}
+          exportAction={agingExportAction}
+        />
+        <FinanceMonthPanel
+          pulseMonth={pulseMonth}
+          isLoading={performanceLoading || isLoading}
+          periodLabel={pulsePeriodLabel}
+          analysisHref={analysisHref}
+          expensesThisMonth={summary?.expensesThisMonth}
+        />
+      </div>
 
       <FinanceAccountStatementSection
         rows={rows}
         isLoading={stmtLoading}
-        showCollectAction
-        onDownloadPdf={
-          canReadFinance
-            ? (clientRfc) => downloadPdf.mutate(clientRfc)
-            : undefined
-        }
-        downloadingRfc={
-          downloadPdf.isPending ? (downloadPdf.variables ?? null) : null
-        }
+        showCollectAction={canCobros}
+        canDownloadStatement={canReadFinance}
       />
     </HubPageShell>
   );

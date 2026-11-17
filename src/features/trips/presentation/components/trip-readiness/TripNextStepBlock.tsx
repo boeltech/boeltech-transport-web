@@ -105,6 +105,9 @@ function primaryLabel(
   switch (primary.id) {
     case "complete_route_cargo":
       if (primary.tab === "cargo") return copy.completeCargo;
+      if (primary.routeGap === "origin") return copy.completeOrigin;
+      if (primary.routeGap === "destination") return copy.completeDestination;
+      if (primary.routeGap === "domicilio") return copy.completeDomicilio;
       if (secondaries.some((s) => s.id === "go_to_cargo")) {
         return copy.completeRouteCargo;
       }

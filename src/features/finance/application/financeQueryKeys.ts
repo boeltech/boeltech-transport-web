@@ -69,6 +69,7 @@ export const financeQueryKeys = {
     clientId: string | null;
     page: number;
     limit: number;
+    cobrosBucket: string | null;
   }) =>
     [...financeQueryKeys.operationalCashPendingRoot(), filters] as const,
   /** Prefijo cobro por lote (candidatos, detalle, lista por cliente). */
@@ -92,4 +93,11 @@ export const financeQueryKeys = {
       clientId,
       filters,
     ] as const,
+  /** Prefijo detalle unificado del cobro (F3). */
+  collectionDetailRoot: () =>
+    [...financeQueryKeys.all, "collection-detail"] as const,
+  paymentCollectionDetail: (paymentId: string) =>
+    [...financeQueryKeys.collectionDetailRoot(), "payment", paymentId] as const,
+  receiptCollectionDetail: (receiptId: string) =>
+    [...financeQueryKeys.collectionDetailRoot(), "receipt", receiptId] as const,
 };

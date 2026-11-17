@@ -32,6 +32,18 @@ describe("canvasCopy", () => {
     expect(canvasCopy.corridor.hintDetail).toMatch(/paradas/i);
     expect(canvasCopy.corridor.hintDetail).toMatch(/no copia flota/i);
     expect(canvasCopy.corridor.hintDetail).toMatch(/no es tarifa de pago/i);
-    expect(canvasCopy.corridor.empty).toMatch(/ciudades/i);
+    expect(canvasCopy.corridor.empty).toMatch(/origen y destino/i);
+  });
+
+  it("declara copy de corredor Ya no se usa (Q21 #5) sin más usados (Q20)", () => {
+    expect(canvasCopy.corridor.noLongerUsed("destination")).toMatch(
+      /Ya no se usa: cambiaste el destino/i,
+    );
+    expect(canvasCopy.corridor.restore).toBe("Volver a usar");
+    expect(canvasCopy.fields.label.originCity).toBe("Origen");
+    expect(canvasCopy.fields.label.destinationCity).toBe("Destino");
+    const blob = JSON.stringify(canvasCopy);
+    expect(blob).not.toMatch(/más usados/i);
   });
 });
+

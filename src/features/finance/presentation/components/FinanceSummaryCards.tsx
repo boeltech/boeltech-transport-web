@@ -106,7 +106,7 @@ export function FinanceSummaryCards({
   if (density === "stat") {
     return (
       <section
-        aria-label={sectionTitle ?? financeCopy.page.hub.monthContextTitle}
+        aria-label={sectionTitle ?? financeCopy.page.hub.monthPanelTitle("Mes")}
         className="space-y-2"
       >
         {sectionTitle ? (

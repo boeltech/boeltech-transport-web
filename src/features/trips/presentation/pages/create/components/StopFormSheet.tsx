@@ -91,6 +91,7 @@ import { usePermissions } from "@shared/permissions";
 
 import { useActiveClients } from "@features/clients/application/hooks/useClients";
 import { useClientAddress } from "@features/clients/application/hooks/useClientAddresses";
+import { useCreateClientAddress } from "@features/clients/application/hooks/useCreateClientAddress";
 import { useUpdateClientAddress } from "@features/clients/application/hooks/useUpdateClientAddress";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
 import {
@@ -98,6 +99,7 @@ import {
   type LocationValue,
 } from "@shared/ui/location";
 import { ownerTypesForRouteSlot } from "@features/trips/presentation/components/trip-route/routeAddressPickerOwnerTypes";
+import { Checkbox } from "@shared/ui/checkbox";
 
 import type { TripStopFormValues } from "./validation";
 import { stopHasUnifiedAddressId } from "./validation";
@@ -118,9 +120,12 @@ import {
 } from "./stopDialogAddressMapper";
 import {
   detachStopFromClientCatalog,
+  canOfferClientAddressCreate,
   canOfferClientAddressWriteBack,
   resolveClientAddressFormContextForCatalog,
+  shouldDefaultSaveNewAddressToClient,
   stopDialogDiffersFromClientCatalog,
+  stopDialogToClientAddressCreateDto,
   stopDialogToClientAddressFormData,
   stopDialogToClientAddressUpdateDto,
 } from "./stopClientAddressWriteBack";
@@ -286,6 +291,7 @@ export function StopFormSheet({
     formValues: StopDialogFormValues;
   } | null>(null);
   const [isPersistingClientAddress, setIsPersistingClientAddress] = useState(false);
+  const [saveNewAddressToClient, setSaveNewAddressToClient] = useState(false);
   const { toast } = useToast();
   const { submissionError, showOverlayError, clearOverlayError } =
     useOverlayMutationFeedback({
@@ -298,6 +304,7 @@ export function StopFormSheet({
   const hasInitializedFiscalModeRef = useRef(false);
   const wasDialogOpenRef = useRef(false);
   const lastSyncedCatalogIdRef = useRef<string | null>(null);
+  const saveToClientDefaultAppliedRef = useRef(false);
 
   const form = useForm<StopDialogFormValues>({
     defaultValues: getEmptyStopDialogValues(),
@@ -330,7 +337,29 @@ export function StopFormSheet({
     catalogAddressId,
   );
   const writeBackAddressMutation = useUpdateClientAddress();
+  const createClientAddressMutation = useCreateClientAddress();
   const selectedAddress = selectedAddressFull ?? undefined;
+
+  const createClientId =
+    (tripContractingClientId && tripContractingClientId !== "no-client"
+      ? tripContractingClientId
+      : clientId) || "";
+  const canCreateClientAddress = canOfferClientAddressCreate(
+    canUpdateClientAddress,
+    createClientId,
+  );
+  const hasCatalogAddressLink = Boolean(
+    catalogAddressId ||
+      selectedPrefillItem?.id ||
+      prefillCatalogRef?.catalogAddressId,
+  );
+  const sourceIsMapOrCreate =
+    !hasCatalogAddressLink &&
+    (selectedPrefillItem == null ||
+      selectedPrefillItem.ownerType == null ||
+      !selectedPrefillItem.id);
+  const showSaveToClientCheckbox =
+    mode === "create" && !hasCatalogAddressLink && Boolean(createClientId);
 
   const clientFiscalFallback = useMemo(() => {
     const resolveClient = (id: string) => {
@@ -365,6 +394,8 @@ export function StopFormSheet({
     if (!open) {
       wasDialogOpenRef.current = false;
       lastSyncedCatalogIdRef.current = null;
+      saveToClientDefaultAppliedRef.current = false;
+      setSaveNewAddressToClient(false);
       return;
     }
     if (wasDialogOpenRef.current) return;
@@ -386,7 +417,28 @@ export function StopFormSheet({
     });
     hasInitializedFiscalModeRef.current = false;
     lastSyncedCatalogIdRef.current = null;
+    saveToClientDefaultAppliedRef.current = false;
   }, [open, initialData, reset, clearOverlayError]);
+
+  // D61 — default «Guardar en cliente» para mapa/nuevo cuando hay permiso.
+  useEffect(() => {
+    if (!open || saveToClientDefaultAppliedRef.current) return;
+    if (!showSaveToClientCheckbox) return;
+    saveToClientDefaultAppliedRef.current = true;
+    setSaveNewAddressToClient(
+      shouldDefaultSaveNewAddressToClient({
+        canCreate: canCreateClientAddress,
+        hasCatalogAddressId: hasCatalogAddressLink,
+        sourceIsMapOrCreate,
+      }),
+    );
+  }, [
+    open,
+    showSaveToClientCheckbox,
+    canCreateClientAddress,
+    hasCatalogAddressLink,
+    sourceIsMapOrCreate,
+  ]);
 
   // En modo edición, si la parada ya tenía override manual de RFC/Nombre
   useEffect(() => {
@@ -681,6 +733,37 @@ export function StopFormSheet({
     ) {
       setPendingStopSubmit({ merged, formValues: values });
       setClientAddressPersistDialogOpen(true);
+      return;
+    }
+
+    // Q15 / D61 — create write-back (mismo gate clients.update).
+    if (
+      saveNewAddressToClient &&
+      canCreateClientAddress &&
+      !hasCatalogAddressLink &&
+      createClientId
+    ) {
+      setIsPersistingClientAddress(true);
+      try {
+        const created = await createClientAddressMutation.mutateAsync({
+          clientId: createClientId,
+          data: stopDialogToClientAddressCreateDto(values),
+        });
+        await completeStopSubmit({
+          ...merged,
+          clientId: createClientId,
+          clientAddressId: created.id,
+          addressId: created.id,
+        });
+      } catch {
+        toast({
+          title: stopForm.saveToClient.createFailedTitle,
+          description: stopForm.saveToClient.createFailedBody,
+          variant: "destructive",
+        });
+      } finally {
+        setIsPersistingClientAddress(false);
+      }
       return;
     }
 
@@ -1670,13 +1753,37 @@ export function StopFormSheet({
                 : wizardCopy.route.format.missingCount(missingRequiredFields.length)}
             </p>
           )}
+          {showSaveToClientCheckbox ? (
+            <div className="w-full space-y-1">
+              <label
+                htmlFor="stop-save-to-client"
+                className="flex cursor-pointer items-start gap-2 text-sm"
+              >
+                <Checkbox
+                  id="stop-save-to-client"
+                  className="mt-0.5"
+                  checked={saveNewAddressToClient}
+                  disabled={!canCreateClientAddress || isPersistingClientAddress}
+                  onCheckedChange={(checked) =>
+                    setSaveNewAddressToClient(checked === true)
+                  }
+                />
+                <span>{stopForm.saveToClient.label}</span>
+              </label>
+              {!canCreateClientAddress ? (
+                <p className="pl-6 text-xs text-muted-foreground">
+                  {stopForm.saveToClient.disabledHint}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="flex w-full flex-row justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => closeDialog()}>
               {stopForm.action.cancel}
             </Button>
             <Button
               type="button"
-              disabled={saveDisabled}
+              disabled={saveDisabled || isPersistingClientAddress}
               onClick={() => handlePrimaryFooterAction()}
             >
               {stopForm.action.save}

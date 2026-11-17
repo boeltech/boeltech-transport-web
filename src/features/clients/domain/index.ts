@@ -30,6 +30,11 @@ export type {
   CreditExposureStatus,
   ClientTripHistoryItem,
   ClientTripHistoryFilters,
+  CollectionChannel,
+  LastCollection,
+  LastCollectionRef,
+  ByChannelEntry,
+  ClientByChannel,
 } from "./entities";
 
 // Constants & Labels

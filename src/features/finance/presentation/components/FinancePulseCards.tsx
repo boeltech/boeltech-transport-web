@@ -79,7 +79,7 @@ export function FinancePulseCards({
     {
       key: "totalReceivable",
       title: copy.receivable.title,
-      subtitle: copy.receivable.description,
+      subtitle: copy.receivableDescription,
       value: summary ? formatMxCurrency(summary.totalReceivable) : "—",
       tone: "warning" as const,
       cardLoading: summaryLoading,
@@ -89,7 +89,7 @@ export function FinancePulseCards({
     {
       key: "totalOverdue",
       title: copy.overdue.title,
-      subtitle: copy.overdue.description,
+      subtitle: copy.overdueDescription,
       value: summary ? formatMxCurrency(summary.totalOverdue) : "—",
       tone: "destructive" as const,
       cardLoading: summaryLoading,

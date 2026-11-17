@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import type { ClientAddress } from "@features/clients/domain/entities";
 
 import {
+  canOfferClientAddressCreate,
   canOfferClientAddressWriteBack,
   detachStopFromClientCatalog,
+  shouldDefaultSaveNewAddressToClient,
   stopDialogDiffersFromClientCatalog,
+  stopDialogToClientAddressCreateDto,
 } from "./stopClientAddressWriteBack";
 import { getEmptyStopDialogValues } from "./stopDialogAddressMapper";
 
@@ -168,5 +171,55 @@ describe("stopClientAddressWriteBack", () => {
       canOfferClientAddressWriteBack(baseCatalog({ addressType: "office" }), true),
     ).toBe(false);
     expect(canOfferClientAddressWriteBack(undefined, true)).toBe(false);
+  });
+
+  it("Q15: create solo con clients.update y clientId", () => {
+    expect(canOfferClientAddressCreate(true, "client-1")).toBe(true);
+    expect(canOfferClientAddressCreate(false, "client-1")).toBe(false);
+    expect(canOfferClientAddressCreate(true, "")).toBe(false);
+    expect(canOfferClientAddressCreate(true, null)).toBe(false);
+  });
+
+  it("D61: default guardar en cliente para mapa/nuevo con permiso", () => {
+    expect(
+      shouldDefaultSaveNewAddressToClient({
+        canCreate: true,
+        hasCatalogAddressId: false,
+        sourceIsMapOrCreate: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldDefaultSaveNewAddressToClient({
+        canCreate: true,
+        hasCatalogAddressId: true,
+        sourceIsMapOrCreate: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldDefaultSaveNewAddressToClient({
+        canCreate: false,
+        hasCatalogAddressId: false,
+        sourceIsMapOrCreate: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("mapea create DTO shipping desde el formulario", () => {
+    const dto = stopDialogToClientAddressCreateDto({
+      ...getEmptyStopDialogValues(),
+      locationName: "Bodega Sur",
+      street: "Calle 1",
+      exteriorNumber: "10",
+      postalCode: "64000",
+      satCountryCode: "MEX",
+      satStateCode: "19",
+      satMunicipalityCode: "006",
+      latitude: 25.67,
+      longitude: -100.31,
+    });
+    expect(dto.addressType).toBe("shipping");
+    expect(dto.locationName).toBe("Bodega Sur");
+    expect(dto.postalCode).toBe("64000");
+    expect(dto.latitude).toBe(25.67);
   });
 });

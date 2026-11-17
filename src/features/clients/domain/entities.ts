@@ -132,6 +132,39 @@ export interface ClientTripHistoryItem {
   invoiceStatus: string;
 }
 
+// ============================================================================
+// COLLECTION — last-collection + by_channel (F4)
+// ============================================================================
+
+export type CollectionChannel = "with_invoice" | "without_invoice";
+
+/** `GET /clients/:id/last-collection` — last collection across channels. */
+export interface LastCollection {
+  channel: CollectionChannel;
+  ref: LastCollectionRef;
+  amount: number;
+  at: string;
+  label: string;
+}
+
+export type LastCollectionRef =
+  | { channel: "with_invoice"; paymentId: string }
+  | { channel: "without_invoice"; kind: "batch"; batchId: string }
+  | { channel: "without_invoice"; kind: "receipt"; receiptId: string };
+
+/** One channel in `account-statement?client_id=` → `by_channel`. */
+export interface ByChannelEntry {
+  balance: number;
+  count: number;
+  oldestAt: string | null;
+}
+
+/** `by_channel` block from the account statement. */
+export interface ClientByChannel {
+  withInvoice: ByChannelEntry;
+  withoutInvoice: ByChannelEntry;
+}
+
 export interface ClientTripHistoryFilters {
   page?: number;
   limit?: number;
@@ -489,6 +522,10 @@ export const clientQueryKeys = {
     ] as const,
   tripHistory: (clientId: string, filters?: ClientTripHistoryFilters) =>
     [...clientQueryKeys.detail(clientId), "trip-history", filters ?? {}] as const,
+  lastCollection: (clientId: string) =>
+    [...clientQueryKeys.detail(clientId), "last-collection"] as const,
+  byChannel: (clientId: string) =>
+    [...clientQueryKeys.detail(clientId), "by-channel"] as const,
 } as const;
 
 // ============================================================================

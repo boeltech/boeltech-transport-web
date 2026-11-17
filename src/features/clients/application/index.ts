@@ -64,4 +64,6 @@ export { useSetPrimaryClientContact } from "./hooks/useSetPrimaryClientContact";
 export { useClientSummary } from "./hooks/useClientSummary";
 export { useClientCreditSummary } from "./hooks/useClientCreditSummary";
 export { useClientTripHistory } from "./hooks/useClientTripHistory";
+export { useLastCollection } from "./hooks/useLastCollection";
+export { useClientByChannel } from "./hooks/useClientByChannel";
 

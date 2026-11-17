@@ -26,8 +26,12 @@ import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
+import type { CollectionDetailTarget } from "@features/finance/domain";
 import { financeCopy } from "../copy";
-import type { CobrosTodayEntry } from "../utils/cobrosFollowThrough";
+import {
+  isWithoutInvoiceTrayEntry,
+  type CobrosTodayEntry,
+} from "../utils/cobrosFollowThrough";
 import {
   resolveCobrosRepStage,
   type CobrosRepStage,
@@ -35,6 +39,7 @@ import {
 import { useInvoiceQueueFromState } from "../utils/invoiceQueueFrom";
 import type { CobrosInvoiceNavTarget } from "../utils/cobrosInvoiceNav";
 import { CobrosInvoiceNavCta } from "./CobrosInvoiceNav";
+import { CollectionDetailSheet } from "./CollectionDetailSheet";
 
 const copy = financeCopy.cobros.todayTray;
 const BILLING_SETTINGS_PATH = "/settings/billing";
@@ -94,16 +99,21 @@ export function FinanceCobrosTodayTray({
   const queryClient = useQueryClient();
   const fromState = useInvoiceQueueFromState();
   const [sendPaymentId, setSendPaymentId] = useState<string | null>(null);
+  const [collectionTarget, setCollectionTarget] =
+    useState<CollectionDetailTarget | null>(null);
   /** Session-local: after N=1 enqueue, tray shows Reenviar until refresh. */
   const [sentInSession, setSentInSession] = useState<Record<string, true>>(
     {},
   );
   const paymentIds = useMemo(
-    () => entries.map((entry) => entry.paymentId),
+    () =>
+      entries
+        .filter((entry) => !isWithoutInvoiceTrayEntry(entry))
+        .map((entry) => entry.paymentId),
     [entries],
   );
   const { data: liveStatuses } = useRepStatusByIds(paymentIds, {
-    enabled: entries.length > 0,
+    enabled: paymentIds.length > 0,
   });
 
   const liveById = useMemo(() => {
@@ -169,6 +179,10 @@ export function FinanceCobrosTodayTray({
     let inProgress = 0;
     let needsAction = 0;
     for (const entry of entries) {
+      if (isWithoutInvoiceTrayEntry(entry)) {
+        ready += 1;
+        continue;
+      }
       const live = liveById.get(entry.paymentId);
       const stage = resolveCobrosRepStage({
         repStatus: live?.repStatus ?? entry.repStatus,
@@ -226,6 +240,7 @@ export function FinanceCobrosTodayTray({
         </p>
         <ul className="space-y-2 text-foreground">
           {entries.map((entry) => {
+            const withoutInvoice = isWithoutInvoiceTrayEntry(entry);
             const live = liveById.get(entry.paymentId);
             const repStatus = live?.repStatus ?? entry.repStatus;
             const waitReason = live?.waitReason ?? null;
@@ -234,35 +249,46 @@ export function FinanceCobrosTodayTray({
             const repErrorKind = live?.repErrorKind ?? null;
             const stage = resolveCobrosRepStage({ repStatus, waitReason });
             const amountLabel = formatMxCurrency(entry.amount);
-            const navInvoices: CobrosInvoiceNavTarget[] = (
-              live?.invoices ?? entry.invoices
-            ).map((invoice) => ({
-              id: invoice.id,
-              serie: invoice.serie,
-              folio: invoice.folio,
-            }));
+            const navInvoices: CobrosInvoiceNavTarget[] = withoutInvoice
+              ? []
+              : (live?.invoices ?? entry.invoices).map((invoice) => ({
+                  id: invoice.id,
+                  serie: invoice.serie,
+                  folio: invoice.folio,
+                }));
             const primaryInvoice = navInvoices[0];
-            const canRetry = canRetryRepStamp({
-              repStatus,
-              waitReason,
-              repLastError,
-              repCfdiUuid,
-              repErrorKind,
-            });
-            const manualReview = isRepManualReview({
-              waitReason,
-              repLastError,
-              repErrorKind,
-            });
-            const permanent = isRepPermanentError({ repErrorKind });
-            const configError = isRepPacConfigErrorMessage(repLastError);
+            const canRetry =
+              !withoutInvoice &&
+              canRetryRepStamp({
+                repStatus,
+                waitReason,
+                repLastError,
+                repCfdiUuid,
+                repErrorKind,
+              });
+            const manualReview =
+              !withoutInvoice &&
+              isRepManualReview({
+                waitReason,
+                repLastError,
+                repErrorKind,
+              });
+            const permanent =
+              !withoutInvoice && isRepPermanentError({ repErrorKind });
+            const configError =
+              !withoutInvoice && isRepPacConfigErrorMessage(repLastError);
             const permanentConfig = permanent && configError;
-            const orphan = isRepOrphanParked({ repStatus, repCfdiUuid });
+            const orphan =
+              !withoutInvoice &&
+              isRepOrphanParked({ repStatus, repCfdiUuid });
             const waitHint =
-              stage === "stamping" ? waitReasonHint(waitReason) : null;
+              !withoutInvoice && stage === "stamping"
+                ? waitReasonHint(waitReason)
+                : null;
             const retrying =
               retryMutation.isPending &&
               retryMutation.variables?.paymentId === entry.paymentId;
+            const batchId = entry.batchId ?? entry.paymentId;
 
             return (
               <li
@@ -278,17 +304,25 @@ export function FinanceCobrosTodayTray({
                       <Badge variant="secondary" className="font-mono text-xs">
                         {entry.receiverRfc}
                       </Badge>
-                      <Badge
-                        variant={stageBadgeVariant(stage)}
-                        tone="soft"
-                      >
-                        {copy.stages[stage]}
-                      </Badge>
+                      {withoutInvoice ? (
+                        <Badge variant="success" tone="soft">
+                          {copy.stages.registered}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant={stageBadgeVariant(stage)}
+                          tone="soft"
+                        >
+                          {copy.stages[stage]}
+                        </Badge>
+                      )}
                     </div>
                     {waitHint ? (
                       <p className="text-xs text-muted-foreground">{waitHint}</p>
                     ) : null}
-                    {stage === "needs_action" && repLastError ? (
+                    {!withoutInvoice &&
+                    stage === "needs_action" &&
+                    repLastError ? (
                       <p
                         className="text-xs text-destructive"
                         title={repLastError}
@@ -353,7 +387,7 @@ export function FinanceCobrosTodayTray({
                         )}
                       </Button>
                     ) : null}
-                    {canSendRep && stage === "ready" ? (
+                    {!withoutInvoice && canSendRep && stage === "ready" ? (
                       <Button
                         type="button"
                         size="sm"
@@ -365,10 +399,30 @@ export function FinanceCobrosTodayTray({
                           : copy.sendRep}
                       </Button>
                     ) : null}
-                    <CobrosInvoiceNavCta
-                      invoices={navInvoices}
-                      linkState={fromState}
-                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      aria-label={copy.viewCobroAria}
+                      onClick={() =>
+                        setCollectionTarget(
+                          withoutInvoice
+                            ? { kind: "batch", batchId }
+                            : {
+                                kind: "payment",
+                                paymentId: entry.paymentId,
+                              },
+                        )
+                      }
+                    >
+                      {copy.viewCobro}
+                    </Button>
+                    {!withoutInvoice ? (
+                      <CobrosInvoiceNavCta
+                        invoices={navInvoices}
+                        linkState={fromState}
+                      />
+                    ) : null}
                     <Button
                       type="button"
                       size="icon"
@@ -402,6 +456,14 @@ export function FinanceCobrosTodayTray({
         }}
       />
     ) : null}
+    <CollectionDetailSheet
+      target={collectionTarget}
+      open={collectionTarget != null}
+      onOpenChange={(open) => {
+        if (!open) setCollectionTarget(null);
+      }}
+      onNavigateTarget={setCollectionTarget}
+    />
     </>
   );
 }

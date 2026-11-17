@@ -1,13 +1,19 @@
 import type { FinanceInvoiceListItem, FinancePayment } from "@features/finance/domain";
+import type { OperationalReceiptBatchDetail } from "@features/finance/domain/operationalReceiptBatch";
 import type { RegisterFinancePaymentPayload } from "@features/finance/infrastructure/financePaymentsApi";
 
 /** Legacy single-cobro key (v1) — migrated into the today tray. */
 export const COBROS_FOLLOW_THROUGH_STORAGE_KEY = "finance.cobros.followThrough";
 
-/** Session tray of cobros registered in this browser tab (v2). */
+/**
+ * Session tray of cobros registered in this browser tab (v2).
+ * Shared by Facturas a crédito and Cobros sin factura; filter by channel on read.
+ */
 export const COBROS_TODAY_TRAY_STORAGE_KEY = "finance.cobros.todayTray.v2";
 
 export const COBROS_TODAY_TRAY_MAX_IDS = 50;
+
+export type CobrosTodayChannel = "with_invoice" | "without_invoice";
 
 export interface CobrosFollowThroughInvoice {
   readonly id: string;
@@ -26,6 +32,13 @@ export interface CobrosTodayEntry {
   readonly invoices: CobrosFollowThroughInvoice[];
   /** ISO timestamp when the snapshot was written. */
   readonly recordedAt: string;
+  /**
+   * Canal del cobro. Ausente / `with_invoice` = Facturas a crédito (exige invoices).
+   * `without_invoice` = lote operativo (`batchId`); invoices vacío.
+   */
+  readonly channel?: CobrosTodayChannel;
+  /** Presente cuando `channel === "without_invoice"`. */
+  readonly batchId?: string;
 }
 
 /** @deprecated Prefer CobrosTodayEntry — kept for migration parsers. */
@@ -44,6 +57,25 @@ function isFollowThroughInvoice(value: unknown): value is CobrosFollowThroughInv
   );
 }
 
+export function getCobrosTodayChannel(
+  entry: Pick<CobrosTodayEntry, "channel" | "batchId" | "invoices">,
+): CobrosTodayChannel {
+  if (entry.channel === "without_invoice") return "without_invoice";
+  if (entry.channel === "with_invoice") return "with_invoice";
+  if (entry.batchId && (!entry.invoices || entry.invoices.length === 0)) {
+    return "without_invoice";
+  }
+  return "with_invoice";
+}
+
+export function isWithoutInvoiceTrayEntry(entry: CobrosTodayEntry): boolean {
+  return getCobrosTodayChannel(entry) === "without_invoice";
+}
+
+export function isWithInvoiceTrayEntry(entry: CobrosTodayEntry): boolean {
+  return getCobrosTodayChannel(entry) === "with_invoice";
+}
+
 export function parseCobrosFollowThrough(raw: unknown): CobrosTodayEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
@@ -52,17 +84,45 @@ export function parseCobrosFollowThrough(raw: unknown): CobrosTodayEntry | null 
     typeof value.receiverRfc !== "string" ||
     typeof value.amount !== "number" ||
     typeof value.paymentDate !== "string" ||
-    typeof value.repStatus !== "string" ||
-    !Array.isArray(value.invoices)
+    typeof value.repStatus !== "string"
   ) {
     return null;
   }
-  const invoices = value.invoices.filter(isFollowThroughInvoice);
-  if (invoices.length === 0) return null;
+
+  const channelRaw = value.channel;
+  const isWithoutInvoice =
+    channelRaw === "without_invoice" ||
+    (channelRaw !== "with_invoice" &&
+      typeof value.batchId === "string" &&
+      value.batchId.length > 0 &&
+      (!Array.isArray(value.invoices) || value.invoices.length === 0));
+
   const recordedAt =
     typeof value.recordedAt === "string"
       ? value.recordedAt
       : new Date(0).toISOString();
+
+  if (isWithoutInvoice) {
+    const batchId =
+      typeof value.batchId === "string" && value.batchId.length > 0
+        ? value.batchId
+        : value.paymentId;
+    return {
+      paymentId: value.paymentId,
+      receiverRfc: value.receiverRfc,
+      amount: value.amount,
+      paymentDate: value.paymentDate,
+      repStatus: value.repStatus,
+      invoices: [],
+      recordedAt,
+      channel: "without_invoice",
+      batchId,
+    };
+  }
+
+  if (!Array.isArray(value.invoices)) return null;
+  const invoices = value.invoices.filter(isFollowThroughInvoice);
+  if (invoices.length === 0) return null;
   return {
     paymentId: value.paymentId,
     receiverRfc: value.receiverRfc,
@@ -71,6 +131,7 @@ export function parseCobrosFollowThrough(raw: unknown): CobrosTodayEntry | null 
     repStatus: value.repStatus,
     invoices,
     recordedAt,
+    channel: "with_invoice",
   };
 }
 
@@ -107,6 +168,33 @@ export function buildCobrosFollowThrough(
       folio: invoice.folio,
       amount: amountByInvoiceId.get(invoice.id) ?? invoice.balanceDue,
     })),
+    recordedAt: new Date().toISOString(),
+    channel: "with_invoice",
+  };
+}
+
+/** Snapshot de lote sin factura para la franja «Cobros de hoy» (C11 / Q22). */
+export function buildWithoutInvoiceCobrosTodayEntry(
+  batch: Pick<
+    OperationalReceiptBatchDetail,
+    "id" | "amount" | "collectedAt" | "clientName"
+  >,
+  receiverRfc: string,
+): CobrosTodayEntry {
+  const rfc = receiverRfc.trim().toUpperCase();
+  const collected = batch.collectedAt;
+  const paymentDate =
+    collected.length >= 10 ? collected.slice(0, 10) : collected;
+  return {
+    paymentId: batch.id,
+    batchId: batch.id,
+    channel: "without_invoice",
+    receiverRfc: rfc || "—",
+    amount: batch.amount,
+    paymentDate,
+    /** Sin REP: chip «Registrado» en tray. */
+    repStatus: "registered",
+    invoices: [],
     recordedAt: new Date().toISOString(),
   };
 }
@@ -169,6 +257,17 @@ export function removeCobrosTodayEntry(
   paymentId: string,
 ): CobrosTodayEntry[] {
   const next = current.filter((item) => item.paymentId !== paymentId);
+  writeCobrosTodayTray(next);
+  return next;
+}
+
+/** Quita del tray solo las entradas del canal; preserva el otro. */
+export function clearCobrosTodayTrayChannel(
+  channel: CobrosTodayChannel,
+): CobrosTodayEntry[] {
+  const next = readCobrosTodayTray().filter(
+    (entry) => getCobrosTodayChannel(entry) !== channel,
+  );
   writeCobrosTodayTray(next);
   return next;
 }

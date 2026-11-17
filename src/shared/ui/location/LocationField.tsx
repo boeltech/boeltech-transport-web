@@ -33,6 +33,7 @@ export function LocationField({
   className,
   showCartaPorteStatus = false,
   onCreateRequest,
+  proximity: proximityProp = null,
 }: LocationFieldProps) {
   const fieldId = useId();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -57,6 +58,7 @@ export function LocationField({
         : "default";
 
   const proximity = useMemo((): LatLng | null => {
+    if (proximityProp != null) return proximityProp;
     if (
       value?.latitude != null &&
       value?.longitude != null &&
@@ -66,7 +68,7 @@ export function LocationField({
       return { latitude: value.latitude, longitude: value.longitude };
     }
     return null;
-  }, [value?.latitude, value?.longitude]);
+  }, [proximityProp, value?.latitude, value?.longitude]);
 
   const openCreateSheet = (
     draft?: LocationValue | null,

@@ -88,8 +88,8 @@ vi.mock("../trip-fiscal", () => ({
   }),
 }));
 
-vi.mock("../../pages/create/components/StopFormSheet", () => ({
-  StopFormSheet: ({
+vi.mock("./TripStopSearchConfirmSheet", () => ({
+  TripStopSearchConfirmSheet: ({
     open,
     heading,
     initialData,
@@ -588,10 +588,8 @@ describe("TripDetailRouteTab", () => {
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
     const sheet = screen.getByTestId("stop-form-sheet");
     expect(sheet).toHaveTextContent(copy.action.completeAddress);
-    expect(sheet).toHaveAttribute("data-variant", "sheet");
-    expect(
-      screen.getByRole("button", { name: copy.composer.labelHatchToggle }),
-    ).toBeInTheDocument();
+    // F9 — alta Confirmar = inline en el panel (no sheet overlay).
+    expect(sheet).toHaveAttribute("data-variant", "inline");
   });
 
   it("does not PUT create-new name+CP without coords; opens Completar domicilio", async () => {
@@ -631,10 +629,11 @@ describe("TripDetailRouteTab", () => {
         title: copy.composer.pendingOriginIncomplete,
       }),
     );
-    expect(screen.getByTestId("stop-form-sheet")).toBeInTheDocument();
-    expect(
-      screen.getByText(`${copy.composer.selectedStop}: Altea`),
-    ).toBeInTheDocument();
+    // F9 — Confirmar sustituye el Buscar en el mismo panel.
+    const sheet = screen.getByTestId("stop-form-sheet");
+    expect(sheet).toBeInTheDocument();
+    expect(sheet).toHaveAttribute("data-variant", "inline");
+    expect(sheet).toHaveTextContent(copy.action.completeAddress);
   });
 
   it("does not PUT when both create-new ends lack coords", async () => {
@@ -865,10 +864,7 @@ describe("TripDetailRouteTab", () => {
     await user.click(completeButtons[0]!);
     const sheet = screen.getByTestId("stop-form-sheet");
     expect(sheet).toHaveTextContent(copy.format.completeAddressTitle(2));
-    expect(sheet).toHaveAttribute("data-variant", "sheet");
-    expect(
-      screen.getByRole("button", { name: copy.action.completeAddress }),
-    ).toBeInTheDocument();
+    expect(sheet).toHaveAttribute("data-variant", "inline");
   });
 
   it("shows CorridorPicker when the tab is empty and corridors exist", () => {
@@ -1029,10 +1025,7 @@ describe("TripDetailRouteTab", () => {
     await user.click(editButtons[0]!);
     const sheet = screen.getByTestId("stop-form-sheet");
     expect(sheet).toHaveTextContent(copy.format.editStopTitle(1));
-    expect(sheet).toHaveAttribute("data-variant", "sheet");
-    expect(
-      screen.getAllByRole("button", { name: copy.action.editStop }).length,
-    ).toBeGreaterThan(0);
+    expect(sheet).toHaveAttribute("data-variant", "inline");
   });
 
   it("does not show Editar parada together with Completar domicilio", async () => {
