@@ -305,26 +305,70 @@ export const dashboardCopy = {
       formula: {
         revenue: "Ingreso",
         revenueHint: "Tarifa de viajes completados",
-        costs: "Costos aprobados",
-        costsHint: "Ruta, unidad, operador y extras aprobados",
+        /** F6 Q33 — label canónico (retirado «Costos aprobados»). */
+        costs: "Costos",
+        /** F6 D-F6.5 — solo si basis=operational sin split. */
+        costsHintOperational:
+          "Gastos de viaje + pago a operadores autorizado",
+        tripExpenses: "Gastos de viaje",
+        driverPay: "Pago a operadores",
+        /** F6 I24 — basis=trip_expenses / bandera off. */
+        driverPayExcluded: "no incluido",
+        driverPayExcludedLine: "Pago a operadores · no incluido",
         margin: "Margen",
         marginShare: (pct: number) => `${pct} % del ingreso`,
-        pendingCosts: (n: number, amount: string | null) =>
-          amount
-            ? `${n} gastos sin aprobar · ${amount}`
-            : `${n} gastos sin aprobar`,
+        pendingCosts: (n: number, amount: string | null) => {
+          const noun = n === 1 ? "gasto" : "gastos";
+          return amount
+            ? `${n} ${noun} sin aprobar · ${amount}`
+            : `${n} ${noun} sin aprobar`;
+        },
+        pendingDriverPay: (n: number) => {
+          const noun = n === 1 ? "viaje" : "viajes";
+          return `${n} ${noun} sin pago de operador autorizado`;
+        },
+        amountLine: (label: string, amount: string) =>
+          `${label} · ${amount}`,
       },
-      footerTrips: (n: number, avg: string) =>
-        `${n} viajes completados · ${avg} de ingreso promedio por viaje`,
-      provisionalFooter: (n: number) =>
-        `El margen puede bajar: hay ${n} gastos de viaje por aprobar.`,
+      /** F6 Q34 — eje scheduled_departure (DOM). */
+      footerTrips: (n: number, avg: string, monthLower: string) =>
+        `${n} viajes completados · salida en ${monthLower} · ${avg} de ingreso promedio por viaje`,
+      footerPeriodAxis: "Por salida programada",
+      /** F6 I26 — siempre con datos de margen. */
+      exclusionNote:
+        "Margen de los viajes: no incluye sueldos fijos ni bonos del periodo.",
+      provisionalFooter: (
+        pendingExpenses: number,
+        pendingDriverPay: number,
+      ) => {
+        const parts: string[] = [];
+        if (pendingExpenses > 0) {
+          const noun = pendingExpenses === 1 ? "gasto" : "gastos";
+          parts.push(
+            `${pendingExpenses} ${noun} de viaje por aprobar`,
+          );
+        }
+        if (pendingDriverPay > 0) {
+          const noun = pendingDriverPay === 1 ? "viaje" : "viajes";
+          parts.push(
+            `${pendingDriverPay} ${noun} sin pago de operador autorizado`,
+          );
+        }
+        if (parts.length === 0) return "";
+        if (parts.length === 1) {
+          return `El margen puede bajar: ${parts[0]}.`;
+        }
+        return `El margen puede bajar: ${parts[0]} y ${parts[1]}.`;
+      },
       provisionalReview: "Revisar",
-      /** @deprecated F5 */
-      subtitle: "Completados · tarifa · costos aprobados",
+      provisionalReviewExpenses: "Revisar gastos",
+      provisionalReviewDriverPay: "Revisar pagos",
+      /** @deprecated F5 / F6 — retirado. */
+      subtitle: "Completados · tarifa · costos",
       /** @deprecated F5 */
       provisionalHint: "Puede bajar",
       provisionalAriaLabel:
-        "Margen operativo provisional: ir a aprobaciones de gastos en cola",
+        "Margen operativo provisional: ir a aprobaciones o pagos a operadores",
     },
     /** @deprecated F5 — promedio vive en el pie de Margen. */
     revenuePerTrip: {

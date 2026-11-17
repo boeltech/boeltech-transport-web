@@ -11,6 +11,7 @@ import {
   FINANCE_HUB_PATH,
 } from "@features/finance/application";
 import type { useFinanceSummary } from "@features/finance";
+import { settlementsWorkbenchBucketPath } from "@features/settlements/application";
 
 /** Q27 — mismos tokens CSS que Cartera (`--chart-channel-*`). */
 const CHANNEL_CSS = {
@@ -20,7 +21,7 @@ const CHANNEL_CSS = {
   overdueWithout: "var(--chart-channel-overdue-without)",
 } as const;
 import type { useDashboard } from "../../application/hooks/useDashboard";
-import type { FinancialTrendData } from "../../domain/types";
+import type { FinancialMonth, FinancialTrendData } from "../../domain/types";
 import { dashboardCopy } from "../copy/dashboardCopy";
 import {
   buildMarginBarSeries,
@@ -48,6 +49,42 @@ interface DashboardMetricTrendCardsProps {
 
 const APPROVALS_PENDING_HREF =
   "/finance/approvals?status=pending&type=trip_expense";
+const DRIVER_PAY_APPROVAL_HREF = settlementsWorkbenchBucketPath("approval");
+
+type CostBreakdownMode =
+  | { kind: "split"; expenses: number; commission: number }
+  | { kind: "trip_expenses_only"; expenses: number }
+  | { kind: "operational_hint" }
+  | { kind: "unknown" };
+
+function resolveCostBreakdown(
+  financialMonth: FinancialMonth | null | undefined,
+): CostBreakdownMode {
+  if (!financialMonth) return { kind: "unknown" };
+  const basis = financialMonth.margin_basis;
+  if (basis === "operational") {
+    if (
+      financialMonth.trip_expenses_cost != null &&
+      financialMonth.trip_commission_cost != null
+    ) {
+      return {
+        kind: "split",
+        expenses: financialMonth.trip_expenses_cost,
+        commission: financialMonth.trip_commission_cost,
+      };
+    }
+    return { kind: "operational_hint" };
+  }
+  if (basis === "trip_expenses") {
+    return {
+      kind: "trip_expenses_only",
+      expenses:
+        financialMonth.trip_expenses_cost ?? financialMonth.actual_cost,
+    };
+  }
+  // Hard rule F6: sin margin_basis no afirmar inclusión de pago a operadores.
+  return { kind: "unknown" };
+}
 
 function deltaBadgeVariant(
   direction: "up" | "down" | "flat",
@@ -216,8 +253,78 @@ function MarginTrendBars({
   );
 }
 
+function CostBreakdownLines({
+  mode,
+  formula,
+  onExpenses,
+  onDriverPay,
+}: {
+  mode: CostBreakdownMode;
+  formula: (typeof dashboardCopy.scorecard.margin)["formula"];
+  onExpenses: () => void;
+  onDriverPay: () => void;
+}) {
+  if (mode.kind === "split") {
+    return (
+      <>
+        <button
+          type="button"
+          className="text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={onExpenses}
+        >
+          {formula.amountLine(
+            formula.tripExpenses,
+            formatMxCurrencyWhole(mode.expenses),
+          )}
+        </button>
+        <button
+          type="button"
+          className="text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={onDriverPay}
+        >
+          {formula.amountLine(
+            formula.driverPay,
+            formatMxCurrencyWhole(mode.commission),
+          )}
+        </button>
+      </>
+    );
+  }
+
+  if (mode.kind === "trip_expenses_only") {
+    return (
+      <>
+        <button
+          type="button"
+          className="text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={onExpenses}
+        >
+          {formula.amountLine(
+            formula.tripExpenses,
+            formatMxCurrencyWhole(mode.expenses),
+          )}
+        </button>
+        <span className="text-[11px] font-medium text-warning-soft-foreground">
+          {formula.driverPayExcludedLine}
+        </span>
+      </>
+    );
+  }
+
+  if (mode.kind === "operational_hint") {
+    return (
+      <span className="text-[11px] text-muted-foreground">
+        {formula.costsHintOperational}
+      </span>
+    );
+  }
+
+  // unknown / pre-F6a: sin claim de inclusión
+  return null;
+}
+
 /**
- * Resumen del mes v2 (F5): Margen operativo 7/5 + Cobranza unificada.
+ * Resumen del mes v2 (F5 + F6): Margen operativo 7/5 + Cobranza unificada.
  */
 export function DashboardMetricTrendCards({
   data,
@@ -231,15 +338,20 @@ export function DashboardMetricTrendCards({
   const financialMonth = data?.stats.financial_month;
   const overdue = financeSummary?.totalOverdue ?? 0;
   const hasOverdue = overdue > 0;
-  const pendingCount =
+  const pendingExpenseCount =
     financialMonth?.pending_expenses_count ??
     financialMonth?.trips_with_pending_expenses ??
     0;
-  const pendingAmount =
+  const pendingExpenseAmount =
     financialMonth?.pending_expenses_amount != null
       ? formatMxCurrencyWhole(financialMonth.pending_expenses_amount)
       : null;
-  const isProvisional = pendingCount > 0;
+  const pendingDriverPayCount =
+    financialMonth?.trips_without_authorized_driver_pay ?? 0;
+  const hasPendingExpenses = pendingExpenseCount > 0;
+  const hasPendingDriverPay = pendingDriverPayCount > 0;
+  const isProvisional = hasPendingExpenses || hasPendingDriverPay;
+  const costBreakdown = resolveCostBreakdown(financialMonth);
   const navState = { from: fromHref };
 
   const today = getTodayString();
@@ -288,9 +400,14 @@ export function DashboardMetricTrendCards({
     navigate(buildFinanceAnalysisHref("expenses"), { state: navState });
   const goToApprovals = () =>
     navigate(APPROVALS_PENDING_HREF, { state: navState });
+  const goToDriverPayApprovals = () =>
+    navigate(DRIVER_PAY_APPROVAL_HREF, { state: navState });
+  const goToOperatorPayments = () =>
+    navigate("/finance/operator-payments", { state: navState });
 
   const copy = dashboardCopy.scorecard;
   const cobranza = copy.cobranza;
+  const formula = copy.margin.formula;
 
   return (
     <section
@@ -378,9 +495,9 @@ export function DashboardMetricTrendCards({
               </div>
 
               <div
-                className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center border-t border-border"
+                className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-start border-t border-border"
                 role="group"
-                aria-label="Ingreso menos costos aprobados igual margen"
+                aria-label="Ingreso menos costos igual margen"
               >
                 <button
                   type="button"
@@ -388,7 +505,7 @@ export function DashboardMetricTrendCards({
                   onClick={goToMargin}
                 >
                   <span className="text-xs text-muted-foreground">
-                    {copy.margin.formula.revenue}
+                    {formula.revenue}
                   </span>
                   {isLoading ? (
                     <Skeleton className="h-5 w-20" />
@@ -398,43 +515,63 @@ export function DashboardMetricTrendCards({
                     </span>
                   )}
                   <span className="text-[11px] text-muted-foreground">
-                    {copy.margin.formula.revenueHint}
+                    {formula.revenueHint}
                   </span>
                 </button>
-                <span className="font-mono text-base text-muted-foreground" aria-hidden>
+                <span
+                  className="pt-3 font-mono text-base text-muted-foreground"
+                  aria-hidden
+                >
                   −
                 </span>
-                <button
-                  type="button"
-                  className="flex flex-col gap-0.5 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5"
-                  onClick={goToExpenses}
-                >
-                  <span className="text-xs text-muted-foreground">
-                    {copy.margin.formula.costs}
-                  </span>
-                  {isLoading ? (
-                    <Skeleton className="h-5 w-20" />
-                  ) : (
-                    <span className="font-mono text-base font-semibold tabular-nums text-card-foreground">
-                      {costValue}
+                <div className="flex min-w-0 flex-col gap-0.5 px-4 py-3 sm:px-5">
+                  <button
+                    type="button"
+                    className="flex flex-col gap-0.5 rounded-sm text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={goToExpenses}
+                  >
+                    <span className="text-xs text-muted-foreground">
+                      {formula.costs}
                     </span>
-                  )}
-                  {isProvisional && !isLoading ? (
+                    {isLoading ? (
+                      <Skeleton className="h-5 w-20" />
+                    ) : (
+                      <span className="font-mono text-base font-semibold tabular-nums text-card-foreground">
+                        {costValue}
+                      </span>
+                    )}
+                  </button>
+                  {!isLoading ? (
+                    <CostBreakdownLines
+                      mode={costBreakdown}
+                      formula={formula}
+                      onExpenses={goToExpenses}
+                      onDriverPay={goToOperatorPayments}
+                    />
+                  ) : null}
+                  {!isLoading && hasPendingExpenses ? (
                     <span className="text-[11px] font-medium text-warning-soft-foreground">
-                      {copy.margin.formula.pendingCosts(pendingCount, pendingAmount)}
+                      {formula.pendingCosts(
+                        pendingExpenseCount,
+                        pendingExpenseAmount,
+                      )}
                     </span>
-                  ) : (
-                    <span className="text-[11px] text-muted-foreground">
-                      {copy.margin.formula.costsHint}
+                  ) : null}
+                  {!isLoading && hasPendingDriverPay ? (
+                    <span className="text-[11px] font-medium text-warning-soft-foreground">
+                      {formula.pendingDriverPay(pendingDriverPayCount)}
                     </span>
-                  )}
-                </button>
-                <span className="font-mono text-base text-muted-foreground" aria-hidden>
+                  ) : null}
+                </div>
+                <span
+                  className="pt-3 font-mono text-base text-muted-foreground"
+                  aria-hidden
+                >
                   =
                 </span>
                 <div className="flex flex-col gap-0.5 px-4 py-3 sm:px-5">
                   <span className="text-xs text-muted-foreground">
-                    {copy.margin.formula.margin}
+                    {formula.margin}
                   </span>
                   {isLoading ? (
                     <Skeleton className="h-5 w-20" />
@@ -445,7 +582,7 @@ export function DashboardMetricTrendCards({
                   )}
                   <span className="text-[11px] text-muted-foreground">
                     {marginPct != null
-                      ? copy.margin.formula.marginShare(marginPct)
+                      ? formula.marginShare(marginPct)
                       : "—"}
                   </span>
                 </div>
@@ -455,23 +592,65 @@ export function DashboardMetricTrendCards({
 
           {isProvisional && !isLoading && !isEmptyMonth ? (
             <div className="flex flex-wrap items-center gap-1.5 border-t border-border bg-warning-soft px-5 py-2.5 text-xs text-warning-soft-foreground sm:px-6">
-              <span>{copy.margin.provisionalFooter(pendingCount)}</span>
-              <button
-                type="button"
-                className="font-medium underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={goToApprovals}
-              >
-                {copy.margin.provisionalReview}
-              </button>
+              <span>
+                {copy.margin.provisionalFooter(
+                  pendingExpenseCount,
+                  pendingDriverPayCount,
+                )}
+              </span>
+              {hasPendingExpenses && hasPendingDriverPay ? (
+                <>
+                  <button
+                    type="button"
+                    className="font-medium underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={goToApprovals}
+                  >
+                    {copy.margin.provisionalReviewExpenses}
+                  </button>
+                  <button
+                    type="button"
+                    className="font-medium underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={goToDriverPayApprovals}
+                  >
+                    {copy.margin.provisionalReviewDriverPay}
+                  </button>
+                </>
+              ) : hasPendingDriverPay ? (
+                <button
+                  type="button"
+                  className="font-medium underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={goToDriverPayApprovals}
+                >
+                  {copy.margin.provisionalReview}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="font-medium underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={goToApprovals}
+                >
+                  {copy.margin.provisionalReview}
+                </button>
+              )}
             </div>
           ) : !isEmptyMonth ? (
-            <div className="border-t border-border bg-muted px-5 py-2.5 text-xs text-muted-foreground sm:px-6">
+            <div className="flex flex-col gap-0.5 border-t border-border bg-muted px-5 py-2.5 text-xs text-muted-foreground sm:px-6">
               {isLoading ? (
                 <Skeleton className="h-4 w-64" />
               ) : (
-                <span>
-                  {copy.margin.footerTrips(tripCount, revenuePerTripValue)}
-                </span>
+                <>
+                  <span>
+                    {copy.margin.footerTrips(
+                      tripCount,
+                      revenuePerTripValue,
+                      monthLower,
+                    )}
+                  </span>
+                  <span className="text-[11px]">
+                    {copy.margin.footerPeriodAxis}
+                  </span>
+                  <span className="text-[11px]">{copy.margin.exclusionNote}</span>
+                </>
               )}
             </div>
           ) : null}

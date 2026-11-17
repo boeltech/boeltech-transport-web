@@ -77,6 +77,54 @@ describe("mapDashboard", () => {
     expect(result.stats.collectedYesterday).toBeNull();
     expect(result.tripsToday).toEqual([]);
   });
+
+  it("coerces F6a financial_month cost split + margin_basis", () => {
+    const result = mapDashboard({
+      stats: {
+        ...baseStats,
+        financial_month: {
+          trip_count: 2,
+          actual_revenue: 90_000,
+          actual_cost: 40_000,
+          actual_margin: 50_000,
+          trip_expenses_cost: "30000",
+          trip_commission_cost: "10000",
+          margin_basis: "operational",
+          trips_without_authorized_driver_pay: "4",
+          pending_expenses_count: "3",
+          pending_expenses_amount: "8450",
+        },
+      },
+      alerts: [],
+      recent_trips: [],
+    });
+
+    const fm = result.stats.financial_month!;
+    expect(fm.trip_expenses_cost).toBe(30_000);
+    expect(fm.trip_commission_cost).toBe(10_000);
+    expect(fm.margin_basis).toBe("operational");
+    expect(fm.trips_without_authorized_driver_pay).toBe(4);
+    expect(fm.pending_expenses_count).toBe(3);
+    expect(fm.pending_expenses_amount).toBe(8_450);
+  });
+
+  it("drops invalid margin_basis values", () => {
+    const result = mapDashboard({
+      stats: {
+        ...baseStats,
+        financial_month: {
+          trip_count: 1,
+          actual_revenue: 1,
+          actual_cost: 1,
+          actual_margin: 0,
+          margin_basis: "legacy_junk",
+        },
+      },
+      alerts: [],
+      recent_trips: [],
+    });
+    expect(result.stats.financial_month?.margin_basis).toBeUndefined();
+  });
 });
 
 describe("mapActivation", () => {

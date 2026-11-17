@@ -43,7 +43,7 @@ const financeSummaryStub = {
   totalOverdue: 0,
 } as never;
 
-describe("DashboardMetricTrendCards — Resumen del mes v2 (F5)", () => {
+describe("DashboardMetricTrendCards — Resumen del mes v2 (F5+F6)", () => {
   it("renders zone title, Margen + Cobranza and formula terms", () => {
     render(
       <MemoryRouter>
@@ -74,12 +74,16 @@ describe("DashboardMetricTrendCards — Resumen del mes v2 (F5)", () => {
     expect(
       screen.getByText(dashboardCopy.scorecard.margin.formula.costs),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Costos aprobados")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Ruta, unidad, operador/),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(dashboardCopy.scorecard.revenuePerTrip.title),
     ).not.toBeInTheDocument();
   });
 
-  it("puts trips + avg revenue in Margen footer (no dedicated $/viaje strip)", () => {
+  it("puts trips + avg + I26 exclusion in Margen footer (no dedicated $/viaje strip)", () => {
     render(
       <MemoryRouter>
         <DashboardMetricTrendCards
@@ -101,7 +105,13 @@ describe("DashboardMetricTrendCards — Resumen del mes v2 (F5)", () => {
     );
 
     expect(
-      screen.getByText(/2 viajes completados · \$45,000 de ingreso promedio/),
+      screen.getByText(/2 viajes completados · salida en .+ · \$45,000 de ingreso promedio/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dashboardCopy.scorecard.margin.footerPeriodAxis),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dashboardCopy.scorecard.margin.exclusionNote),
     ).toBeInTheDocument();
   });
 
@@ -222,7 +232,7 @@ describe("DashboardMetricTrendCards — Resumen del mes v2 (F5)", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("3 gastos sin aprobar")).toBeInTheDocument();
     expect(
-      screen.getByText(/El margen puede bajar: hay 3 gastos/),
+      screen.getByText(/El margen puede bajar: 3 gastos de viaje por aprobar/),
     ).toBeInTheDocument();
     expect(screen.getByText("Revisar")).toBeInTheDocument();
   });
@@ -415,6 +425,163 @@ describe("DashboardMetricTrendCards — Resumen del mes v2 (F5)", () => {
 
     const overdueAmount = screen.getByText(/12/);
     expect(overdueAmount.className).toContain("text-warning");
+  });
+
+  it("shows cost split when margin_basis=operational and deep-links pago", async () => {
+    const user = userEvent.setup();
+    const navigate = vi.fn();
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: {
+                financial_month: buildFinancialMonth({
+                  margin_basis: "operational",
+                  trip_expenses_cost: 30_000,
+                  trip_commission_cost: 10_000,
+                  actual_cost: 40_000,
+                }),
+              },
+            } as never
+          }
+          isLoading={false}
+          navigate={navigate}
+          financeLoading={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText("Gastos de viaje · $30,000"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Pago a operadores · $10,000"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/no incluido/),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Pago a operadores · $10,000"));
+    expect(navigate).toHaveBeenCalledWith("/finance/operator-payments", {
+      state: { from: "/dashboard" },
+    });
+  });
+
+  it("shows I24 amber when margin_basis=trip_expenses (no operator amount)", () => {
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: {
+                financial_month: buildFinancialMonth({
+                  margin_basis: "trip_expenses",
+                  trip_expenses_cost: 40_000,
+                  trip_commission_cost: 0,
+                  actual_cost: 40_000,
+                }),
+              },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText("Gastos de viaje · $40,000"),
+    ).toBeInTheDocument();
+    const excluded = screen.getByText(
+      dashboardCopy.scorecard.margin.formula.driverPayExcludedLine,
+    );
+    expect(excluded).toBeInTheDocument();
+    expect(excluded.className).toContain("text-warning");
+    expect(
+      screen.queryByText(/Pago a operadores · \$/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not claim operator pay inclusion without margin_basis (pre-F6a)", () => {
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: { financial_month: buildFinancialMonth() },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByText(/pago a operadores autorizado/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Pago a operadores/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Costos aprobados"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows dual provisional with Revisar gastos + Revisar pagos", async () => {
+    const user = userEvent.setup();
+    const navigate = vi.fn();
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: {
+                financial_month: buildFinancialMonth({
+                  pending_expenses_count: 3,
+                  pending_expenses_amount: 8_450,
+                  trips_without_authorized_driver_pay: 4,
+                }),
+              },
+            } as never
+          }
+          isLoading={false}
+          navigate={navigate}
+          financeLoading={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(dashboardCopy.scorecard.margin.provisionalChip),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("3 gastos sin aprobar · $8,450"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("4 viajes sin pago de operador autorizado"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /El margen puede bajar: 3 gastos de viaje por aprobar y 4 viajes sin pago/,
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByText("Revisar gastos"));
+    expect(navigate).toHaveBeenCalledWith(
+      "/finance/approvals?status=pending&type=trip_expense",
+      { state: { from: "/dashboard" } },
+    );
+
+    navigate.mockClear();
+    await user.click(screen.getByText("Revisar pagos"));
+    expect(navigate).toHaveBeenCalledWith(
+      "/finance/operator-payments?bucket=approval",
+      { state: { from: "/dashboard" } },
+    );
   });
 
   it("keeps lg 7/5 and items-start (no stretch)", () => {

@@ -111,6 +111,23 @@ export function mapDashboard(raw: Record<string, unknown>): DashboardData {
     if (fm.pending_expenses_amount != null) {
       fm.pending_expenses_amount = asNumber(fm.pending_expenses_amount);
     }
+    if (fm.trip_expenses_cost != null) {
+      fm.trip_expenses_cost = asNumber(fm.trip_expenses_cost);
+    }
+    if (fm.trip_commission_cost != null) {
+      fm.trip_commission_cost = asNumber(fm.trip_commission_cost);
+    }
+    if (fm.trips_without_authorized_driver_pay != null) {
+      fm.trips_without_authorized_driver_pay = asNumber(
+        fm.trips_without_authorized_driver_pay,
+      );
+    }
+    if (
+      fm.margin_basis !== "operational" &&
+      fm.margin_basis !== "trip_expenses"
+    ) {
+      delete fm.margin_basis;
+    }
   }
 
   const stats = {

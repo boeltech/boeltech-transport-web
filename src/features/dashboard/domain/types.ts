@@ -42,6 +42,9 @@ export interface DashboardStats {
   collectedYesterday: number | null;
 }
 
+/** Base del costo en `financial_month` (F6a Q31). Ausente = API pre-F6a. */
+export type MarginBasis = "operational" | "trip_expenses";
+
 export interface FinancialMonth {
   trip_count: number;
   budgeted_revenue: number;
@@ -58,6 +61,17 @@ export interface FinancialMonth {
   pending_expenses_count?: number;
   /** F5a Q25 — Σ amount de esos gastos; ausente → copy sin `$X`. */
   pending_expenses_amount?: number;
+  /** F6a Q30 — Σ gastos de viaje en el margen. */
+  trip_expenses_cost?: number;
+  /** F6a Q30 — Σ trip_commission en el margen (0 si basis = trip_expenses). */
+  trip_commission_cost?: number;
+  /**
+   * F6a Q31 — `operational` incluye pago a operadores; `trip_expenses` no.
+   * Sin este campo la UI no afirma inclusión (hard rule F6).
+   */
+  margin_basis?: MarginBasis;
+  /** F6a Q32 — viajes completed sin pago de operador autorizado. */
+  trips_without_authorized_driver_pay?: number;
 }
 
 /** Tramo 1..D CDMX (F5a Q22). */
