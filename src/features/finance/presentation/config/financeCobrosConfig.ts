@@ -1,9 +1,11 @@
-/** Forma SAT hardcodeada del tab Cobros (solo lectura en confirmación). */
-export const COBROS_PAYMENT_FORM = "03";
+/**
+ * Defaults de hora SAT para cobros con factura (formulario único).
+ * La forma de pago es elegible en el form — ya no hay constante fija «03».
+ */
 
 /**
- * Hora SAT por defecto del tab Cobros cuando el operador no indica hora
- * (picker opcional en Confirmar cobro; misma semántica que Registrar pago).
+ * Hora SAT por defecto cuando el operador no indica hora
+ * (misma semántica que el antiguo Registrar pago / Confirmar cobro).
  */
 export const COBROS_PAYMENT_TIME = "12:00:00";
 
@@ -13,7 +15,7 @@ export const COBROS_PAYMENT_TIME_DEFAULT = "12:00";
 const TIME_HH_MM = /^\d{2}:\d{2}$/;
 const TIME_HH_MM_SS = /^\d{2}:\d{2}:\d{2}$/;
 
-/** Normaliza hora del sheet a `HH:mm:ss` para el payload de cobro. */
+/** Normaliza hora del form a `HH:mm:ss` para el payload de cobro. */
 export function normalizeCobrosPaymentTime(time: string | undefined): string {
   const trimmed = time?.trim() ?? "";
   if (!trimmed) return COBROS_PAYMENT_TIME;

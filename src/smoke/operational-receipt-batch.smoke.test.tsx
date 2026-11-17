@@ -1,6 +1,6 @@
 /**
- * Smoke — Cobro por lote Sin factura (B2).
- * Card → página FormPageShell → sugerencia de reparto → Sheet lote (CA9 void).
+ * Smoke — Cobro sin factura (formulario único F1).
+ * Card → FormPageShell → sugerencia de reparto → Sheet cobro (CA9 void).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
@@ -14,7 +14,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { ClientOperationalCashPendingCard } from "@features/clients/presentation/components/ClientOperationalCashPendingCard";
-import { OperationalReceiptBatchCreatePage } from "@features/finance/presentation/pages/OperationalReceiptBatchCreatePage";
+import { WithoutInvoiceCollectionForm } from "@features/finance/presentation/components/WithoutInvoiceCollectionForm";
 import { OperationalReceiptBatchSheet } from "@features/finance/presentation/components/OperationalReceiptBatchSheet";
 import { operationalReceiptBatchCopy } from "@features/finance/presentation/copy";
 import { clientDetailCopy } from "@features/clients/presentation/copy/clientDetailCopy";
@@ -22,6 +22,7 @@ import { buildOperationalReceiptBatchCreatePath } from "@features/finance/applic
 import type { OperationalReceiptBatchDetail } from "@features/finance/domain";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 import type { UserRole } from "@shared/constants/roles";
+
 
 Element.prototype.hasPointerCapture ??= () => false;
 
@@ -322,8 +323,8 @@ describe("smoke: operational-receipt-batch", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/clients/:id/operational-receipt-batches/new",
-          element: <OperationalReceiptBatchCreatePage />,
+          path: "/finance/collections/new",
+          element: <WithoutInvoiceCollectionForm clientId={CLIENT_ID} />,
         },
       ],
       {
@@ -345,7 +346,8 @@ describe("smoke: operational-receipt-batch", () => {
     expect(
       await screen.findByRole("heading", { name: copy.page.title }),
     ).toBeInTheDocument();
-    expect(document.querySelector('[aria-busy="true"]')).toBeTruthy();
+    // Candidatos aún en carga: sin filas de viaje y sin crash de update-depth.
+    expect(screen.queryByText("V-001")).not.toBeInTheDocument();
   });
 
   it("página sugiere reparto por antigüedad al capturar monto", async () => {
@@ -353,8 +355,8 @@ describe("smoke: operational-receipt-batch", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/clients/:id/operational-receipt-batches/new",
-          element: <OperationalReceiptBatchCreatePage />,
+          path: "/finance/collections/new",
+          element: <WithoutInvoiceCollectionForm clientId={CLIENT_ID} />,
         },
       ],
       {
@@ -414,8 +416,8 @@ describe("smoke: operational-receipt-batch", () => {
     const router = createMemoryRouter(
       [
         {
-          path: "/clients/:id/operational-receipt-batches/new",
-          element: <OperationalReceiptBatchCreatePage />,
+          path: "/finance/collections/new",
+          element: <WithoutInvoiceCollectionForm clientId={CLIENT_ID} />,
         },
       ],
       {

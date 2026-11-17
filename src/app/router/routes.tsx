@@ -40,7 +40,10 @@ import {
 // ============================================
 import { AppLayout } from "@widgets/layout";
 import { SettingsRoutes } from "@features/settings";
-import { StaffFinanceRoute } from "@features/finance";
+import {
+  CollectionRegisterPermissionRoute,
+  StaffFinanceRoute,
+} from "@features/finance";
 import { ROLES } from "@shared/constants/roles";
 const AuthLayout = lazyWithRetry(() => import("@widgets/layout/ui/AuthLayout"));
 
@@ -328,6 +331,11 @@ const FinanceEfectivoPorCobrarPage = lazyWithRetry(() =>
 const OperationalReceiptBatchCreatePage = lazyWithRetry(() =>
   import("@features/finance").then((m) => ({
     default: m.OperationalReceiptBatchCreatePage,
+  })),
+);
+const RegisterCollectionPage = lazyWithRetry(() =>
+  import("@features/finance").then((m) => ({
+    default: m.RegisterCollectionPage,
   })),
 );
 const FinanceApprovalsPage = lazyWithRetry(() =>
@@ -1157,6 +1165,15 @@ export const router = createBrowserRouter([
                   {
                     path: "/finance/cobros",
                     element: withSuspense(FinanceCobrosLegacyRedirect),
+                  },
+                ],
+              },
+              {
+                element: <CollectionRegisterPermissionRoute />,
+                children: [
+                  {
+                    path: "/finance/collections/new",
+                    element: withSuspense(RegisterCollectionPage),
                   },
                 ],
               },

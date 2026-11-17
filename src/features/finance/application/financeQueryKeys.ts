@@ -50,6 +50,7 @@ export const financeQueryKeys = {
   repStatusByIds: (idsKey: string) =>
     [...financeQueryKeys.all, "rep-status", idsKey] as const,
   openPpdInvoices: (filters: {
+    clientId?: string | null;
     receiverRfc: string | null;
     search: string | null;
     cobrosBucket: string | null;

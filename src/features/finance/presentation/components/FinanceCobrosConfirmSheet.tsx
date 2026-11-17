@@ -24,11 +24,12 @@ import {
   SheetTitle,
 } from "@shared/ui/sheet";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { COBROS_PAYMENT_FORM } from "../config/financeCobrosConfig";
 import { financeCopy } from "../copy";
 
 const copy = financeCopy.cobros;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** Solo lectura en sheet legado (retirado F1; forma elegible en form único). */
+const LEGACY_PAYMENT_FORM_DISPLAY = "03";
 
 interface FinanceCobrosConfirmSheetProps {
   open: boolean;
@@ -63,9 +64,12 @@ export function FinanceCobrosConfirmSheet({
 }: FinanceCobrosConfirmSheetProps) {
   const formattedTotal = formatMxCurrency(total);
   const clientName = invoices[0]?.receiverName?.trim() || receiverRfc;
-  const { label: paymentFormLabel } = useFormaPagoLabel(COBROS_PAYMENT_FORM, {
-    enabled: open,
-  });
+  const { label: paymentFormLabel } = useFormaPagoLabel(
+    LEGACY_PAYMENT_FORM_DISPLAY,
+    {
+      enabled: open,
+    },
+  );
 
   const paymentDateInvalid = !ISO_DATE.test(paymentDate);
   const paymentDateError = paymentDateInvalid
@@ -122,7 +126,7 @@ export function FinanceCobrosConfirmSheet({
             <InfoRow
               variant="inline"
               label={copy.sheetPaymentForm}
-              value={paymentFormLabel ?? COBROS_PAYMENT_FORM}
+              value={paymentFormLabel ?? LEGACY_PAYMENT_FORM_DISPLAY}
             />
           </div>
 

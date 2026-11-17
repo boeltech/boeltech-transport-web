@@ -29,24 +29,17 @@ export function formatMoneyAmountOnly(
 }
 
 /**
- * Valor en blur: badge ISO + cantidad sin `$` duplicado.
- * Evita recorte en grids estrechos (sheet, dialog).
+ * Valor en blur: cantidad sin `$` duplicado.
+ * Con badge (currencyCode truthy) o sin él, el display es solo el número
+ * formateado — el badge ya ancla la moneda.
  */
 function formatMoneyValue(
   value: number,
   locale: string,
-  currencyCode: string,
+  _currencyCode: string,
   decimals: number,
 ): string {
-  if (currencyCode) {
-    return formatMoneyAmountOnly(value, locale, decimals);
-  }
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: currencyCode,
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
+  return formatMoneyAmountOnly(value, locale, decimals);
 }
 
 function toEditableValue(value: number, decimals: number): string {
@@ -141,11 +134,15 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
       onBlur?.(event);
     };
 
+    const showBadge = Boolean(currencyCode);
+
     return (
       <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-medium text-muted-foreground">
-          {currencyCode}
-        </span>
+        {showBadge && (
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs font-medium text-muted-foreground">
+            {currencyCode}
+          </span>
+        )}
         <Input
           {...props}
           ref={ref}
@@ -159,7 +156,11 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
           placeholder={placeholder}
           disabled={disabled}
           readOnly={readOnly}
-          className={cn("pl-14 pr-3 text-right tabular-nums", className)}
+          className={cn(
+            showBadge ? "pl-14" : "pl-3",
+            "pr-3 text-right tabular-nums",
+            className,
+          )}
         />
       </div>
     );

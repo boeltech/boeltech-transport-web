@@ -61,9 +61,74 @@ export const FINANCE_EFECTIVO_POR_COBRAR_PATH =
 export const FINANCE_EFECTIVO_POR_COBRAR_LEGACY_PATH =
   "/finance/efectivo-por-cobrar";
 
-/** Página Registrar cobro por lote (B2). */
+/**
+ * Formulario único «Registrar cobro» (con / sin factura).
+ * Canónico EN; query tipada en UI camelCase.
+ */
+export const FINANCE_COLLECTIONS_NEW_PATH = "/finance/collections/new";
+
+export type CollectionChannel = "with_invoice" | "without_invoice";
+
+export const COLLECTION_CHANNEL_PARAM = "channel";
+export const COLLECTION_CLIENT_ID_PARAM = "clientId";
+export const COLLECTION_INVOICE_ID_PARAM = "invoiceId";
+export const COLLECTION_INVOICE_IDS_PARAM = "invoiceIds";
+export const COLLECTION_TRIP_ID_PARAM = "tripId";
+export const COLLECTION_TRIP_IDS_PARAM = "tripIds";
+export const COLLECTION_RECEIVER_RFC_PARAM = "receiverRfc";
+export const COLLECTION_FROM_PARAM = "from";
+
+export interface BuildRegisterCollectionPathParams {
+  channel: CollectionChannel;
+  clientId?: string | null;
+  invoiceId?: string | null;
+  invoiceIds?: readonly string[] | null;
+  tripId?: string | null;
+  tripIds?: readonly string[] | null;
+  receiverRfc?: string | null;
+  from?: string | null;
+}
+
+/** Path + query del formulario único de cobro. */
+export function buildRegisterCollectionPath(
+  params: BuildRegisterCollectionPathParams,
+): string {
+  const search = new URLSearchParams();
+  search.set(COLLECTION_CHANNEL_PARAM, params.channel);
+  const clientId = params.clientId?.trim();
+  if (clientId) search.set(COLLECTION_CLIENT_ID_PARAM, clientId);
+  const invoiceId = params.invoiceId?.trim();
+  if (invoiceId) search.set(COLLECTION_INVOICE_ID_PARAM, invoiceId);
+  const invoiceIds = (params.invoiceIds ?? [])
+    .map((id) => id.trim())
+    .filter(Boolean);
+  if (invoiceIds.length > 0) {
+    search.set(COLLECTION_INVOICE_IDS_PARAM, invoiceIds.join(","));
+  }
+  const tripId = params.tripId?.trim();
+  if (tripId) search.set(COLLECTION_TRIP_ID_PARAM, tripId);
+  const tripIds = (params.tripIds ?? [])
+    .map((id) => id.trim())
+    .filter(Boolean);
+  if (tripIds.length > 0) {
+    search.set(COLLECTION_TRIP_IDS_PARAM, tripIds.join(","));
+  }
+  const receiverRfc = params.receiverRfc?.trim().toUpperCase();
+  if (receiverRfc) search.set(COLLECTION_RECEIVER_RFC_PARAM, receiverRfc);
+  const from = params.from?.trim();
+  if (from) search.set(COLLECTION_FROM_PARAM, from);
+  return `${FINANCE_COLLECTIONS_NEW_PATH}?${search.toString()}`;
+}
+
+/**
+ * Path legacy «Registrar cobro por lote» (B2).
+ * Preferir {@link buildRegisterCollectionPath}; este path redirige al form único (P3).
+ */
 export function buildOperationalReceiptBatchCreatePath(clientId: string): string {
-  return `/clients/${clientId}/operational-receipt-batches/new`;
+  return buildRegisterCollectionPath({
+    channel: "without_invoice",
+    clientId,
+  });
 }
 
 /**

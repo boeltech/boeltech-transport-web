@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -129,18 +129,22 @@ vi.mock("./SendInvoiceDialog", () => ({
     ) : null,
 }));
 
-vi.mock("./PaymentFormDialog", () => ({
-  PaymentFormDialog: ({
-    open,
-  }: {
-    open: boolean;
-  }) =>
-    open ? (
-      <div role="dialog" aria-label="Registrar pago">
-        Payment dialog open
-      </div>
-    ) : null,
-}));
+vi.mock("@features/finance/application", async () => {
+  const actual = await vi.importActual<
+    typeof import("@features/finance/application")
+  >("@features/finance/application");
+  return {
+    ...actual,
+    buildRegisterCollectionPath: vi.fn(
+      (params: {
+        channel: string;
+        invoiceId?: string | null;
+        receiverRfc?: string | null;
+      }) =>
+        `/finance/collections/new?channel=${params.channel}&invoiceId=${params.invoiceId ?? ""}&receiverRfc=${params.receiverRfc ?? ""}`,
+    ),
+  };
+});
 
 function buildInvoice(overrides: Partial<Invoice> = {}): Invoice {
   return {
@@ -1123,7 +1127,10 @@ describe("InvoiceActions RBAC execute/delete", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens payment dialog when openPaymentRequestKey increments", async () => {
+  it("navigates to register collection when openPaymentRequestKey increments", async () => {
+    const { buildRegisterCollectionPath } = await import(
+      "@features/finance/application"
+    );
     mockHasPermission.mockImplementation(
       (_module: string, action: string) =>
         action === "execute" || action === "read",
@@ -1157,9 +1164,7 @@ describe("InvoiceActions RBAC execute/delete", () => {
       </QueryClientProvider>,
     );
 
-    expect(
-      screen.queryByRole("dialog", { name: "Registrar pago" }),
-    ).not.toBeInTheDocument();
+    expect(buildRegisterCollectionPath).not.toHaveBeenCalled();
 
     rerender(
       <QueryClientProvider client={queryClient}>
@@ -1179,9 +1184,15 @@ describe("InvoiceActions RBAC execute/delete", () => {
       </QueryClientProvider>,
     );
 
-    expect(
-      await screen.findByRole("dialog", { name: "Registrar pago" }),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(buildRegisterCollectionPath).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: "with_invoice",
+          invoiceId: invoice.id,
+          receiverRfc: invoice.receiverRfc,
+        }),
+      );
+    });
   });
 
   it("manager with cobros sees Sustituir and Cancelar disabled instead of opening SAT dialogs", async () => {

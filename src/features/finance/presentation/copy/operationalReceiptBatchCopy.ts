@@ -1,16 +1,16 @@
 /**
- * Copy — Cobro por lote Sin factura (B2 · PRD D2–D9).
+ * Copy — Cobro sin factura / formulario único (C6 · auditoría #9–11).
  */
 
 export const operationalReceiptBatchCopy = {
   page: {
-    title: "Registrar cobro por lote",
+    title: "Registrar cobro",
     disclaimer:
       "Cobros sin factura. No genera factura ni comprobante de pago (REP).",
     zonePayment: "Pago del cliente",
     zoneTrips: "Viajes que cubre",
     amount: "Monto del pago",
-    instrument: "Instrumento",
+    instrument: "Forma de pago",
     reference: "Referencia",
     collectedAt: "Fecha del cobro",
     note: "Nota (opcional)",
@@ -82,19 +82,19 @@ export const operationalReceiptBatchCopy = {
     atLeastOne: "Asigna un abono a al menos un viaje",
   },
   excessAlert: (excessLabel: string, pendingLabel: string) =>
-    `El pago excede por ${excessLabel} el saldo de los viajes elegidos (${pendingLabel}). Ajusta el monto o elige más viajes. No se registra saldo a favor: la nota es solo referencia interna y no contabiliza el excedente.`,
+    `El cobro excede por ${excessLabel} el saldo de los documentos elegidos (${pendingLabel}). Ajusta el monto o elige más documentos. No se registra saldo a favor: la nota es solo referencia interna y no contabiliza el excedente.`,
   balanceChangedAlert:
     "Los saldos cambiaron mientras capturabas. Ya los actualizamos; revisa el reparto antes de registrar.",
   toast: {
     success: (n: number) =>
       n === 1
-        ? "Cobro por lote registrado · 1 viaje"
-        : `Cobro por lote registrado · ${n} viajes`,
-    viewBatch: "Ver lote",
+        ? "Cobro registrado · 1 viaje"
+        : `Cobro registrado · ${n} viajes`,
+    viewBatch: "Ver cobro",
     voidSuccess: (n: number) =>
       n === 1 ? "Lote anulado · 1 abono" : `Lote anulado · ${n} abonos`,
     alreadyVoided: "Este lote ya estaba anulado",
-    error: "No se pudo registrar el cobro por lote",
+    error: "No se pudo registrar el cobro",
     voidError: "No se pudo anular el lote",
   },
   sheet: {

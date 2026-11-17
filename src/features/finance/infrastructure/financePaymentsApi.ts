@@ -18,6 +18,7 @@ export const OPEN_PPD_INVOICES_PAGE_SIZE = 50;
 export type CobrosApiBucket = "open" | "partial";
 
 export interface GetOpenPpdInvoicesParams {
+  clientId?: string | null;
   receiverRfc?: string | null;
   search?: string | null;
   cobrosBucket?: CobrosApiBucket | null;
@@ -285,6 +286,10 @@ export const financePaymentsApi = {
       page: String(page),
       limit: String(limit),
     });
+    const clientId = options.clientId?.trim();
+    if (clientId) {
+      params.set("client_id", clientId);
+    }
     const receiverRfc = options.receiverRfc?.trim();
     if (receiverRfc) {
       params.set("receiver_rfc", receiverRfc.toUpperCase());
@@ -299,7 +304,12 @@ export const financePaymentsApi = {
     const response = await apiClient.get<{
       data: unknown[];
       pagination: Record<string, unknown>;
+      meta?: Record<string, unknown>;
     }>(`/finance/open-ppd-invoices?${params.toString()}`);
+    const rawMeta = response.meta as Record<string, unknown> | undefined;
+    const byClientRaw = Array.isArray(rawMeta?.by_client)
+      ? (rawMeta.by_client as Record<string, unknown>[])
+      : [];
     return {
       data: (response.data as unknown[]).map((item) =>
         mapOpenPpdItem(item as Record<string, unknown>),
@@ -307,6 +317,27 @@ export const financePaymentsApi = {
       pagination: mapOpenPpdPagination(
         response.pagination as Record<string, unknown> | undefined,
       ),
+      meta: rawMeta
+        ? {
+            total: Math.max(
+              0,
+              asFiniteNumber(rawMeta.total, 0),
+            ),
+            byClient: byClientRaw.map((row) => ({
+              clientId:
+                row.client_id == null || row.client_id === ""
+                  ? null
+                  : String(row.client_id),
+              clientName: String(row.client_name ?? ""),
+              receiverRfc: String(row.receiver_rfc ?? ""),
+              invoiceCount: Math.max(
+                0,
+                asFiniteNumber(row.invoice_count, 0),
+              ),
+              totalBalance: asFiniteNumber(row.total_balance, 0),
+            })),
+          }
+        : undefined,
     };
   },
 

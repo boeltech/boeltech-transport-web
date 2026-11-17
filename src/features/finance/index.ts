@@ -57,6 +57,7 @@ export {
   FinanceCobrosPage,
   FinanceEfectivoPorCobrarPage,
   OperationalReceiptBatchCreatePage,
+  RegisterCollectionPage,
   FinanceApprovalsPage,
   FinanceDispatchPage,
   FinanceDispatchPeriodPage,
@@ -77,6 +78,8 @@ export {
   FinanceCobrosLegacyRedirect,
   FinanceEfectivoPorCobrarLegacyRedirect,
 } from "./presentation/routes/FinancePathLegacyRedirects";
+
+export { CollectionRegisterPermissionRoute } from "./presentation/routes/CollectionRegisterPermissionRoute";
 
 export { FinanceIndexRoute } from "./presentation/routes/FinanceIndexRoute";
 export { StaffFinanceRoute } from "./presentation/routes/StaffFinanceRoute";

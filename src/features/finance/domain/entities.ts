@@ -266,9 +266,24 @@ export interface FinanceInvoicePagination {
   readonly totalPages: number;
 }
 
+export interface FinanceOpenPpdByClient {
+  readonly clientId: string | null;
+  readonly clientName: string;
+  readonly receiverRfc: string;
+  readonly invoiceCount: number;
+  readonly totalBalance: number;
+}
+
+export interface FinanceOpenPpdMeta {
+  readonly total: number;
+  readonly byClient: readonly FinanceOpenPpdByClient[];
+}
+
 export interface PaginatedFinanceInvoices {
   readonly data: FinanceInvoiceListItem[];
   readonly pagination: FinanceInvoicePagination;
+  /** Presente en open-ppd F0b (`meta.total` / `meta.by_client`). */
+  readonly meta?: FinanceOpenPpdMeta;
 }
 
 export interface FinancePayment {

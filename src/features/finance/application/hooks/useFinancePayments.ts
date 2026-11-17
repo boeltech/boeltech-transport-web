@@ -40,6 +40,7 @@ function useDocumentVisible(): boolean {
 }
 
 export function useOpenPpdInvoices(options?: {
+  clientId?: string | null;
   receiverRfc?: string | null;
   search?: string | null;
   cobrosBucket?: CobrosApiBucket | null;
@@ -49,11 +50,13 @@ export function useOpenPpdInvoices(options?: {
 }) {
   const page = options?.page ?? 1;
   const limit = options?.limit ?? OPEN_PPD_INVOICES_PAGE_SIZE;
+  const clientId = options?.clientId ?? null;
   const receiverRfc = options?.receiverRfc ?? null;
   const search = options?.search ?? null;
   const cobrosBucket = options?.cobrosBucket ?? null;
   return useQuery({
     queryKey: financeQueryKeys.openPpdInvoices({
+      clientId,
       receiverRfc,
       search,
       cobrosBucket,
@@ -62,6 +65,7 @@ export function useOpenPpdInvoices(options?: {
     }),
     queryFn: () =>
       financePaymentsApi.getOpenPpdInvoices({
+        clientId,
         receiverRfc,
         search,
         cobrosBucket,
@@ -74,11 +78,13 @@ export function useOpenPpdInvoices(options?: {
       const prevKey = previousQuery?.queryKey;
       if (!prevKey || prevKey[1] !== "open-ppd") return undefined;
       const prevFilters = prevKey[2] as {
+        clientId?: string | null;
         receiverRfc?: string | null;
         search?: string | null;
         cobrosBucket?: CobrosApiBucket | null;
       };
       if (
+        prevFilters?.clientId === clientId &&
         prevFilters?.receiverRfc === receiverRfc &&
         prevFilters?.search === search &&
         prevFilters?.cobrosBucket === cobrosBucket

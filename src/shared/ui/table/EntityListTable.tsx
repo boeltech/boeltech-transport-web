@@ -6,6 +6,10 @@
  * Empty → null (shell posee empty). Loading → skeleton por columns.
  * Filas de grupo opcionales (`getGroupKey` + `renderGroupHeader`).
  * Kind `share` + prop `summaryRow` (F-ds · evolve-ds 2026-11-16).
+ * Kind `moneyEditable` + `EditableMoneyCell` (cobranza F1 · evolve-ds 2026-11-16).
+ * Group selection checkbox (cobranza F2 · evolve-ds 2026-11-16):
+ *   `EntityListGroupHeader.selection` — opt-in checked/indeterminate/unchecked
+ *   with `onCheckedChange` callback. T9: casillas solo en Workbench.
  */
 
 import * as React from "react";
@@ -13,11 +17,13 @@ import { Link } from "react-router-dom";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
+import { Checkbox } from "@shared/ui/checkbox";
 import { Progress } from "@shared/ui/progress";
 import { Skeleton } from "@shared/ui/skeleton";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { formatDate } from "@shared/utils/dateUtils";
 
+import { EditableMoneyCell } from "./EditableMoneyCell";
 import {
   Table,
   TableBody,
@@ -30,7 +36,7 @@ import {
 } from "./table";
 
 // ---------------------------------------------------------------------------
-// Types (contrato TEC §5 + footer slot §10 + F-ds share/summaryRow)
+// Types (contrato TEC §5 + footer slot §10 + F-ds share/summaryRow/moneyEditable)
 // ---------------------------------------------------------------------------
 
 export type EntityListColumnKind =
@@ -41,6 +47,7 @@ export type EntityListColumnKind =
   | "code"
   | "number"
   | "money"
+  | "moneyEditable"
   | "share"
   | "date"
   | "status"
@@ -67,6 +74,16 @@ export interface EntityListShareValue {
   bar?: boolean;
 }
 
+/** Celda de abono editable (opt-in; p. ej. «Qué cubre» en Registrar cobro). */
+export interface EntityListMoneyEditableValue {
+  value: number | undefined;
+  onValueChange: (value: number | undefined) => void;
+  disabled?: boolean;
+  error?: boolean;
+  "aria-label": string;
+  className?: string;
+}
+
 export interface EntityListSummaryRow {
   label: React.ReactNode;
   cells?: Partial<
@@ -78,13 +95,14 @@ export interface EntityListColumnDef<TRow> {
   id: string;
   header: string;
   kind: EntityListColumnKind;
-  /** Valor de celda; stacked → EntityListStackedValue; share → EntityListShareValue */
+  /** Valor de celda; stacked → EntityListStackedValue; share → EntityListShareValue; moneyEditable → EntityListMoneyEditableValue */
   accessor: (
     row: TRow,
   ) =>
     | React.ReactNode
     | EntityListStackedValue
     | EntityListShareValue
+    | EntityListMoneyEditableValue
     | null
     | undefined;
   sortable?: boolean;
@@ -101,10 +119,22 @@ export interface EntityListColumnDef<TRow> {
  * `title` + `meta` ocupan desde la primera columna hasta la anterior a la
  * primera columna con contenido en `cells`; cada celda se alinea con su kind.
  */
+/**
+ * Casilla de grupo (evolve-ds F2): checked / indeterminate / unchecked.
+ * T9: solo en Workbench. Si `selection` no se pasa, la fila de grupo no tiene casilla.
+ */
+export interface EntityListGroupSelection {
+  checked: boolean | "indeterminate";
+  onCheckedChange: (checked: boolean) => void;
+  "aria-label"?: string;
+}
+
 export interface EntityListGroupHeader {
   title: React.ReactNode;
   /** Misma línea, muted, precedido de «·». */
   meta?: React.ReactNode;
+  /** Casilla de grupo: selecciona/deselecciona todas las filas del grupo (T9). */
+  selection?: EntityListGroupSelection;
   /** Contenido por `column.id` (p. ej. subtotal bajo la columna money, CTA en actions). */
   cells?: Partial<Record<string, React.ReactNode>>;
 }
@@ -211,6 +241,18 @@ function isShareValue(value: unknown): value is EntityListShareValue {
   );
 }
 
+function isMoneyEditableValue(
+  value: unknown,
+): value is EntityListMoneyEditableValue {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "onValueChange" in value &&
+    "aria-label" in value &&
+    !React.isValidElement(value)
+  );
+}
+
 function isEmptyCellValue(value: unknown): boolean {
   if (value == null) return true;
   if (typeof value === "string" && value.trim() === "") return true;
@@ -264,6 +306,7 @@ function cellAlignClass(kind: EntityListColumnKind): string {
   if (
     kind === "number" ||
     kind === "money" ||
+    kind === "moneyEditable" ||
     kind === "share" ||
     kind === "actions"
   ) {
@@ -284,6 +327,8 @@ function cellKindClass(kind: EntityListColumnKind): string {
     case "money":
     case "share":
       return "font-mono tabular-nums";
+    case "moneyEditable":
+      return "w-auto min-w-[10rem]";
     case "date":
       return "tabular-nums";
     case "actions":
@@ -316,6 +361,8 @@ function skeletonForKind(kind: EntityListColumnKind): React.ReactNode {
     case "number":
     case "money":
       return <Skeleton className="ml-auto h-4 w-16" />;
+    case "moneyEditable":
+      return <Skeleton className="ml-auto h-8 w-24" />;
     case "code":
       return <Skeleton className="h-4 w-24" />;
     case "date":
@@ -424,6 +471,23 @@ function renderCellContent<TRow>(
 
   if (column.kind === "actions") {
     return (raw as React.ReactNode) ?? null;
+  }
+
+  if (column.kind === "moneyEditable") {
+    if (raw == null) return null;
+    if (isMoneyEditableValue(raw)) {
+      return (
+        <EditableMoneyCell
+          value={raw.value}
+          onValueChange={raw.onValueChange}
+          disabled={raw.disabled}
+          error={raw.error}
+          aria-label={raw["aria-label"]}
+          className={raw.className}
+        />
+      );
+    }
+    return raw as React.ReactNode;
   }
 
   if (column.kind === "share") {
@@ -601,17 +665,34 @@ function GroupHeaderRow<TRow>({
   header: EntityListGroupHeader;
 }) {
   const cells = header.cells ?? {};
+  const hasSelection = header.selection != null;
   const firstCellIndex = columns.findIndex(
     (column, index) => index > 0 && cells[column.id] !== undefined,
   );
   const labelSpan = firstCellIndex === -1 ? columns.length : firstCellIndex;
+  const labelSpanAdjusted = hasSelection
+    ? Math.max(1, labelSpan - 1)
+    : labelSpan;
 
   return (
     <TableRow
       data-entity-group-row=""
       className="bg-muted/60 hover:bg-muted/60 dark:bg-muted dark:hover:bg-muted"
     >
-      <TableCell colSpan={labelSpan}>
+      {hasSelection ? (
+        <TableCell className="w-10">
+          <span data-no-row-nav="" onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={header.selection!.checked}
+              onCheckedChange={(checked) =>
+                header.selection!.onCheckedChange(checked === true)
+              }
+              aria-label={header.selection!["aria-label"]}
+            />
+          </span>
+        </TableCell>
+      ) : null}
+      <TableCell colSpan={labelSpanAdjusted}>
         <span className="font-semibold text-foreground">{header.title}</span>
         {header.meta != null ? (
           <span className="text-muted-foreground"> · {header.meta}</span>

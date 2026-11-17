@@ -11,7 +11,6 @@ export { InvoiceActions } from "./InvoiceActions";
 export { SendInvoiceDialog } from "./SendInvoiceDialog";
 export { SendRepDialog } from "./SendRepDialog";
 export { InvoiceRecipientsChecklist } from "./InvoiceRecipientsChecklist";
-export { PaymentFormDialog } from "./PaymentFormDialog";
 export { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 export { ResumeSubstitutionCancelDialog } from "./ResumeSubstitutionCancelDialog";
 export { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";

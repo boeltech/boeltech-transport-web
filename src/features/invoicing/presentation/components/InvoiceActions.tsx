@@ -72,7 +72,7 @@ import {
   useTripFiscalSheets,
 } from "@features/trips/presentation/components/trip-fiscal";
 import { shouldShowFalseTripCancelCfdiBanner } from "@features/trips/presentation/helpers/shouldShowFalseTripCancelCfdiBanner";
-import { PaymentFormDialog } from "./PaymentFormDialog";
+import { buildRegisterCollectionPath } from "@features/finance/application";
 import { CancelInvoiceDialog } from "./CancelInvoiceDialog";
 import { ResumeSubstitutionCancelDialog } from "./ResumeSubstitutionCancelDialog";
 import { SubstituteInvoiceSheet } from "./SubstituteInvoiceSheet";
@@ -96,8 +96,8 @@ interface InvoiceActionsProps {
   invoiceFolio: number;
   invoiceStatus: InvoiceStatus;
   /**
-   * Objeto Invoice completo — requerido en variant="buttons" para que
-   * PaymentFormDialog pueda calcular el saldo pendiente.
+   * Objeto Invoice completo — requerido en variant="buttons" para
+   * navegar al formulario único de cobro con precarga.
    */
   fullInvoice?: Invoice;
   /** Callback para ver detalles (dropdown mode) */
@@ -126,8 +126,8 @@ interface InvoiceActionsProps {
    */
   openSendRequestKey?: number;
   /**
-   * Incrementar desde follow-through para abrir el mismo Dialog de pago
-   * que la toolbar.
+   * Incrementar desde follow-through para abrir el formulario único de cobro
+   * (misma precarga que la toolbar).
    */
   openPaymentRequestKey?: number;
   /**
@@ -162,7 +162,6 @@ export function InvoiceActions({
   // ── Dialog states ─────────────────────────────────────────────────────────
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelBlockedDialogOpen, setCancelBlockedDialogOpen] = useState(false);
   const [substituteSheetOpen, setSubstituteSheetOpen] = useState(false);
@@ -418,21 +417,30 @@ export function InvoiceActions({
   const isLoading =
     deleting || fiscal.isStampBusy || openingPdf || downloadingXml;
 
+  const navigateToRegisterCollection = (invoice: Invoice) => {
+    navigate(
+      buildRegisterCollectionPath({
+        channel: "with_invoice",
+        invoiceId: invoice.id,
+        receiverRfc: invoice.receiverRfc,
+        from: `/invoices/${invoice.id}`,
+      }),
+    );
+  };
+
   const openOverlayWithSnapshot = (
     invoice: Invoice,
-    kind: "payment" | "cancel" | "substitute",
+    kind: "cancel" | "substitute",
   ) => {
     setOverlayInvoice(invoice);
-    if (kind === "payment") setPaymentDialogOpen(true);
     if (kind === "cancel") setCancelDialogOpen(true);
     if (kind === "substitute") setSubstituteSheetOpen(true);
   };
 
   const handleOverlayOpenChange = (
-    kind: "payment" | "cancel" | "substitute",
+    kind: "cancel" | "substitute",
     open: boolean,
   ) => {
-    if (kind === "payment") setPaymentDialogOpen(open);
     if (kind === "cancel") setCancelDialogOpen(open);
     if (kind === "substitute") setSubstituteSheetOpen(open);
     if (!open) {
@@ -444,7 +452,6 @@ export function InvoiceActions({
   useEffect(() => {
     if (variant !== "buttons" || !onBusyChange) return;
     const busy =
-      paymentDialogOpen ||
       cancelDialogOpen ||
       substituteSheetOpen ||
       resumeCancelDialogOpen ||
@@ -456,7 +463,6 @@ export function InvoiceActions({
   }, [
     variant,
     onBusyChange,
-    paymentDialogOpen,
     cancelDialogOpen,
     substituteSheetOpen,
     resumeCancelDialogOpen,
@@ -547,7 +553,7 @@ export function InvoiceActions({
     }
     lastOpenPaymentKeyRef.current = openPaymentRequestKey;
     if (canShowRegisterPayment && fullInvoice) {
-      openOverlayWithSnapshot(fullInvoice, "payment");
+      navigateToRegisterCollection(fullInvoice);
     }
   }, [variant, openPaymentRequestKey, canShowRegisterPayment, fullInvoice]);
 
@@ -790,7 +796,7 @@ export function InvoiceActions({
           <Button
             variant="default"
             size="sm"
-            onClick={() => openOverlayWithSnapshot(fullInvoice, "payment")}
+            onClick={() => navigateToRegisterCollection(fullInvoice)}
             disabled={isLoading}
           >
             <DollarSign className="mr-2 h-4 w-4" />
@@ -803,7 +809,7 @@ export function InvoiceActions({
             variant="outline"
             size="sm"
             className="hidden 2xl:inline-flex"
-            onClick={() => openOverlayWithSnapshot(fullInvoice, "payment")}
+            onClick={() => navigateToRegisterCollection(fullInvoice)}
             disabled={isLoading}
           >
             <DollarSign className="mr-2 h-4 w-4" />
@@ -924,9 +930,7 @@ export function InvoiceActions({
                 <DropdownMenuItem
                   className="2xl:hidden"
                   disabled={isLoading}
-                  onSelect={() =>
-                    openOverlayWithSnapshot(fullInvoice, "payment")
-                  }
+                  onSelect={() => navigateToRegisterCollection(fullInvoice)}
                 >
                   <DollarSign className="mr-2 h-4 w-4" />
                   {actionsCopy.registerPayment}
@@ -1156,15 +1160,6 @@ export function InvoiceActions({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Payment dialog */}
-      {overlayInvoice && paymentDialogOpen && (
-        <PaymentFormDialog
-          invoice={overlayInvoice}
-          open={paymentDialogOpen}
-          onOpenChange={(open) => handleOverlayOpenChange("payment", open)}
-        />
-      )}
 
       {/* Cancel dialog — solo camino elegible (sin cobros). */}
       {overlayInvoice && cancelDialogOpen && canShowCancel ? (

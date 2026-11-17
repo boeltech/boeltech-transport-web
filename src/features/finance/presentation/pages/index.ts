@@ -4,6 +4,7 @@ export { FinanceInvoiceablePage } from "./FinanceInvoiceablePage";
 export { FinanceCobrosPage } from "./FinanceCobrosPage";
 export { FinanceEfectivoPorCobrarPage } from "./FinanceEfectivoPorCobrarPage";
 export { OperationalReceiptBatchCreatePage } from "./OperationalReceiptBatchCreatePage";
+export { RegisterCollectionPage } from "./RegisterCollectionPage";
 export { FinanceApprovalsPage } from "./FinanceApprovalsPage";
 export { FinanceDispatchPage } from "./FinanceDispatchPage";
 export { FinanceDispatchPeriodPage } from "./FinanceDispatchPeriodPage";

@@ -70,7 +70,7 @@ describe("financeRoutes", () => {
     const batchId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     expect(OPERATIONAL_RECEIPT_BATCH_PARAM).toBe("batch");
     expect(buildOperationalReceiptBatchCreatePath(clientId)).toBe(
-      `/clients/${clientId}/operational-receipt-batches/new`,
+      `/finance/collections/new?channel=without_invoice&clientId=${clientId}`,
     );
     expect(buildClientOperationalReceiptBatchHref(clientId, batchId)).toBe(
       `/clients/${clientId}?batch=${batchId}`,

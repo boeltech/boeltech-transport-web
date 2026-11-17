@@ -9,7 +9,8 @@ Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
 |--------|-----|
 | `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`, … | Primitivos. Con `density` = Anatomía; **sin** `density` = legado. |
 | `EntityListTable` | Listado Operate canónico (card opcional + kinds + sort + empty null). |
-| Tipos `EntityListColumn*`, `EntityListSort*`, `EntityListTableProps` | Contrato de columnas / sort. |
+| `EditableMoneyCell` | Celda de dinero editable (kind `moneyEditable`; evolve-ds cobranza F1). |
+| Tipos `EntityListColumn*`, `EntityListSort*`, `EntityListTableProps`, `EntityListMoneyEditableValue` | Contrato de columnas / sort. |
 
 ## `EntityListTable`
 
@@ -53,6 +54,7 @@ Skill: `.agents/skills/design-system/SKILL.md` §Tablas Operate.
 | `code` | izq. | `font-mono` ~13 px |
 | `number` | der. | `font-mono tabular-nums`; `number` → es-MX |
 | `money` | der. | `font-mono tabular-nums` + `formatMxCurrency`; negativo destructive |
+| `moneyEditable` | der. | `EntityListMoneyEditableValue` → `EditableMoneyCell` (`MoneyInput` compacto, sin badge — unidad en header); `min-w-[10rem]`, `max-w-[9rem]`. Abono editable en formularios densos (p. ej. «Qué cubre»). Sin truncate. |
 | `share` | der. | `EntityListShareValue`: monto opcional + `N%` muted + barra `Progress` `h-1.5` (`bar` default `true`). a11y: `%` legible; barra `aria-hidden`. Compact puede crecer ~1 línea. |
 | `date` | izq. | `formatDate` si ISO/`Date`; nodo ya formateado se respeta |
 | `status` | izq. | nodo del accessor (`StatusBadge`); no mapa local |

@@ -37,4 +37,30 @@ describe("MoneyInput", () => {
     await user.tab();
     expect(input).toHaveValue("25,000.00");
   });
+
+  it("renders MXN badge with pl-14 when currencyCode is truthy", () => {
+    const { container } = render(
+      <MoneyInput value={100} onValueChange={() => undefined} currencyCode="MXN" />,
+    );
+
+    expect(screen.getByText("MXN")).toBeInTheDocument();
+    const badge = container.querySelector(".pointer-events-none.absolute");
+    expect(badge).not.toBeNull();
+
+    const input = screen.getByRole("textbox");
+    expect(input.className).toContain("pl-14");
+  });
+
+  it("hides badge and uses pl-3 when currencyCode is empty string", () => {
+    const { container } = render(
+      <MoneyInput value={100} onValueChange={() => undefined} currencyCode="" />,
+    );
+
+    const badge = container.querySelector(".pointer-events-none.absolute");
+    expect(badge).toBeNull();
+
+    const input = screen.getByRole("textbox");
+    expect(input.className).toContain("pl-3");
+    expect(input.className).not.toContain("pl-14");
+  });
 });

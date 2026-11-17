@@ -61,6 +61,13 @@ export interface FormPageShellProps {
   // ── Slot del formulario ───────────────────────────────────────────────────
   children: ReactNode;
 
+  /**
+   * Panel lateral (evolve-ds 2026-11-16 · cobranza F1b).
+   * ≥ lg: columna sticky a la derecha (~280–340 px).
+   * < lg: se apila debajo de children.
+   */
+  aside?: ReactNode;
+
   className?: string;
 }
 
@@ -86,6 +93,7 @@ export const FormPageShell = memo(function FormPageShell({
   notFoundConfig,
   header,
   children,
+  aside,
   className,
 }: FormPageShellProps) {
   const navigate = useNavigate();
@@ -106,47 +114,58 @@ export const FormPageShell = memo(function FormPageShell({
     return <NotFoundState {...notFoundConfig} />;
   }
 
+  const headerBlock = (
+    <div className="flex items-start gap-4">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate(header.backHref)}
+        aria-label={header.backLabel ?? "Volver"}
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </Button>
+      <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+              iconBgVariants[header.iconVariant ?? "primary"],
+            )}
+          >
+            {header.icon}
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold">{header.title}</h1>
+            {header.subtitle ? (
+              <p className="text-sm text-muted-foreground">{header.subtitle}</p>
+            ) : null}
+          </div>
+        </div>
+        {header.trailing ? (
+          <div className="shrink-0">{header.trailing}</div>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  if (!aside) {
+    return (
+      <div className={cn("space-y-6", className)}>
+        {headerBlock}
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div className={cn("space-y-6", className)}>
-      {/* ====================================================================
-       * Header
-       * ================================================================== */}
-      <div className="flex items-start gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate(header.backHref)}
-          aria-label={header.backLabel ?? "Volver"}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-                iconBgVariants[header.iconVariant ?? "primary"],
-              )}
-            >
-              {header.icon}
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold">{header.title}</h1>
-              {header.subtitle ? (
-                <p className="text-sm text-muted-foreground">{header.subtitle}</p>
-              ) : null}
-            </div>
-          </div>
-          {header.trailing ? (
-            <div className="shrink-0">{header.trailing}</div>
-          ) : null}
-        </div>
+      {headerBlock}
+      <div className="grid gap-6 lg:grid-cols-[1fr_minmax(280px,340px)]">
+        <div className="min-w-0">{children}</div>
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+          {aside}
+        </aside>
       </div>
-
-      {/* ====================================================================
-       * Form slot
-       * ================================================================== */}
-      {children}
     </div>
   );
 });

@@ -73,6 +73,7 @@ export type {
   FinanceRepStatusInvoice,
   FinanceRepStatusItem,
   FinanceOpenPpdSummary,
+  FinanceOpenPpdByClient,
 } from "./entities";
 export {
   REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
