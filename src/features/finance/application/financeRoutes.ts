@@ -132,18 +132,40 @@ export function buildOperationalReceiptBatchCreatePath(clientId: string): string
 }
 
 /**
- * Query param deep-link a Sheet «Cobro por lote» en ficha cliente (Datos).
+ * Query params deep-link a hoja «Cobro» en ficha cliente (Datos).
  * Patrón ERP: igual que `?download=` en facturas.
  */
 export const OPERATIONAL_RECEIPT_BATCH_PARAM = "batch";
+export const COLLECTION_PAYMENT_PARAM = "payment";
+export const COLLECTION_RECEIPT_PARAM = "receipt";
 
-/** Ficha cliente + abre Sheet del lote (`?batch=`). Tab Datos = default (sin `tab=`). */
+/** Ficha cliente + abre Sheet del cobro (`?batch=`). Tab Datos = default (sin `tab=`). */
 export function buildClientOperationalReceiptBatchHref(
   clientId: string,
   batchId: string,
 ): string {
   const params = new URLSearchParams();
   params.set(OPERATIONAL_RECEIPT_BATCH_PARAM, batchId);
+  return `/clients/${clientId}?${params.toString()}`;
+}
+
+/** Ficha cliente + abre hoja Cobro con factura (`?payment=`). */
+export function buildClientCollectionPaymentHref(
+  clientId: string,
+  paymentId: string,
+): string {
+  const params = new URLSearchParams();
+  params.set(COLLECTION_PAYMENT_PARAM, paymentId);
+  return `/clients/${clientId}?${params.toString()}`;
+}
+
+/** Ficha cliente + abre hoja Cobro legacy receipt (`?receipt=`). */
+export function buildClientCollectionReceiptHref(
+  clientId: string,
+  receiptId: string,
+): string {
+  const params = new URLSearchParams();
+  params.set(COLLECTION_RECEIPT_PARAM, receiptId);
   return `/clients/${clientId}?${params.toString()}`;
 }
 

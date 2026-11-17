@@ -87,6 +87,8 @@ const cobrosCopy = {
       stamping: "Timbrando…",
       ready: "Comprobante timbrado",
       needs_action: "Requiere atención",
+      /** Canal sin factura (C11) — sin REP. */
+      registered: "Registrado",
     },
     waitReasons: {
       pac_clock: "Esperando ventana de reloj del PAC…",
@@ -98,6 +100,8 @@ const cobrosCopy = {
     },
     openInvoice: (folio: string) => `Abrir factura ${folio}`,
     goToInvoice: "Ir a factura",
+    viewCobro: "Ver cobro",
+    viewCobroAria: "Ver detalle del cobro",
     retryStamp: "Reintentar timbrado",
     retrying: "Reencolando…",
     manualReviewHint:
@@ -257,34 +261,55 @@ export const financeCopy = {
     subtitle: "Facturas a crédito, margen y gastos del negocio.",
     hub: {
       title: "Cartera",
-      description:
-        "Mes en curso y quién te debe — saldos, antigüedad y estado de cuenta.",
+      description: "Quién te debe hoy, desde cuándo, y cómo va el mes.",
       orientation:
-        "Aquí ves el mes (ingreso y margen) y lo que te deben. Facturas a crédito vacío (solo PPD) no significa cartera en cero.",
+        "Aquí ves lo que te deben (con y sin factura) y el mes en curso.",
       /** Contador: mes + saldos; viajes a facturar van a Por facturar (D13). */
       orientationAccountant:
-        "Aquí ves el mes y los saldos. Viajes pendientes de factura: Por facturar o Atención fiscal. Facturas a crédito vacío (solo PPD) no significa cartera en cero.",
+        "Aquí ves los saldos con y sin factura. Viajes pendientes de factura: Por facturar o Atención fiscal.",
       /** Gerente: mes + saldos; SAT/altas no entran (D15). */
       orientationManager:
-        "Aquí ves el mes y los saldos. El trámite SAT y las altas no entran por Cartera. Facturas a crédito vacío (solo PPD) no significa cartera en cero.",
-      /** Fila secundaria bajo Pulse (Cobrado / Gasto) — peso menor que el Pulse. */
-      monthContextTitle: "Contexto del mes",
+        "Aquí ves los saldos con y sin factura. El trámite SAT y las altas no entran por Cartera.",
+      /** Panel del mes (Ingreso / Margen / Gasto) — base operativa sin IVA. */
+      monthPanelTitle: (monthLabel: string) => monthLabel,
+      monthPanelDescription: "Base operativa: sin IVA.",
+      monthPanelCta: "Ver Análisis",
+      monthPanelRevenue: "Ingreso",
+      monthPanelRevenueHint: "Subtotal o tarifa de los viajes del mes",
+      monthPanelMargin: "Margen operativo",
+      monthPanelMarginHint: (pct: string) =>
+        `Ingreso menos costo operativo · ${pct}`,
+      monthPanelExpense: "Gasto de viaje",
+      monthPanelExpenseHint: "Aprobado, sin comisión",
+      /** Bases bajo KPI (K2). */
+      basesLine:
+        "Con factura: total de la factura con IVA. Sin factura: tarifa del viaje. Vencido: más de 30 días desde la factura o desde la salida del viaje.",
       cycle: {
-        ariaLabel: "Atajos del ciclo del dinero",
+        ariaLabel: "Colas del ciclo del dinero",
         invoiceable: {
-          verb: "Emitir",
           label: "Por facturar",
-          hint: "Viajes listos para generar CFDI.",
+          hint: "Completados sin factura emitida",
+          countLabel: (n: number) => (n === 1 ? "1 viaje" : `${n} viajes`),
         },
         dispatch: {
-          verb: "Enviar",
           label: "Envíos",
-          hint: "Mandar facturas por correo.",
+          hint: "Timbradas sin enviar al cliente",
+          countLabel: (n: number) =>
+            n === 1 ? "1 factura" : `${n} facturas`,
         },
         cobros: {
-          verb: "Cobrar",
           label: "Facturas a crédito",
-          hint: "Registrar un pago a crédito.",
+          hint: (balance: string, repExceptions: number) =>
+            repExceptions > 0
+              ? `${balance} · ${repExceptions === 1 ? "1 comprobante por atender" : `${repExceptions} comprobantes por atender`}`
+              : balance,
+          countLabel: (n: number) =>
+            n === 1 ? "1 factura" : `${n} facturas`,
+        },
+        operational: {
+          label: "Cobros sin factura",
+          hint: (balance: string) => balance,
+          countLabel: (n: number) => (n === 1 ? "1 viaje" : `${n} viajes`),
         },
       },
     },
@@ -403,12 +428,43 @@ export const financeCopy = {
     retry: "Reintentar",
   },
   /**
-   * Pulse ejecutivo ATF del hub Cartera (ingreso + margen operativo + CxC).
-   * Margen = operational_*; no es P&L (HB-T12 / TD4).
+   * KPIs de cartera (K1): Por cobrar / Vencido / Cobrado / DSO — multi-canal.
    */
   pulse: {
-    ariaLabel: "Pulse del mes",
-    /** Una leyenda de bases (HB-T12): operativo ≠ cartera ≠ P&L. */
+    ariaLabel: "Quién te debe",
+    withInvoice: "Con factura",
+    withoutInvoice: "Sin factura",
+    receivable: {
+      title: "Por cobrar",
+    },
+    overdue: {
+      title: "Vencido",
+      caption: (clients: number) =>
+        clients > 0
+          ? `Más de 30 días · ${clients === 1 ? "1 cliente" : `${clients} clientes`}`
+          : "Más de 30 días",
+    },
+    collected: {
+      title: "Cobrado este mes",
+      caption: (month: string, count?: number) =>
+        count != null && count > 0
+          ? `${month} · ${count === 1 ? "1 cobro" : `${count} cobros`}`
+          : month,
+    },
+    dso: {
+      title: "Días promedio de cobro",
+      caption: "Desde la factura o la salida del viaje hasta el cobro",
+      breakdown: (invoiced: string | null, operational: string | null) => {
+        const parts: string[] = [];
+        if (invoiced) parts.push(`Con factura ${invoiced}`);
+        if (operational) parts.push(`Sin factura ${operational}`);
+        return parts.join(" · ");
+      },
+    },
+    daysSuffix: "días",
+    /**
+     * Leyenda de bases para Análisis (sticky). Cartera usa `hub.basesLine`.
+     */
     basisLine:
       "Operativo = subtotal o tarifa · Cartera = total CFDI · no es P&L",
     ctaMonthOverMonth: "Ver mes a mes",
@@ -422,16 +478,12 @@ export const financeCopy = {
       description: "Ingreso menos costo operativo",
       shareOfRevenue: (pct: string) => `${pct} del ingreso`,
     },
-    receivable: {
-      title: "Por cobrar",
-      description: "Saldo a total CFDI (con IVA)",
-    },
-    overdue: {
-      title: "Vencido",
-      description: "Saldo con más de 30 días desde emisión (proxy)",
-    },
-    receivableLinkAria: "Por cobrar — abrir Facturas a crédito",
-    overdueLinkAria: "Vencido — abrir Facturas a crédito",
+    /** @deprecated Pulse mezclado retirado; se mantiene para FinancePulseCards legado. */
+    receivableDescription: "Saldo a total CFDI (con IVA)",
+    overdueDescription:
+      "Saldo con más de 30 días desde emisión (proxy)",
+    receivableLinkAria: "Por cobrar — abrir Cartera",
+    overdueLinkAria: "Vencido — abrir Cartera",
   },
   summary: {
     sections: {
@@ -439,19 +491,66 @@ export const financeCopy = {
       accountStatement: "Estado de cuenta por cliente",
     },
     accountStatement: {
-      description:
-        "Por cobrar es el saldo pendiente a total CFDI. Abiertas son facturas PPD con saldo (cola Facturas a crédito). Pagado es facturado menos por cobrar. El ingreso operativo (Análisis) usa subtotal o tarifa, no el total con IVA.",
-      searchPlaceholder: "Buscar por cliente o RFC…",
+      description: "Lo que debe cada cliente, con y sin factura.",
+      searchPlaceholder: "Buscar cliente o RFC",
       searchAriaLabel: "Filtrar estado de cuenta por cliente o RFC",
-      collectAction: "Cobrar",
+      filters: {
+        all: "Todos",
+        overdue: "Con vencido",
+        withInvoice: "Con factura",
+        withoutInvoice: "Sin factura",
+      },
+      collectAction: "Registrar cobro",
       collectActionAria: (clientName: string) =>
-        `Cobrar a ${clientName}`,
-      downloadPdfAction: "Resumen (PDF)",
+        `Registrar cobro de ${clientName}`,
+      viewClientAction: "Ver cliente",
+      viewClientActionAria: (clientName: string) =>
+        `Ver cliente ${clientName}`,
+      downloadAction: "Estado de cuenta",
+      downloadActionAria: (clientName: string) =>
+        `Estado de cuenta de ${clientName}`,
+      /** @deprecated Prefer downloadAction (copy #7). */
+      downloadPdfAction: "Estado de cuenta",
       downloadPdfActionAria: (clientName: string) =>
-        `Resumen (PDF) de ${clientName}`,
+        `Estado de cuenta de ${clientName}`,
       downloadPdfError: "No se pudo descargar el estado de cuenta",
+      downloadCsvError: "No se pudo descargar el CSV del estado de cuenta",
       moreActionsAria: (clientName: string) =>
         `Más acciones de ${clientName}`,
+      footerNote: (clients: number) =>
+        `${clients === 1 ? "1 cliente con saldo" : `${clients} clientes con saldo`}`,
+      footerActionsHint: "«⋯»: Registrar cobro · Ver cliente",
+      lastCollectionChannel: {
+        with_invoice: "Con factura",
+        without_invoice: "Sin factura",
+      },
+      noRfcHint: "Sin RFC · solo sin factura",
+      invoiceCountUnder: (n: number) =>
+        n === 1 ? "1 factura" : `${n} facturas`,
+      tripCountUnder: (n: number) => (n === 1 ? "1 viaje" : `${n} viajes`),
+      sheet: {
+        title: "Estado de cuenta",
+        cutoff: (dateLabel: string) => `Al corte de hoy, ${dateLabel}`,
+        includesTitle: "Qué incluye",
+        includeInvoices: "Facturas con saldo",
+        includeInvoicesHint: "Folio, emisión, total, cobrado y saldo",
+        includeOperational: "Viajes sin factura con saldo",
+        includeOperationalHint: "Viaje, salida, ruta, tarifa, cobrado y saldo",
+        summaryTitle: "Resumen",
+        totalReceivable: "Total por cobrar",
+        overdue: "Vencido",
+        formatLabel: "Formato",
+        formatPdf: "PDF",
+        formatCsv: "CSV",
+        legend:
+          "Documento comercial de cobranza. No es CFDI. Los viajes sin factura van por tarifa, sin IVA.",
+        cancel: "Cancelar",
+        download: "Descargar",
+        successToast: "Se descargó el estado de cuenta.",
+        empty:
+          "No hay saldo para este cliente al corte de hoy. No se descarga archivo.",
+      },
+      /** Retirado de Operate (copy #8 / K8). API pending-relation intacta. */
       pendingRelation: {
         action: "Relación",
         actionAria: (clientName: string) =>
@@ -475,50 +574,57 @@ export const financeCopy = {
       },
       filterEmpty: {
         title: "Ningún cliente coincide",
-        description: "Prueba con otro nombre o RFC.",
+        description: "Prueba con otro filtro, nombre o RFC.",
       },
     },
-    /** Ratio cartera÷facturación×30; no es DSO contable ni credit_days. */
-    dsoTitle: "Estimación de cobro (cartera÷facturación×30)",
+    /** DSO blended (Q19); no es DSO contable ni credit_days. */
+    dsoTitle: "Días promedio de cobro",
     daysSuffix: "días",
     agingBuckets: {
+      upcoming: "Por salir",
       "0-30": "0–30 días",
       "31-60": "31–60 días",
       "61-90": "61–90 días",
       "90+": "Más de 90 días",
     },
-    exportAging: "Exportar antigüedad (CSV)",
+    exportAging: "Exportar (CSV)",
     errors: {
       summary: "Error al cargar resumen financiero",
       statement: "Error al cargar estado de cuenta",
       aging: "Error al cargar antigüedad de saldos",
-      performance: "Error al cargar el Pulse del mes",
+      performance: "Error al cargar el mes en curso",
       retry: "Reintentar",
     },
     empty: {
       title: "Sin datos de cobro",
       description:
-        "Aún no hay facturas emitidas con saldo para mostrar por cliente.",
+        "Aún no hay saldos con o sin factura para mostrar por cliente.",
     },
     table: {
       client: "Cliente",
+      withInvoice: "Con factura (MXN)",
+      withoutInvoice: "Sin factura (MXN)",
+      balance: "Por cobrar (MXN)",
+      overdue: "Vencido (MXN)",
+      lastCollection: "Último cobro",
+      actions: "Acciones",
+      /** @deprecated Columnas retiradas en F5. */
       rfc: "RFC",
       invoiced: "Facturado",
       paid: "Pagado",
-      balance: "Por cobrar",
-      overdue: "Vencido",
       invoices: "Abiertas",
-      actions: "Acciones",
     },
     charts: {
       agingBuckets: {
         title: "Antigüedad de saldos",
         description:
-          "Estimación por días desde emisión (proxy a 30 días; no es el crédito pactado por cliente)",
+          "Días desde la factura (con factura) o desde la salida del viaje (sin factura).",
         balanceLabel: "Por cobrar",
-        /** Sin re-KPI de Por cobrar (ya está en el Pulse). */
+        withInvoice: "Con factura",
+        withoutInvoice: "Sin factura",
+        figuresHint: "Cifras: con factura · sin factura",
         footer:
-          "Tramos por días desde emisión (proxy; no es el crédito pactado).",
+          "Tramos vencidos (más de 30 días) en ámbar. «Por salir» = viajes sin factura con salida ≥ hoy.",
       },
     },
   },

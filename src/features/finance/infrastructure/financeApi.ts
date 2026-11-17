@@ -45,6 +45,16 @@ export function buildAccountStatementPdfFileName(clientRfc: string): string {
   return `estado-cuenta-${rfc}.pdf`;
 }
 
+export function buildAccountStatementCsvFileName(clientRfc: string): string {
+  const rfc = clientRfc.trim().toUpperCase();
+  return `estado-cuenta-${rfc}.csv`;
+}
+
+export interface AccountStatementDownloadOptions {
+  includeInvoices?: boolean;
+  includeOperational?: boolean;
+}
+
 /** Nombre de respaldo: el corte sale de `generated_on`, no del reloj del navegador. */
 export function buildPendingRelationFileName(
   clientRfc: string,
@@ -124,6 +134,29 @@ export const financeApi = {
     await apiClient.downloadFile(
       `${FINANCE_BASE}/account-statement/pdf?${params.toString()}`,
       buildAccountStatementPdfFileName(rfc),
+    );
+  },
+
+  /**
+   * CSV multi-canal por RFC.
+   * GET /finance/account-statement/csv?client_rfc=&include_invoices=&include_operational=
+   */
+  downloadAccountStatementCsv: async (
+    clientRfc: string,
+    options?: AccountStatementDownloadOptions,
+  ): Promise<void> => {
+    const rfc = clientRfc.trim().toUpperCase();
+    const params = new URLSearchParams();
+    addOptionalParam(params, "client_rfc", rfc);
+    if (options?.includeInvoices === false) {
+      addOptionalParam(params, "include_invoices", "false");
+    }
+    if (options?.includeOperational === false) {
+      addOptionalParam(params, "include_operational", "false");
+    }
+    await apiClient.downloadFile(
+      `${FINANCE_BASE}/account-statement/csv?${params.toString()}`,
+      buildAccountStatementCsvFileName(rfc),
     );
   },
 

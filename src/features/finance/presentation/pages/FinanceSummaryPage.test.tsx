@@ -19,6 +19,30 @@ vi.mock("@shared/hooks", async (importOriginal) => ({
   ...(await import("@/test/mocks/toast")).toastHooksMock(),
 }));
 
+vi.mock("@features/trips/application", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@features/trips/application")>();
+  return {
+    ...actual,
+    useInvoiceableWorkbenchSummary: () => ({
+      data: { ready: 2, prorationPending: 0, blocked: 0, total: 4 },
+      isLoading: false,
+    }),
+  };
+});
+
+vi.mock("@features/invoicing/application", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@features/invoicing/application")>();
+  return {
+    ...actual,
+    useDispatchDocuments: () => ({
+      data: { data: [], pagination: { page: 1, limit: 1, total: 3, totalPages: 3 } },
+      isLoading: false,
+    }),
+  };
+});
+
 const refetchSummary = vi.fn();
 const refetchPerformance = vi.fn();
 const refetchStatement = vi.fn();
@@ -45,6 +69,18 @@ vi.mock("@features/finance/application", async (importOriginal) => {
               stamped: 1,
               cancellationPending: 0,
               cancelled: 0,
+            },
+            byChannel: {
+              withInvoice: {
+                receivable: 30_000,
+                collectedThisMonth: 8_000,
+                overdue: 5_000,
+              },
+              withoutInvoice: {
+                receivable: 20_000,
+                collectedThisMonth: 4_000,
+                overdue: 3_000,
+              },
             },
           },
       isLoading: false,
@@ -97,14 +133,48 @@ vi.mock("@features/finance/application", async (importOriginal) => {
       refetch: refetchStatement,
     }),
     useAgingSummary: () => ({
-      data: undefined,
+      data: {
+        totalReceivable: 50_000,
+        dso30d: { invoiced: 20, operational: 10, blended: 18 },
+        buckets: {
+          "0-30": { invoiceCount: 1, totalBalance: 40_000 },
+          "31-60": { invoiceCount: 1, totalBalance: 10_000 },
+          "61-90": { invoiceCount: 0, totalBalance: 0 },
+          "90+": { invoiceCount: 0, totalBalance: 0 },
+        },
+      },
       isLoading: false,
       isError: false,
       error: null,
       refetch: refetchAging,
     }),
     useAgingByClient: () => ({ data: [] }),
+    useOpenPpdSummary: () => ({
+      data: { open: 5, partial: 2, repExceptions: 1, totalBalance: 30_000 },
+      isLoading: false,
+    }),
+    useOperationalCashPending: () => ({
+      data: {
+        data: [],
+        meta: {
+          totals: { pendingAmount: 20_000, tripCount: 9, clientCount: 3 },
+          byClient: [],
+          eligibility: {
+            intent: "sin_cfdi_efectivo",
+            pendingGt: 0,
+            statuses: ["scheduled", "in_progress", "completed"],
+          },
+        },
+        pagination: { page: 1, limit: 1, total: 9, totalPages: 9 },
+      },
+      isLoading: false,
+    }),
     useDownloadAccountStatementPdf: () => ({
+      mutate: vi.fn(),
+      isPending: false,
+      variables: undefined,
+    }),
+    useDownloadAccountStatementCsv: () => ({
       mutate: vi.fn(),
       isPending: false,
       variables: undefined,
@@ -122,7 +192,7 @@ describe("FinanceSummaryPage", () => {
     refetchAging.mockClear();
   });
 
-  it("renderiza Cartera con Pulse primero, atajos de ciclo quietos y sin tabs", () => {
+  it("renderiza Cartera multi-canal con colas y sin copy #3", () => {
     setMockAuthUser({ role: "accountant" });
     renderWithTheme(<FinanceSummaryPage />, { route: ["/finance"] });
 
@@ -132,58 +202,41 @@ describe("FinanceSummaryPage", () => {
     expect(
       screen.getByText(financeCopy.page.hub.description),
     ).toBeInTheDocument();
-    expect(financeCopy.page.hub.description).toMatch(/mes/i);
-    expect(financeCopy.page.hub.description).toMatch(/debe/i);
     expect(
       screen.getByText(financeCopy.page.hub.orientationAccountant),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText(financeCopy.page.hub.orientation),
-    ).not.toBeInTheDocument();
     expect(financeCopy.page.hub.orientationAccountant).not.toMatch(
-      /Aprobar|Liquidaciones|SaaS/i,
+      /Facturas a crédito vacío/i,
     );
 
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
 
-    const pulse = screen.getByRole("region", {
+    const kpis = screen.getByRole("region", {
       name: financeCopy.pulse.ariaLabel,
     });
+    expect(within(kpis).getByText(financeCopy.pulse.receivable.title)).toBeInTheDocument();
+    expect(within(kpis).getByText(financeCopy.pulse.dso.title)).toBeInTheDocument();
+    expect(screen.getByText(financeCopy.page.hub.basesLine)).toBeInTheDocument();
+
     const cycle = screen.getByRole("navigation", {
       name: financeCopy.page.hub.cycle.ariaLabel,
     });
     expect(
-      pulse.compareDocumentPosition(cycle) & Node.DOCUMENT_POSITION_FOLLOWING,
+      kpis.compareDocumentPosition(cycle) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
 
     expect(
-      within(cycle).getByRole("link", { name: "Emitir: Por facturar" }),
+      within(cycle).getByRole("link", { name: /Por facturar/i }),
     ).toHaveAttribute("href", "/finance/invoiceable");
     expect(
-      within(cycle).getByRole("link", { name: "Enviar: Envíos" }),
+      within(cycle).getByRole("link", { name: /Envíos/i }),
     ).toHaveAttribute("href", "/finance/dispatch");
     expect(
-      within(cycle).getByRole("link", {
-        name: "Cobrar: Facturas a crédito",
-      }),
+      within(cycle).getByRole("link", { name: /Facturas a crédito/i }),
     ).toHaveAttribute("href", "/finance/payments");
     expect(
-      within(cycle).queryByRole("link", { name: /Aprobar|Aprobaciones/i }),
-    ).not.toBeInTheDocument();
-    // Lista «Facturas» no entra al ciclo; «Facturas a crédito» sí (D3).
-    expect(
-      within(cycle).queryByRole("link", { name: /^Facturas$/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(cycle).queryByRole("link", { name: /Cobrar: Facturas a crédito/ }),
-    ).toBeInTheDocument();
-    // Ciclo reducido: sin cards hero (hint de paso no se pinta como cuerpo)
-    expect(
-      within(cycle).queryByText(financeCopy.page.hub.cycle.cobros.hint),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "Volver a reportes" }),
-    ).not.toBeInTheDocument();
+      within(cycle).getByRole("link", { name: /Cobros sin factura/i }),
+    ).toHaveAttribute("href", "/finance/operational-cash-pending");
   });
 
   it("manager: una línea de saldos, sin copy accountant", () => {
@@ -196,57 +249,24 @@ describe("FinanceSummaryPage", () => {
     expect(
       screen.queryByText(financeCopy.page.hub.orientationAccountant),
     ).not.toBeInTheDocument();
-    expect(financeCopy.page.hub.orientationManager).not.toMatch(
-      /Aprobar|Liquidaciones|SaaS/i,
-    );
   });
 
-  it("Pulse ATF: Ingreso, Margen operativo, leyenda de bases y CTA a Mes a mes", () => {
+  it("panel del mes muestra Ingreso, Margen y Gasto", () => {
     setMockAuthUser({ role: "manager" });
     renderWithTheme(<FinanceSummaryPage />, { route: ["/finance"] });
 
     expect(
-      screen.getByRole("region", { name: financeCopy.pulse.ariaLabel }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(financeCopy.pulse.revenue.title)).toBeInTheDocument();
-    expect(
-      screen.getByText(financeCopy.pulse.operationalMargin.title),
-    ).toBeInTheDocument();
-    expect(screen.getByText(financeCopy.pulse.basisLine)).toBeInTheDocument();
-
-    const cta = screen.getByRole("link", {
-      name: financeCopy.pulse.ctaMonthOverMonth,
-    });
-    expect(cta).toHaveAttribute("href", "/finance/analysis?view=performance");
-
-    // Cobrado / Gasto demotados en «Contexto del mes»
-    expect(
-      screen.getByRole("region", {
-        name: financeCopy.page.hub.monthContextTitle,
-      }),
+      screen.getByText(financeCopy.page.hub.monthPanelRevenue),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(financeCopy.kpis.collectedThisMonth.title),
+      screen.getByText(financeCopy.page.hub.monthPanelMargin),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(financeCopy.kpis.expensesThisMonth.title),
+      screen.getByText(financeCopy.page.hub.monthPanelExpense),
     ).toBeInTheDocument();
-  });
-
-  it("Por cobrar y Vencido del Pulse navegan a /finance/payments (CA 4)", () => {
-    setMockAuthUser({ role: "manager" });
-    renderWithTheme(<FinanceSummaryPage />, { route: ["/finance"] });
-
     expect(
-      screen.getByRole("link", {
-        name: financeCopy.pulse.receivableLinkAria,
-      }),
-    ).toHaveAttribute("href", "/finance/payments");
-    expect(
-      screen.getByRole("link", {
-        name: financeCopy.pulse.overdueLinkAria,
-      }),
-    ).toHaveAttribute("href", "/finance/payments");
+      screen.getByRole("link", { name: /Ver Análisis/i }),
+    ).toHaveAttribute("href", "/finance/analysis?view=performance");
   });
 
   it("error de summary muestra Reintentar inline (no solo toast)", async () => {

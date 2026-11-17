@@ -110,32 +110,31 @@ describe("financeCopy — ADR-0108 margen operativo (glosario PRD)", () => {
     expect(financeCopy.kpis.totalOverdue.description).not.toMatch(
       /credit_days|crédito pactado por cliente.*real/i,
     );
-    expect(financeCopy.summary.dsoTitle).toMatch(/estimación/i);
-    expect(financeCopy.summary.dsoTitle).toMatch(/cartera/i);
-    expect(financeCopy.summary.dsoTitle).toMatch(/×\s*30|x\s*30|×30/i);
+    expect(financeCopy.summary.dsoTitle).toMatch(/días promedio de cobro/i);
+    expect(financeCopy.pulse.dso.caption).toMatch(/factura|salida/i);
     expect(financeCopy.kpis.totalReceivable.description).toMatch(/total CFDI/i);
     expect(financeCopy.kpis.totalReceivable.description).toMatch(
       /subtotal|tarifa/i,
     );
-    expect(financeCopy.page.hub.orientation).toMatch(/PPD/i);
-    expect(financeCopy.page.hub.orientation).toMatch(/cartera en cero/i);
+    expect(financeCopy.page.hub.orientation).toMatch(/con y sin factura/i);
+    expect(financeCopy.page.hub.orientation).not.toMatch(
+      /Facturas a crédito vacío/i,
+    );
   });
 
-  it("Cartera F2 Pulse: Ingreso/Margen operativo y leyenda de bases", () => {
-    expect(financeCopy.pulse.revenue.title).toBe("Ingreso");
-    expect(financeCopy.pulse.operationalMargin.title).toBe("Margen operativo");
+  it("Cartera F5: KPI multi-canal + bases; Análisis conserva leyenda operativa", () => {
+    expect(financeCopy.pulse.receivable.title).toBe("Por cobrar");
+    expect(financeCopy.pulse.dso.title).toMatch(/días promedio/i);
+    expect(financeCopy.page.hub.basesLine).toMatch(/con factura/i);
+    expect(financeCopy.page.hub.basesLine).toMatch(/sin factura/i);
     expect(financeCopy.pulse.basisLine).toMatch(/operativo/i);
     expect(financeCopy.pulse.basisLine).toMatch(/subtotal|tarifa/i);
     expect(financeCopy.pulse.basisLine).toMatch(/total CFDI/i);
     expect(financeCopy.pulse.basisLine).toMatch(/no es P&L/i);
     expect(financeCopy.pulse.ctaMonthOverMonth).toMatch(/mes a mes/i);
     expect(financeCopy.pulse.revenue.description).toMatch(/subtotal|tarifa/i);
-    expect(financeCopy.pulse.receivable.description).toMatch(/total CFDI/i);
-    // Subtítulos cortos: sin espejo mutuo Ingreso↔Por cobrar
+    expect(financeCopy.pulse.receivableDescription).toMatch(/total CFDI/i);
     expect(financeCopy.pulse.revenue.description).not.toMatch(/por cobrar/i);
-    expect(financeCopy.pulse.receivable.description).not.toMatch(
-      /subtotal|tarifa|ingreso operativo/i,
-    );
   });
 
   it("Análisis F4: caption sticky une periodo + base operativa · no es P&L", () => {

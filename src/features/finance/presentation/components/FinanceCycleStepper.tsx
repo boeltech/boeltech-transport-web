@@ -7,8 +7,7 @@ interface FinanceCycleStepperProps {
 }
 
 /**
- * Atajos quietos al ciclo del dinero (sidebar es el launcher principal).
- * Sin cards ATF / MetricTrendCard — solo links de texto.
+ * Colas del ciclo (K4) — Por facturar · Envíos · Facturas a crédito · Cobros sin factura.
  */
 export function FinanceCycleStepper({ steps }: FinanceCycleStepperProps) {
   if (steps.length === 0) return null;
@@ -17,21 +16,24 @@ export function FinanceCycleStepper({ steps }: FinanceCycleStepperProps) {
 
   return (
     <nav aria-label={copy.ariaLabel}>
-      <ul className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm text-muted-foreground">
-        {steps.map((step, index) => (
-          <li key={step.id} className="inline-flex items-center gap-x-1">
-            {index > 0 ? (
-              <span aria-hidden className="px-1 text-border">
-                ·
-              </span>
-            ) : null}
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {steps.map((step) => (
+          <li key={step.id}>
             <Link
               to={step.href}
-              aria-label={`${step.verb}: ${step.label}`}
-              title={step.hint}
-              className="text-foreground/90 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              aria-label={`${step.label}: ${step.countLabel}`}
+              className="flex h-full min-h-0 flex-col gap-1 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {step.verb}: {step.label}
+              <span className="text-sm font-medium text-muted-foreground">
+                {step.label}
+              </span>
+              <span className="text-base font-semibold tabular-nums text-foreground">
+                {step.countLabel}
+                <span aria-hidden className="ml-1 text-muted-foreground">
+                  ↗
+                </span>
+              </span>
+              <span className="text-xs text-muted-foreground">{step.hint}</span>
             </Link>
           </li>
         ))}

@@ -1,4 +1,7 @@
 import type { FinancialBucket, TripFinancialScope } from "@boeltech/cfdi-domain";
+import type { CollectionChannel } from "./collectionDetail";
+
+export type { CollectionChannel };
 
 export type ProfitabilityStatus =
   | "high"
@@ -19,6 +22,12 @@ export type ProfitabilityDimension =
   | "route"
   | "month";
 
+export interface ChannelMoneySnapshot {
+  receivable: number;
+  collectedThisMonth: number;
+  overdue: number;
+}
+
 export interface FinanceSummary {
   totalReceivable: number;
   collectedThisMonth: number;
@@ -30,19 +39,36 @@ export interface FinanceSummary {
     cancellationPending: number;
     cancelled: number;
   };
+  /** Q21 — desglose con / sin factura. */
+  byChannel?: {
+    withInvoice: ChannelMoneySnapshot;
+    withoutInvoice: ChannelMoneySnapshot;
+  };
 }
 
 export interface AccountStatementItem {
+  clientId?: string | null;
   clientRfc: string;
   clientName: string;
   totalInvoiced: number;
   totalPaid: number;
+  /**
+   * Por cobrar total (con + sin factura) tras merge F0b.
+   * Con factura sola = saldo factura; sin factura sola = saldo operativo.
+   */
   balanceDue: number;
+  /** Saldo operativo sin factura (Q17). */
+  operationalBalance: number;
   /** Todas las facturas stamped del cliente (histórico). */
   invoiceCount: number;
   /** Facturas PPD con saldo (mismo predicado que cola Cobros). */
   openInvoiceCount: number;
+  /** Viajes con saldo operativo pendiente. */
+  operationalTripCount: number;
   overdueAmount: number;
+  /** K6 — último cobro cross-canal. */
+  lastCollectionAt: string | null;
+  lastCollectionChannel: CollectionChannel | null;
 }
 
 /** Conteo de la relación de pendientes al corte (`format=count`). */
@@ -135,10 +161,36 @@ export interface ProfitabilityAggregateItem {
 
 export type AgingBucket = "0-30" | "31-60" | "61-90" | "90+";
 
+/** Tramo operacional «Por salir» (Q18). */
+export type OperationalAgingBucket = AgingBucket | "upcoming";
+
+export interface AgingBucketTotals {
+  invoiceCount: number;
+  totalBalance: number;
+}
+
+/** Q19 — DSO por canal; `blended` ponderado por monto cobrado 30 d. */
+export interface DsoByChannel {
+  invoiced: number | null;
+  operational: number | null;
+  blended: number | null;
+}
+
 export interface AgingSummary {
   totalReceivable: number;
-  dso30d: number;
-  buckets: Record<AgingBucket, { invoiceCount: number; totalBalance: number }>;
+  /** Siempre objeto; API legacy número → se normaliza en el mapper. */
+  dso30d: DsoByChannel;
+  buckets: Record<AgingBucket, AgingBucketTotals>;
+  byChannel?: {
+    withInvoice: {
+      totalReceivable: number;
+      buckets: Record<AgingBucket, AgingBucketTotals>;
+    };
+    withoutInvoice: {
+      totalReceivable: number;
+      buckets: Record<OperationalAgingBucket, AgingBucketTotals>;
+    };
+  };
 }
 
 export interface AgingByClientItem {
@@ -146,10 +198,13 @@ export interface AgingByClientItem {
   clientName: string;
   totalBalance: number;
   invoiceCount: number;
+  operationalTripCount?: number;
   bucket030: number;
   bucket3160: number;
   bucket6190: number;
   bucket90Plus: number;
+  /** Presente si el API lo expone (F0b+). */
+  bucketUpcoming?: number;
 }
 
 export interface AgingClientInvoiceItem {

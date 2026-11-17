@@ -1,15 +1,21 @@
 import type {
   AccountStatementItem,
+  AgingBucket,
+  AgingBucketTotals,
+  CollectionChannel,
   PendingRelationCount,
   AgingByClientItem,
   AgingClientInvoiceItem,
   AgingSummary,
+  ChannelMoneySnapshot,
+  DsoByChannel,
   ExpensesByCategory,
   ExpensesByDimensionItem,
   FinanceSummary,
   IncomeByMonth,
   InvoicesByStatusMonth,
   MonthlyPerformance,
+  OperationalAgingBucket,
   PeriodFinancials,
   ProfitabilityAggregateItem,
   ProfitabilityStatus,
@@ -39,8 +45,92 @@ function asBoolean(value: unknown): boolean {
   return value === true;
 }
 
+function mapChannelMoneySnapshot(
+  raw: Record<string, unknown> | undefined,
+): ChannelMoneySnapshot {
+  const src = raw ?? {};
+  return {
+    receivable: asNumber(src.receivable),
+    collectedThisMonth: asNumber(src.collected_this_month),
+    overdue: asNumber(src.overdue),
+  };
+}
+
+function mapCollectionChannel(value: unknown): CollectionChannel | null {
+  if (value === "with_invoice" || value === "without_invoice") return value;
+  return null;
+}
+
+function mapAgingBucketTotals(raw: unknown): AgingBucketTotals {
+  const item = (raw ?? {}) as Record<string, unknown>;
+  return {
+    invoiceCount: asNumber(item.invoice_count),
+    totalBalance: asNumber(item.total_balance),
+  };
+}
+
+function mapAgingBucketsRecord(
+  raw: unknown,
+): Record<AgingBucket, AgingBucketTotals> {
+  const bucketsRaw = (raw ?? {}) as Record<string, unknown>;
+  return {
+    "0-30": mapAgingBucketTotals(bucketsRaw["0-30"]),
+    "31-60": mapAgingBucketTotals(bucketsRaw["31-60"]),
+    "61-90": mapAgingBucketTotals(bucketsRaw["61-90"]),
+    "90+": mapAgingBucketTotals(bucketsRaw["90+"]),
+  };
+}
+
+function mapOperationalAgingBuckets(
+  raw: unknown,
+): Record<OperationalAgingBucket, AgingBucketTotals> {
+  const bucketsRaw = (raw ?? {}) as Record<string, unknown>;
+  return {
+    ...mapAgingBucketsRecord(bucketsRaw),
+    upcoming: mapAgingBucketTotals(bucketsRaw.upcoming),
+  };
+}
+
+/** Normaliza `dso_30d` número legacy u objeto F0b. */
+export function mapDso30d(raw: unknown): DsoByChannel {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return { invoiced: raw, operational: null, blended: raw };
+  }
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    const pick = (key: string): number | null => {
+      const v = obj[key];
+      if (v == null) return null;
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      if (typeof v === "string") {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      }
+      return null;
+    };
+    return {
+      invoiced: pick("invoiced"),
+      operational: pick("operational"),
+      blended: pick("blended"),
+    };
+  }
+  return { invoiced: null, operational: null, blended: null };
+}
+
 export function mapFinanceSummary(raw: Record<string, unknown>): FinanceSummary {
   const status = (raw.invoices_by_status ?? {}) as Record<string, unknown>;
+  const byChannelRaw = raw.by_channel as Record<string, unknown> | undefined;
+  const byChannel =
+    byChannelRaw && typeof byChannelRaw === "object"
+      ? {
+          withInvoice: mapChannelMoneySnapshot(
+            byChannelRaw.with_invoice as Record<string, unknown> | undefined,
+          ),
+          withoutInvoice: mapChannelMoneySnapshot(
+            byChannelRaw.without_invoice as Record<string, unknown> | undefined,
+          ),
+        }
+      : undefined;
   return {
     totalReceivable: asNumber(raw.total_receivable),
     collectedThisMonth: asNumber(raw.collected_this_month),
@@ -52,21 +142,31 @@ export function mapFinanceSummary(raw: Record<string, unknown>): FinanceSummary 
       cancellationPending: asNumber(status.cancellation_pending),
       cancelled: asNumber(status.cancelled),
     },
+    byChannel,
   };
 }
 
 export function mapAccountStatementItem(
   raw: Record<string, unknown>,
 ): AccountStatementItem {
+  const clientIdRaw = raw.client_id;
   return {
+    clientId:
+      typeof clientIdRaw === "string" && clientIdRaw.trim()
+        ? clientIdRaw
+        : null,
     clientRfc: asString(raw.client_rfc),
     clientName: asString(raw.client_name),
     totalInvoiced: asNumber(raw.total_invoiced),
     totalPaid: asNumber(raw.total_paid),
     balanceDue: asNumber(raw.balance_due),
+    operationalBalance: asNumber(raw.operational_balance),
     invoiceCount: asNumber(raw.invoice_count),
     openInvoiceCount: asNumber(raw.open_invoice_count),
+    operationalTripCount: asNumber(raw.operational_trip_count),
     overdueAmount: asNumber(raw.overdue_amount),
+    lastCollectionAt: asNullableString(raw.last_collection_at),
+    lastCollectionChannel: mapCollectionChannel(raw.last_collection_channel),
   };
 }
 
@@ -263,40 +363,55 @@ export function mapProfitabilityAggregateItem(
 }
 
 export function mapAgingSummary(raw: Record<string, unknown>): AgingSummary {
-  const bucketsRaw = (raw.buckets ?? {}) as Record<string, unknown>;
-
-  const pickBucket = (key: string) => {
-    const item = (bucketsRaw[key] ?? {}) as Record<string, unknown>;
-    return {
-      invoiceCount: asNumber(item.invoice_count),
-      totalBalance: asNumber(item.total_balance),
+  const byChannelRaw = raw.by_channel as Record<string, unknown> | undefined;
+  let byChannel: AgingSummary["byChannel"];
+  if (byChannelRaw && typeof byChannelRaw === "object") {
+    const withInvoice = (byChannelRaw.with_invoice ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const withoutInvoice = (byChannelRaw.without_invoice ?? {}) as Record<
+      string,
+      unknown
+    >;
+    byChannel = {
+      withInvoice: {
+        totalReceivable: asNumber(withInvoice.total_receivable),
+        buckets: mapAgingBucketsRecord(withInvoice.buckets),
+      },
+      withoutInvoice: {
+        totalReceivable: asNumber(withoutInvoice.total_receivable),
+        buckets: mapOperationalAgingBuckets(withoutInvoice.buckets),
+      },
     };
-  };
+  }
 
   return {
     totalReceivable: asNumber(raw.total_receivable),
-    dso30d: asNumber(raw.dso_30d),
-    buckets: {
-      "0-30": pickBucket("0-30"),
-      "31-60": pickBucket("31-60"),
-      "61-90": pickBucket("61-90"),
-      "90+": pickBucket("90+"),
-    },
+    dso30d: mapDso30d(raw.dso_30d),
+    buckets: mapAgingBucketsRecord(raw.buckets),
+    byChannel,
   };
 }
 
 export function mapAgingByClientItem(
   raw: Record<string, unknown>,
 ): AgingByClientItem {
+  const upcoming = raw.bucket_upcoming;
   return {
     clientRfc: asString(raw.client_rfc),
     clientName: asString(raw.client_name),
     totalBalance: asNumber(raw.total_balance),
     invoiceCount: asNumber(raw.invoice_count),
+    operationalTripCount:
+      raw.operational_trip_count == null
+        ? undefined
+        : asNumber(raw.operational_trip_count),
     bucket030: asNumber(raw.bucket_0_30),
     bucket3160: asNumber(raw.bucket_31_60),
     bucket6190: asNumber(raw.bucket_61_90),
     bucket90Plus: asNumber(raw.bucket_90_plus),
+    bucketUpcoming: upcoming == null ? undefined : asNumber(upcoming),
   };
 }
 

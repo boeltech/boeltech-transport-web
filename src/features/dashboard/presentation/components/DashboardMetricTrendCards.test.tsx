@@ -155,10 +155,15 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Cobrado")).toBeInTheDocument();
     expect(
-      screen.getByText(/Pagos de facturas · sin efectivo sin CFDI/),
+      screen.getByText(dashboardCopy.scorecard.collected.title),
     ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(dashboardCopy.scorecard.collected.subtitle).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.queryByText(/Pagos de facturas · sin efectivo sin CFDI/),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText("Pagos registrados en el periodo"),
     ).not.toBeInTheDocument();
@@ -457,7 +462,7 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
         name: dashboardCopy.scorecard.receivable.ariaLabel,
       }),
     );
-    expect(navigate).toHaveBeenCalledWith("/finance/payments", {
+    expect(navigate).toHaveBeenCalledWith("/finance", {
       state: { from: "/dashboard" },
     });
 
@@ -467,7 +472,7 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
         name: dashboardCopy.scorecard.overdue.ariaLabel,
       }),
     );
-    expect(navigate).toHaveBeenCalledWith("/finance/payments", {
+    expect(navigate).toHaveBeenCalledWith("/finance", {
       state: { from: "/dashboard" },
     });
 
@@ -477,7 +482,7 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
         name: dashboardCopy.scorecard.collected.ariaLabel,
       }),
     );
-    expect(navigate).toHaveBeenCalledWith("/finance/payments", {
+    expect(navigate).toHaveBeenCalledWith("/finance", {
       state: { from: "/dashboard" },
     });
   });
