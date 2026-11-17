@@ -430,7 +430,76 @@ describe("LocationSheet H3", () => {
     ).toBeInTheDocument();
   });
 
-  it("enables Usar for tripStop when name, CP and coordinates are set", async () => {
+  it("disables Usar for tripStop when coords+CP lack satStateCode", async () => {
+    vi.mocked(resolveMapboxToSat).mockResolvedValue({
+      resolved: {},
+      confidence: "low",
+      ambiguities: [],
+      mapboxLabel: "",
+    });
+
+    render(
+      <LocationSheet
+        open
+        onOpenChange={vi.fn()}
+        context="tripStop"
+        value={{
+          locationName: "Altea Bodega",
+          postalCode: "76127",
+          street: "Calle Uno",
+          latitude: 20.59,
+          longitude: -100.39,
+        }}
+        onSave={vi.fn()}
+        showMap
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: LOCATION_FIELD_COPY.save }),
+      ).toBeDisabled();
+    });
+    expect(
+      screen.getByText(LOCATION_FIELD_COPY.tripStopUseHint),
+    ).toBeInTheDocument();
+  });
+
+  it("disables Usar for tripStop when satAmbiguities remain open", async () => {
+    vi.mocked(resolveMapboxToSat).mockResolvedValue({
+      resolved: { satStateCode: "22" },
+      confidence: "medium",
+      ambiguities: ["neighborhood"],
+      mapboxLabel: "",
+    });
+
+    render(
+      <LocationSheet
+        open
+        onOpenChange={vi.fn()}
+        context="tripStop"
+        value={{
+          locationName: "Altea Bodega",
+          postalCode: "76127",
+          street: "Calle Uno",
+          satStateCode: "22",
+          latitude: 20.59,
+          longitude: -100.39,
+          satAmbiguities: ["neighborhood"],
+        }}
+        onSave={vi.fn()}
+        showMap
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: LOCATION_FIELD_COPY.save }),
+      ).toBeDisabled();
+    });
+  });
+
+  it("enables Usar for tripStop when put-ready (coords, CP, estado SAT, sin ambigüedades)", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     vi.mocked(resolveMapboxToSat).mockResolvedValue({
@@ -453,6 +522,7 @@ describe("LocationSheet H3", () => {
           locationName: "Altea",
           postalCode: "76127",
           street: "Calle Uno",
+          satStateCode: "22",
           latitude: 20.59,
           longitude: -100.39,
         }}

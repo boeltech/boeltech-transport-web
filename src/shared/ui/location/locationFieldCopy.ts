@@ -64,7 +64,7 @@ export const LOCATION_FIELD_COPY = {
   ambiguityHint:
     "Hay más de una colonia o municipio posibles. Tras Usar, elige la correcta en «Completar domicilio».",
   tripStopUseHint:
-    "Para usarla en la ruta: nombre, código postal y punto en el mapa.",
+    "Para guardarla como parada: nombre o calle, código postal, estado SAT y punto en el mapa, sin ambigüedades de colonia o municipio.",
   duplicateWarningTitle: "Parece que esta ubicación ya existe",
   duplicateWarningBody:
     "Puedes continuar o elegir la que ya está registrada. No bloquea el guardado.",

@@ -163,6 +163,32 @@ describe("LocationField H1 (ADR-0092)", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("selectionConfirm=immediate delivers Mapbox draft to onChange without Sheet", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <LocationField
+          context="tripStop"
+          value={null}
+          onChange={onChange}
+          selectionConfirm="immediate"
+        />
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByText(mapboxCandidate.label));
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+    expect(screen.queryByTestId("location-sheet-open")).not.toBeInTheDocument();
+  });
+
   it("passes existingAddresses to LocationSheet", () => {
     const candidates = [
       {

@@ -34,6 +34,7 @@ export function LocationField({
   showCartaPorteStatus = false,
   onCreateRequest,
   proximity: proximityProp = null,
+  selectionConfirm = "sheet",
 }: LocationFieldProps) {
   const fieldId = useId();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -81,8 +82,9 @@ export function LocationField({
   };
 
   const handlePickerSelect = (next: LocationValue) => {
-    // Mapbox / create drafts: always CONFIRMAR in Sheet (ADR-0092 D-C / arco).
-    if (!next.sourceAddressId?.trim()) {
+    // Mapbox / create drafts: ADR-0092 Sheet — unless the caller owns confirm
+    // (alta de ruta panel único Buscar→Confirmar).
+    if (!next.sourceAddressId?.trim() && selectionConfirm === "sheet") {
       openCreateSheet(next);
       return;
     }

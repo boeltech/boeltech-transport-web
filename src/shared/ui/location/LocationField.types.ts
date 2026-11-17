@@ -116,4 +116,11 @@ export interface LocationFieldProps {
    * Si falta, se usa el pin del value actual cuando existe.
    */
   proximity?: LatLng | null;
+  /**
+   * Cómo confirmar un resultado sin `sourceAddressId` (mapa / create).
+   * - `"sheet"` (default): ADR-0092 LocationSheet «Confirmar ubicación».
+   * - `"immediate"`: entrega el draft a `onChange` sin sheet intermedio
+   *   (alta de ruta D58/D68 — el panel Buscar→Confirmar es la confirmación).
+   */
+  selectionConfirm?: "sheet" | "immediate";
 }

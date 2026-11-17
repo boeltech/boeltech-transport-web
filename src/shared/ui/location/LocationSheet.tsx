@@ -67,7 +67,7 @@ export interface LocationSheetProps {
   preferMapPin?: boolean;
   /**
    * Completeness gate for Usar. Defaults from `context` when provided
-   * (`tripStop` → coords + CP + name).
+   * (`tripStop` → put-ready: coords + CP + estado SAT + label/calle; sin ambigüedades).
    */
   requirements?: LocationSheetRequirements;
   /** Prefer this over bare `requirements` when set (LocationField passes context). */
@@ -375,12 +375,17 @@ export function LocationSheet({
     longitude != null &&
     Number.isFinite(latitude) &&
     Number.isFinite(longitude);
+  /** Alineado a `isComposerPickPutReady` (F8b O1) — no relajar el umbral DOM. */
+  const tripStopLabelOrStreet =
+    street.trim().length >= 1 || locationName.trim().length >= 5;
   const canSaveByRequirements =
     requirements === "tripStop"
       ? Boolean(
-          locationName.trim() &&
+          tripStopLabelOrStreet &&
             /^\d{5}$/.test(postalCode.trim()) &&
-            hasTripStopCoords,
+            hasTripStopCoords &&
+            Boolean(satStateCode?.trim()) &&
+            satAmbiguities.length === 0,
         )
       : Boolean(locationName.trim());
   const saveDisabled = disabled || isResolving || !canSaveByRequirements;
