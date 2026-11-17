@@ -5,9 +5,11 @@ import { estimateRoadDistanceKm } from "@shared/utils/geoUtils";
 import { StopType, type ClientCorridor, type CreateStopInput } from "@features/trips/domain";
 
 import { replaceStopsFromCorridor } from "../../components/trip-route/buildReplaceStopsPayload";
+import { buildReserveStopsFromEndpointDraft } from "./reserveEndpointLocation";
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
 import { validateCreateTripApiPayload } from "./validateTripApiPayload";
 import type { TripWizardFormValues } from "./components/validation";
+import type { ComposerEndpointPick } from "../../components/trip-route/buildReplaceStopsPayload";
 
 describe("buildCreateTripInputFromWizardValues — reserve", () => {
   it("builds payload without stops/cargos and options.createIntent=reserve", () => {
@@ -259,6 +261,64 @@ describe("buildCreateTripInputFromWizardValues — reserve", () => {
       "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     );
     expect(snake.stops?.[0]?.sequence_order).toBe(1);
+
+    const apiCheck = validateCreateTripApiPayload(payload);
+    expect(apiCheck.ok).toBe(true);
+  });
+
+  it("includes put-ready place stops from canvas draft (F8 Q14)", () => {
+    const values = {
+      vehicleId: "11111111-1111-4111-8111-111111111111",
+      driverId: "22222222-2222-4222-8222-222222222222",
+      clientId: "33333333-3333-4333-8333-333333333333",
+      scheduledDeparture: "2030-01-15T14:00",
+      scheduledArrival: "",
+      originCity: "Monterrey",
+      destinationCity: "Saltillo",
+      notes: "",
+      cfdiDocumentIntent: "ingreso",
+      originBranchId: "",
+      stops: [],
+      cargos: [],
+      expenses: [],
+      internalStaff: [],
+    } as unknown as TripWizardFormValues;
+
+    const origin: ComposerEndpointPick = {
+      id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      ownerType: "client",
+      ownerId: "33333333-3333-4333-8333-333333333333",
+      ownerLabel: "Cliente",
+      addressType: "shipping",
+      locationName: "CEDIS Monterrey",
+      street: "Av. Industrial",
+      exteriorNumber: "100",
+      postalCode: "64000",
+      satStateCode: "NLE",
+      satMunicipalityCode: "039",
+      neighborhoodName: null,
+      satNeighborhoodCode: null,
+      latitude: 25.68,
+      longitude: -100.31,
+      geocodingAccuracy: "exact",
+      geolocationPending: false,
+      isPrimary: false,
+      isActive: true,
+      isCartaPorteReady: true,
+    };
+
+    const placeStops = buildReserveStopsFromEndpointDraft({ origin });
+    expect(placeStops).toHaveLength(1);
+
+    const payload = buildCreateTripInputFromWizardValues(values, {
+      createIntent: "reserve",
+      clonedStops: placeStops,
+    });
+
+    expect(payload.stops).toHaveLength(1);
+    expect(payload.originCity).toBe("Monterrey");
+    expect(payload.destinationCity).toBe("Saltillo");
+    expect(payload.options).toEqual({ createIntent: "reserve" });
 
     const apiCheck = validateCreateTripApiPayload(payload);
     expect(apiCheck.ok).toBe(true);

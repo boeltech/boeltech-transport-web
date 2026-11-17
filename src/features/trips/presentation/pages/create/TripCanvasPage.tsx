@@ -1,5 +1,5 @@
 /**
- * Canvas de alta de viaje (ADR-0078 F2).
+ * Canvas de alta de viaje (ADR-0078 F2 + F8 lugares).
  * Una pantalla Pedido | Flota. Submit = POST /trips create_intent=reserve.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
+import type { LocationValue } from "@shared/ui/location";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
@@ -37,7 +38,11 @@ import { useActiveClients } from "@features/clients/application";
 import { canvasCopy } from "../../copy/canvasCopy";
 import { CorridorPicker } from "../../components/corridor/CorridorPicker";
 import { RouteEstimateCard } from "../../components/corridor/RouteEstimateCard";
-import { replaceStopsFromCorridor } from "../../components/trip-route/buildReplaceStopsPayload";
+import {
+  isComposerPickPutReady,
+  replaceStopsFromCorridor,
+  type ComposerEndpointDraft,
+} from "../../components/trip-route/buildReplaceStopsPayload";
 import { ReservePedidoStep } from "./components/ReservePedidoStep";
 import { ReserveAsignarStep } from "./components/ReserveAsignarStep";
 import { ReserveConfirmLaterFields } from "./components/ReserveConfirmLaterFields";
@@ -51,6 +56,12 @@ import {
   buildBusyAssignmentResourceIds,
 } from "./tripAssignmentBusyResources";
 import { buildAssignableDriversForTripWizard } from "./tripAssignmentDrivers";
+import {
+  buildReserveStopsFromEndpointDraft,
+  cityLabelFromLocationValue,
+  cityOnlyLocationValue,
+  locationValueToEndpointPick,
+} from "./reserveEndpointLocation";
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
 import {
   formatTripApiValidationForUser,
@@ -76,6 +87,11 @@ function resolveTripCanvasBackHref(from: string | undefined): string {
   return path === "/trips" ? candidate : fallback;
 }
 
+type StaleCorridorState = {
+  corridor: ClientCorridor;
+  changed: "origin" | "destination" | "both";
+};
+
 export function TripCanvasPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -87,6 +103,15 @@ export function TripCanvasPage() {
   const [confirmLaterOpen, setConfirmLaterOpen] = useState(false);
   const [selectedCorridor, setSelectedCorridor] =
     useState<ClientCorridor | null>(null);
+  const [staleCorridor, setStaleCorridor] = useState<StaleCorridorState | null>(
+    null,
+  );
+  const [originLocation, setOriginLocation] = useState<LocationValue | null>(
+    null,
+  );
+  const [destinationLocation, setDestinationLocation] =
+    useState<LocationValue | null>(null);
+  const [endpointDraft, setEndpointDraft] = useState<ComposerEndpointDraft>({});
   const [allowExpiredDocs, setAllowExpiredDocs] = useState(false);
   const validationSummaryRef = useRef<HTMLDivElement>(null);
 
@@ -147,12 +172,20 @@ export function TripCanvasPage() {
 
   useEffect(() => {
     if (!selectedCorridor) return;
-    if (
-      originCity.trim() !== selectedCorridor.originCity ||
-      destinationCity.trim() !== selectedCorridor.destinationCity
-    ) {
-      setSelectedCorridor(null);
-    }
+    const originMismatch =
+      originCity.trim() !== selectedCorridor.originCity.trim();
+    const destinationMismatch =
+      destinationCity.trim() !== selectedCorridor.destinationCity.trim();
+    if (!originMismatch && !destinationMismatch) return;
+
+    const changed: StaleCorridorState["changed"] =
+      originMismatch && destinationMismatch
+        ? "both"
+        : originMismatch
+          ? "origin"
+          : "destination";
+    setStaleCorridor({ corridor: selectedCorridor, changed });
+    setSelectedCorridor(null);
   }, [originCity, destinationCity, selectedCorridor]);
 
   const { data: corridors = [], isLoading: isLoadingCorridors } =
@@ -175,9 +208,8 @@ export function TripCanvasPage() {
 
   const createMutation = useCreateTrip();
 
-  const handleSelectCorridor = useCallback(
+  const applyCorridorEndpoints = useCallback(
     (corridor: ClientCorridor) => {
-      setSelectedCorridor(corridor);
       form.setValue("originCity", corridor.originCity, {
         shouldDirty: true,
         shouldValidate: true,
@@ -186,6 +218,68 @@ export function TripCanvasPage() {
         shouldDirty: true,
         shouldValidate: true,
       });
+      setOriginLocation(cityOnlyLocationValue(corridor.originCity));
+      setDestinationLocation(cityOnlyLocationValue(corridor.destinationCity));
+      setEndpointDraft({});
+    },
+    [form],
+  );
+
+  const handleSelectCorridor = useCallback(
+    (corridor: ClientCorridor) => {
+      setStaleCorridor(null);
+      setSelectedCorridor(corridor);
+      applyCorridorEndpoints(corridor);
+    },
+    [applyCorridorEndpoints],
+  );
+
+  const handleRestoreStaleCorridor = useCallback(() => {
+    if (!staleCorridor) return;
+    const corridor = staleCorridor.corridor;
+    setStaleCorridor(null);
+    setSelectedCorridor(corridor);
+    applyCorridorEndpoints(corridor);
+  }, [applyCorridorEndpoints, staleCorridor]);
+
+  const handleOriginLocationChange = useCallback(
+    (value: LocationValue | null) => {
+      setOriginLocation(value);
+      const city = cityLabelFromLocationValue(value);
+      form.setValue("originCity", city, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      if (!value) {
+        setEndpointDraft((prev) => ({ ...prev, origin: undefined }));
+        return;
+      }
+      const pick = locationValueToEndpointPick(value);
+      setEndpointDraft((prev) => ({
+        ...prev,
+        origin: isComposerPickPutReady(pick) ? pick : undefined,
+      }));
+    },
+    [form],
+  );
+
+  const handleDestinationLocationChange = useCallback(
+    (value: LocationValue | null) => {
+      setDestinationLocation(value);
+      const city = cityLabelFromLocationValue(value);
+      form.setValue("destinationCity", city, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      if (!value) {
+        setEndpointDraft((prev) => ({ ...prev, destination: undefined }));
+        return;
+      }
+      const pick = locationValueToEndpointPick(value);
+      setEndpointDraft((prev) => ({
+        ...prev,
+        destination: isComposerPickPutReady(pick) ? pick : undefined,
+      }));
     },
     [form],
   );
@@ -195,7 +289,7 @@ export function TripCanvasPage() {
     const clonedStops =
       selectedCorridor && selectedCorridor.stopsSnapshot.length > 0
         ? replaceStopsFromCorridor(selectedCorridor)
-        : undefined;
+        : buildReserveStopsFromEndpointDraft(endpointDraft);
     const payload = buildCreateTripInputFromWizardValues(data, {
       createIntent: "reserve",
       clonedStops,
@@ -277,12 +371,23 @@ export function TripCanvasPage() {
                 form={form}
                 clients={clients}
                 isLoadingClients={isLoadingClients}
+                originLocation={originLocation}
+                destinationLocation={destinationLocation}
+                onOriginLocationChange={handleOriginLocationChange}
+                onDestinationLocationChange={handleDestinationLocationChange}
                 afterClient={
                   clientId ? (
                     <CorridorPicker
                       corridors={corridors}
                       isLoading={isLoadingCorridors}
                       selectedKey={selectedCorridor?.corridorKey}
+                      staleCorridor={staleCorridor?.corridor ?? null}
+                      staleMessage={
+                        staleCorridor
+                          ? copy.corridor.noLongerUsed(staleCorridor.changed)
+                          : null
+                      }
+                      onRestoreStale={handleRestoreStaleCorridor}
                       onSelect={handleSelectCorridor}
                     />
                   ) : null

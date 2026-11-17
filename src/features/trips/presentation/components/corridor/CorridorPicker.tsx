@@ -1,5 +1,6 @@
 import { Loader2, Route } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import { Button } from "@shared/ui/button";
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import type { ClientCorridor } from "@features/trips/domain";
 import { canvasCopy } from "../../copy/canvasCopy";
@@ -12,6 +13,10 @@ export interface CorridorPickerProps {
   selectedKey?: string | null;
   disabled?: boolean;
   onSelect: (corridor: ClientCorridor) => void;
+  /** Corredor que dejó de aplicar tras cambiar un extremo (Q21 #5). */
+  staleCorridor?: ClientCorridor | null;
+  staleMessage?: string | null;
+  onRestoreStale?: () => void;
 }
 
 function corridorLabel(corridor: ClientCorridor): string {
@@ -30,6 +35,9 @@ export function CorridorPicker({
   selectedKey,
   disabled = false,
   onSelect,
+  staleCorridor = null,
+  staleMessage = null,
+  onRestoreStale,
 }: CorridorPickerProps) {
   if (isLoading) {
     return (
@@ -40,7 +48,7 @@ export function CorridorPicker({
     );
   }
 
-  if (corridors.length === 0) {
+  if (corridors.length === 0 && !staleCorridor) {
     return <p className="text-xs text-muted-foreground">{copy.empty}</p>;
   }
 
@@ -55,8 +63,44 @@ export function CorridorPicker({
       />
       <p className="text-xs text-muted-foreground">{copy.hint}</p>
       <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-0.5">
+        {staleCorridor ? (
+          <li>
+            <div
+              className="flex w-full items-start gap-2 rounded-md border border-dashed border-muted-foreground/40 bg-muted/30 px-3 py-2 text-left text-sm"
+              data-testid="corridor-stale"
+            >
+              <Route
+                className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium text-muted-foreground line-through">
+                  {corridorLabel(staleCorridor)}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {staleMessage ?? copy.noLongerUsed("both")}
+                </span>
+              </span>
+              {onRestoreStale ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={disabled}
+                  onClick={onRestoreStale}
+                >
+                  {copy.restore}
+                </Button>
+              ) : null}
+            </div>
+          </li>
+        ) : null}
         {corridors.map((corridor) => {
           const selected = corridor.corridorKey === selectedKey;
+          const isStaleTwin =
+            staleCorridor?.corridorKey === corridor.corridorKey;
+          if (isStaleTwin) return null;
           return (
             <li key={corridor.corridorKey}>
               <button
@@ -77,7 +121,9 @@ export function CorridorPicker({
                   aria-hidden
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block font-medium">{corridorLabel(corridor)}</span>
+                  <span className="block font-medium">
+                    {corridorLabel(corridor)}
+                  </span>
                   <span className="block text-xs text-muted-foreground">
                     {copy.stopCount(corridor.stopCount)} ·{" "}
                     {copy.tripCount(corridor.tripCount)}

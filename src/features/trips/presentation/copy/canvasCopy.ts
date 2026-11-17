@@ -8,7 +8,7 @@ export const canvasCopy = {
   columns: {
     pedido: "Pedido",
     flota: "Flota",
-    pedidoHint: "Cliente, corredor o ciudades y fecha de salida.",
+    pedidoHint: "Cliente, corredor o lugares y fecha de salida.",
     flotaHint: "Unidad, remolque si aplica y conductor.",
   },
   /** Eco D4: el canvas no elige. Override en el detalle. */
@@ -27,12 +27,23 @@ export const canvasCopy = {
     /** Detalle largo → hint-icon. */
     hintDetail:
       "Trayecto frecuente del cliente: clona las paradas. No es tarifa de pago a operadores. No copia flota, fecha, mercancía ni tarifa.",
-    empty: "Sin corredores previos; captura ciudades.",
+    empty: "Sin corredores previos; captura origen y destino.",
     loading: "Cargando corredores…",
     stopCount: (count: number) =>
       `${count} parada${count === 1 ? "" : "s"}`,
     tripCount: (count: number) =>
       `${count} viaje${count === 1 ? "" : "s"}`,
+    /** Q21 #5 / D74 — chip tras cambiar un extremo con corredor activo. */
+    noLongerUsed: (changed: "origin" | "destination" | "both") => {
+      const what =
+        changed === "origin"
+          ? "el origen"
+          : changed === "destination"
+            ? "el destino"
+            : "origen o destino";
+      return `Ya no se usa: cambiaste ${what}. Las paradas no se clonan.`;
+    },
+    restore: "Volver a usar",
   },
   estimate: {
     title: "Estimado interno",
@@ -59,8 +70,8 @@ export const canvasCopy = {
     },
     label: {
       client: "Cliente",
-      originCity: "Ciudad de origen",
-      destinationCity: "Ciudad de destino",
+      originCity: "Origen",
+      destinationCity: "Destino",
       routeType: "Clase de ruta",
       notes: "Notas del pedido",
       baseRate: "Tarifa acordada (opcional)",
@@ -70,8 +81,8 @@ export const canvasCopy = {
     },
     placeholder: {
       selectClient: "Seleccionar cliente",
-      originCity: "Ej. CDMX",
-      destinationCity: "Ej. Monterrey",
+      originCity: "Busca un lugar del cliente, tu sucursal o una ciudad…",
+      destinationCity: "Busca un lugar del cliente, tu sucursal o una ciudad…",
       notes: "Ej. Llamada · WhatsApp · Pedido verbal",
       routeType: "Seleccionar clase de ruta",
       startMileage: "0",

@@ -1,6 +1,6 @@
 /**
- * Pedido del canvas de reserva (intake lean F1):
- * Cliente → (corredor) → ciudades → fecha salida → clase de ruta (secundaria).
+ * Pedido del canvas de reserva (intake lean F1 + F8 Location):
+ * Cliente → (corredor) → Origen/Destino Location → fecha salida → clase de ruta.
  */
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -13,6 +13,7 @@ import {
 } from "@features/trips/domain";
 import { FormFieldShell, DateTimeField, getFieldErrorAriaProps } from "@shared/ui/form";
 import { Input } from "@shared/ui/input";
+import { LocationField, type LocationValue } from "@shared/ui/location";
 import { Textarea } from "@shared/ui/text-area";
 import {
   Select,
@@ -24,6 +25,10 @@ import {
 import { SectionHeadingWithHint } from "@shared/ui/hint-icon";
 import { usePermissions } from "@shared/permissions";
 
+import {
+  isAllowedRoutePickerItem,
+  ownerTypesForRouteSlot,
+} from "../../../components/trip-route/routeAddressPickerOwnerTypes";
 import type { TripWizardFormValues } from "./validation";
 import { canvasCopy } from "../../../copy/canvasCopy";
 import { cfdiEmissionIntentCopy } from "../../../copy/cfdiEmissionIntentCopy";
@@ -48,6 +53,13 @@ interface ReservePedidoStepProps {
   isLoadingClients: boolean;
   /** Slot tras el cliente (picker de corredor en el canvas ADR-0078). */
   afterClient?: ReactNode;
+  /**
+   * F8 canvas: LocationField controlado. Si faltan, el wizard legado usa Input de ciudad.
+   */
+  originLocation?: LocationValue | null;
+  destinationLocation?: LocationValue | null;
+  onOriginLocationChange?: (value: LocationValue | null) => void;
+  onDestinationLocationChange?: (value: LocationValue | null) => void;
 }
 
 export function ReservePedidoStep({
@@ -55,6 +67,10 @@ export function ReservePedidoStep({
   clients,
   isLoadingClients,
   afterClient,
+  originLocation,
+  destinationLocation,
+  onOriginLocationChange,
+  onDestinationLocationChange,
 }: ReservePedidoStepProps) {
   const { control, watch } = form;
   const { hasPermission } = usePermissions();
@@ -68,6 +84,8 @@ export function ReservePedidoStep({
       : cfdiEmissionIntentCopy.options.emitir_cfdi;
   const canCreateClient = hasPermission("clients", "create");
   const scheduleFieldProps = tripScheduleDateTimeFieldProps(fields.preset);
+  const useLocationEndpoints =
+    onOriginLocationChange != null && onDestinationLocationChange != null;
 
   return (
     <div className="space-y-6">
@@ -164,56 +182,109 @@ export function ReservePedidoStep({
           {fields.section.routeApprox}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Controller
-            control={control}
-            name="originCity"
-            render={({ field, fieldState }) => (
-              <FormFieldShell
-                fieldId="originCity"
-                label={fields.label.originCity}
-                required
-                errorMessage={fieldState.error?.message}
-              >
-                <Input
-                  id="originCity"
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  placeholder={fields.placeholder.originCity}
-                  error={Boolean(fieldState.error)}
-                  {...getFieldErrorAriaProps(
-                    "originCity",
-                    fieldState.error?.message,
-                  )}
-                />
-              </FormFieldShell>
-            )}
-          />
-          <Controller
-            control={control}
-            name="destinationCity"
-            render={({ field, fieldState }) => (
-              <FormFieldShell
-                fieldId="destinationCity"
-                label={fields.label.destinationCity}
-                required
-                errorMessage={fieldState.error?.message}
-              >
-                <Input
-                  id="destinationCity"
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  placeholder={fields.placeholder.destinationCity}
-                  error={Boolean(fieldState.error)}
-                  {...getFieldErrorAriaProps(
-                    "destinationCity",
-                    fieldState.error?.message,
-                  )}
-                />
-              </FormFieldShell>
-            )}
-          />
+          {useLocationEndpoints ? (
+            <>
+              <Controller
+                control={control}
+                name="originCity"
+                render={({ fieldState }) => (
+                  <FormFieldShell
+                    fieldId="originCity"
+                    label={fields.label.originCity}
+                    required
+                    errorMessage={fieldState.error?.message}
+                  >
+                    <LocationField
+                      context="tripStop"
+                      clientId={selectedClientId || null}
+                      value={originLocation ?? null}
+                      onChange={onOriginLocationChange}
+                      placeholder={fields.placeholder.originCity}
+                      error={fieldState.error?.message}
+                      ownerTypes={ownerTypesForRouteSlot("origin")}
+                      filterItem={isAllowedRoutePickerItem}
+                    />
+                  </FormFieldShell>
+                )}
+              />
+              <Controller
+                control={control}
+                name="destinationCity"
+                render={({ fieldState }) => (
+                  <FormFieldShell
+                    fieldId="destinationCity"
+                    label={fields.label.destinationCity}
+                    required
+                    errorMessage={fieldState.error?.message}
+                  >
+                    <LocationField
+                      context="tripStop"
+                      clientId={selectedClientId || null}
+                      value={destinationLocation ?? null}
+                      onChange={onDestinationLocationChange}
+                      placeholder={fields.placeholder.destinationCity}
+                      error={fieldState.error?.message}
+                      ownerTypes={ownerTypesForRouteSlot("destination")}
+                      filterItem={isAllowedRoutePickerItem}
+                    />
+                  </FormFieldShell>
+                )}
+              />
+            </>
+          ) : (
+            <>
+              <Controller
+                control={control}
+                name="originCity"
+                render={({ field, fieldState }) => (
+                  <FormFieldShell
+                    fieldId="originCity"
+                    label={fields.label.originCity}
+                    required
+                    errorMessage={fieldState.error?.message}
+                  >
+                    <Input
+                      id="originCity"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      placeholder={fields.placeholder.originCity}
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(
+                        "originCity",
+                        fieldState.error?.message,
+                      )}
+                    />
+                  </FormFieldShell>
+                )}
+              />
+              <Controller
+                control={control}
+                name="destinationCity"
+                render={({ field, fieldState }) => (
+                  <FormFieldShell
+                    fieldId="destinationCity"
+                    label={fields.label.destinationCity}
+                    required
+                    errorMessage={fieldState.error?.message}
+                  >
+                    <Input
+                      id="destinationCity"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      placeholder={fields.placeholder.destinationCity}
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(
+                        "destinationCity",
+                        fieldState.error?.message,
+                      )}
+                    />
+                  </FormFieldShell>
+                )}
+              />
+            </>
+          )}
         </div>
       </section>
 

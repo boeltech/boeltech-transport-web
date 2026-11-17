@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { MemoryRouter } from "react-router-dom";
 
 import { TooltipProvider } from "@shared/ui/tooltip";
+import type { LocationValue } from "@shared/ui/location";
 import { canvasCopy } from "../../../copy/canvasCopy";
 import { cfdiEmissionIntentCopy } from "../../../copy/cfdiEmissionIntentCopy";
 import { ReservePedidoStep } from "./ReservePedidoStep";
@@ -22,12 +24,43 @@ vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({ hasPermission: mockHasPermission }),
 }));
 
+vi.mock("@shared/ui/location", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@shared/ui/location")>();
+  return {
+    ...actual,
+    LocationField: ({
+      placeholder,
+      error,
+      value,
+    }: {
+      placeholder?: string;
+      error?: string;
+      value?: LocationValue | null;
+    }) => (
+      <div>
+        <input
+          data-testid="location-field"
+          aria-invalid={Boolean(error)}
+          aria-label={placeholder ?? "location"}
+          placeholder={placeholder}
+          defaultValue={value?.locationName ?? ""}
+          readOnly
+        />
+      </div>
+    ),
+  };
+});
+
 function Harness({
   clientId = "",
   profile,
+  originError,
+  destinationError,
 }: {
   clientId?: string;
   profile?: "receptor_cfdi" | "comercial_only";
+  originError?: string;
+  destinationError?: string;
 } = {}) {
   const form = useForm<TripWizardFormValues>({
     defaultValues: {
@@ -35,6 +68,14 @@ function Harness({
       clientId,
     },
   });
+  useEffect(() => {
+    if (originError) {
+      form.setError("originCity", { message: originError });
+    }
+    if (destinationError) {
+      form.setError("destinationCity", { message: destinationError });
+    }
+  }, [destinationError, form, originError]);
   return (
     <MemoryRouter>
       <TooltipProvider delayDuration={0}>
@@ -44,6 +85,10 @@ function Harness({
             { id: "c-1", legalName: "Cliente SA", cfdiReceptorProfile: profile },
           ]}
           isLoadingClients={false}
+          originLocation={null}
+          destinationLocation={null}
+          onOriginLocationChange={vi.fn()}
+          onDestinationLocationChange={vi.fn()}
         />
       </TooltipProvider>
     </MemoryRouter>
@@ -91,12 +136,12 @@ describe("ReservePedidoStep client scale", () => {
     ).toBeInTheDocument();
   });
 
-  it("muestra notas del pedido sin colapsable y orden lean PD1", () => {
+  it("muestra Location en Origen/Destino y orden lean PD1", () => {
     mockHasPermission.mockReturnValue(false);
     render(<Harness />);
 
     const client = document.getElementById("clientId");
-    const origin = document.getElementById("originCity");
+    const origin = screen.getByText(fields.label.originCity);
     const departure = document.getElementById("scheduledDeparture");
     const notes = document.getElementById("notes");
     const routeType = document.getElementById("routeType");
@@ -107,15 +152,41 @@ describe("ReservePedidoStep client scale", () => {
     expect(notes).toBeTruthy();
     expect(routeType).toBeTruthy();
 
+    expect(
+      screen.getAllByPlaceholderText(fields.placeholder.originCity),
+    ).toHaveLength(2);
+
     const following = Node.DOCUMENT_POSITION_FOLLOWING;
-    expect(client!.compareDocumentPosition(origin!) & following).toBeTruthy();
-    expect(origin!.compareDocumentPosition(departure!) & following).toBeTruthy();
+    expect(client!.compareDocumentPosition(departure!) & following).toBeTruthy();
     expect(departure!.compareDocumentPosition(notes!) & following).toBeTruthy();
     expect(notes!.compareDocumentPosition(routeType!) & following).toBeTruthy();
 
     expect(
       screen.getByRole("textbox", { name: fields.label.notes }),
     ).toBeInTheDocument();
+  });
+
+  it("muestra errores en línea de Origen/Destino", () => {
+    mockHasPermission.mockReturnValue(false);
+    render(
+      <Harness
+        originError="Indica el origen"
+        destinationError="Indica el destino"
+      />,
+    );
+
+    expect(document.getElementById("originCity-error")).toHaveTextContent(
+      "Indica el origen",
+    );
+    expect(document.getElementById("destinationCity-error")).toHaveTextContent(
+      "Indica el destino",
+    );
+  });
+
+  it("no muestra franja de lugares más usados (Q20 defer)", () => {
+    mockHasPermission.mockReturnValue(false);
+    render(<Harness />);
+    expect(screen.queryByText(/más usados/i)).not.toBeInTheDocument();
   });
 
   it("eco de solo lectura Factura del viaje, sin selector", () => {

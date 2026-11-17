@@ -75,4 +75,29 @@ describe("CorridorPicker", () => {
     await user.click(button);
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  it("shows Ya no se usa chip and Volver a usar (Q21 #5)", async () => {
+    const user = userEvent.setup();
+    const onRestore = vi.fn();
+    const stale = corridor({ corridorKey: "stale-1", destinationCity: "Saltillo" });
+    renderPicker(
+      <CorridorPicker
+        corridors={[corridor(), stale]}
+        onSelect={vi.fn()}
+        staleCorridor={stale}
+        staleMessage={canvasCopy.corridor.noLongerUsed("destination")}
+        onRestoreStale={onRestore}
+      />,
+    );
+
+    expect(screen.getByTestId("corridor-stale")).toBeInTheDocument();
+    expect(
+      screen.getByText(canvasCopy.corridor.noLongerUsed("destination")),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: canvasCopy.corridor.restore }),
+    );
+    expect(onRestore).toHaveBeenCalledTimes(1);
+  });
 });
+
