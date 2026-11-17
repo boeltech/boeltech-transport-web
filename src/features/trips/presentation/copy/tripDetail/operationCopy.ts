@@ -114,6 +114,8 @@ export const operationCopy = {
     labels: {
       vehicle: "Unidad tractora",
       driver: "Operador principal",
+      /** Política B — odómetro de la unidad entrante al cambiar flota. */
+      startMileage: "Kilometraje (odómetro de esta unidad)",
       allowExpiredDocs: "Permitir asignación con documentación vencida",
       supportStaffFilter: "Filtrar por puesto",
       supportStaffEmployee: "Empleado",
@@ -153,11 +155,16 @@ export const operationCopy = {
         "Selecciona puesto y empleado; el integrante queda en la lista al agregar o al guardar con la selección pendiente.",
       fleetBranchFilter:
         "Listado filtrado por la base operativa del viaje. Activa la opción para ver todo el catálogo.",
+      startMileage:
+        "Lectura del odómetro de la unidad que asignas. Se precarga con el kilometraje del catálogo; puedes corregirlo.",
+      startMileageFromCatalog: (km: number) =>
+        `Odómetro en catálogo: ${km.toLocaleString("es-MX")} km`,
     },
     placeholders: {
       vehicle: "Seleccionar unidad…",
       driver: "Seleccionar conductor…",
       supportStaffEmployee: "Seleccionar empleado…",
+      startMileage: "0",
     },
     errors: {
       vehicleRequired: "Unidad requerida",
@@ -167,6 +174,8 @@ export const operationCopy = {
       employeeAlreadyAssigned:
         "El empleado ya está asignado como conductor titular o en el equipo de apoyo.",
       employeeAlreadyInStaff: "Este empleado ya fue agregado al equipo de apoyo.",
+      incomingOdometerRequired:
+        "Indica el kilometraje (odómetro) de la unidad que asignas.",
     },
     removeStaffConfirm: {
       title: (employeeName: string) =>
@@ -258,8 +267,8 @@ export const operationCopy = {
     unit: "Unidad",
     plate: "Placa",
     driver: "Operador principal",
-    mileageStart: "Inicial",
-    mileageEnd: "Final",
+    mileageStart: "Odómetro al salir",
+    mileageEnd: "Odómetro al cerrar",
     facturadoVigente: "Facturado vigente",
     cobradoViaje: "Cobrado del viaje",
   },

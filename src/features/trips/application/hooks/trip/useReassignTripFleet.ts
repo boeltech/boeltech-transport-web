@@ -22,6 +22,8 @@ export type ReassignTripFleetInput = {
     paymentNotes?: string | null;
   }>;
   allowExpiredDocs?: boolean;
+  /** Política B: odómetro de la unidad entrante (solo con cambio de vehicleId). */
+  startMileage?: number;
 };
 
 export type ReassignTripFleetResult = {

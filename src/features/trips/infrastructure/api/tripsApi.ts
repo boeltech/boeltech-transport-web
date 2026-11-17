@@ -129,6 +129,8 @@ export const tripsApi = {
         paymentNotes?: string | null;
       }>;
       allowExpiredDocs?: boolean;
+      /** Política B — odómetro unidad entrante → `start_mileage` (deepToSnake). */
+      startMileage?: number;
     },
   ): Promise<{
     trip: Trip;

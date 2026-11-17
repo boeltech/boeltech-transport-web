@@ -85,6 +85,7 @@ const mockVehicles = [
     type: "Rabón",
     canBeAssigned: true,
     satConfigAutotransporteCode: "C2",
+    currentMileage: 12_000,
   },
   {
     id: "veh-2",
@@ -93,6 +94,7 @@ const mockVehicles = [
     type: "Camioneta",
     canBeAssigned: true,
     satConfigAutotransporteCode: "C2",
+    currentMileage: 88_800,
   },
   {
     id: "veh-expired",
@@ -104,6 +106,7 @@ const mockVehicles = [
     blockReason: "Póliza de seguro vencida",
     insuranceExpiry: "2020-01-01",
     satConfigAutotransporteCode: "C2",
+    currentMileage: 1_000,
   },
 ];
 
@@ -1423,6 +1426,137 @@ describe("TripFleetAssignmentSheet", () => {
           variant: "warning",
         }),
       );
+    });
+  });
+
+  describe("política B — odómetro unidad entrante", () => {
+    it("muestra campo de odómetro y lo precarga al cambiar unidad", async () => {
+      const user = userEvent.setup();
+      renderSheet({
+        trip: makeTrip({
+          status: TripStatus.SCHEDULED,
+          mileage: { start: 1000, end: null },
+          vehicle: {
+            id: "veh-1",
+            unitNumber: "U-101",
+            licensePlate: "AAA-111",
+            satConfigAutotransporteCode: "C2",
+          },
+        }),
+      });
+
+      expect(
+        screen.queryByLabelText(/Kilometraje \(odómetro de esta unidad\)/),
+      ).not.toBeInTheDocument();
+
+      await user.click(screen.getByLabelText(/Unidad tractora/));
+      const listbox = await screen.findByRole("listbox");
+      await user.click(
+        within(listbox).getByRole("option", { name: /BBB-222/ }),
+      );
+
+      const mileageInput = await screen.findByLabelText(
+        /Kilometraje \(odómetro de esta unidad\)/,
+      );
+      expect(mileageInput).toHaveValue(88800);
+    });
+
+    it("envía startMileage en PATCH al cambiar unidad", async () => {
+      const user = userEvent.setup();
+      renderSheet({
+        trip: makeTrip({
+          status: TripStatus.SCHEDULED,
+          mileage: { start: 1000, end: null },
+          vehicle: {
+            id: "veh-1",
+            unitNumber: "U-101",
+            licensePlate: "AAA-111",
+            satConfigAutotransporteCode: "C2",
+          },
+        }),
+      });
+
+      await user.click(screen.getByLabelText(/Unidad tractora/));
+      const listbox = await screen.findByRole("listbox");
+      await user.click(
+        within(listbox).getByRole("option", { name: /BBB-222/ }),
+      );
+
+      await user.click(screen.getByRole("button", { name: copy.saveButton }));
+
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            vehicleId: "veh-2",
+            startMileage: 88800,
+          }),
+        );
+      });
+    });
+
+    it("no envía startMileage si solo cambia el conductor", async () => {
+      const user = userEvent.setup();
+      renderSheet({
+        trip: makeTrip({
+          status: TripStatus.IN_PROGRESS,
+          mileage: { start: 1000, end: null },
+        }),
+      });
+
+      await user.click(screen.getByLabelText(/Operador principal/));
+      const driverListbox = await screen.findByRole("listbox");
+      await user.click(
+        within(driverListbox).getByRole("option", { name: /Diana Chofer/ }),
+      );
+
+      await user.click(screen.getByRole("button", { name: copy.saveButton }));
+
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalled();
+      });
+      const payload = mockMutate.mock.calls.at(-1)?.[0] as Record<
+        string,
+        unknown
+      >;
+      expect(payload.vehicleId).toBe("veh-1");
+      expect(payload.driverId).toBe("drv-2");
+      expect(payload).not.toHaveProperty("startMileage");
+    });
+
+    it("bloquea guardar sin odómetro al cambiar unidad en in_progress", async () => {
+      const user = userEvent.setup();
+      renderSheet({
+        trip: makeTrip({
+          status: TripStatus.IN_PROGRESS,
+          mileage: { start: null, end: null },
+          vehicle: {
+            id: "veh-1",
+            unitNumber: "U-101",
+            licensePlate: "AAA-111",
+            satConfigAutotransporteCode: "C2",
+          },
+        }),
+      });
+
+      await user.click(screen.getByLabelText(/Unidad tractora/));
+      const listbox = await screen.findByRole("listbox");
+      await user.click(
+        within(listbox).getByRole("option", { name: /BBB-222/ }),
+      );
+
+      const mileageInput = await screen.findByLabelText(
+        /Kilometraje \(odómetro de esta unidad\)/,
+      );
+      await user.clear(mileageInput);
+
+      await user.click(screen.getByRole("button", { name: copy.saveButton }));
+
+      await waitFor(() => {
+        expect(
+          screen.getAllByText(copy.errors.incomingOdometerRequired).length,
+        ).toBeGreaterThanOrEqual(1);
+      });
+      expect(mockMutate).not.toHaveBeenCalled();
     });
   });
 });
