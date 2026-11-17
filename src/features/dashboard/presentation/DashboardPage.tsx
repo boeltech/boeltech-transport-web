@@ -1,6 +1,6 @@
 /**
- * DashboardPage — F1: encabezado I12 + zona «Lo que te toca».
- * Widgets legacy / Personalizar completo → F3. Viajes de hoy / Disponibles → F2.
+ * DashboardPage — F1 encabezado + Lo que te toca; F2 Viajes de hoy + Disponibles ahora.
+ * Widgets legacy / Personalizar completo → F3.
  */
 
 import { useMemo, useState } from "react";
@@ -37,6 +37,8 @@ import type { FinancialTrendMonths } from "./components";
 import { DashboardActivationChecklist } from "./components/DashboardActivationChecklist";
 import { DashboardAttentionZone } from "./components/DashboardAttentionZone";
 import { DashboardCustomizePanel } from "./components/DashboardCustomizePanel";
+import { DashboardFleetAvailabilityZone } from "./components/DashboardFleetAvailabilityZone";
+import { DashboardOpsDayZone } from "./components/DashboardOpsDayZone";
 import { getWidgetRegistryEntry } from "./widgets/registry";
 import type { DashboardWidgetContext, TripsDayRange } from "./widgets/types";
 import { dashboardCopy } from "./copy/dashboardCopy";
@@ -245,6 +247,9 @@ function DashboardPage() {
   ];
 
   const isStaff = !isPortal;
+  /** I4/I5: ops zones — trips.read, no portal, no contador (PRD). */
+  const showOpsDayZones =
+    isStaff && canReadTrips && user?.role !== ROLES.ACCOUNTANT;
   const firstName = user?.firstName?.trim() || null;
   const greetingTitle =
     isStaff && activationGuideVisible && firstName
@@ -333,14 +338,31 @@ function DashboardPage() {
               />
             </section>
             {!activationGuideVisible ? (
-              <DashboardAttentionZone
-                role={user?.role}
-                rows={attentionRows}
-                isLoading={attentionLoading}
-              />
+              <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:items-start">
+                <div
+                  className={
+                    showOpsDayZones
+                      ? "min-w-0 lg:col-span-8"
+                      : "min-w-0 lg:col-span-12"
+                  }
+                >
+                  <DashboardAttentionZone
+                    role={user?.role}
+                    rows={attentionRows}
+                    isLoading={attentionLoading}
+                  />
+                </div>
+                {showOpsDayZones ? (
+                  <div className="min-w-0 lg:col-span-4">
+                    <DashboardFleetAvailabilityZone />
+                  </div>
+                ) : null}
+              </div>
             ) : null}
           </>
         ) : null}
+
+        {showOpsDayZones ? <DashboardOpsDayZone role={user?.role} /> : null}
 
         {isError ? (
           <DetailAlertCard

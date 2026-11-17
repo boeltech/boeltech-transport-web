@@ -260,9 +260,62 @@ export class TripRepository implements ITripRepository {
           departure_late: number;
           arrival_late: number;
         };
+        items?: Array<{
+          id: string;
+          trip_code: string;
+          origin_city: string;
+          destination_city: string;
+          status: string;
+          scheduled_departure: string | null;
+          scheduled_arrival: string | null;
+          actual_departure: string | null;
+          actual_arrival: string | null;
+          delay_kind: "departure" | "arrival" | null;
+          delay_ms: number | null;
+          driver_full_name: string | null;
+          vehicle_unit_number: string | null;
+        }>;
+        next_trip?: {
+          id: string;
+          trip_code: string;
+          origin_city: string;
+          destination_city: string;
+          status: string;
+          scheduled_departure: string | null;
+          scheduled_arrival: string | null;
+          actual_departure: string | null;
+          actual_arrival: string | null;
+          delay_kind: "departure" | "arrival" | null;
+          delay_ms: number | null;
+          driver_full_name: string | null;
+          vehicle_unit_number: string | null;
+        };
       };
     }>(`${TRIPS_ENDPOINT}/ops-day-summary`);
     const data = response.data;
+    const mapItem = (
+      row: NonNullable<typeof data.items>[number],
+    ): TripOpsDaySummary["items"][number] => ({
+      id: row.id,
+      tripCode: row.trip_code,
+      originCity: row.origin_city ?? "",
+      destinationCity: row.destination_city ?? "",
+      status: row.status,
+      scheduledDeparture: row.scheduled_departure,
+      scheduledArrival: row.scheduled_arrival,
+      actualDeparture: row.actual_departure,
+      actualArrival: row.actual_arrival,
+      delayKind:
+        row.delay_kind === "departure" || row.delay_kind === "arrival"
+          ? row.delay_kind
+          : null,
+      delayMs:
+        typeof row.delay_ms === "number" && Number.isFinite(row.delay_ms)
+          ? Math.max(0, row.delay_ms)
+          : null,
+      driverFullName: row.driver_full_name,
+      vehicleUnitNumber: row.vehicle_unit_number,
+    });
     return {
       counts: {
         departing: data.counts.departing,
@@ -274,6 +327,8 @@ export class TripRepository implements ITripRepository {
         departureLate: data.overdue_breakdown.departure_late,
         arrivalLate: data.overdue_breakdown.arrival_late,
       },
+      items: (data.items ?? []).map(mapItem),
+      ...(data.next_trip ? { nextTrip: mapItem(data.next_trip) } : {}),
     };
   }
 

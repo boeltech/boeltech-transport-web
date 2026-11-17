@@ -158,6 +158,8 @@ export type {
   TripWorkbenchSummary,
   TripInvoiceableSummary,
   TripOpsDaySummary,
+  TripOpsDayItem,
+  TripOpsDayDelayKind,
 } from "./entities";
 
 export { CFDI_EMISSION_INTENT_LABELS } from "./entities";

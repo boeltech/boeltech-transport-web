@@ -432,7 +432,7 @@ ADR-0090: `design/adr/0090-…` · ADR-0091: `design/adr/0091-…` · Hub SDD: `
 </HubPageShell>
 ```
 
-**Reglas:** cero dominio en el shell; sin slots = compat v1; `readiness` ≠ awareness de Workbench (configuración vs cola). Feature pasa `HubReadinessItem[]`. Anatomía: Header → Readiness? → Orientation? → Guide? → Nav? → Children → Related config?. Prop opcional `eyebrow` (`text-xs` muted) encima del h1 — Inicio F1. Colas «Lo que te toca»: `@shared/ui/pending-queue` (SoT §7 Fila de pendiente).
+**Reglas:** cero dominio en el shell; sin slots = compat v1; `readiness` ≠ awareness de Workbench (configuración vs cola). Feature pasa `HubReadinessItem[]`. Anatomía: Header → Readiness? → Orientation? → Guide? → Nav? → Children → Related config?. Prop opcional `eyebrow` (`text-xs` muted) encima del h1 — Inicio F1. Patrones de hub Inicio: `@shared/ui/pending-queue` (fila de pendiente F1) · `@shared/ui/filter-count-strip` (franja de conteos F2) · `@shared/ui/stacked-availability` (barra apilada F2) — SoT `platforms/web/design.md` §7.
 
 ### `ListPageShell` — props esenciales
 

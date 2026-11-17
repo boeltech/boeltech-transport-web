@@ -163,6 +163,62 @@ export const dashboardCopy = {
     draftBreakdown: "Les falta ruta, carga o tarifa para programar",
     helloGreeting: (name: string) => `Hola, ${name}`,
   },
+  /** I4 — Viajes de hoy (ops-day-summary). */
+  opsDay: {
+    title: "Viajes de hoy",
+    subtitle: {
+      manager: "Los que salen, viajan o llegan hoy. Con retraso primero.",
+      dispatcher:
+        "Los que salen, viajan o llegan hoy en tu sucursal. Con retraso primero.",
+      default: "Los que salen, viajan o llegan hoy. Con retraso primero.",
+    },
+    strip: {
+      departing: "Por salir",
+      inProgress: "En ruta",
+      overdue: "Con retraso",
+      arrived: "Llegaron",
+      ariaLabel: "Conteos de viajes de hoy",
+    },
+    columns: {
+      trip: "Viaje",
+      route: "Ruta",
+      crew: "Operador · unidad",
+      status: "Estado",
+      hour: "Hora",
+    },
+    viewAll: (n: number) => `Ver los ${n} en Viajes ›`,
+    footer: (k: number, n: number) =>
+      `${k} de ${n} · con retraso y por salir primero`,
+    footerHint: "La fila abre el viaje. Cada conteo abre Viajes con ese filtro.",
+    empty: "No hay viajes para hoy",
+    nextTrip: (code: string, when: string) =>
+      `Próximo: ${code} · sale ${when}`,
+    nextTripCta: "Ver ›",
+    noDriver: "Sin operador",
+    errorTitle: "No se pudieron cargar los viajes de hoy.",
+    retry: "Reintentar",
+    tableAriaLabel: "Viajes de hoy",
+  },
+  /** I5 — Disponibles ahora (fleet-availability). */
+  fleetAvailability: {
+    title: "Disponibles ahora",
+    vehiclesFreeCaption: (total: number) =>
+      `de ${total} unidades libres`,
+    driversFreeCaption: (total: number) =>
+      `de ${total} operadores libres`,
+    vehiclesLink: "Unidades ›",
+    driversLink: "Operadores ›",
+    legend: {
+      free: "Libres",
+      onTrip: "En viaje",
+      inMaintenance: "En taller",
+      outOfService: "Baja temporal",
+      resting: "Descanso o permiso",
+    },
+    note: "«Libre» = activo y asignable hoy: sin viaje en ruta ni programado para hoy.",
+    errorTitle: "No se pudo cargar la disponibilidad.",
+    retry: "Reintentar",
+  },
   customize: {
     title: "Personalizar Inicio",
     description:

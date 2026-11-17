@@ -8,6 +8,7 @@ import type {
   DashboardAlert,
   DashboardData,
   DashboardStats,
+  FleetAvailabilityData,
   RecentTrip,
 } from "../domain/types";
 
@@ -301,5 +302,28 @@ export function mapBranchKpisTrend(raw: Record<string, unknown>) {
               },
       };
     }),
+  };
+}
+
+/** GET /dashboard/fleet-availability → camelCase UI. */
+export function mapFleetAvailability(
+  raw: Record<string, unknown>,
+): FleetAvailabilityData {
+  const vehicles = (raw.vehicles ?? {}) as Record<string, unknown>;
+  const drivers = (raw.drivers ?? {}) as Record<string, unknown>;
+  return {
+    vehicles: {
+      totalActive: asNumber(vehicles.total_active),
+      free: asNumber(vehicles.free),
+      onTrip: asNumber(vehicles.on_trip),
+      inMaintenance: asNumber(vehicles.in_maintenance),
+      outOfService: asNumber(vehicles.out_of_service),
+    },
+    drivers: {
+      totalActive: asNumber(drivers.total_active),
+      free: asNumber(drivers.free),
+      onTrip: asNumber(drivers.on_trip),
+      resting: asNumber(drivers.resting),
+    },
   };
 }

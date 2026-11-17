@@ -34,4 +34,6 @@ export const dashboardQueryKeys = {
       branchIds ?? [],
       includeUnassigned ?? false,
     ] as const,
+  fleetAvailability: () =>
+    [...dashboardQueryKeys.all, "fleet-availability"] as const,
 };

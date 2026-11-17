@@ -5,6 +5,7 @@ import type {
   BranchKpisPeriodValue,
   BranchKpisTrendData,
   FinancialTrendData,
+  FleetAvailabilityData,
   TripsByDayData,
 } from "../domain/types";
 import { DEFAULT_BRANCH_KPIS_PERIOD } from "../domain/types";
@@ -13,6 +14,7 @@ import {
   mapBranchKpis,
   mapBranchKpisTrend,
   mapFinancialTrend,
+  mapFleetAvailability,
   mapTripsByDay,
 } from "./mappers";
 
@@ -81,5 +83,12 @@ export const dashboardApi = {
       `/dashboard/branch-kpis/trend?${search.toString()}`,
     );
     return mapBranchKpisTrend(response.data as Record<string, unknown>);
+  },
+
+  getFleetAvailability: async (): Promise<FleetAvailabilityData> => {
+    const response = await apiClient.get<TripsByDayApiResponse>(
+      "/dashboard/fleet-availability",
+    );
+    return mapFleetAvailability(response.data as Record<string, unknown>);
   },
 };

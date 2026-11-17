@@ -309,6 +309,31 @@ export interface DemoSeedPurgeResult {
 }
 
 // ============================================
+// Fleet availability (GET /dashboard/fleet-availability)
+// ============================================
+
+/** Libre operativo DOM — no reusar stats.*.available. */
+export interface FleetAvailabilityVehicles {
+  readonly totalActive: number;
+  readonly free: number;
+  readonly onTrip: number;
+  readonly inMaintenance: number;
+  readonly outOfService: number;
+}
+
+export interface FleetAvailabilityDrivers {
+  readonly totalActive: number;
+  readonly free: number;
+  readonly onTrip: number;
+  readonly resting: number;
+}
+
+export interface FleetAvailabilityData {
+  readonly vehicles: FleetAvailabilityVehicles;
+  readonly drivers: FleetAvailabilityDrivers;
+}
+
+// ============================================
 // UI Constants
 // ============================================
 

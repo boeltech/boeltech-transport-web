@@ -58,6 +58,30 @@ vi.mock("../application/hooks/useDashboardAttention", () => ({
   }),
 }));
 
+vi.mock("@features/trips/application", () => ({
+  useTripOpsDaySummary: () => ({
+    data: {
+      counts: { departing: 0, inProgress: 0, overdue: 0, arrived: 0 },
+      overdueBreakdown: { departureLate: 0, arrivalLate: 0 },
+      items: [],
+    },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+    isFetching: false,
+  }),
+}));
+
+vi.mock("../application/hooks/useFleetAvailability", () => ({
+  useFleetAvailability: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+    isFetching: false,
+  }),
+}));
+
 vi.mock("@features/approvals/application", () => ({
   useApprovalsPendingCountsByType: () => ({
     data: undefined,
@@ -191,6 +215,31 @@ describe("DashboardPage — F1 encabezado I12", () => {
     expect(
       screen.queryByRole("button", {
         name: dashboardCopy.page.orientationDismiss,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("gerente ve Viajes de hoy y Disponibles ahora", () => {
+    renderDashboard("manager");
+    expect(
+      screen.getByRole("heading", { name: dashboardCopy.opsDay.title }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: dashboardCopy.fleetAvailability.title,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("contador no ve Viajes de hoy ni Disponibles ahora", () => {
+    mockCanReadTrips.mockReturnValue(true);
+    renderDashboard("accountant");
+    expect(
+      screen.queryByRole("heading", { name: dashboardCopy.opsDay.title }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: dashboardCopy.fleetAvailability.title,
       }),
     ).not.toBeInTheDocument();
   });

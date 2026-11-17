@@ -887,6 +887,26 @@ export interface TripInvoiceableSummary {
   readonly readyAmount: number;
 }
 
+/** Retraso D33 en ítem de ops-day (salida no realizada o llegada tarde). */
+export type TripOpsDayDelayKind = "departure" | "arrival";
+
+/** Ítem de GET /trips/ops-day-summary (≤6; orden retraso → por salir → en ruta → llegaron). */
+export interface TripOpsDayItem {
+  readonly id: string;
+  readonly tripCode: string;
+  readonly originCity: string;
+  readonly destinationCity: string;
+  readonly status: string;
+  readonly scheduledDeparture: string | null;
+  readonly scheduledArrival: string | null;
+  readonly actualDeparture: string | null;
+  readonly actualArrival: string | null;
+  readonly delayKind: TripOpsDayDelayKind | null;
+  readonly delayMs: number | null;
+  readonly driverFullName: string | null;
+  readonly vehicleUnitNumber: string | null;
+}
+
 /** GET /trips/ops-day-summary — Viajes de hoy + desglose retraso (F0b / F1–F2). */
 export interface TripOpsDaySummary {
   readonly counts: {
@@ -899,4 +919,6 @@ export interface TripOpsDaySummary {
     departureLate: number;
     arrivalLate: number;
   };
+  readonly items: readonly TripOpsDayItem[];
+  readonly nextTrip?: TripOpsDayItem;
 }
