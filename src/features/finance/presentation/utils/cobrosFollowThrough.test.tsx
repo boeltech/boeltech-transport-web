@@ -3,10 +3,14 @@ import type { FinanceInvoiceListItem, FinancePayment } from "@features/finance/d
 import {
   appendCobrosTodayEntry,
   buildCobrosFollowThrough,
+  buildWithoutInvoiceCobrosTodayEntry,
   clearCobrosTodayTray,
+  clearCobrosTodayTrayChannel,
   COBROS_FOLLOW_THROUGH_ABSENCE_GRACE_MS,
   COBROS_FOLLOW_THROUGH_STORAGE_KEY,
   COBROS_TODAY_TRAY_STORAGE_KEY,
+  isWithInvoiceTrayEntry,
+  isWithoutInvoiceTrayEntry,
   parseCobrosFollowThrough,
   readCobrosTodayTray,
   shouldClearCobrosFollowThrough,
@@ -90,6 +94,23 @@ describe("parseCobrosFollowThrough", () => {
       }),
     ).toBeNull();
   });
+
+  it("accepts without_invoice entries with empty invoices and batchId", () => {
+    const parsed = parseCobrosFollowThrough({
+      paymentId: "batch-1",
+      batchId: "batch-1",
+      channel: "without_invoice",
+      receiverRfc: "XAXX010101000",
+      amount: 500,
+      paymentDate: "2026-11-16",
+      repStatus: "registered",
+      invoices: [],
+      recordedAt: "2026-11-16T12:00:00.000Z",
+    });
+    expect(parsed?.channel).toBe("without_invoice");
+    expect(parsed?.batchId).toBe("batch-1");
+    expect(parsed?.invoices).toEqual([]);
+  });
 });
 
 describe("buildCobrosFollowThrough", () => {
@@ -110,7 +131,53 @@ describe("buildCobrosFollowThrough", () => {
     expect(followThrough.invoices).toEqual([
       { id: "inv-1", serie: "A", folio: 10, amount: 1160 },
     ]);
+    expect(followThrough.channel).toBe("with_invoice");
     expect(followThrough.recordedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+});
+
+describe("buildWithoutInvoiceCobrosTodayEntry", () => {
+  it("builds a channel entry keyed by batchId", () => {
+    const entry = buildWithoutInvoiceCobrosTodayEntry(
+      {
+        id: "batch-9",
+        amount: 2500,
+        collectedAt: "2026-11-16T18:30:00.000Z",
+        clientName: "Cliente Lote",
+      },
+      "xaxx010101000",
+    );
+    expect(entry.channel).toBe("without_invoice");
+    expect(entry.batchId).toBe("batch-9");
+    expect(entry.paymentId).toBe("batch-9");
+    expect(entry.receiverRfc).toBe("XAXX010101000");
+    expect(entry.paymentDate).toBe("2026-11-16");
+    expect(entry.invoices).toEqual([]);
+    expect(isWithoutInvoiceTrayEntry(entry)).toBe(true);
+    expect(isWithInvoiceTrayEntry(entry)).toBe(false);
+  });
+});
+
+describe("clearCobrosTodayTrayChannel", () => {
+  afterEach(() => {
+    sessionStorage.removeItem(COBROS_TODAY_TRAY_STORAGE_KEY);
+    sessionStorage.removeItem(COBROS_FOLLOW_THROUGH_STORAGE_KEY);
+  });
+
+  it("clears one channel without wiping the other", () => {
+    const withoutInvoice = buildWithoutInvoiceCobrosTodayEntry(
+      {
+        id: "batch-1",
+        amount: 100,
+        collectedAt: "2026-11-16T12:00:00.000Z",
+        clientName: null,
+      },
+      "XAXX010101000",
+    );
+    writeCobrosTodayTray([withoutInvoice, baseEntry]);
+    const remaining = clearCobrosTodayTrayChannel("without_invoice");
+    expect(remaining.map((e) => e.paymentId)).toEqual(["pay-1"]);
+    expect(readCobrosTodayTray().map((e) => e.paymentId)).toEqual(["pay-1"]);
   });
 });
 

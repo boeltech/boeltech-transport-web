@@ -4,7 +4,7 @@
  * `EntityListTable` density list, kinds T1–T10 standard.
  * Columnas: Cobro (fecha) · Cliente · Importe · Facturas · Comprobante (estado+motivo) · Plazo SAT · acción.
  * Una sola acción primaria por fila según helpers vigentes.
- * La fila abre el detalle del cobro (stub hasta F3).
+ * La fila abre el detalle del cobro (F3).
  */
 
 import { useMemo, useState } from "react";
@@ -15,6 +15,7 @@ import {
   useRetryFinanceRepStamp,
 } from "@features/finance/application";
 import type {
+  CollectionDetailTarget,
   FinanceRepDeadlineStatus,
   FinanceRepExceptionItem,
   FinanceRepExceptionStatus,
@@ -41,6 +42,7 @@ import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { financeCopy } from "../copy";
 import { toInvoiceNavTargets } from "../utils/cobrosInvoiceNav";
 import { CobrosInvoiceFolioChips } from "./CobrosInvoiceNav";
+import { CollectionDetailSheet } from "./CollectionDetailSheet";
 
 const copy = financeCopy.cobros.exceptions;
 const PAGE_SIZE = 10;
@@ -270,6 +272,8 @@ export function FinanceRepExceptionsSection({
 }: FinanceRepExceptionsSectionProps) {
   const { toast } = useToast();
   const [page, setPage] = useState(1);
+  const [collectionTarget, setCollectionTarget] =
+    useState<CollectionDetailTarget | null>(null);
   const { data, isLoading, isError, refetch } = useRepExceptions({
     page,
     limit: PAGE_SIZE,
@@ -355,6 +359,12 @@ export function FinanceRepExceptionsSection({
             rows={items}
             getRowId={(item) => item.paymentId}
             isLoading={isLoading}
+            onRowActivate={(item) =>
+              setCollectionTarget({
+                kind: "payment",
+                paymentId: item.paymentId,
+              })
+            }
           />
           {pagination && pagination.totalPages > 1 ? (
             <ListingPagination
@@ -365,6 +375,15 @@ export function FinanceRepExceptionsSection({
           ) : null}
         </>
       ) : null}
+
+      <CollectionDetailSheet
+        target={collectionTarget}
+        open={collectionTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setCollectionTarget(null);
+        }}
+        onNavigateTarget={setCollectionTarget}
+      />
     </div>
   );
 }

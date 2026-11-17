@@ -1,7 +1,11 @@
 export { FinanceCycleStepper } from "./FinanceCycleStepper";
 export { FinancePulseCards } from "./FinancePulseCards";
+export { FinanceReceivableKpis } from "./FinanceReceivableKpis";
+export { FinanceMonthPanel } from "./FinanceMonthPanel";
 export { FinanceSummaryCards } from "./FinanceSummaryCards";
 export { FinanceAccountStatementSection } from "./FinanceAccountStatementSection";
+export { AccountStatementSheet } from "./AccountStatementSheet";
+/** @deprecated Relación retirada de Operate (F5); endpoint API intacto. */
 export { PendingRelationSheet } from "./PendingRelationSheet";
 export { FinanceAgingChart } from "./FinanceAgingChart";
 export { ExpenseAnalysisCharts } from "./ExpenseAnalysisCharts";
@@ -37,6 +41,8 @@ export { DispatchRunConfirmSheet } from "./DispatchRunConfirmSheet";
 export { FinanceCobrosInvoiceTable } from "./FinanceCobrosInvoiceTable";
 export { OperationalCashPendingTable } from "./OperationalCashPendingTable";
 export { OperationalReceiptBatchSheet } from "./OperationalReceiptBatchSheet";
+export { CollectionDetailSheet } from "./CollectionDetailSheet";
+export type { CollectionDetailSheetProps } from "./CollectionDetailSheet";
 export { ClientOperationalReceiptBatchesSheet } from "./ClientOperationalReceiptBatchesSheet";
 export {
   DispatchRunClientReceipts,

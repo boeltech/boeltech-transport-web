@@ -262,15 +262,15 @@ describe("InvoiceActions register payment visibility", () => {
     mockUseTrip.mockReturnValue({ data: undefined });
   });
 
-  it("shows Registrar pago for stamped PUE with pending balance", () => {
+  it("shows Registrar cobro for stamped PUE with pending balance", () => {
     renderActions(buildInvoice());
 
     expect(
-      screen.getByRole("button", { name: /Registrar pago/i }),
+      screen.getByRole("button", { name: /Registrar cobro/i }),
     ).toBeInTheDocument();
   });
 
-  it("hides Registrar pago for stamped PUE when fully paid", () => {
+  it("hides Registrar cobro for stamped PUE when fully paid", () => {
     renderActions(
       buildInvoice({
         totalPaid: 1160,
@@ -279,11 +279,11 @@ describe("InvoiceActions register payment visibility", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: /Registrar pago/i }),
+      screen.queryByRole("button", { name: /Registrar cobro/i }),
     ).not.toBeInTheDocument();
   });
 
-  it("shows Registrar pago for stamped PPD with balance when execute", () => {
+  it("shows Registrar cobro for stamped PPD with balance when execute", () => {
     renderActions(
       buildInvoice({
         paymentMethod: "PPD",
@@ -293,11 +293,11 @@ describe("InvoiceActions register payment visibility", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: /Registrar pago/i }),
+      screen.getByRole("button", { name: /Registrar cobro/i }),
     ).toBeInTheDocument();
   });
 
-  it("hides Registrar pago when only create (not execute)", () => {
+  it("hides Registrar cobro when only create (not execute)", () => {
     mockHasPermission.mockImplementation(
       (_module: string, action: string) => action === "create",
     );
@@ -311,11 +311,11 @@ describe("InvoiceActions register payment visibility", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: /Registrar pago/i }),
+      screen.queryByRole("button", { name: /Registrar cobro/i }),
     ).not.toBeInTheDocument();
   });
 
-  it("hides Registrar pago for stamped PPD without balance", () => {
+  it("hides Registrar cobro for stamped PPD without balance", () => {
     renderActions(
       buildInvoice({
         paymentMethod: "PPD",
@@ -325,7 +325,7 @@ describe("InvoiceActions register payment visibility", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: /Registrar pago/i }),
+      screen.queryByRole("button", { name: /Registrar cobro/i }),
     ).not.toBeInTheDocument();
   });
 });

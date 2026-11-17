@@ -1,12 +1,14 @@
 /**
- * Tab Cobro (Sin factura) — Q11 puente · D14/D15.
- * Tabla «Cobros de este viaje»; Anular solo sin batchId; Ver cobro abre lote.
+ * Tab Cobro (Sin factura) — Q11 / Q24 puente F3.
+ * Tabla «Cobros de este viaje»; Ver cobro en todas las filas → hoja Cobro;
+ * Anular solo en la hoja (no en fila).
  */
 
 import { useMemo, useState } from "react";
 import { AlertCircle } from "lucide-react";
 
-import { OperationalReceiptBatchSheet } from "@features/finance/presentation/components";
+import { CollectionDetailSheet } from "@features/finance/presentation/components";
+import type { CollectionDetailTarget } from "@features/finance/domain";
 import { OPERATIONAL_PAYMENT_INSTRUMENT_LABELS } from "@features/finance/domain";
 import { useOperationalCashReceipts } from "@features/trips/application";
 import {
@@ -35,7 +37,6 @@ import {
   operationalCashStatusBadgeVariant,
   operationalCashStatusLabel,
 } from "../../utils/operationalCashUi";
-import { VoidOperationalCashReceiptSheet } from "../trip-costs/VoidOperationalCashReceiptSheet";
 import { buildOperationalCashBalanceRows } from "./buildOperationalCashBalanceRows";
 
 const copy = billingCopy.sinCfdi;
@@ -64,7 +65,6 @@ export function TripSinCfdiCobroPanel({
   settlementException,
 }: TripSinCfdiCobroPanelProps) {
   const { hasPermission } = usePermissions();
-  const canVoid = hasPermission("operational_cash", "void");
   const canCreate = hasPermission("operational_cash", "create");
 
   const cashSummary = resolveOperationalCashSummary(
@@ -80,10 +80,8 @@ export function TripSinCfdiCobroPanel({
     refetch,
   } = useOperationalCashReceipts(tripId, { includeVoided: true });
 
-  const [voidReceipt, setVoidReceipt] = useState<OperationalCashReceipt | null>(
-    null,
-  );
-  const [batchSheetId, setBatchSheetId] = useState<string | null>(null);
+  const [collectionTarget, setCollectionTarget] =
+    useState<CollectionDetailTarget | null>(null);
 
   const balanceRows = useMemo(
     () => buildOperationalCashBalanceRows(receipts, cashSummary.baseRate),
@@ -196,34 +194,23 @@ export function TripSinCfdiCobroPanel({
         accessor: (row) => {
           const { receipt } = row;
           if (receipt.voidedAt != null) return null;
-          if (receipt.batchId) {
-            return (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setBatchSheetId(receipt.batchId)}
-              >
-                {copy.viewCobro}
-              </Button>
-            );
-          }
-          if (!canVoid) return null;
+          const target: CollectionDetailTarget = receipt.batchId
+            ? { kind: "batch", batchId: receipt.batchId }
+            : { kind: "receipt", receiptId: receipt.id };
           return (
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="text-destructive"
-              onClick={() => setVoidReceipt(receipt)}
+              onClick={() => setCollectionTarget(target)}
             >
-              {copy.voidCta}
+              {copy.viewCobro}
             </Button>
           );
         },
       },
     ],
-    [canVoid],
+    [],
   );
 
   const progressPct =
@@ -405,22 +392,13 @@ export function TripSinCfdiCobroPanel({
         </Card>
       </aside>
 
-      {canVoid ? (
-        <VoidOperationalCashReceiptSheet
-          tripId={tripId}
-          receipt={voidReceipt}
-          open={voidReceipt != null}
-          onOpenChange={(open) => {
-            if (!open) setVoidReceipt(null);
-          }}
-        />
-      ) : null}
-      <OperationalReceiptBatchSheet
-        batchId={batchSheetId}
-        open={batchSheetId != null}
+      <CollectionDetailSheet
+        target={collectionTarget}
+        open={collectionTarget != null}
         onOpenChange={(open) => {
-          if (!open) setBatchSheetId(null);
+          if (!open) setCollectionTarget(null);
         }}
+        onNavigateTarget={setCollectionTarget}
       />
     </div>
   );

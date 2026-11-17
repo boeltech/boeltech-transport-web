@@ -30,19 +30,20 @@ import {
 } from "@features/finance/domain";
 import type { TripStatusType } from "@features/trips/domain";
 import { TripStatusBadge } from "@features/trips/presentation";
-import { financeCopy, operationalReceiptBatchCopy } from "../copy";
+import type { CollectionDetailTarget } from "@features/finance/domain";
+import { financeCopy, operationalReceiptBatchCopy, collectionDetailCopy } from "../copy";
 import {
   operationalCashClientKey,
   type OperationalCashPendingClientGroup,
 } from "../utils/groupOperationalCashPending";
-import { OperationalReceiptBatchSheet } from "./OperationalReceiptBatchSheet";
+import { CollectionDetailSheet } from "./CollectionDetailSheet";
 
 const copy = financeCopy.efectivoPorCobrar;
 const trayCopy = operationalReceiptBatchCopy.tray;
 
 function collectedSecondary(
   trip: OperationalCashPendingTrip,
-  setBatchId: (id: string) => void,
+  openCollection: (target: CollectionDetailTarget) => void,
 ): ReactNode {
   if (trip.operationalCash.collectedTotal <= 0) return copy.noReceipts;
   const receipt = trip.lastActiveReceipt;
@@ -60,10 +61,12 @@ function collectedSecondary(
             type="button"
             className="rounded-sm text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => {
-              if (receipt.batchId) setBatchId(receipt.batchId);
+              if (receipt.batchId) {
+                openCollection({ kind: "batch", batchId: receipt.batchId });
+              }
             }}
           >
-            {trayCopy.batchLink}
+            {collectionDetailCopy.viewCobro}
           </button>
         </>
       ) : null}
@@ -72,7 +75,7 @@ function collectedSecondary(
 }
 
 function buildColumns(
-  setBatchId: (id: string) => void,
+  openCollection: (target: CollectionDetailTarget) => void,
 ): EntityListColumnDef<OperationalCashPendingTrip>[] {
   return [
     {
@@ -114,7 +117,7 @@ function buildColumns(
             {formatMxCurrency(trip.operationalCash.collectedTotal)}
           </span>
         ),
-        secondary: collectedSecondary(trip, setBatchId),
+        secondary: collectedSecondary(trip, openCollection),
       }),
     },
     {
@@ -158,13 +161,11 @@ export function OperationalCashPendingTable({
   const { hasPermission } = usePermissions();
   const canCreateBatch = hasPermission("operational_cash", "create");
   const fromState = useListQueueFromState();
-  const [batchId, setBatchId] = useState<string | null>(null);
+  const [collectionTarget, setCollectionTarget] =
+    useState<CollectionDetailTarget | null>(null);
 
   const columns = useMemo(
-    () =>
-      buildColumns((id) => {
-        setBatchId(id);
-      }),
+    () => buildColumns(setCollectionTarget),
     [],
   );
 
@@ -219,12 +220,13 @@ export function OperationalCashPendingTable({
         getGroupKey={getGroupKey}
         renderGroupHeader={renderGroupHeader}
       />
-      <OperationalReceiptBatchSheet
-        batchId={batchId}
-        open={Boolean(batchId)}
+      <CollectionDetailSheet
+        target={collectionTarget}
+        open={collectionTarget != null}
         onOpenChange={(open) => {
-          if (!open) setBatchId(null);
+          if (!open) setCollectionTarget(null);
         }}
+        onNavigateTarget={setCollectionTarget}
       />
     </>
   );

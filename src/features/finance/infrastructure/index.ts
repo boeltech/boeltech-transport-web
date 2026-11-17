@@ -1,6 +1,8 @@
 export {
   financeApi,
   buildAccountStatementPdfFileName,
+  buildAccountStatementCsvFileName,
+  type AccountStatementDownloadOptions,
 } from "./financeApi";
 export { financeInvoicesListApi } from "./invoicesListApi";
 export { financePaymentsApi } from "./financePaymentsApi";

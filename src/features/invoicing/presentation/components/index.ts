@@ -21,6 +21,7 @@ export { CopyableUuidSubtitle } from "./CopyableUuidSubtitle";
 export { InvoiceDetailHeaderSubtitle } from "./InvoiceDetailHeaderSubtitle";
 export { buildInvoiceStats } from "./InvoiceDetailStats";
 export { InvoicePaymentRepRow } from "./InvoicePaymentRepRow";
+export { InvoiceCobrosSection } from "./InvoiceCobrosSection";
 export { InvoiceDetailContextStrip } from "./InvoiceDetailContextStrip";
 export {
   InvoiceBillingScopeBadge,

@@ -1,4 +1,14 @@
 export type {
+  CollectionChannel,
+  CollectionDetailTarget,
+  CollectionComprobante,
+  CollectionComprobanteEmits,
+  CollectionComprobanteSilent,
+  PaymentCollectionAllocation,
+  PaymentCollectionDetail,
+  ReceiptCollectionDetail,
+} from "./collectionDetail";
+export type {
   OperationalCashPendingTrip,
   OperationalCashPendingByClient,
   OperationalCashPendingTotals,
@@ -6,6 +16,7 @@ export type {
   OperationalCashPendingQueryParams,
   OperationalCashPendingTripStatus,
   OperationalCashPendingLastReceipt,
+  OperationalCashCobrosBucket,
 } from "./operationalCashPending";
 export {
   FINANCE_EFECTIVO_CLIENT_ID_PARAM,
@@ -34,6 +45,7 @@ export type {
   ProfitabilityDimension,
   MarginBasis,
   FinanceSummary,
+  ChannelMoneySnapshot,
   AccountStatementItem,
   PendingRelationCount,
   PendingRelationFileFormat,
@@ -41,6 +53,9 @@ export type {
   ProfitabilityTripsResponse,
   ProfitabilityAggregateItem,
   AgingBucket,
+  OperationalAgingBucket,
+  AgingBucketTotals,
+  DsoByChannel,
   AgingSummary,
   AgingByClientItem,
   AgingClientInvoiceItem,

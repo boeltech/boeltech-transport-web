@@ -73,10 +73,15 @@ export interface OperationalCashPendingResult {
   pagination: OperationalCashPendingPagination;
 }
 
+/** Q5 / F0b — filtro de buckets Workbench (open = sin abono; partial = con abono). */
+export type OperationalCashCobrosBucket = "open" | "partial";
+
 export interface OperationalCashPendingQueryParams {
   clientId?: string | null;
   page?: number;
   limit?: number;
+  /** `cobros_bucket` en API; ausente = universo completo. */
+  cobrosBucket?: OperationalCashCobrosBucket | null;
 }
 
 /** Query param deep-link desde card cliente (F3). */

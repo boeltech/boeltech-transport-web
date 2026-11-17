@@ -51,6 +51,7 @@ vi.mock("@features/finance/application", async (importOriginal) => {
     useOperationalCashPending: (params: {
       page?: number;
       clientId?: string | null;
+      cobrosBucket?: string | null;
     }) => listMock(params),
   };
 });
@@ -171,17 +172,47 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     expect(groupRows[1]).toHaveTextContent("Cliente Beta");
   });
 
+  it("wires cobros_bucket open by default and shows amount on both buckets", () => {
+    renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
+      route: ["/finance/operational-cash-pending"],
+    });
+
+    expect(listMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cobrosBucket: "open" }),
+    );
+    expect(listMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cobrosBucket: "partial", limit: 1 }),
+    );
+    expect(screen.getByText("Por cobrar")).toBeInTheDocument();
+    expect(screen.getByText("Con abono parcial")).toBeInTheDocument();
+  });
+
   it("passes clientId from query to the hook", () => {
     renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
       route: ["/finance/operational-cash-pending?clientId=client-a"],
     });
 
     expect(listMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientId: "client-a" }),
+      expect.objectContaining({ clientId: "client-a", cobrosBucket: "open" }),
     );
     expect(
       screen.getByText(copy.clientChip("Cliente Alpha")),
     ).toBeInTheDocument();
+  });
+
+  it("activates partial bucket on click", async () => {
+    const user = userEvent.setup();
+    renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
+      route: ["/finance/operational-cash-pending"],
+    });
+
+    await user.click(
+      screen.getByRole("tab", { name: /Con abono parcial/i }),
+    );
+
+    expect(listMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cobrosBucket: "partial" }),
+    );
   });
 
   it("shows empty state when no trips", () => {

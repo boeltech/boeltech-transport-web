@@ -37,7 +37,8 @@ import {
 import { useHelpEmptySupport } from "@features/help-center";
 import { financeCopy } from "../copy";
 import {
-  clearCobrosTodayTray,
+  clearCobrosTodayTrayChannel,
+  isWithInvoiceTrayEntry,
   readCobrosTodayTray,
   removeCobrosTodayEntry,
   writeCobrosTodayTray,
@@ -165,7 +166,7 @@ export function FinanceCobrosPage() {
     : DEFAULT_COBROS_BUCKET;
 
   const [todayTray, setTodayTray] = useState<CobrosTodayEntry[]>(() =>
-    readCobrosTodayTray(),
+    readCobrosTodayTray().filter(isWithInvoiceTrayEntry),
   );
 
   const handleBucketChange = useCallback(
@@ -187,25 +188,25 @@ export function FinanceCobrosPage() {
   );
 
   const handleDismissTray = useCallback(() => {
-    clearCobrosTodayTray();
+    clearCobrosTodayTrayChannel("with_invoice");
     setTodayTray([]);
   }, []);
 
   const handleDismissEntry = useCallback((paymentId: string) => {
-    setTodayTray((prev) => removeCobrosTodayEntry(prev, paymentId));
+    const next = removeCobrosTodayEntry(readCobrosTodayTray(), paymentId);
+    setTodayTray(next.filter(isWithInvoiceTrayEntry));
   }, []);
 
   const handleEntryLiveUpdate = useCallback(
     (paymentId: string, live: { repStatus: string }) => {
-      setTodayTray((prev) => {
-        const idx = prev.findIndex((e) => e.paymentId === paymentId);
-        if (idx < 0) return prev;
-        if (prev[idx].repStatus === live.repStatus) return prev;
-        const next = [...prev];
-        next[idx] = { ...next[idx], repStatus: live.repStatus };
-        writeCobrosTodayTray(next);
-        return next;
-      });
+      const full = readCobrosTodayTray();
+      const idx = full.findIndex((e) => e.paymentId === paymentId);
+      if (idx < 0) return;
+      if (full[idx].repStatus === live.repStatus) return;
+      const next = [...full];
+      next[idx] = { ...next[idx], repStatus: live.repStatus };
+      writeCobrosTodayTray(next);
+      setTodayTray(next.filter(isWithInvoiceTrayEntry));
     },
     [],
   );

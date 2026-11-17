@@ -98,13 +98,13 @@ export const operationalReceiptBatchCopy = {
     voidError: "No se pudo anular el lote",
   },
   sheet: {
-    title: "Cobro por lote",
+    title: "Cobro",
     close: "Cerrar",
-    voidCta: "Anular lote",
+    voidCta: "Anular cobro",
     voidConfirm: (n: number) =>
-      `Se anularán los ${n} abonos de este lote y esos viajes vuelven a quedar con saldo por cobrar.`,
+      `Se anularán los ${n} abonos de este cobro y esos viajes vuelven a quedar con saldo por cobrar.`,
     voidSubmit: (n: number) =>
-      n === 1 ? "Anular lote y 1 abono" : `Anular lote y ${n} abonos`,
+      n === 1 ? "Anular cobro y 1 abono" : `Anular cobro y ${n} abonos`,
     voidBack: "Volver",
     voidReason: "Motivo de anulación",
     voidReasonPlaceholder: "Cheque devuelto, error de captura…",
@@ -114,9 +114,9 @@ export const operationalReceiptBatchCopy = {
       `Registrado por ${name} · ${date}`,
     statusActive: "Activo",
     statusVoided: "Anulado",
-    loadError: "No se pudo cargar el lote",
+    loadError: "No se pudo cargar el cobro",
     loadRetry: "Reintentar",
-    notFound: "Este lote no existe o no tienes acceso",
+    notFound: "Este cobro no existe o no tienes acceso",
     r1Blocked: (codes: string) =>
       `No se puede anular: ${codes} pasaron a Con factura y su cobro quedó congelado.`,
     columns: {
@@ -126,22 +126,22 @@ export const operationalReceiptBatchCopy = {
     },
   },
   listSheet: {
-    title: "Cobros por lote",
-    empty: "Este cliente aún no tiene cobros por lote.",
+    title: "Cobros",
+    empty: "Este cliente aún no tiene cobros sin factura.",
     openAria: (label: string) => `Abrir ${label}`,
   },
   card: {
-    registerBatchCta: "Registrar cobro por lote",
-    registerBatchAria: "Registrar cobro por lote de este cliente",
-    listBatchesCta: "Cobros por lote",
-    listBatchesAria: "Ver cobros por lote de este cliente",
+    registerBatchCta: "Registrar cobro",
+    registerBatchAria: "Registrar cobro de este cliente",
+    listBatchesCta: "Cobros",
+    listBatchesAria: "Ver cobros de este cliente",
   },
   tray: {
-    registerBatchCta: "Registrar cobro por lote",
+    registerBatchCta: "Registrar cobro",
     lastReceipt: (instrument: string, reference: string | null) =>
       reference
         ? `Último: ${instrument} · ref ${reference}`
         : `Último: ${instrument}`,
-    batchLink: "Lote",
+    batchLink: "Ver cobro",
   },
 } as const;

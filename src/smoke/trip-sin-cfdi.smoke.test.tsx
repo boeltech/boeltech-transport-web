@@ -3,7 +3,7 @@
  * Mock de API; no requiere backend.
  *
  * Flujo UI: intent sin_cfdi → oculta CTAs Facturar/false_trip/split →
- * tab Cobro (no Costos) con «Cobros de este viaje» → Registrar cobro (header/sheet) / Anular sin batch.
+ * tab Cobro (no Costos) con «Cobros de este viaje» → Registrar cobro (form) / Ver cobro (hoja; Anular solo ahí).
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { useState, type ReactNode } from "react";
@@ -88,6 +88,7 @@ vi.mock("@features/trips/presentation/components/trip-fleet-snapshot", () => ({
 
 vi.mock("@features/finance/presentation/components", () => ({
   OperationalReceiptBatchSheet: () => null,
+  CollectionDetailSheet: () => null,
 }));
 
 vi.mock("@features/invoicing/application", () => ({
@@ -419,8 +420,7 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("void: Anular sin batchId abre sheet (POST void)", async () => {
-    const user = userEvent.setup();
+  it("legacy sin batchId: Ver cobro en fila (Anular solo en hoja)", async () => {
     const active = makeReceipt();
     mockListOperationalCashReceipts.mockResolvedValue([active]);
 
@@ -434,35 +434,12 @@ describe("smoke ADR-0096 trip sin-cfdi efectivo", () => {
       },
     });
 
-    await user.click(
-      await screen.findByRole("button", { name: cashCopy.voidCta }),
-    );
-
-    const voidSheet = screen.getByRole("dialog");
     expect(
-      within(voidSheet).getByRole("heading", {
-        name: cashCopy.voidSheet.title,
-      }),
+      await screen.findByRole("button", { name: sinCfdiCopy.viewCobro }),
     ).toBeInTheDocument();
-
-    await user.type(
-      within(voidSheet).getByPlaceholderText(
-        cashCopy.voidSheet.reasonPlaceholder,
-      ),
-      "Error de captura",
-    );
-
-    const voidSubmit = voidSheet.querySelector<HTMLButtonElement>(
-      'button[type="submit"][form="void-operational-cash-form"]',
-    );
-    expect(voidSubmit).not.toBeNull();
-    await user.click(voidSubmit!);
-
-    expect(mockVoidOperationalCashReceipt).toHaveBeenCalledWith(
-      TRIP_ID,
-      active.id,
-      { reason: "Error de captura" },
-    );
+    expect(
+      screen.queryByRole("button", { name: cashCopy.voidCta }),
+    ).not.toBeInTheDocument();
   });
 
   it("post-void: fila Anulado sin acción; batch usa Ver cobro", async () => {
