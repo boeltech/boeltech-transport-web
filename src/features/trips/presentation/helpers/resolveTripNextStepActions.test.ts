@@ -21,6 +21,22 @@ describe("resolveTripNextStepActions", () => {
     });
   });
 
+  it("D57: draftRouteGap nombra el pendiente en la primaria", () => {
+    const plan = resolveTripNextStepActions({
+      status: TripStatus.DRAFT,
+      routeReady: false,
+      cargoReady: true,
+      draftRouteGap: "destination",
+      canUpdateTrip: true,
+      canInvoice: false,
+    });
+    expect(plan?.primary).toEqual({
+      id: "complete_route_cargo",
+      tab: "route",
+      routeGap: "destination",
+    });
+  });
+
   it("Reserva incompleta solo cargas: primaria tab cargo; secundaria Ir a Ruta", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.DRAFT,

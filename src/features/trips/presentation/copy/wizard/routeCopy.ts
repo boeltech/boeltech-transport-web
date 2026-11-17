@@ -236,6 +236,15 @@ export const routeCopy = {
       backToForm: "Volver al formulario",
       saving: "Guardando…",
     },
+    /** Q15 / D61 — create write-back (mismo gate clients.update). */
+    saveToClient: {
+      label: "Guardar en las direcciones del cliente",
+      disabledHint:
+        "Tu rol no puede crear direcciones del cliente. La parada se guarda solo en el viaje.",
+      createFailedTitle: "No se pudo crear la dirección del cliente",
+      createFailedBody:
+        "La parada no se guardó en el catálogo. Puedes reintentar o guardar solo en el viaje.",
+    },
     addressOrigin: {
       title: "Dirección guardada",
       description:

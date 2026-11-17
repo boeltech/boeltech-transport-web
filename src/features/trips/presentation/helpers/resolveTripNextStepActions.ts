@@ -27,12 +27,21 @@ export type TripNextStepActionId =
 
 export type TripNextStepTab = "route" | "cargo" | "tracking";
 
+/** D57 — hueco concreto de ruta para nombrar Qué sigue. */
+export type DraftRouteGapHint =
+  | "origin"
+  | "destination"
+  | "domicilio"
+  | "route";
+
 export type TripNextStepAction = {
   readonly id: TripNextStepActionId;
   /** Tab objetivo cuando la acción navega. */
   readonly tab?: TripNextStepTab;
   /** Factura a abrir (`open_draft`). */
   readonly invoiceId?: string;
+  /** D57 — refina copy de `complete_route_cargo` cuando tab=route. */
+  readonly routeGap?: DraftRouteGapHint;
 };
 
 export type TripNextStepPlan = {
@@ -45,6 +54,8 @@ export type ResolveTripNextStepActionsInput = {
   readonly status: TripStatusType;
   readonly routeReady: boolean;
   readonly cargoReady: boolean;
+  /** D57 — pendiente de ruta cuando `!routeReady`. */
+  readonly draftRouteGap?: DraftRouteGapHint | null;
   /** Puede mutar/completar reserva (trips.update). */
   readonly canUpdateTrip: boolean;
   /**
@@ -95,6 +106,7 @@ export function resolveTripNextStepActions(
     status,
     routeReady,
     cargoReady,
+    draftRouteGap = null,
     canUpdateTrip,
     canInvoice,
     requiresFiscalAttention = false,
@@ -109,6 +121,9 @@ export function resolveTripNextStepActions(
       const primary: TripNextStepAction = {
         id: "complete_route_cargo",
         tab: primaryTab,
+        ...(primaryTab === "route" && draftRouteGap
+          ? { routeGap: draftRouteGap }
+          : {}),
       };
       const secondaries: TripNextStepAction[] = [];
       if (!routeReady && !cargoReady) {

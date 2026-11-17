@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Flag, Lock, MapPin, Navigation, Plus } from "lucide-react";
 
+import type { LatLng } from "@shared/geolocation/contracts/geoPorts";
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -170,6 +171,10 @@ export interface TripRouteSlotCaptureProps {
   selectedLabel?: string | null;
   cityHint?: string | null;
   disabled?: boolean;
+  /** Q16 — bias de búsqueda (extremo opuesto / punto medio). */
+  proximity?: LatLng | null;
+  /** Cliente del viaje — prioriza resultados Del cliente. */
+  clientId?: string | null;
   onPick: (
     category: RouteStopCategory,
     item: AddressSearchListItem,
@@ -184,6 +189,8 @@ export function TripRouteSlotCapture({
   selectedLabel,
   cityHint,
   disabled,
+  proximity = null,
+  clientId = null,
   onPick,
   onCompleteLabel,
 }: TripRouteSlotCaptureProps) {
@@ -271,6 +278,8 @@ export function TripRouteSlotCapture({
         onChange={handleLocationChange}
         label={pickerLabel}
         disabled={disabled}
+        clientId={clientId}
+        proximity={proximity}
         ownerTypes={ownerTypesForRouteSlot(category)}
         filterItem={isAllowedRoutePickerItem}
       />

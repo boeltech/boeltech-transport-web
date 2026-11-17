@@ -190,37 +190,47 @@ vi.mock("@shared/ui/address-picker", () => ({
   ),
 }));
 
+function MockStopConfirmSheet(props: {
+  open: boolean;
+  keepBillingCollapsed?: boolean;
+  onSubmit: (data: StopFormData) => void;
+}) {
+  mocks.lastKeepBillingCollapsed = props.keepBillingCollapsed;
+  if (!props.open) return null;
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        props.onSubmit({
+          stopType: ["origin", "pickup"],
+          locationName: "Bodega Norte",
+          cityName: "Monterrey",
+          satStateCode: "NLE",
+          postalCode: "64000",
+          street: "Calle Industria 1200",
+          satCountryCode: "MEX",
+          satMunicipalityCode: "039",
+          sequenceOrder: 1,
+        })
+      }
+    >
+      submit-stop-no-rfc
+    </button>
+  );
+}
+
 vi.mock(
   "@features/trips/presentation/pages/create/components/StopFormSheet",
   () => ({
-    StopFormSheet: (props: {
-      open: boolean;
-      keepBillingCollapsed?: boolean;
-      onSubmit: (data: StopFormData) => void;
-    }) => {
-      mocks.lastKeepBillingCollapsed = props.keepBillingCollapsed;
-      if (!props.open) return null;
-      return (
-        <button
-          type="button"
-          onClick={() =>
-            props.onSubmit({
-              stopType: ["origin", "pickup"],
-              locationName: "Bodega Norte",
-              cityName: "Monterrey",
-              satStateCode: "NLE",
-              postalCode: "64000",
-              street: "Calle Industria 1200",
-              satCountryCode: "MEX",
-              satMunicipalityCode: "039",
-              sequenceOrder: 1,
-            })
-          }
-        >
-          submit-stop-no-rfc
-        </button>
-      );
-    },
+    StopFormSheet: MockStopConfirmSheet,
+  }),
+);
+
+/** F9 — alta usa TripStopSearchConfirmSheet (wrapper del formulario canónico). */
+vi.mock(
+  "@features/trips/presentation/components/trip-route/TripStopSearchConfirmSheet",
+  () => ({
+    TripStopSearchConfirmSheet: MockStopConfirmSheet,
   }),
 );
 
@@ -461,7 +471,7 @@ describe("ADR-0078 trip canvas intake smoke", () => {
     );
   });
 
-  it("parada sin CP31: Completar domicilio dispara PUT stops[] sequence 1 sin RFC", async () => {
+  it("parada sin CP31: Completar domicilio abre Confirmar sin PUT de un solo extremo (D-R)", async () => {
     const user = userEvent.setup();
     render(
       <TestProviders>
@@ -498,12 +508,9 @@ describe("ADR-0078 trip canvas intake smoke", () => {
     expect(mocks.lastKeepBillingCollapsed).toBe(true);
     await user.click(screen.getByRole("button", { name: "submit-stop-no-rfc" }));
 
-    expect(mocks.mutateAsyncReplace).toHaveBeenCalledTimes(1);
-    const stops = mocks.mutateAsyncReplace.mock.calls[0][0] as CreateStopInput[];
-    expect(stops).toHaveLength(1);
-    expect(stops[0].sequenceOrder).toBe(1);
-    expect(stops[0].rfcRemitenteDestinatario).toBeUndefined();
-    expect(stops[0].nombreRemitenteDestinatario).toBeUndefined();
+    // D-R / F9: no PUT hasta ambos extremos; el origen queda en draft del composer.
+    expect(mocks.mutateAsyncReplace).not.toHaveBeenCalled();
     expect(mocks.mutateAsyncUpdateTrip).not.toHaveBeenCalled();
+    expect(screen.getByText(routeCopy.composer.title)).toBeInTheDocument();
   });
 });

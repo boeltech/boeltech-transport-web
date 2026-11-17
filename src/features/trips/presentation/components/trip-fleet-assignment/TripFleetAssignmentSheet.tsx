@@ -304,9 +304,12 @@ export function TripFleetAssignmentSheet({
     trip.scheduledArrival,
   ]);
 
-  // Producto: en draft, soft-busy es seleccionable con aviso (no hard-block Zod).
-  // En scheduled/otros, softBusySelectable=false → UI hard-block de recursos busy.
-  const softBusySelectable = trip.status === TripStatus.DRAFT;
+  // D75 — mismos 4 grupos que reserva (Disponibles / En otro viaje / docs / No disponibles).
+  // Soft-busy seleccionable con aviso en draft, scheduled e in_progress (reasignar flota).
+  const softBusySelectable =
+    trip.status === TripStatus.DRAFT ||
+    trip.status === TripStatus.SCHEDULED ||
+    trip.status === TripStatus.IN_PROGRESS;
 
   const softSelectGroupLabel = softBusySelectable
     ? copy.labels.softBusyGroup

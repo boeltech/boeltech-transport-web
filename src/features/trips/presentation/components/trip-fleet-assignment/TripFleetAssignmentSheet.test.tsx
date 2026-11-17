@@ -795,7 +795,7 @@ describe("TripFleetAssignmentSheet", () => {
     expect(payload.internalStaff).toHaveLength(1);
   });
 
-  it("aborts save when pending draft support staff becomes hard-blocked", async () => {
+  it("D75: soft-busy support staff on scheduled stays selectable (same groups as reserve)", async () => {
     const user = userEvent.setup();
     renderSheet({
       trip: makeTrip({
@@ -822,8 +822,7 @@ describe("TripFleetAssignmentSheet", () => {
       within(employeeListbox).getByRole("option", { name: /Pedro Ayudante/ }),
     );
 
-    // After selection, mark emp-3 busy on another active trip (hard-block on scheduled).
-    // Same sheet instance keeps draftStaffEmployeeId; mock bypasses Query cache.
+    // Tras elegir, marca emp-3 en otro viaje activo → softBusy (D75), no hard-block.
     mockUseActiveAssignmentTripsForBusy.mockReturnValue({
       data: {
         items: [
@@ -847,7 +846,6 @@ describe("TripFleetAssignmentSheet", () => {
       isLoading: false,
     });
 
-    // Re-render via unrelated control so supportStaffOptions recompute.
     await user.click(
       screen.getByRole("checkbox", { name: copy.labels.allowExpiredDocs }),
     );
@@ -855,11 +853,11 @@ describe("TripFleetAssignmentSheet", () => {
     await user.click(screen.getByRole("button", { name: copy.saveButton }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Asignado a un viaje activo"),
-      ).toBeInTheDocument();
+      expect(mockMutate).toHaveBeenCalled();
     });
-    expect(mockMutate).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText("Asignado a un viaje activo"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows expired docs toggle unchecked by default for admin (ADR-0066) and submits true when checked", async () => {

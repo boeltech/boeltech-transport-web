@@ -3,7 +3,10 @@
  */
 
 import type { AmbiguityField } from "@shared/geolocation/addressResolver";
-import type { GeocodingCandidate } from "@shared/geolocation/contracts/geoPorts";
+import type {
+  GeocodingCandidate,
+  LatLng,
+} from "@shared/geolocation/contracts/geoPorts";
 import type { DuplicateCandidate } from "@shared/location/detectPossibleDuplicates";
 import type { GeocodingAccuracy } from "@shared/location/geocodingAccuracy";
 import type {
@@ -108,4 +111,9 @@ export interface LocationFieldProps {
   showCartaPorteStatus?: boolean;
   /** Open create sheet instead of only calling onChange for create sentinel. */
   onCreateRequest?: () => void;
+  /**
+   * Q16 — bias de búsqueda (ciudad / punto medio / extremo opuesto).
+   * Si falta, se usa el pin del value actual cuando existe.
+   */
+  proximity?: LatLng | null;
 }

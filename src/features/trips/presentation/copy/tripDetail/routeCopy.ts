@@ -29,9 +29,12 @@ export const routeCopy = {
       "Cliente o directorio de la empresa. El domicilio se completa después.",
     selectRow: "Selecciona origen, una escala o destino.",
     sheetDescriptionComplete:
-      "Domicilio, mapa y contacto. La secuencia de la ruta no cambia.",
+      "Domicilio, mapa y contacto. Guardar la ruta no es lo mismo que dejarla lista para Carta Porte.",
     sheetDescriptionEdit:
       "Cambia domicilio, contacto u operación. La secuencia de la ruta no cambia.",
+    /** DOM wording — ruta guardada ≠ lista para Carta Porte. */
+    routeSavedVsCartaPorte:
+      "Con pin, CP y estado la ruta queda guardada. RFC y nombre de quien recibe se piden al timbrar.",
     /** @deprecated E1 — path mid-trip = composer pending-only, no append sheet. */
     sheetDescriptionAppend:
       "La nueva parada queda al final del recorrido. No se reordenan ni eliminan paradas existentes.",
