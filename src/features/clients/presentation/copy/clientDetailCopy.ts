@@ -132,6 +132,35 @@ export const clientDetailCopy = {
    * Visible con finance.read u operational_cash.create; también con lotes.
    * Sin la sigla CFDI: el test de léxico del detalle la prohíbe en este archivo.
    */
+  /**
+   * Card «Por cobrar» (C13/C14 rediseño cobranza F4).
+   * Total + renglones por canal → bandejas; CTA Registrar cobro; Último cobro.
+   */
+  collectable: {
+    title: "Por cobrar",
+    description: "Saldo del cliente, con y sin factura.",
+    totalLabel: "Por cobrar",
+    channelWithInvoice: "Facturas a crédito",
+    channelWithoutInvoice: "Sin factura",
+    channelSummary: (count: number, oldestDateLabel: string) =>
+      count === 1
+        ? `1 factura · la más antigua del ${oldestDateLabel}`
+        : `${count} facturas · la más antigua del ${oldestDateLabel}`,
+    channelSummaryTrips: (count: number, oldestDateLabel: string) =>
+      count === 1
+        ? `1 viaje · el más antiguo del ${oldestDateLabel}`
+        : `${count} viajes · el más antiguo del ${oldestDateLabel}`,
+    registerCta: "Registrar cobro",
+    registerCtaAria: "Registrar cobro de este cliente",
+    lastCollectionPrefix: "Último cobro:",
+    lastCollectionSee: "Ver",
+    lastCollectionSeeAria: "Ver último cobro de este cliente",
+    /** «Qué cobras» when both channels have balance (C16). */
+    whatDoYouCollect: "¿Qué cobras?",
+  },
+  /**
+   * @deprecated F4: replaced by `collectable`. Kept for reference until tests migrate.
+   */
   operationalCashPending: {
     title: "Cobros sin factura",
     description:

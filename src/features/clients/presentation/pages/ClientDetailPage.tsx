@@ -39,13 +39,6 @@ import { useRegimenFiscalLabel } from "@features/catalogs";
 import { useReceiverFiscalCatalogLabels } from "@features/catalogs/application";
 import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
 import { formatBillingSchemeCadenceSummary } from "@features/settings/presentation/utils/formatBillingSchemeCadence";
-import { useAuth } from "@features/auth";
-import {
-  FINANCE_COBROS_RFC_PARAM,
-  buildOperationalReceiptBatchCreatePath,
-  isFinanceCobrosTabEnabled,
-} from "@features/finance/application";
-import { isClientPortalRole } from "@shared/constants/roles";
 import { usePermissions } from "@shared/permissions";
 
 import {
@@ -174,13 +167,8 @@ export function ClientDetailPage() {
     "/clients",
     copy.state.backToList,
   );
-  const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("clients", "update");
-  const canCollect = isFinanceCobrosTabEnabled({
-    isClientPortal: isClientPortalRole(user?.role),
-    hasFinanceCreate: hasPermission("finance", "create"),
-  });
 
   const {
     data: client,
@@ -237,13 +225,7 @@ export function ClientDetailPage() {
     return buildClientStats(summaryQuery.data, summaryQuery.isLoading);
   }, [client, summaryQuery.data, summaryQuery.isLoading]);
 
-  const collectHref = useMemo(() => {
-    if (!client) return undefined;
-    const rfcValue = (client.taxId ?? "").trim().toUpperCase();
-    return canCollect && rfcValue
-      ? `/finance/payments?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(rfcValue)}`
-      : undefined;
-  }, [client, canCollect]);
+  /* collectHref retired C15: cobro vive en «Por cobrar». */
 
   const clientAlerts = useMemo(() => {
     if (!client) return undefined;
@@ -257,37 +239,8 @@ export function ClientDetailPage() {
         {copy.actions.edit}
       </Button>
     ) : null;
-    const operationalPending =
-      creditSummary?.breakdown.operationalPending ?? 0;
-    const preferBatchAlert =
-      (creditSummary?.breakdown.invoiced ?? 0) <= 0 &&
-      operationalPending > 0 &&
-      hasPermission("operational_cash", "create");
-    const creditRiskAction = preferBatchAlert ? (
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={() =>
-          navigate(buildOperationalReceiptBatchCreatePath(client.id), {
-            state: fromState,
-          })
-        }
-      >
-        {creditExposureCopy.registerBatchCta}
-      </Button>
-    ) : collectHref ? (
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={() => navigate(collectHref)}
-      >
-        {creditExposureCopy.collectCta}
-      </Button>
-    ) : (
-      editAction
-    );
+    /* C15: cobro vive solo en «Por cobrar»; crédito sin CTAs de cobro. */
+    const creditRiskAction = editAction;
 
     const addressesReady =
       addressQuery.isSuccess && addressQuery.data !== undefined;
@@ -439,7 +392,6 @@ export function ClientDetailPage() {
     navigate,
     fromState,
     taxRegimeCatalogLabel,
-    collectHref,
   ]);
 
   if (isLoading) {
@@ -551,7 +503,6 @@ export function ClientDetailPage() {
                       client={client}
                       paymentConfig={paymentConfig}
                       PaymentIcon={PaymentIcon}
-                      collectHref={collectHref}
                     />
                   }
                 />

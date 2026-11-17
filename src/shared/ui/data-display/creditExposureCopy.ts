@@ -22,6 +22,10 @@ export const creditExposureCopy = {
     operationalPendingTooltip:
       "En Sin factura el viaje programado ya es saldo comprometido con el cliente. En Viajes por facturar solo cuentan los completados.",
   },
+  /**
+   * @deprecated C15: cobro vive en «Por cobrar», no en Crédito disponible.
+   * Kept for backward-compat; callers should stop passing collectHref/registerBatchHref.
+   */
   collectCta: "Cobrar",
   collectCtaAria: "Cobrar facturas de este cliente",
   registerBatchCta: "Registrar cobro por lote",

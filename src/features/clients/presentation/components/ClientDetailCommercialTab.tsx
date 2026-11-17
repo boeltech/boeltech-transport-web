@@ -1,7 +1,7 @@
 /**
  * Bloque de términos comerciales en el tab Cliente del detalle.
  * Crédito solo aquí (CreditExposureCard) — no en stats del shell.
- * Card operativa «Efectivo por cobrar» (F3) — canal ≠ Cobros fiscales.
+ * Card «Por cobrar» (F4 rediseño cobranza) reemplaza la card operativa.
  */
 
 import type { ComponentType } from "react";
@@ -11,20 +11,17 @@ import { Separator } from "@shared/ui/separator";
 import { InfoRow, CreditExposureCard } from "@shared/ui/data-display";
 import { CreditCard } from "lucide-react";
 
-import { buildOperationalReceiptBatchCreatePath } from "@features/finance/application";
-import { usePermissions } from "@shared/permissions";
-
 import { useClientCreditSummary } from "../../application";
 import type { Client } from "../../domain";
 import type { PaymentTermsConfig } from "../config/clientConfig";
 import { clientDetailCopy } from "../copy/clientDetailCopy";
-import { ClientOperationalCashPendingCard } from "./ClientOperationalCashPendingCard";
+import { ClientCollectableCard } from "./ClientCollectableCard";
 
 export interface ClientDetailCommercialTabProps {
   client: Client;
   paymentConfig: PaymentTermsConfig;
   PaymentIcon: ComponentType<{ className?: string }>;
-  /** Deep-link a Cobros cuando el usuario puede cobrar (D7). */
+  /** @deprecated C15: collectHref no longer used; kept for interface compat. */
   collectHref?: string;
 }
 
@@ -34,9 +31,7 @@ export function ClientDetailCommercialTab({
   client,
   paymentConfig,
   PaymentIcon,
-  collectHref,
 }: ClientDetailCommercialTabProps) {
-  const { hasPermission } = usePermissions();
   const creditSummaryQuery = useClientCreditSummary(client.id);
 
   return (
@@ -76,20 +71,15 @@ export function ClientDetailCommercialTab({
         </CardContent>
       </Card>
 
-      <ClientOperationalCashPendingCard clientId={client.id} />
+      <ClientCollectableCard client={client} />
 
+      {/* C15: CreditExposureCard sin CTAs de cobro — el cobro vive solo en «Por cobrar» */}
       <CreditExposureCard
         variant="full"
         showBreakdown
         summary={creditSummaryQuery.data}
         isLoading={creditSummaryQuery.isLoading}
         isError={creditSummaryQuery.isError}
-        collectHref={collectHref}
-        registerBatchHref={
-          hasPermission("operational_cash", "create")
-            ? buildOperationalReceiptBatchCreatePath(client.id)
-            : undefined
-        }
       />
     </div>
   );

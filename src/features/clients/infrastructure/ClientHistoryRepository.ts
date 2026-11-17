@@ -9,8 +9,16 @@ import type {
   ClientCreditSummaryApiResponse,
   ClientTripHistoryItemApiResponse,
   IClientHistoryRepository,
+  LastCollection,
+  ClientByChannel,
 } from "../domain";
-import { mapClientSummary, mapClientTripHistory, mapClientCreditSummary } from "./clientContactMappers";
+import {
+  mapClientSummary,
+  mapClientTripHistory,
+  mapClientCreditSummary,
+  mapLastCollection,
+  mapClientByChannel,
+} from "./clientContactMappers";
 
 class ClientHistoryRepository implements IClientHistoryRepository {
   async getSummary(clientId: string): Promise<ClientSummary> {
@@ -57,6 +65,21 @@ class ClientHistoryRepository implements IClientHistoryRepository {
     }>(`/clients/${clientId}/trip-history${qs ? `?${qs}` : ""}`);
 
     return mapClientTripHistory(response);
+  }
+
+  async getLastCollection(clientId: string): Promise<LastCollection | null> {
+    const response = await apiClient.get<{ data: unknown | null }>(
+      `/clients/${clientId}/last-collection`,
+    );
+    return mapLastCollection(response.data);
+  }
+
+  async getByChannel(clientId: string): Promise<ClientByChannel> {
+    const response = await apiClient.get<{
+      data: unknown;
+      by_channel?: unknown;
+    }>(`/finance/account-statement?client_id=${encodeURIComponent(clientId)}`);
+    return mapClientByChannel(response.by_channel);
   }
 }
 
