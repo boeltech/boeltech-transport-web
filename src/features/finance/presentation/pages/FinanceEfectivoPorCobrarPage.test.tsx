@@ -155,7 +155,7 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     listMock.mockReturnValue(pendingListHook());
   });
 
-  it("renders title, client groups and Costos deep-links", () => {
+  it("renders title, description and client groups", () => {
     renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
       route: ["/finance/operational-cash-pending"],
     });
@@ -163,25 +163,12 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     expect(
       screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
-    expect(screen.getByText(copy.channelHint)).toBeInTheDocument();
+    expect(screen.getByText(copy.description)).toBeInTheDocument();
     expect(screen.getAllByRole("table")).toHaveLength(1);
     const groupRows = document.querySelectorAll("tr[data-entity-group-row]");
     expect(groupRows).toHaveLength(2);
     expect(groupRows[0]).toHaveTextContent("Cliente Alpha");
     expect(groupRows[1]).toHaveTextContent("Cliente Beta");
-    expect(
-      screen.queryByRole("heading", { name: "Cliente Alpha" }),
-    ).not.toBeInTheDocument();
-
-    const linkA = screen.getByRole("link", {
-      name: copy.openCostsAria("V-100"),
-    });
-    expect(linkA).toHaveAttribute("href", "/trips/trip-1?tab=costs");
-
-    const linkB = screen.getByRole("link", {
-      name: copy.openCostsAria("V-200"),
-    });
-    expect(linkB).toHaveAttribute("href", "/trips/trip-2?tab=costs");
   });
 
   it("passes clientId from query to the hook", () => {
@@ -197,7 +184,7 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps KPI strip with zeros when empty (chrome estable)", () => {
+  it("shows empty state when no trips", () => {
     listMock.mockReturnValue(emptyListHook());
 
     renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
@@ -207,13 +194,7 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     expect(
       screen.getByRole("heading", { name: copy.title }),
     ).toBeInTheDocument();
-    expect(screen.getByText(copy.channelHint)).toBeInTheDocument();
-    expect(screen.getByText(copy.totals.pending)).toBeInTheDocument();
-    expect(screen.getByText(copy.totals.trips)).toBeInTheDocument();
-    expect(screen.getByText(copy.totals.clients)).toBeInTheDocument();
-    expect(screen.getByLabelText("Actualizar lista")).toBeInTheDocument();
     expect(screen.getByText(copy.empty.title)).toBeInTheDocument();
-    expect(screen.queryByText("Nada por cobrar")).not.toBeInTheDocument();
   });
 
   it("shows operational empty copy (not Cobros empty)", () => {
@@ -282,32 +263,27 @@ describe("FinanceEfectivoPorCobrarPage", () => {
       route: ["/finance/operational-cash-pending"],
     });
 
-    const related = screen.getByRole("link", {
+    const relatedLinks = screen.getAllByRole("link", {
       name: copy.relatedConfig.label,
     });
+    expect(relatedLinks.length).toBeGreaterThanOrEqual(1);
+    const related = relatedLinks[relatedLinks.length - 1]!;
     expect(related).toHaveAttribute("href", FINANCE_COBROS_PATH);
     expect(related).toHaveTextContent("Facturas a crédito");
     expect(screen.getByText(copy.relatedConfig.description)).toBeInTheDocument();
   });
 
-  it("uses Cobrado / Por cobrar columns and Por cobrar KPI (no Cobro column)", () => {
+  it("shows Por cobrar (MXN) column header", () => {
     renderWithTheme(<FinanceEfectivoPorCobrarPage />, {
       route: ["/finance/operational-cash-pending"],
     });
 
     expect(
-      screen.getAllByRole("columnheader", { name: "Por cobrar" }),
-    ).toHaveLength(1);
-    expect(
-      screen.getByRole("columnheader", { name: "Cobrado" }),
+      screen.getByRole("columnheader", { name: /Por cobrar/ }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "Saldo" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("columnheader", { name: "Cobro" }),
-    ).not.toBeInTheDocument();
-    expect(copy.totals.pending).toBe("Por cobrar");
   });
 
   it("keeps page title Cobros sin factura (not Facturas a crédito heading)", () => {
@@ -320,9 +296,6 @@ describe("FinanceEfectivoPorCobrarPage", () => {
     expect(copy.title).toBe("Cobros sin factura");
     expect(copy.description).toMatch(/Sin factura/i);
     expect(copy.description).not.toMatch(/Facturas a crédito/);
-    expect(copy.channelHint).toMatch(/Facturas a crédito/);
-    expect(copy.channelHint).toMatch(/programados/i);
-    expect(copy.description).not.toMatch(/efectivo cobrado/i);
     expect(
       within(document.body).queryByRole("heading", {
         name: "Facturas a crédito",

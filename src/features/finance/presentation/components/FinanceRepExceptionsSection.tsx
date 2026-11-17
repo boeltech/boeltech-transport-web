@@ -1,4 +1,13 @@
-import { useState } from "react";
+/**
+ * Comprobantes por atender — F2 pieza 4 (C28–C29).
+ *
+ * `EntityListTable` density list, kinds T1–T10 standard.
+ * Columnas: Cobro (fecha) · Cliente · Importe · Facturas · Comprobante (estado+motivo) · Plazo SAT · acción.
+ * Una sola acción primaria por fila según helpers vigentes.
+ * La fila abre el detalle del cobro (stub hasta F3).
+ */
+
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, FileWarning, Loader2 } from "lucide-react";
 import {
@@ -15,7 +24,6 @@ import {
   isRepManualReview,
   isRepOrphanParked,
   isRepPacConfigErrorMessage,
-  REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE,
 } from "@features/finance/domain";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -24,34 +32,33 @@ import { EmptyState } from "@shared/ui/feedback-states";
 import { ListingPagination, ListingResultsSummary } from "@shared/ui/listing";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  EntityListTable,
+  type EntityListColumnDef,
+  type EntityListStackedValue,
 } from "@shared/ui/table";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
-import { formatDate } from "@shared/utils/dateUtils";
-import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
 import { toInvoiceNavTargets } from "../utils/cobrosInvoiceNav";
-import {
-  CobrosInvoiceFolioChips,
-  CobrosInvoiceNavCta,
-} from "./CobrosInvoiceNav";
+import { CobrosInvoiceFolioChips } from "./CobrosInvoiceNav";
 
 const copy = financeCopy.cobros.exceptions;
 const PAGE_SIZE = 10;
 const BILLING_SETTINGS_PATH = "/settings/billing";
 
+// --------------------------------------------------------------------------
+// Helpers
+// --------------------------------------------------------------------------
+
 function statusBadgeVariant(
   status: FinanceRepExceptionStatus,
 ): "warning" | "destructive" | "neutral" {
-  // pending stays warning (not destructive) — PRD D6
   if (status === "failed") return "destructive";
-  if (status === "pending" || status === "restamp_pending" || status === "cancelling") {
+  if (
+    status === "pending" ||
+    status === "restamp_pending" ||
+    status === "cancelling"
+  ) {
     return "warning";
   }
   return "neutral";
@@ -74,6 +81,185 @@ function deadlineLabel(item: FinanceRepExceptionItem): string {
   }
   return copy.deadlineOk;
 }
+
+// --------------------------------------------------------------------------
+// Single primary action per row (C29)
+// --------------------------------------------------------------------------
+
+type RowActionKind = "retry" | "config" | "orphan" | "none";
+
+function classifyRowAction(item: FinanceRepExceptionItem): RowActionKind {
+  if (isRepPacConfigErrorMessage(item.repLastError)) return "config";
+  if (
+    canRetryRepStamp({
+      repStatus: item.repStatus,
+      repLastError: item.repLastError,
+      repCfdiUuid: item.repCfdiUuid,
+    })
+  ) {
+    return "retry";
+  }
+  if (
+    isRepOrphanParked({
+      repStatus: item.repStatus,
+      repCfdiUuid: item.repCfdiUuid,
+    })
+  ) {
+    return "orphan";
+  }
+  return "none";
+}
+
+// --------------------------------------------------------------------------
+// Table columns
+// --------------------------------------------------------------------------
+
+function buildColumns(opts: {
+  retryMutation: ReturnType<typeof useRetryFinanceRepStamp>;
+}): EntityListColumnDef<FinanceRepExceptionItem>[] {
+  const { retryMutation } = opts;
+
+  return [
+    {
+      id: "date",
+      header: copy.date,
+      kind: "date",
+      accessor: (item) => item.paymentDate,
+    },
+    {
+      id: "client",
+      header: copy.client,
+      kind: "stacked",
+      stackedWeight: "normal",
+      accessor: (item): EntityListStackedValue => ({
+        primary: item.receiverName || item.receiverRfc,
+        secondary: item.receiverRfc,
+      }),
+    },
+    {
+      id: "amount",
+      header: copy.amount,
+      kind: "money",
+      headerClassName: "text-right",
+      className: "text-right",
+      accessor: (item) => item.amountMxn,
+    },
+    {
+      id: "invoices",
+      header: copy.invoices,
+      kind: "text",
+      accessor: (item) => (
+        <CobrosInvoiceFolioChips
+          invoices={toInvoiceNavTargets(item.allocations)}
+        />
+      ),
+    },
+    {
+      id: "status",
+      header: copy.status,
+      kind: "stacked",
+      stackedWeight: "normal",
+      accessor: (item): EntityListStackedValue => {
+        const reasonText =
+          item.repLastError?.trim() ||
+          (item.repStatus === "failed" ? copy.statusLabels.failed : "—");
+        const manualReview = isRepManualReview({
+          repLastError: item.repLastError,
+        });
+        return {
+          primary: (
+            <Badge
+              variant={statusBadgeVariant(item.repStatus)}
+              tone="soft"
+            >
+              {copy.statusLabels[item.repStatus]}
+            </Badge>
+          ),
+          secondary: (
+            <span className="truncate" title={reasonText}>
+              {reasonText}
+              {manualReview ? (
+                <span className="ml-1 text-muted-foreground">
+                  · {copy.manualReviewHint}
+                </span>
+              ) : null}
+            </span>
+          ),
+        };
+      },
+    },
+    {
+      id: "deadline",
+      header: copy.deadline,
+      kind: "text",
+      accessor: (item) => (
+        <Badge variant={deadlineBadgeVariant(item.deadlineStatus)} tone="soft">
+          {deadlineLabel(item)}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      kind: "actions",
+      accessor: (item) => {
+        const actionKind = classifyRowAction(item);
+        const primary = item.allocations[0];
+        const retrying =
+          retryMutation.isPending &&
+          retryMutation.variables?.paymentId === item.paymentId;
+
+        switch (actionKind) {
+          case "config":
+            return (
+              <Button size="sm" variant="outline" asChild>
+                <Link to={BILLING_SETTINGS_PATH}>
+                  {copy.goToBillingSettings}
+                </Link>
+              </Button>
+            );
+          case "retry":
+            return primary ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={retryMutation.isPending}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  retryMutation.mutate({
+                    invoiceId: primary.ingressInvoiceId,
+                    paymentId: item.paymentId,
+                  });
+                }}
+              >
+                {retrying ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    {copy.retrying}
+                  </>
+                ) : (
+                  copy.retryStamp
+                )}
+              </Button>
+            ) : null;
+          case "orphan":
+            return (
+              <span className="text-xs text-muted-foreground">
+                {copy.orphanHint}
+              </span>
+            );
+          default:
+            return null;
+        }
+      },
+    },
+  ];
+}
+
+// --------------------------------------------------------------------------
+// Section
+// --------------------------------------------------------------------------
 
 interface FinanceRepExceptionsSectionProps {
   receiverRfc: string | null;
@@ -106,7 +292,11 @@ export function FinanceRepExceptionsSection({
     },
   });
 
-  // Workbench bucket already owns the section chrome (D10) — no Card+CardHeader.
+  const columns = useMemo(
+    () => buildColumns({ retryMutation }),
+    [retryMutation],
+  );
+
   return (
     <div className="space-y-4">
       {isError ? (
@@ -157,155 +347,15 @@ export function FinanceRepExceptionsSection({
               limit={pagination.limit}
             />
           ) : null}
-          <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{copy.client}</TableHead>
-                  <TableHead className="text-right">{copy.amount}</TableHead>
-                  <TableHead>{copy.date}</TableHead>
-                  <TableHead>{copy.status}</TableHead>
-                  <TableHead>{copy.reason}</TableHead>
-                  <TableHead>{copy.deadline}</TableHead>
-                  <TableHead>{copy.invoices}</TableHead>
-                  <TableHead>{copy.action}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => {
-                  const primary = item.allocations[0];
-                  const canRetry = canRetryRepStamp({
-                    repStatus: item.repStatus,
-                    repLastError: item.repLastError,
-                    repCfdiUuid: item.repCfdiUuid,
-                  });
-                  const manualReview = isRepManualReview({
-                    repLastError: item.repLastError,
-                  });
-                  const configError = isRepPacConfigErrorMessage(
-                    item.repLastError,
-                  );
-                  const orphan = isRepOrphanParked({
-                    repStatus: item.repStatus,
-                    repCfdiUuid: item.repCfdiUuid,
-                  });
-                  const retrying =
-                    retryMutation.isPending &&
-                    retryMutation.variables?.paymentId === item.paymentId;
-                  const reasonText =
-                    item.repLastError?.trim() ||
-                    (item.repStatus === "failed"
-                      ? copy.statusLabels.failed
-                      : "—");
-
-                  return (
-                    <TableRow key={item.paymentId}>
-                      <TableCell>
-                        <div className="min-w-0">
-                          <p className="font-medium">{item.receiverName || item.receiverRfc}</p>
-                          <p className="font-mono text-xs text-muted-foreground">
-                            {item.receiverRfc}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatMxCurrency(item.amountMxn)}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(item.paymentDate)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={statusBadgeVariant(item.repStatus)}
-                          tone="soft"
-                        >
-                          {copy.statusLabels[item.repStatus]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[14rem]">
-                        <p
-                          className="truncate text-xs text-muted-foreground"
-                          title={reasonText}
-                        >
-                          {reasonText}
-                        </p>
-                        {manualReview &&
-                        item.repLastError !==
-                          REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE ? (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {copy.manualReviewHint}
-                          </p>
-                        ) : null}
-                        {configError && !manualReview ? (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {copy.permanentConfigErrorHint}
-                          </p>
-                        ) : null}
-                        {orphan && !manualReview && !configError ? (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {copy.orphanHint}
-                          </p>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={deadlineBadgeVariant(item.deadlineStatus)}
-                          tone="soft"
-                        >
-                          {deadlineLabel(item)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <CobrosInvoiceFolioChips
-                          invoices={toInvoiceNavTargets(item.allocations)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col items-start gap-1">
-                          {configError ? (
-                            <Button size="sm" variant="outline" asChild>
-                              <Link to={BILLING_SETTINGS_PATH}>
-                                {copy.goToBillingSettings}
-                              </Link>
-                            </Button>
-                          ) : null}
-                          {canRetry && primary ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={retryMutation.isPending}
-                              onClick={() =>
-                                retryMutation.mutate({
-                                  invoiceId: primary.ingressInvoiceId,
-                                  paymentId: item.paymentId,
-                                })
-                              }
-                            >
-                              {retrying ? (
-                                <>
-                                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                                  {copy.retrying}
-                                </>
-                              ) : (
-                                copy.retryStamp
-                              )}
-                            </Button>
-                          ) : null}
-                          {/* N=1 only: N>1 uses folio chips + «+N más» / no ghost dueña. */}
-                          {item.allocations.length === 1 ? (
-                            <CobrosInvoiceNavCta
-                              invoices={toInvoiceNavTargets(item.allocations)}
-                            />
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          <EntityListTable
+            framed
+            density="list"
+            aria-label={copy.title}
+            columns={columns}
+            rows={items}
+            getRowId={(item) => item.paymentId}
+            isLoading={isLoading}
+          />
           {pagination && pagination.totalPages > 1 ? (
             <ListingPagination
               page={page}

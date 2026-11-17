@@ -242,7 +242,7 @@ describe("OperationalCashPendingTable", () => {
             }
           />
           <Route
-            path="/clients/:id/operational-receipt-batches/new"
+            path="/finance/collections/new"
             element={<CreateProbe />}
           />
         </Routes>

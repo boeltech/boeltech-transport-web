@@ -303,11 +303,16 @@ function GroupedTableDemo() {
                 : client.tripCount === 1
                   ? "1 viaje"
                   : `${client.tripCount} viajes`,
+            selection: {
+              checked: false,
+              onCheckedChange: () => undefined,
+              "aria-label": `Seleccionar viajes de ${client.name}`,
+            },
             cells: {
               pending: client.pending,
               actions: (
                 <Button type="button" variant="outline" size="sm">
-                  Cobro por lote
+                  Registrar cobro
                 </Button>
               ),
             },

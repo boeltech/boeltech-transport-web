@@ -1,7 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { getTodayMexicoDateString } from "@boeltech/cfdi-domain";
-import { AlertCircle, FileClock, Send } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { AlertCircle, ArrowUpRight, FileClock, Send } from "lucide-react";
 import { WorkbenchPageShell } from "@shared/ui/page-shells";
 import { type ActiveFilterChip } from "@shared/ui/listing";
 import { Button } from "@shared/ui/button";
@@ -11,33 +10,24 @@ import { EmptyState } from "@shared/ui/feedback-states";
 import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { ListingResultsSummary } from "@shared/ui/listing";
-import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
-import { ApiError, getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import {
+  buildRegisterCollectionPath,
   FINANCE_COBROS_BUCKET_PARAM,
   FINANCE_COBROS_PATH,
   FINANCE_COBROS_RFC_PARAM,
+  FINANCE_EFECTIVO_POR_COBRAR_PATH,
   FINANCE_HUB_PATH,
   FINANCE_INVOICES_PATH,
   OPEN_PPD_INVOICES_PAGE_SIZE,
   useOpenPpdInvoices,
   useOpenPpdSummary,
-  useRegisterFinancePayment,
 } from "@features/finance/application";
-import type { FinanceInvoiceListItem, FinancePayment } from "@features/finance/domain";
-import type { RegisterFinancePaymentPayload } from "@features/finance/infrastructure/financePaymentsApi";
-import { FinanceChainRepairConfirmDialog } from "../components/FinanceChainRepairConfirmDialog";
-import { FinanceCobrosConfirmSheet } from "../components/FinanceCobrosConfirmSheet";
+import type { FinanceInvoiceListItem } from "@features/finance/domain";
 import { FinanceCobrosTodayTray } from "../components/FinanceCobrosTodayTray";
 import { FinanceCobrosInvoiceTable } from "../components/FinanceCobrosInvoiceTable";
 import { FinanceRepExceptionsSection } from "../components/FinanceRepExceptionsSection";
-import {
-  COBROS_PAYMENT_FORM,
-  COBROS_PAYMENT_TIME_DEFAULT,
-  normalizeCobrosPaymentTime,
-} from "../config/financeCobrosConfig";
 import {
   DEFAULT_COBROS_BUCKET,
   isCobrosBucket,
@@ -46,10 +36,7 @@ import {
 } from "../config/cobrosWorkbenchConfig";
 import { useHelpEmptySupport } from "@features/help-center";
 import { financeCopy } from "../copy";
-import { getChainRepairAffectedLabels } from "../utils/chainRepairPlanLabels";
 import {
-  appendCobrosTodayEntry,
-  buildCobrosFollowThrough,
   clearCobrosTodayTray,
   readCobrosTodayTray,
   removeCobrosTodayEntry,
@@ -57,7 +44,6 @@ import {
   type CobrosTodayEntry,
 } from "../utils/cobrosFollowThrough";
 import {
-  cobrosInvoicesForPageToggle,
   isCobrosInvoiceSelectable,
   resolveCobrosSelectionAnchorRfc,
 } from "../utils/cobrosSelection";
@@ -71,25 +57,50 @@ const copy = financeCopy.cobros;
 const workbenchCopy = financeCopy.cobros.workbench;
 
 // ============================================================================
-// CobrosRegisterBar
+// CobrosRegisterBar (selection bar)
 // ============================================================================
 
 function CobrosRegisterBar({
   count,
+  clientName,
   total,
+  onClear,
   onRegister,
 }: {
   count: number;
+  clientName: string | null;
   total: string;
+  onClear: () => void;
   onRegister: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-xs text-muted-foreground">{copy.selectedHint}</p>
-      <Button type="button" onClick={onRegister}>
-        <Send className="mr-2 h-4 w-4" aria-hidden />
-        {copy.registerCta(count, total)}
-      </Button>
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path d="M10 3L4.5 8.5 2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <span className="text-sm font-medium">
+          {count} factura{count === 1 ? "" : "s"}
+        </span>
+        {clientName ? (
+          <span className="text-sm text-muted-foreground">{clientName}</span>
+        ) : null}
+        <span className="text-sm font-semibold tabular-nums">{total}</span>
+        <span className="text-xs text-muted-foreground">
+          · {copy.selectedHint}
+        </span>
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={onClear}>
+          Quitar selección
+        </Button>
+        <Button type="button" size="sm" onClick={onRegister}>
+          <Send className="mr-2 h-4 w-4" aria-hidden />
+          Registrar cobro
+        </Button>
+      </div>
     </div>
   );
 }
@@ -175,10 +186,6 @@ export function FinanceCobrosPage() {
     [setSearchParams],
   );
 
-  const handlePaymentRegistered = useCallback((next: CobrosTodayEntry) => {
-    setTodayTray((prev) => appendCobrosTodayEntry(prev, next));
-  }, []);
-
   const handleDismissTray = useCallback(() => {
     clearCobrosTodayTray();
     setTodayTray([]);
@@ -251,7 +258,6 @@ export function FinanceCobrosPage() {
       rfcChips={rfcChips}
       onRfcSearch={handleRfcSearch}
       onClearRfc={handleClearRfc}
-      onPaymentRegistered={handlePaymentRegistered}
       onDismissTray={handleDismissTray}
       onDismissEntry={handleDismissEntry}
       onEntryLiveUpdate={handleEntryLiveUpdate}
@@ -271,7 +277,6 @@ function FinanceCobrosWorkbench({
   rfcChips,
   onRfcSearch,
   onClearRfc,
-  onPaymentRegistered,
   onDismissTray,
   onDismissEntry,
   onEntryLiveUpdate,
@@ -283,7 +288,6 @@ function FinanceCobrosWorkbench({
   rfcChips: ActiveFilterChip[];
   onRfcSearch: (rfc: string) => void;
   onClearRfc: () => void;
-  onPaymentRegistered: (entry: CobrosTodayEntry) => void;
   onDismissTray: () => void;
   onDismissEntry: (paymentId: string) => void;
   onEntryLiveUpdate: (
@@ -291,7 +295,7 @@ function FinanceCobrosWorkbench({
     live: { repStatus: string },
   ) => void;
 }) {
-  const { toast } = useToast();
+  const navigate = useNavigate();
   const { hasPermission } = usePermissions();
   const canRegisterPayment = hasPermission("finance", "create");
   const filterRfc = rfcFromUrl || null;
@@ -300,18 +304,7 @@ function FinanceCobrosWorkbench({
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [selectionBoundRfc, setSelectionBoundRfc] = useState(filterRfc);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [paymentDate, setPaymentDate] = useState(getTodayMexicoDateString);
-  const [paymentTime, setPaymentTime] = useState(COBROS_PAYMENT_TIME_DEFAULT);
-  const [reference, setReference] = useState("");
-  const [chainRepairOpen, setChainRepairOpen] = useState(false);
-  const [chainRepairLabels, setChainRepairLabels] = useState<string[]>([]);
-  const [chainRepairError, setChainRepairError] = useState<string | null>(null);
-  const [pendingPayload, setPendingPayload] =
-    useState<RegisterFinancePaymentPayload | null>(null);
-  const loteSnapshotRef = useRef<FinanceInvoiceListItem[]>([]);
 
-  // Reset selection/page when RFC filter changes (render-time adjust, not effect).
   if (selectionBoundRfc !== filterRfc) {
     setSelectionBoundRfc(filterRfc);
     setSelected({});
@@ -341,6 +334,7 @@ function FinanceCobrosWorkbench({
   });
 
   const invoices = useMemo(() => data?.data ?? [], [data]);
+  const byClient = data?.meta?.byClient;
   const pagination = data?.pagination;
 
   const bucketCounts = useMemo(
@@ -370,69 +364,36 @@ function FinanceCobrosWorkbench({
     [selectedInvoices],
   );
 
+  const selectedClientName = useMemo(() => {
+    if (selectedInvoices.length === 0) return null;
+    return selectedInvoices[0]?.receiverName?.trim() || selectionAnchorRfc;
+  }, [selectedInvoices, selectionAnchorRfc]);
+
   const formattedSelectedTotal = formatMxCurrency(selectedTotal);
   const paymentReceiverRfc = selectionAnchorRfc;
 
-  const resetPaymentFields = useCallback(() => {
-    setPaymentDate(getTodayMexicoDateString());
-    setPaymentTime(COBROS_PAYMENT_TIME_DEFAULT);
-    setReference("");
-  }, []);
-
-  const openConfirmSheet = useCallback(() => {
-    resetPaymentFields();
-    setSheetOpen(true);
-  }, [resetPaymentFields]);
+  const openRegisterForm = useCallback(() => {
+    if (!paymentReceiverRfc || selectedInvoices.length === 0) return;
+    navigate(
+      buildRegisterCollectionPath({
+        channel: "with_invoice",
+        receiverRfc: paymentReceiverRfc,
+        invoiceIds: selectedInvoices.map((inv) => inv.id),
+        from: `${FINANCE_COBROS_PATH}${filterRfc ? `?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(filterRfc)}` : ""}`,
+      }),
+    );
+  }, [
+    filterRfc,
+    navigate,
+    paymentReceiverRfc,
+    selectedInvoices,
+  ]);
 
   const showRegisterBar =
     canRegisterPayment &&
     selectedInvoices.length > 0 &&
     Boolean(paymentReceiverRfc) &&
     invoices.length > 0;
-
-  const { mutate, isPending } = useRegisterFinancePayment({
-    onSuccess: (data: FinancePayment, variables) => {
-      const snapshot = loteSnapshotRef.current;
-      if (snapshot.length > 0) {
-        onPaymentRegistered(buildCobrosFollowThrough(data, variables, snapshot));
-      }
-      toast({
-        title: copy.toastSuccessTitle,
-        description: copy.toastSuccessDescription(
-          formatMxCurrency(variables.amount),
-        ),
-      });
-      setSheetOpen(false);
-      setChainRepairOpen(false);
-      setChainRepairError(null);
-      setPendingPayload(null);
-      setSelected({});
-      resetPaymentFields();
-    },
-  });
-
-  const handleMutationError = (err: Error, fromChainDialog: boolean) => {
-    if (err instanceof ApiError && err.code === "CHAIN_REORDER_REQUIRED") {
-      setChainRepairLabels(getChainRepairAffectedLabels(err.details));
-      setChainRepairError(null);
-      setSheetOpen(false);
-      setChainRepairOpen(true);
-      return;
-    }
-    const message =
-      err instanceof ApiError && err.code === "REP_CURRENCY_NOT_SUPPORTED"
-        ? "Solo se admiten cobros y complementos de pago (REP) en MXN."
-        : getErrorMessage(err);
-    if (fromChainDialog) {
-      setChainRepairError(message);
-      return;
-    }
-    toast({
-      variant: "error",
-      title: copy.toastError,
-      description: message,
-    });
-  };
 
   const toggleInvoice = (invoice: FinanceInvoiceListItem, checked: boolean) => {
     if (checked && !isCobrosInvoiceSelectable(invoice, selectionAnchorRfc)) {
@@ -441,56 +402,52 @@ function FinanceCobrosWorkbench({
     setSelected((prev) => ({ ...prev, [invoice.id]: checked }));
   };
 
+  const toggleGroup = useCallback(
+    (groupKey: string, checked: boolean) => {
+      setSelected((prev) => {
+        const next = { ...prev };
+        for (const invoice of invoices) {
+          const rfc = invoice.receiverRfc.trim().toUpperCase();
+          if (rfc === groupKey) {
+            next[invoice.id] = checked;
+          }
+        }
+        return next;
+      });
+    },
+    [invoices],
+  );
+
   const togglePage = (checked: boolean) => {
-    const targets = cobrosInvoicesForPageToggle(invoices, selectionAnchorRfc);
+    const firstRfc = invoices[0]?.receiverRfc?.trim().toUpperCase() ?? null;
     setSelected((prev) => {
       const next = { ...prev };
-      for (const invoice of targets) {
-        next[invoice.id] = checked;
+      for (const invoice of invoices) {
+        if (isCobrosInvoiceSelectable(invoice, selectionAnchorRfc ?? firstRfc)) {
+          next[invoice.id] = checked;
+        }
       }
       return next;
     });
   };
 
-  const buildPayload = (
-    confirmChainRepair?: boolean,
-  ): RegisterFinancePaymentPayload | null => {
-    if (!paymentReceiverRfc || selectedInvoices.length === 0) return null;
-    const allocations = selectedInvoices.map((invoice) => ({
-      ingressInvoiceId: invoice.id,
-      amount: Number(invoice.balanceDue.toFixed(2)),
-    }));
-    const amount = allocations.reduce((sum, allocation) => sum + allocation.amount, 0);
-    return {
-      receiverRfc: paymentReceiverRfc,
-      amount,
-      currency: "MXN",
-      exchangeRate: 1,
-      paymentDate,
-      paymentTime: normalizeCobrosPaymentTime(paymentTime),
-      paymentForm: COBROS_PAYMENT_FORM,
-      reference: reference.trim() || undefined,
-      allocations,
-      confirmChainRepair,
-    };
-  };
+  const handleRegisterGroup = useCallback(
+    (rfc: string, clientId: string | null) => {
+      navigate(
+        buildRegisterCollectionPath({
+          channel: "with_invoice",
+          receiverRfc: rfc,
+          clientId,
+          from: `${FINANCE_COBROS_PATH}${filterRfc ? `?${FINANCE_COBROS_RFC_PARAM}=${encodeURIComponent(filterRfc)}` : ""}`,
+        }),
+      );
+    },
+    [filterRfc, navigate],
+  );
 
-  const submitPayload = (
-    payload: RegisterFinancePaymentPayload,
-    fromChainDialog = false,
-  ) => {
-    loteSnapshotRef.current = selectedInvoices;
-    setPendingPayload(payload);
-    mutate(payload, {
-      onError: (err) => handleMutationError(err, fromChainDialog),
-    });
-  };
-
-  const handleRegister = () => {
-    const payload = buildPayload();
-    if (!payload) return;
-    submitPayload(payload);
-  };
+  const handleClearSelection = useCallback(() => {
+    setSelected({});
+  }, []);
 
   const handlePageChange = (nextPage: number) => {
     setSelected({});
@@ -553,6 +510,21 @@ function FinanceCobrosWorkbench({
         degradedMessage={workbenchCopy.degradedMessage}
         degradedHref={FINANCE_INVOICES_PATH}
         degradedLinkLabel={workbenchCopy.degradedLinkLabel}
+        afterAwareness={
+          <div className="flex items-center justify-end text-sm text-muted-foreground">
+            {workbenchCopy.crossLink}{" "}
+            <Link
+              to={FINANCE_EFECTIVO_POR_COBRAR_PATH}
+              className="ml-1 font-medium text-primary hover:underline"
+            >
+              {workbenchCopy.crossLinkLabel}
+              <ArrowUpRight
+                className="ml-0.5 inline h-3.5 w-3.5"
+                aria-hidden
+              />
+            </Link>
+          </div>
+        }
         toolbar={{
           filters: (
             <RfcToolbarFilter onSubmit={onRfcSearch} />
@@ -580,6 +552,7 @@ function FinanceCobrosWorkbench({
                 selected={{}}
                 isLoading
                 onToggle={() => undefined}
+                onToggleGroup={() => undefined}
                 onTogglePage={() => undefined}
               />
             );
@@ -650,23 +623,33 @@ function FinanceCobrosWorkbench({
               ) : null}
               <FinanceCobrosInvoiceTable
                 invoices={invoices}
+                byClient={byClient ? [...byClient] : undefined}
                 selected={selected}
                 anchorRfc={selectionAnchorRfc}
                 isLoading={false}
                 onToggle={toggleInvoice}
+                onToggleGroup={toggleGroup}
                 onTogglePage={togglePage}
+                onRegisterGroup={
+                  canRegisterPayment ? handleRegisterGroup : undefined
+                }
               />
               {showRegisterBar ? (
                 <Card className="sticky bottom-4 border-primary/30 bg-primary/5 shadow-md">
                   <CardContent className="p-4">
                     <CobrosRegisterBar
                       count={selectedInvoices.length}
+                      clientName={selectedClientName}
                       total={formattedSelectedTotal}
-                      onRegister={openConfirmSheet}
+                      onClear={handleClearSelection}
+                      onRegister={openRegisterForm}
                     />
                   </CardContent>
                 </Card>
               ) : null}
+              <p className="text-xs text-muted-foreground">
+                {copy.footerNote}
+              </p>
             </div>
           );
         }}
@@ -687,51 +670,6 @@ function FinanceCobrosWorkbench({
           description: workbenchCopy.relatedConfig.description,
         }}
       />
-
-      {canRegisterPayment ? (
-        <FinanceCobrosConfirmSheet
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
-          invoices={selectedInvoices}
-          total={selectedTotal}
-          receiverRfc={paymentReceiverRfc ?? ""}
-          paymentDate={paymentDate}
-          onPaymentDateChange={setPaymentDate}
-          paymentTime={paymentTime}
-          onPaymentTimeChange={setPaymentTime}
-          reference={reference}
-          onReferenceChange={setReference}
-          isPending={isPending || chainRepairOpen}
-          onConfirm={handleRegister}
-        />
-      ) : null}
-
-      {canRegisterPayment ? (
-        <FinanceChainRepairConfirmDialog
-          open={chainRepairOpen}
-          onOpenChange={(open) => {
-            setChainRepairOpen(open);
-            if (!open) setChainRepairError(null);
-          }}
-          isPending={isPending}
-          affectedLabels={chainRepairLabels}
-          errorMessage={chainRepairError}
-          onConfirm={() => {
-            setChainRepairError(null);
-            if (!pendingPayload) {
-              const payload = buildPayload(true);
-              if (payload) submitPayload(payload, true);
-              return;
-            }
-            mutate(
-              { ...pendingPayload, confirmChainRepair: true },
-              {
-                onError: (err) => handleMutationError(err, true),
-              },
-            );
-          }}
-        />
-      ) : null}
     </>
   );
 }

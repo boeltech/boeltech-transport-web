@@ -35,7 +35,7 @@ const cobrosCopy = {
   registerCta: (count: number, total: string) =>
     `Registrar cobro · ${count} factura${count === 1 ? "" : "s"} · ${total}`,
   selectedHint:
-    "El lote es la selección de esta página. Se cobra el saldo completo de cada factura. Para una parcialidad, abre el detalle.",
+    "Ajustas el monto y el reparto en el siguiente paso",
   entityLabelPlural: "facturas",
   sheetTitle: "Confirmar cobro",
   sheetDescription:
@@ -173,19 +173,22 @@ const cobrosCopy = {
   workbench: {
     title: "Facturas a crédito",
     description:
-      "Cola de facturas a crédito (PPD): registra depósitos por el mismo RFC (el lote es la página actual) y revisa comprobantes de pago pendientes. Vacía no significa que la cartera esté en cero.",
+      "Facturas a crédito (PPD) con saldo. Al registrar un cobro se emite su comprobante de pago (REP).",
     bucketsAriaLabel: "Estado de cobranza",
     rfcFilterPlaceholder: "Filtrar por RFC…",
     rfcChipLabel: (rfc: string) => `RFC: ${rfc}`,
+    crossLink: "Cobros de viajes sin factura:",
+    crossLinkLabel: "Cobros sin factura",
+    cobrosRegistrados: "Cobros registrados",
     buckets: {
       open: "Por cobrar",
       partial: "Pago parcial",
-      rep_exceptions: "Excepciones REP",
+      rep_exceptions: "Comprobantes por atender",
     },
     bucketDescriptions: {
       open: "Facturas PPD abiertas con saldo pendiente",
       partial: "Con pagos registrados y saldo remanente",
-      rep_exceptions: "Comprobantes por atender",
+      rep_exceptions: "REP sin timbrar",
     },
     emptyByBucket: {
       open: {
@@ -228,16 +231,23 @@ const cobrosCopy = {
     confirm: "Confirmar y registrar",
     cancel: "Volver",
   },
+  selectGroupAria: (clientName: string) =>
+    `Seleccionar todas las facturas de ${clientName}`,
+  groupRegisterCta: "Registrar cobro",
+  groupRegisterAria: (clientName: string) =>
+    `Registrar cobro de ${clientName}`,
   selectInvoice: (folio: string) => `Seleccionar factura ${folio}`,
   selectInvoiceDisabled: (folio: string) =>
     `No seleccionable: factura ${folio} es de otro RFC`,
+  footerNote: "Un cobro es de un solo cliente: al marcar una fila, los demás clientes se atenúan.",
   columns: {
     invoice: "Factura",
     client: "Cliente",
     issuedAt: "Emisión",
     trips: "Viajes",
     total: "Total",
-    balance: "Por cobrar",
+    cobrado: "Cobrado (MXN)",
+    balance: "Por cobrar (MXN)",
   },
 } as const;
 
@@ -326,7 +336,7 @@ export const financeCopy = {
   efectivoPorCobrar: {
     title: "Cobros sin factura",
     description:
-      "Viajes Sin factura con saldo pendiente. Registra el abono en Costos o un cobro por lote.",
+      "Viajes Sin factura con saldo. El cobro no genera factura ni comprobante de pago (REP).",
     entityLabelPlural: "viajes",
     channelHint:
       "Incluye programados, en curso y completados. El cobro con factura vive en Facturas a crédito.",
@@ -349,9 +359,9 @@ export const financeCopy = {
       }
       return tripCount === 1 ? "1 viaje" : `${tripCount} viajes`;
     },
-    groupBatchCta: "Cobro por lote",
+    groupBatchCta: "Registrar cobro",
     groupBatchAria: (clientName: string) =>
-      `Registrar cobro por lote de ${clientName}`,
+      `Registrar cobro de ${clientName}`,
     noReceipts: "Sin abonos",
     clientUnknown: "Sin cliente",
     clientChip: (name: string) => `Cliente: ${name}`,
@@ -373,17 +383,20 @@ export const financeCopy = {
     empty: {
       title: "Sin cobros pendientes",
       description:
-        "No hay viajes Sin factura con saldo pendiente (programados, en curso o completados). Cuando registres un abono completo en Costos o un cobro por lote, el viaje sale de esta bandeja. El cobro con factura no está aquí.",
+        "No hay viajes Sin factura con saldo pendiente (programados, en curso o completados). Cuando el viaje quede cobrado, sale de esta bandeja.",
     },
     emptyFiltered: {
       title: "Sin saldo para este cliente",
       description:
         "Este cliente no tiene viajes Sin factura con saldo pendiente en la cohorte. Quita el filtro para ver toda la bandeja.",
     },
+    crossLink: "Cobros de facturas:",
+    crossLinkLabel: "Facturas a crédito",
     relatedConfig: {
       label: "Facturas a crédito",
       description: "Cola fiscal PPD con saldo (cobro con factura).",
     },
+    cobrosRegistrados: "Cobros registrados",
     loadErrorTitle: "No se pudo cargar",
     loadError:
       "No se pudieron consultar los cobros sin factura. Reintenta en un momento.",

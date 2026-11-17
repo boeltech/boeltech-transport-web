@@ -445,7 +445,7 @@ describe("smoke: efectivo-por-cobrar", () => {
       }),
     ).toHaveAttribute(
       "href",
-      `/clients/${CLIENT_A}/operational-receipt-batches/new`,
+      `/finance/collections/new?channel=without_invoice&clientId=${CLIENT_A}`,
     );
 
     expect(screen.queryByRole("link", { name: "Cobrar" })).toBeNull();

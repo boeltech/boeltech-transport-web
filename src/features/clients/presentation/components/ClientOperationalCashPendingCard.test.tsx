@@ -115,7 +115,7 @@ describe("ClientOperationalCashPendingCard", () => {
     });
     expect(lote).toHaveAttribute(
       "href",
-      `/clients/${CLIENT_ID}/operational-receipt-batches/new`,
+      `/finance/collections/new?channel=without_invoice&clientId=${CLIENT_ID}`,
     );
 
     const cta = screen.getByRole("link", { name: copy.viewCtaAria });

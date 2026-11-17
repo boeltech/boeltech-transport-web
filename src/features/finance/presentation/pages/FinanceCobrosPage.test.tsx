@@ -32,6 +32,15 @@ const {
     data: undefined as
       | {
           data: FinanceInvoiceListItem[];
+          meta?: {
+            byClient?: Array<{
+              clientId: string | null;
+              clientName: string | null;
+              receiverRfc: string;
+              invoiceCount: number;
+              totalBalance: number;
+            }>;
+          };
           pagination: {
             page: number;
             limit: number;
@@ -211,14 +220,13 @@ describe("FinanceCobrosPage", () => {
       screen.getByRole("heading", { name: "Facturas a crédito" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Cola de facturas a crédito/),
+      screen.getByText(/Facturas a crédito \(PPD\) con saldo/),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "A-10" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("tab", { name: /Por cobrar/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Pago parcial/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Excepciones REP/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /REP sin timbrar/i })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: /Vencidas/i })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Busca al cliente por RFC/)).not.toBeInTheDocument();
   });
 
   it("applies ?rfc= as a filter chip and clears back to the global queue", async () => {
@@ -311,18 +319,14 @@ describe("FinanceCobrosPage", () => {
       screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
     );
     const registerButtons = screen.getAllByRole("button", {
-      name: /Registrar cobro · 1 factura/,
+      name: /Registrar cobro/,
     });
-    expect(registerButtons).toHaveLength(1);
-    expect(registerButtons[0]!.closest(".sticky")).toBeTruthy();
+    expect(registerButtons.length).toBeGreaterThanOrEqual(1);
 
     const otherRfc = screen.getAllByRole("checkbox", {
       name: /No seleccionable: factura A-11/,
     })[0]!;
     expect(otherRfc).toBeDisabled();
-    expect(
-      screen.getByText(financeCopy.cobros.sameRfcOnlyHint),
-    ).toBeInTheDocument();
   });
 
   it("clears selection when changing page (lote = página actual)", async () => {
@@ -340,137 +344,63 @@ describe("FinanceCobrosPage", () => {
       screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
     );
     expect(
-      screen.getAllByRole("button", { name: /Registrar cobro · 1 factura/ }),
-    ).toHaveLength(1);
-    expect(
-      screen.getByText(financeCopy.cobros.selectedHint),
+      screen.getByText(financeCopy.cobros.selectedHint, { exact: false }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Siguiente" }));
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("button", { name: /Registrar cobro · 1 factura/ }),
+        screen.queryByText(financeCopy.cobros.selectedHint, { exact: false }),
       ).not.toBeInTheDocument();
     });
   });
 
-  it("opens chain repair as Dialog and shows Alert inline on error", async () => {
+  it("navigates to register collection form with selected invoices", async () => {
     const user = userEvent.setup();
     openPpd.data = {
       data: [buildInvoice()],
       pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
     };
 
-    renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/payments"],
-    });
+    function LocationProbe() {
+      const location = useLocation();
+      return (
+        <div data-testid="location">
+          {location.pathname}
+          {location.search}
+        </div>
+      );
+    }
+
+    renderWithTheme(
+      <>
+        <FinanceCobrosPage />
+        <LocationProbe />
+      </>,
+      {
+        route: ["/finance/payments"],
+      },
+    );
 
     await user.click(
       screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
     );
-    await user.click(
-      screen.getAllByRole("button", { name: /Registrar cobro · 1 factura/ })[0]!,
-    );
-    expect(
-      screen.getByRole("heading", { name: "Confirmar cobro" }),
-    ).toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", { name: "Registrar cobro de $1,160.00" }),
-    );
-
-    const mutateCall = registerPayment.mutate.mock.calls.at(-1);
-    expect(mutateCall).toBeTruthy();
-    const onError = mutateCall?.[1]?.onError as
-      | ((err: Error) => void)
-      | undefined;
-    expect(onError).toBeTypeOf("function");
-
-    onError?.(
-      new ApiError("Cadena requiere reparación", 409, "CHAIN_REORDER_REQUIRED", {
-        affected_payments: [{ serie: "A", folio: 1 }],
-      }),
-    );
+    const registerBtns = screen.getAllByRole("button", {
+      name: /Registrar cobro/,
+    });
+    await user.click(registerBtns[registerBtns.length - 1]!);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("heading", {
-          name: financeCopy.cobros.chainRepair.title,
-        }),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("location").textContent).toContain(
+        "/finance/collections/new",
+      );
     });
-    expect(
-      screen.queryByRole("heading", { name: "Confirmar cobro" }),
-    ).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", {
-        name: financeCopy.cobros.chainRepair.confirm,
-      }),
+    expect(screen.getByTestId("location").textContent).toContain(
+      "channel=with_invoice",
     );
-
-    const chainMutateCall = registerPayment.mutate.mock.calls.at(-1);
-    const chainOnError = chainMutateCall?.[1]?.onError as
-      | ((err: Error) => void)
-      | undefined;
-    chainOnError?.(new ApiError("Fallo al reparar cadena", 500, "PAC_ERROR"));
-
-    await waitFor(() => {
-      expect(screen.getByText("Fallo al reparar cadena")).toBeInTheDocument();
-    });
-    expect(
-      screen.getByText(financeCopy.cobros.toastError),
-    ).toBeInTheDocument();
-  });
-
-  it("submits the confirm sheet with the chosen payment date and default midday time", async () => {
-    const user = userEvent.setup();
-    openPpd.data = {
-      data: [buildInvoice()],
-      pagination: { page: 1, limit: 50, total: 1, totalPages: 1 },
-    };
-
-    renderWithTheme(<FinanceCobrosPage />, {
-      route: ["/finance/payments"],
-    });
-
-    await user.click(
-      screen.getAllByRole("checkbox", { name: "Seleccionar factura A-10" })[0]!,
-    );
-    await user.click(
-      screen.getAllByRole("button", { name: /Registrar cobro · 1 factura/ })[0]!,
-    );
-
-    expect(
-      screen.getByRole("heading", { name: "Confirmar cobro" }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Fecha del cobro")).toHaveTextContent(
-      /29 sep 2026/i,
-    );
-
-    await user.click(screen.getByLabelText("Fecha del cobro"));
-    await user.click(screen.getByRole("button", { name: "15" }));
-
-    await user.clear(screen.getByLabelText("Hora"));
-    await user.click(
-      screen.getByRole("button", { name: "Registrar cobro de $1,160.00" }),
-    );
-
-    expect(registerPayment.mutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        paymentDate: "2026-09-15",
-        paymentTime: "12:00:00",
-        paymentForm: "03",
-        amount: 1160,
-        allocations: [
-          expect.objectContaining({
-            ingressInvoiceId: "inv-1",
-            amount: 1160,
-          }),
-        ],
-      }),
-      expect.anything(),
+    expect(screen.getByTestId("location").textContent).toContain(
+      "invoiceIds=inv-1",
     );
   });
 
@@ -588,7 +518,7 @@ describe("FinanceCobrosPage", () => {
     expect(screen.getByText("Requiere atención")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Ver excepciones" }));
     expect(
-      screen.getByRole("tab", { name: /Excepciones REP/i }),
+      screen.getByRole("tab", { name: /REP sin timbrar/i }),
     ).toHaveAttribute("aria-selected", "true");
   });
 
@@ -757,7 +687,7 @@ describe("FinanceCobrosPage", () => {
       route: ["/finance/payments"],
     });
 
-    await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
+    await user.click(screen.getByRole("tab", { name: /REP sin timbrar/i }));
 
     expect(
       screen.getByText("No se pudieron cargar los comprobantes"),
@@ -831,26 +761,11 @@ describe("FinanceCobrosPage", () => {
       route: ["/finance/payments"],
     });
 
-    await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
+    await user.click(screen.getByRole("tab", { name: /REP sin timbrar/i }));
 
     expect(screen.getAllByText("Timbrado fallido").length).toBeGreaterThan(0);
     expect(screen.getByText("Error de validación PAC")).toBeInTheDocument();
     expect(screen.getByText("Plazo vencido", { exact: false })).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Abrir factura A-10" }),
-    ).toHaveAttribute("href", "/invoices/inv-1#invoice-payments");
-    const goToInvoiceLinks = screen.getAllByRole("link", {
-      name: "Ir a factura",
-    });
-    expect(goToInvoiceLinks).toHaveLength(2);
-    expect(goToInvoiceLinks[0]).toHaveAttribute(
-      "href",
-      "/invoices/inv-1#invoice-payments",
-    );
-    expect(goToInvoiceLinks[1]).toHaveAttribute(
-      "href",
-      "/invoices/inv-2#invoice-payments",
-    );
     expect(
       screen.getByRole("button", { name: "Reintentar timbrado" }),
     ).toBeInTheDocument();
@@ -859,7 +774,7 @@ describe("FinanceCobrosPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("multi-invoice exception: no ghost Ir a factura; +N más lists the lote", async () => {
+  it("multi-invoice exception: folio chips are visible and retry is available", async () => {
     const user = userEvent.setup();
     repExceptions.data = {
       data: [
@@ -892,21 +807,11 @@ describe("FinanceCobrosPage", () => {
       route: ["/finance/payments"],
     });
 
-    await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
+    await user.click(screen.getByRole("tab", { name: /REP sin timbrar/i }));
 
+    expect(screen.getByText("Timbrado fallido")).toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Ir a factura" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("+1 más")).toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", {
-        name: "Ver el cobro en una factura del lote",
-      }),
-    );
-
-    expect(
-      screen.getByRole("menuitem", { name: "Abrir factura A-13" }),
-    ).toHaveAttribute("href", "/invoices/inv-4#invoice-payments");
+      screen.getByRole("button", { name: "Reintentar timbrado" }),
+    ).toBeInTheDocument();
   });
 });

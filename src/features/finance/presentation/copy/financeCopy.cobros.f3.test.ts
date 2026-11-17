@@ -3,14 +3,18 @@ import { financeCopy } from "./financeCopy";
 
 const copy = financeCopy.cobros;
 
-describe("financeCopy.cobros F3 (D13)", () => {
-  it("states lote = current page and filter RFC to gather several", () => {
-    expect(copy.selectedHint).toMatch(/lote.*esta página/i);
+describe("financeCopy.cobros F2 (updated copy)", () => {
+  it("selectedHint describes next-step adjustments", () => {
+    expect(copy.selectedHint).toMatch(/monto.*reparto|siguiente paso/i);
+  });
+
+  it("sameRfcOnlyHint mentions RFC filter", () => {
     expect(copy.sameRfcOnlyHint).toMatch(/Filtra por RFC/i);
-    expect(copy.sameRfcOnlyHint).toMatch(/esta página/i);
-    expect(copy.sheetDescription).toMatch(/esta página/i);
-    expect(copy.workbench.description).toMatch(/página actual/i);
-    expect(copy.selectAllAria).toMatch(/esta página/i);
+  });
+
+  it("workbench description mentions PPD with saldo and REP", () => {
+    expect(copy.workbench.description).toMatch(/PPD/i);
+    expect(copy.workbench.description).toMatch(/REP/i);
   });
 
   it("does not keep deprecated followThrough tray copy", () => {

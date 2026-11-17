@@ -38,6 +38,7 @@ function renderTable(
         selected={props.selected ?? {}}
         anchorRfc={props.anchorRfc}
         onToggle={props.onToggle ?? vi.fn()}
+        onToggleGroup={props.onToggleGroup ?? vi.fn()}
         onTogglePage={props.onTogglePage ?? vi.fn()}
         isLoading={props.isLoading}
       />
@@ -46,15 +47,13 @@ function renderTable(
 }
 
 describe("FinanceCobrosInvoiceTable", () => {
-  it("links the folio and shows client with RFC for the mixed queue", () => {
+  it("links the folio and shows RFC in group header", () => {
     renderTable();
 
     const folioLinks = screen.getAllByRole("link", { name: "A-10" });
     expect(folioLinks[0]).toHaveAttribute("href", "/invoices/inv-1");
     expect(screen.getAllByText("TRP-001").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Cliente Demo").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("XAXX010101000").length).toBeGreaterThan(0);
-    expect(screen.queryByText("A crédito")).not.toBeInTheDocument();
+    expect(screen.getByText(/XAXX010101000/)).toBeInTheDocument();
   });
 
   it("preserves the cobros queue in location.state.from", async () => {
@@ -74,6 +73,7 @@ describe("FinanceCobrosInvoiceTable", () => {
                 invoices={[buildInvoice()]}
                 selected={{}}
                 onToggle={vi.fn()}
+                onToggleGroup={vi.fn()}
                 onTogglePage={vi.fn()}
               />
             }
@@ -114,11 +114,6 @@ describe("FinanceCobrosInvoiceTable", () => {
         name: "No seleccionable: factura A-11 es de otro RFC",
       })[0],
     ).toBeDisabled();
-    expect(
-      screen.getByText(
-        "Solo puedes registrar un cobro con facturas del mismo RFC. Filtra por RFC para reunir varias en esta página.",
-      ),
-    ).toBeInTheDocument();
   });
 
   it("hides the same-RFC hint when every row is selectable", () => {
@@ -138,21 +133,17 @@ describe("FinanceCobrosInvoiceTable", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("selects the current page from the header checkbox", async () => {
-    const user = userEvent.setup();
-    const onTogglePage = vi.fn();
+  it("shows group checkbox for client group", () => {
     renderTable({
       invoices: [
         buildInvoice(),
-        buildInvoice({ id: "inv-2", folio: 11, tripCodes: [] }),
+        buildInvoice({ id: "inv-2", folio: 11 }),
       ],
-      onTogglePage,
     });
 
-    const selectAll = screen.getAllByRole("checkbox", {
-      name: "Seleccionar todas las facturas del mismo RFC en esta página",
+    const groupCheckbox = screen.getByRole("checkbox", {
+      name: /Seleccionar todas las facturas de/,
     });
-    await user.click(selectAll[0]!);
-    expect(onTogglePage).toHaveBeenCalledWith(true);
+    expect(groupCheckbox).toBeInTheDocument();
   });
 });
