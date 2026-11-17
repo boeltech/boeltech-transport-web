@@ -104,14 +104,6 @@ function DashboardPage() {
   );
 
   const extrasNeedTripsByDay = visibleWidgets.some((w) => w.id === "trips_by_day");
-  const extrasNeedFinance =
-    showFinance &&
-    visibleWidgets.some(
-      (w) =>
-        w.id === "financial_comparison" ||
-        w.id === "vehicle_expense_ranking" ||
-        w.id === "invoices_month",
-    );
 
   const { data: tripsByDay, isLoading: tripsByDayLoading } = useTripsByDay(
     tripsDays,
@@ -119,7 +111,8 @@ function DashboardPage() {
   );
   const { data: financialTrend, isLoading: financialTrendLoading } =
     useFinancialTrend(financialTrendMonths, {
-      enabled: showFinance && extrasNeedFinance,
+      /* K10 scorecard (barras + comparación) + extras Análisis */
+      enabled: showFinance,
     });
 
   const { data: financeSummary, isLoading: financeSummaryLoading } =

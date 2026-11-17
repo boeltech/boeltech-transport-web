@@ -43,8 +43,8 @@ const financeSummaryStub = {
   totalOverdue: 0,
 } as never;
 
-describe("DashboardMetricTrendCards — Aurora cluster", () => {
-  it("renders hero Margen + $/viaje footer and vertical AR stack", () => {
+describe("DashboardMetricTrendCards — Resumen del mes v2 (F5)", () => {
+  it("renders zone title, Margen + Cobranza and formula terms", () => {
     render(
       <MemoryRouter>
         <DashboardMetricTrendCards
@@ -61,28 +61,25 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByText(dashboardCopy.scorecard.title)).toBeInTheDocument();
     expect(
       screen.getByText(dashboardCopy.scorecard.margin.title),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(dashboardCopy.scorecard.revenuePerTrip.title),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Unidades con más gasto")).not.toBeInTheDocument();
-    expect(
-      screen.getByText(dashboardCopy.scorecard.collected.title),
+      screen.getByText(dashboardCopy.scorecard.cobranza.title),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(dashboardCopy.scorecard.receivable.title),
+      screen.getByText(dashboardCopy.scorecard.margin.formula.revenue),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(dashboardCopy.scorecard.overdue.title),
+      screen.getByText(dashboardCopy.scorecard.margin.formula.costs),
     ).toBeInTheDocument();
     expect(
-      screen.getByLabelText(dashboardCopy.scorecard.arStrip.ariaLabel),
-    ).toBeInTheDocument();
+      screen.queryByText(dashboardCopy.scorecard.revenuePerTrip.title),
+    ).not.toBeInTheDocument();
   });
 
-  it("shows revenue-per-trip as its own card value (no Margen caption)", () => {
+  it("puts trips + avg revenue in Margen footer (no dedicated $/viaje strip)", () => {
     render(
       <MemoryRouter>
         <DashboardMetricTrendCards
@@ -103,42 +100,12 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("$45,000")).toBeInTheDocument();
     expect(
-      screen.queryByText(
-        dashboardCopy.scorecard.revenuePerTrip.caption("$45,000"),
-      ),
-    ).not.toBeInTheDocument();
+      screen.getByText(/2 viajes completados · \$45,000 de ingreso promedio/),
+    ).toBeInTheDocument();
   });
 
-  it("shows em dash for revenue/trip when trip_count is 0", () => {
-    render(
-      <MemoryRouter>
-        <DashboardMetricTrendCards
-          data={
-            {
-              stats: {
-                financial_month: buildFinancialMonth({
-                  actual_revenue: 90_000,
-                  trip_count: 0,
-                }),
-              },
-            } as never
-          }
-          isLoading={false}
-          navigate={vi.fn()}
-          financeLoading={false}
-        />
-      </MemoryRouter>,
-    );
-
-    const revenueCard = screen.getByLabelText(
-      dashboardCopy.scorecard.revenuePerTrip.ariaLabel,
-    );
-    expect(revenueCard).toHaveTextContent("—");
-  });
-
-  it("ADR-0096: Cobrado subtitle excludes operational cash", () => {
+  it("shows closed-fallback comparison without % when period_to_date is absent", () => {
     render(
       <MemoryRouter>
         <DashboardMetricTrendCards
@@ -151,25 +118,143 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
           navigate={vi.fn()}
           financeLoading={false}
           financeSummary={financeSummaryStub}
+          financialTrend={buildTrend()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/Febrero cerró en/)).toBeInTheDocument();
+    expect(screen.queryByText("+33.3%")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(dashboardCopy.scorecard.vsPreviousMonth),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows period MoM % only when period_to_date is present", () => {
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: { financial_month: buildFinancialMonth() },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
+          financeSummary={financeSummaryStub}
+          financialTrend={buildTrend({
+            periodToDate: {
+              day: 17,
+              current: {
+                from: "2026-03-01",
+                to: "2026-03-17",
+                actual_revenue: 80_000,
+                actual_cost: 20_000,
+                actual_margin: 60_000,
+                trip_count: 2,
+              },
+              previous: {
+                from: "2026-02-01",
+                to: "2026-02-17",
+                actual_revenue: 70_000,
+                actual_cost: 20_000,
+                actual_margin: 50_000,
+                trip_count: 2,
+              },
+            },
+          })}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("+20%")).toBeInTheDocument();
+    expect(screen.getByText(/vs 1–17 feb/)).toBeInTheDocument();
+  });
+
+  it("renders 6 trend bars when trend has ≥2 periods", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: { financial_month: buildFinancialMonth() },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
+          financialTrend={buildTrend()}
         />
       </MemoryRouter>,
     );
 
     expect(
-      screen.getByText(dashboardCopy.scorecard.collected.title),
-    ).toBeInTheDocument();
+      container.querySelector('[data-testid="margin-trend-bars"]'),
+    ).not.toBeNull();
     expect(
-      screen.getAllByText(dashboardCopy.scorecard.collected.subtitle).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.queryByText(/Pagos de facturas · sin efectivo sin CFDI/),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Pagos registrados en el periodo"),
-    ).not.toBeInTheDocument();
+      container.querySelector('[data-testid="margin-sparkline"]'),
+    ).toBeNull();
   });
 
-  it("shows Provisional chip and navigates to approvals when pending (PD-B)", async () => {
+  it("shows Provisional + pending copy without $X when amount is absent", () => {
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: {
+                financial_month: buildFinancialMonth({
+                  trips_with_pending_expenses: 3,
+                }),
+              },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(dashboardCopy.scorecard.margin.provisionalChip),
+    ).toBeInTheDocument();
+    expect(screen.getByText("3 gastos sin aprobar")).toBeInTheDocument();
+    expect(
+      screen.getByText(/El margen puede bajar: hay 3 gastos/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Revisar")).toBeInTheDocument();
+  });
+
+  it("includes pending $X when F5a amount is present", () => {
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: {
+                financial_month: buildFinancialMonth({
+                  pending_expenses_count: 3,
+                  pending_expenses_amount: 8_450,
+                  trips_with_pending_expenses: 1,
+                }),
+              },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText("3 gastos sin aprobar · $8,450"),
+    ).toBeInTheDocument();
+  });
+
+  it("navigates Revisar to approvals and Ver en Análisis to margin", async () => {
     const user = userEvent.setup();
     const navigate = vi.fn();
     render(
@@ -191,53 +276,24 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByText(dashboardCopy.scorecard.margin.provisionalChip),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(dashboardCopy.scorecard.margin.provisionalHint),
-    ).toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", {
-        name: dashboardCopy.scorecard.margin.provisionalAriaLabel,
-      }),
-    );
+    await user.click(screen.getByText("Revisar"));
     expect(navigate).toHaveBeenCalledWith(
       "/finance/approvals?status=pending&type=trip_expense",
       { state: { from: "/dashboard" } },
     );
-  });
 
-  it("uses text-card-foreground on card amounts (not solid *-foreground on bg-card)", () => {
-    render(
-      <MemoryRouter>
-        <DashboardMetricTrendCards
-          data={
-            {
-              stats: {
-                financial_month: buildFinancialMonth({
-                  actual_margin: 412_780,
-                }),
-              },
-            } as never
-          }
-          isLoading={false}
-          navigate={vi.fn()}
-          financeLoading={false}
-          financeSummary={financeSummaryStub}
-        />
-      </MemoryRouter>,
+    navigate.mockClear();
+    await user.click(
+      screen.getByText(dashboardCopy.scorecard.margin.openAnalysis),
     );
-
-    const amount = screen.getByText(/412/);
-    expect(amount.className).toContain("text-card-foreground");
-    expect(amount.className).not.toContain("text-warning-foreground");
-    expect(amount.className).not.toContain("text-success-foreground");
+    expect(navigate).toHaveBeenCalledWith(
+      expect.stringContaining("/finance/analysis"),
+      { state: { from: "/dashboard" } },
+    );
   });
 
-  it("hides sparkline on xs and caps width on sm+ (F5 responsive)", () => {
-    const { container } = render(
+  it("shows Nada vencido in green when overdue is 0", () => {
+    render(
       <MemoryRouter>
         <DashboardMetricTrendCards
           data={
@@ -249,20 +305,51 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
           navigate={vi.fn()}
           financeLoading={false}
           financeSummary={financeSummaryStub}
+        />
+      </MemoryRouter>,
+    );
+
+    const ok = screen.getByText(
+      dashboardCopy.scorecard.cobranza.nothingOverdue,
+    );
+    expect(ok).toBeInTheDocument();
+    expect(ok.className).toContain("text-success");
+  });
+
+  it("shows empty month copy without inventing MoM %", () => {
+    render(
+      <MemoryRouter>
+        <DashboardMetricTrendCards
+          data={
+            {
+              stats: {
+                financial_month: buildFinancialMonth({
+                  trip_count: 0,
+                  actual_revenue: 0,
+                  actual_cost: 0,
+                  actual_margin: 0,
+                }),
+              },
+            } as never
+          }
+          isLoading={false}
+          navigate={vi.fn()}
+          financeLoading={false}
           financialTrend={buildTrend()}
         />
       </MemoryRouter>,
     );
 
-    const spark = container.querySelector('[data-testid="margin-sparkline"]');
-    expect(spark).not.toBeNull();
-    expect(spark?.className).toContain("hidden");
-    expect(spark?.className).toContain("sm:block");
-    expect(spark?.className).toContain("w-20");
-    expect(spark?.className).toContain("md:w-[120px]");
+    expect(
+      screen.getByText(/Aún no hay viajes completados/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Febrero cerró en/)).toBeInTheDocument();
+    expect(screen.queryByText("+33.3%")).not.toBeInTheDocument();
   });
 
-  it("keeps focus-visible ring on clickable AR cards", () => {
+  it("deep-links Cobranza rows and Ver Cartera to hub", async () => {
+    const user = userEvent.setup();
+    const navigate = vi.fn();
     render(
       <MemoryRouter>
         <DashboardMetricTrendCards
@@ -272,50 +359,35 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
             } as never
           }
           isLoading={false}
-          navigate={vi.fn()}
+          navigate={navigate}
           financeLoading={false}
-          financeSummary={financeSummaryStub}
-        />
-      </MemoryRouter>,
-    );
-
-    const arCard = screen.getByRole("button", {
-      name: dashboardCopy.scorecard.collected.ariaLabel,
-    });
-    expect(arCard.className).toContain("focus-visible:ring-2");
-    expect(arCard.className).toContain("focus-visible:ring-ring");
-  });
-
-  it("uses text-warning (not warning-foreground) for provisional margin amount", () => {
-    render(
-      <MemoryRouter>
-        <DashboardMetricTrendCards
-          data={
+          financeSummary={
             {
-              stats: {
-                financial_month: buildFinancialMonth({
-                  actual_margin: 338_510,
-                  trips_with_pending_expenses: 1,
-                }),
-              },
+              collectedThisMonth: 10_000,
+              totalReceivable: 20_000,
+              totalOverdue: 5_000,
             } as never
           }
-          isLoading={false}
-          navigate={vi.fn()}
-          financeLoading={false}
         />
       </MemoryRouter>,
     );
 
-    const amount = screen.getByText(/338/);
-    expect(amount.className).toContain("text-warning");
-    expect(amount.className).not.toContain("text-warning-foreground");
-
-    const hint = screen.getByText(
-      dashboardCopy.scorecard.margin.provisionalHint,
+    await user.click(
+      screen.getByRole("button", {
+        name: dashboardCopy.scorecard.cobranza.receivableAria,
+      }),
     );
-    expect(hint.className).toContain("text-warning");
-    expect(hint.className).not.toContain("text-warning-foreground");
+    expect(navigate).toHaveBeenCalledWith("/finance", {
+      state: { from: "/dashboard" },
+    });
+
+    navigate.mockClear();
+    await user.click(
+      screen.getByText(dashboardCopy.scorecard.cobranza.openCartera),
+    );
+    expect(navigate).toHaveBeenCalledWith("/finance", {
+      state: { from: "/dashboard" },
+    });
   });
 
   it("uses text-warning for overdue amount when balance is past due", () => {
@@ -343,38 +415,9 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
 
     const overdueAmount = screen.getByText(/12/);
     expect(overdueAmount.className).toContain("text-warning");
-    expect(overdueAmount.className).not.toContain("text-warning-foreground");
   });
 
-  it("shows MoM delta for Margen when financial-trend has ≥2 periods (F2)", () => {
-    render(
-      <MemoryRouter>
-        <DashboardMetricTrendCards
-          data={
-            {
-              stats: { financial_month: buildFinancialMonth() },
-            } as never
-          }
-          isLoading={false}
-          navigate={vi.fn()}
-          financeLoading={false}
-          financeSummary={financeSummaryStub}
-          financialTrend={buildTrend()}
-        />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByText("+33.3%")).toBeInTheDocument();
-    expect(
-      screen.getByText(dashboardCopy.scorecard.vsPreviousMonth),
-    ).toBeInTheDocument();
-    // Solo Margen lleva Δ%; $/viaje y AR no inventan deltas
-    expect(
-      screen.getAllByText(dashboardCopy.scorecard.vsPreviousMonth),
-    ).toHaveLength(1);
-  });
-
-  it("omits delta and sparkline when trend has fewer than 2 periods (graceful degrade)", () => {
+  it("keeps lg 7/5 and items-start (no stretch)", () => {
     const { container } = render(
       <MemoryRouter>
         <DashboardMetricTrendCards
@@ -386,105 +429,15 @@ describe("DashboardMetricTrendCards — Aurora cluster", () => {
           isLoading={false}
           navigate={vi.fn()}
           financeLoading={false}
-          financialTrend={buildTrend({
-            periods: ["2026-03"],
-            budgeted_revenue: [100_000],
-            actual_revenue: [100_000],
-            budgeted_cost: [40_000],
-            actual_cost: [40_000],
-          })}
+          financeSummary={financeSummaryStub}
         />
       </MemoryRouter>,
     );
 
-    expect(
-      screen.queryByText(dashboardCopy.scorecard.vsPreviousMonth),
-    ).not.toBeInTheDocument();
-    expect(
-      container.querySelector("[aria-hidden] .recharts-responsive-container"),
-    ).toBeNull();
+    const grid = container.querySelector(".lg\\:grid-cols-12");
+    expect(grid?.className).toContain("lg:items-start");
+    expect(grid?.className).not.toContain("items-stretch");
+    expect(container.querySelector(".lg\\:col-span-7")).not.toBeNull();
+    expect(container.querySelector(".lg\\:col-span-5")).not.toBeNull();
   });
-
-  it("keeps Provisional chip when margin is enriched (F2)", () => {
-    render(
-      <MemoryRouter>
-        <DashboardMetricTrendCards
-          data={
-            {
-              stats: {
-                financial_month: buildFinancialMonth({
-                  trips_with_pending_expenses: 2,
-                }),
-              },
-            } as never
-          }
-          isLoading={false}
-          navigate={vi.fn()}
-          financeLoading={false}
-          financialTrend={buildTrend()}
-        />
-      </MemoryRouter>,
-    );
-
-    expect(
-      screen.getByText(dashboardCopy.scorecard.margin.provisionalChip),
-    ).toBeInTheDocument();
-    expect(screen.getByText("+33.3%")).toBeInTheDocument();
-  });
-
-  it("deep-links AR strip cells to Cobros", async () => {
-    const user = userEvent.setup();
-    const navigate = vi.fn();
-    render(
-      <MemoryRouter>
-        <DashboardMetricTrendCards
-          data={
-            {
-              stats: { financial_month: buildFinancialMonth() },
-            } as never
-          }
-          isLoading={false}
-          navigate={navigate}
-          financeLoading={false}
-          financeSummary={
-            {
-              collectedThisMonth: 10_000,
-              totalReceivable: 20_000,
-              totalOverdue: 5_000,
-            } as never
-          }
-        />
-      </MemoryRouter>,
-    );
-
-    await user.click(
-      screen.getByRole("button", {
-        name: dashboardCopy.scorecard.receivable.ariaLabel,
-      }),
-    );
-    expect(navigate).toHaveBeenCalledWith("/finance", {
-      state: { from: "/dashboard" },
-    });
-
-    navigate.mockClear();
-    await user.click(
-      screen.getByRole("button", {
-        name: dashboardCopy.scorecard.overdue.ariaLabel,
-      }),
-    );
-    expect(navigate).toHaveBeenCalledWith("/finance", {
-      state: { from: "/dashboard" },
-    });
-
-    navigate.mockClear();
-    await user.click(
-      screen.getByRole("button", {
-        name: dashboardCopy.scorecard.collected.ariaLabel,
-      }),
-    );
-    expect(navigate).toHaveBeenCalledWith("/finance", {
-      state: { from: "/dashboard" },
-    });
-  });
-
 });

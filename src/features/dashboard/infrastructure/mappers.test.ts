@@ -189,6 +189,41 @@ describe("mapFinancialTrend", () => {
     expect(mapFinancialTrend({ periods: ["2026-01"] }).currentPeriod).toBeUndefined();
     expect(mapFinancialTrend({ current_period: "" }).currentPeriod).toBeUndefined();
   });
+
+  it("mapea period_to_date (F5a Q22) a periodToDate", () => {
+    const result = mapFinancialTrend({
+      periods: ["2026-02", "2026-03"],
+      actual_revenue: [1, 2],
+      actual_cost: [0, 0],
+      budgeted_revenue: [0, 0],
+      budgeted_cost: [0, 0],
+      period_to_date: {
+        day: 17,
+        current: {
+          from: "2026-03-01",
+          to: "2026-03-17",
+          actual_revenue: 80,
+          actual_cost: 20,
+          actual_margin: 60,
+          trip_count: 2,
+        },
+        previous: null,
+      },
+    });
+
+    expect(result.periodToDate).toEqual({
+      day: 17,
+      current: {
+        from: "2026-03-01",
+        to: "2026-03-17",
+        actual_revenue: 80,
+        actual_cost: 20,
+        actual_margin: 60,
+        trip_count: 2,
+      },
+      previous: null,
+    });
+  });
 });
 
 describe("mapBranchKpis", () => {

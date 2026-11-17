@@ -1,3 +1,4 @@
+import { formatMonthAbbr, parseMonthPeriod } from "@shared/utils/monthPeriod";
 import type { FinancialTrendData } from "../../domain/types";
 
 export type DeltaDirection = "up" | "down" | "flat";
@@ -11,7 +12,33 @@ export type PercentDelta =
   | { kind: "percent"; direction: DeltaDirection; percent: number }
   | { kind: "unavailable" };
 
-const SPARK_MAX_POINTS = 6;
+const BAR_MAX_POINTS = 6;
+
+const MONTH_TITLE_ES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+] as const;
+
+export function formatMonthTitle(month: number): string {
+  return MONTH_TITLE_ES[month - 1] ?? "";
+}
+
+/** `2026-11` → «Noviembre». */
+export function formatPeriodMonthTitle(period: string): string {
+  const parsed = parseMonthPeriod(period);
+  if (!parsed) return period;
+  return formatMonthTitle(parsed.month);
+}
 
 export function computePercentDelta(
   current: number,
@@ -22,7 +49,6 @@ export function computePercentDelta(
   }
 
   const raw = ((current - previous) / previous) * 100;
-  // One decimal — avoids float noise and matches the badge label.
   const percent = Math.round(raw * 10) / 10;
   if (percent > 0) {
     return { kind: "percent", direction: "up", percent };
@@ -42,37 +68,149 @@ export function formatPercentDeltaLabel(percent: number): string {
   return `${rounded > 0 ? "+" : "−"}${body}%`;
 }
 
-function marginAt(
-  trend: FinancialTrendData,
-  index: number,
-): number {
+function marginAt(trend: FinancialTrendData, index: number): number {
   return (trend.actual_revenue[index] ?? 0) - (trend.actual_cost[index] ?? 0);
 }
 
+export type MarginBarPoint = {
+  period: string;
+  monthAbbr: string;
+  value: number;
+  isCurrent: boolean;
+  /** Mes de referencia (anterior al curso) — tono medio. */
+  isReference: boolean;
+};
+
 /**
- * Last 2–6 margin points from financial-trend (revenue − cost).
- * Undefined when there are fewer than 2 periods (no sparkline to invent).
+ * Últimas 2–6 barras de margen (ingreso − costo).
+ * `undefined` si hay &lt;2 periodos (sin gráfica inventada).
  */
-export function buildMarginSparkSeries(
+export function buildMarginBarSeries(
   trend: FinancialTrendData | undefined,
-  maxPoints: number = SPARK_MAX_POINTS,
-): { value: number }[] | undefined {
+  maxPoints: number = BAR_MAX_POINTS,
+): MarginBarPoint[] | undefined {
   if (!trend || trend.periods.length < 2) return undefined;
 
-  const margins = trend.periods.map((_, index) => marginAt(trend, index));
-  const slice = margins.slice(-Math.max(2, Math.min(maxPoints, SPARK_MAX_POINTS)));
-  return slice.map((value) => ({ value }));
+  const count = Math.max(2, Math.min(maxPoints, BAR_MAX_POINTS, trend.periods.length));
+  const start = trend.periods.length - count;
+  const currentPeriod =
+    trend.currentPeriod ?? trend.periods[trend.periods.length - 1];
+  const refPeriod =
+    trend.periods.length >= 2
+      ? trend.periods[trend.periods.length - 2]
+      : undefined;
+
+  return trend.periods.slice(start).map((period, offset) => {
+    const index = start + offset;
+    const parsed = parseMonthPeriod(period);
+    return {
+      period,
+      monthAbbr: parsed ? formatMonthAbbr(parsed.month) : period,
+      value: marginAt(trend, index),
+      isCurrent: period === currentPeriod,
+      isReference: period === refPeriod && period !== currentPeriod,
+    };
+  });
+}
+
+export type MarginComparison =
+  | {
+      kind: "period_delta";
+      day: number;
+      previousMonthAbbr: string;
+      previousAmount: number;
+      delta: PercentDelta;
+    }
+  | {
+      kind: "closed_fallback";
+      previousMonthTitle: string;
+      previousAmount: number;
+    }
+  | { kind: "first_month" };
+
+/**
+ * Comparación de margen para el scorecard.
+ * **Nunca** compara tramo vs mes completo: solo `periodToDate` permite %;
+ * sin él → «{Mes ant} cerró en $X» (mes completo de la serie) sin %.
+ */
+export function resolveMarginComparison(
+  trend: FinancialTrendData | undefined,
+): MarginComparison | null {
+  if (!trend || trend.periods.length === 0) return null;
+
+  const ptd = trend.periodToDate;
+  if (ptd) {
+    if (ptd.previous == null) {
+      return { kind: "first_month" };
+    }
+    const prevFrom = parseMonthPeriod(ptd.previous.from);
+    return {
+      kind: "period_delta",
+      day: ptd.day,
+      previousMonthAbbr: prevFrom
+        ? formatMonthAbbr(prevFrom.month)
+        : ptd.previous.from.slice(5, 7),
+      previousAmount: ptd.previous.actual_margin,
+      delta: computePercentDelta(
+        ptd.current.actual_margin,
+        ptd.previous.actual_margin,
+      ),
+    };
+  }
+
+  if (trend.periods.length < 2) {
+    return { kind: "first_month" };
+  }
+
+  const prevIndex = trend.periods.length - 2;
+  const prevPeriod = trend.periods[prevIndex]!;
+  return {
+    kind: "closed_fallback",
+    previousMonthTitle: formatPeriodMonthTitle(prevPeriod),
+    previousAmount: marginAt(trend, prevIndex),
+  };
+}
+
+/** Margen del mes anterior completo en la serie (vacío / fallback copy). */
+export function getPreviousClosedMargin(
+  trend: FinancialTrendData | undefined,
+): { monthTitle: string; amount: number } | null {
+  if (!trend || trend.periods.length < 2) return null;
+  const prevIndex = trend.periods.length - 2;
+  return {
+    monthTitle: formatPeriodMonthTitle(trend.periods[prevIndex]!),
+    amount: marginAt(trend, prevIndex),
+  };
+}
+
+/** % del ingreso: margen ÷ ingreso; sin % si ingreso ≤ 0. */
+export function marginShareOfRevenue(
+  margin: number,
+  revenue: number,
+): number | null {
+  if (!(revenue > 0)) return null;
+  return Math.round((margin / revenue) * 100);
 }
 
 /**
- * MoM delta for the last two periods of the margin series.
- * Null when the trend cannot support a comparison (≥2 periods required).
+ * @deprecated F5 — no usar en scorecard (compara meses enteros).
+ * Aislado para no reintroducir MoM tramo vs mes completo.
  */
 export function getMarginMonthOverMonthDelta(
   trend: FinancialTrendData | undefined,
 ): PercentDelta | null {
   if (!trend || trend.periods.length < 2) return null;
-
   const last = trend.periods.length - 1;
   return computePercentDelta(marginAt(trend, last), marginAt(trend, last - 1));
+}
+
+/**
+ * @deprecated F5 — reemplazado por `buildMarginBarSeries`.
+ */
+export function buildMarginSparkSeries(
+  trend: FinancialTrendData | undefined,
+  maxPoints: number = BAR_MAX_POINTS,
+): { value: number }[] | undefined {
+  const bars = buildMarginBarSeries(trend, maxPoints);
+  return bars?.map((b) => ({ value: b.value }));
 }

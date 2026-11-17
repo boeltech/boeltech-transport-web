@@ -276,27 +276,79 @@ export const dashboardCopy = {
     weekTotal: (amount: string) => `Total semana · ${amount}`,
   },
   scorecard: {
-    /** Cluster Aurora: hero Margen (+ $/viaje) | stack Cobrado·Por cobrar·Vencido. */
+    /** F5 Resumen del mes v2 — Margen 7 + Cobranza 5. */
     title: "Resumen del mes",
-    description: "Margen e ingreso por viaje a la izquierda; cobranza a la derecha.",
+    zoneSubtitle: (monthTitle: string, day: number) =>
+      `${monthTitle} del 1 al ${day}. Cada cifra abre Análisis o Cartera.`,
     ariaLabel: "Resumen financiero del mes",
-    /** Suffix beside the MoM delta badge (Aurora scorecard). */
+    /** @deprecated F5 — reemplazado por comparación de tramo / cerró en. */
     vsPreviousMonth: "vs mes anterior",
     margin: {
       title: "Margen operativo",
-      subtitle: "Completados · tarifa · costos aprobados",
+      periodHeader: (monthTitle: string, day: number) =>
+        `${monthTitle} · del 1 al ${day}`,
+      openAnalysis: "Ver en Análisis ›",
       provisionalChip: "Provisional",
+      firstMonth: "Primer mes con viajes: sin comparación todavía.",
+      vsPeriod: (day: number, prevMonthAbbr: string, amount: string) =>
+        `vs 1–${day} ${prevMonthAbbr} · ${amount}`,
+      closedIn: (monthTitle: string, amount: string) =>
+        `${monthTitle} cerró en ${amount}`,
+      emptyTitle: (monthLower: string) =>
+        `Aún no hay viajes completados en ${monthLower}`,
+      emptyBody: (prevClosed: string | null) =>
+        prevClosed
+          ? `El margen aparece con el primer viaje completado. ${prevClosed}.`
+          : "El margen aparece con el primer viaje completado.",
+      chartCap: (monthLower: string) =>
+        `Últimos 6 meses · ${monthLower} en curso`,
+      formula: {
+        revenue: "Ingreso",
+        revenueHint: "Tarifa de viajes completados",
+        costs: "Costos aprobados",
+        costsHint: "Ruta, unidad, operador y extras aprobados",
+        margin: "Margen",
+        marginShare: (pct: number) => `${pct} % del ingreso`,
+        pendingCosts: (n: number, amount: string | null) =>
+          amount
+            ? `${n} gastos sin aprobar · ${amount}`
+            : `${n} gastos sin aprobar`,
+      },
+      footerTrips: (n: number, avg: string) =>
+        `${n} viajes completados · ${avg} de ingreso promedio por viaje`,
+      provisionalFooter: (n: number) =>
+        `El margen puede bajar: hay ${n} gastos de viaje por aprobar.`,
+      provisionalReview: "Revisar",
+      /** @deprecated F5 */
+      subtitle: "Completados · tarifa · costos aprobados",
+      /** @deprecated F5 */
       provisionalHint: "Puede bajar",
       provisionalAriaLabel:
         "Margen operativo provisional: ir a aprobaciones de gastos en cola",
     },
+    /** @deprecated F5 — promedio vive en el pie de Margen. */
     revenuePerTrip: {
       title: "Ingreso promedio por viaje",
       subtitle: "Ingreso real ÷ viajes completados",
       ariaLabel: "Ingreso promedio por viaje del mes",
-      /** @deprecated Caption bajo Margen retirado en F-layout; Card 2 es celda propia. */
       caption: (value: string) => `${value} por viaje`,
     },
+    cobranza: {
+      title: "Cobranza",
+      ariaLabel: "Cobranza: cobrado, por cobrar y vencido",
+      withInvoice: "Con factura",
+      withoutInvoice: "Sin factura",
+      collected: (monthLower: string) => `Cobrado en ${monthLower}`,
+      collectedAria: "Cobrado del mes: ir a Cartera",
+      receivable: "Por cobrar hoy",
+      receivableAria: "Por cobrar hoy: ir a Cartera",
+      overdue: "Vencido · más de 30 días",
+      overdueAria: "Vencido: ir a Cartera",
+      nothingOverdue: "Nada vencido",
+      footer: "Por cobrar y vencido son saldos de hoy.",
+      openCartera: "Ver Cartera ›",
+    },
+    /** @deprecated Prefer cobranza.*; aliases para tests/legacy. */
     arStrip: {
       ariaLabel: "Cobranza: cobrado, por cobrar y vencido",
     },

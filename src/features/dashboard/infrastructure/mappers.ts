@@ -98,6 +98,21 @@ export function mapDashboard(raw: Record<string, unknown>): DashboardData {
       ? null
       : asNumber(collectedRaw);
 
+  const financialMonthRaw = statsRaw.financial_month;
+  if (
+    financialMonthRaw &&
+    typeof financialMonthRaw === "object" &&
+    !Array.isArray(financialMonthRaw)
+  ) {
+    const fm = financialMonthRaw as Record<string, unknown>;
+    if (fm.pending_expenses_count != null) {
+      fm.pending_expenses_count = asNumber(fm.pending_expenses_count);
+    }
+    if (fm.pending_expenses_amount != null) {
+      fm.pending_expenses_amount = asNumber(fm.pending_expenses_amount);
+    }
+  }
+
   const stats = {
     ...(statsRaw as Omit<DashboardStats, "collectedYesterday">),
     collectedYesterday,
@@ -147,6 +162,37 @@ export function mapActivation(raw: Record<string, unknown>): ActivationData {
   };
 }
 
+function mapPeriodToDateSlice(raw: Record<string, unknown> | null | undefined) {
+  if (!raw) return null;
+  return {
+    from: asString(raw.from),
+    to: asString(raw.to),
+    actual_revenue: asNumber(raw.actual_revenue),
+    actual_cost: asNumber(raw.actual_cost),
+    actual_margin: asNumber(raw.actual_margin),
+    trip_count: asNumber(raw.trip_count),
+  };
+}
+
+function mapPeriodToDate(raw: unknown) {
+  if (!raw || typeof raw !== "object") return undefined;
+  const row = raw as Record<string, unknown>;
+  const current = mapPeriodToDateSlice(
+    row.current as Record<string, unknown> | null | undefined,
+  );
+  if (!current) return undefined;
+  const previousRaw = row.previous;
+  const previous =
+    previousRaw === null
+      ? null
+      : mapPeriodToDateSlice(
+          previousRaw as Record<string, unknown> | null | undefined,
+        );
+  const day = asNumber(row.day);
+  if (!(day >= 1 && day <= 31)) return undefined;
+  return { day, current, previous: previous ?? null };
+}
+
 export function mapFinancialTrend(raw: Record<string, unknown>) {
   const periods = Array.isArray(raw.periods)
     ? raw.periods.map((p) => asString(p))
@@ -167,6 +213,7 @@ export function mapFinancialTrend(raw: Record<string, unknown>) {
       ? raw.actual_cost.map((v) => asNumber(v))
       : [],
     currentPeriod: asString(raw.current_period) || undefined,
+    periodToDate: mapPeriodToDate(raw.period_to_date),
   };
 }
 

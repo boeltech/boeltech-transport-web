@@ -118,6 +118,11 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  /* Canal cobranza (Inicio + Cartera) — Q27 */
+  --color-chart-channel-with: var(--chart-channel-with);
+  --color-chart-channel-without: var(--chart-channel-without);
+  --color-chart-channel-overdue-with: var(--chart-channel-overdue-with);
+  --color-chart-channel-overdue-without: var(--chart-channel-overdue-without);
 
   /* Sidebar */
   --color-sidebar: var(--sidebar);
@@ -214,6 +219,11 @@
   --chart-3: oklch(0.72 0.14 75);  /* ámbar cálido */
   --chart-4: oklch(0.60 0.18 320); /* magenta suave */
   --chart-5: oklch(0.55 0.12 155); /* verde bosque */
+  /* Canal con/sin factura (Inicio + Cartera) — no reusar chart-2 slate */
+  --chart-channel-with: var(--primary);
+  --chart-channel-without: var(--primary-300);
+  --chart-channel-overdue-with: var(--warning);
+  --chart-channel-overdue-without: color-mix(in oklch, var(--warning) 45%, transparent);
 
   /* ── Sidebar con tinte azul sutil ───────────────────────────── */
   --sidebar: oklch(0.985 0.005 250);
@@ -295,6 +305,10 @@
   --chart-3: oklch(0.80 0.15 75);
   --chart-4: oklch(0.72 0.18 320);
   --chart-5: oklch(0.62 0.13 155);
+  --chart-channel-with: var(--primary);
+  --chart-channel-without: var(--primary-300);
+  --chart-channel-overdue-with: var(--warning);
+  --chart-channel-overdue-without: color-mix(in oklch, var(--warning) 45%, transparent);
 
   /* Sidebar más oscuro que el canvas para chrome distinto */
   --sidebar: oklch(0.09 0.02 250);
@@ -422,6 +436,15 @@ html[data-palette="v2"]:not(.dark) {
   --chart-3: var(--palette-amber);
   --chart-4: oklch(0.40 0.025 256);
   --chart-5: oklch(0.52 0.12 155);
+  /* Canal cobranza: teal / teal claro (+ ámbar vencido) — Q27 F5 */
+  --chart-channel-with: var(--palette-brand);
+  --chart-channel-without: var(--primary-300);
+  --chart-channel-overdue-with: var(--palette-amber);
+  --chart-channel-overdue-without: color-mix(
+    in oklch,
+    var(--palette-amber) 45%,
+    transparent
+  );
 
   /* Sidebar ink — marco distinto del canvas; riel = ámbar (señal) */
   --sidebar: var(--palette-ink);
@@ -516,6 +539,14 @@ html.dark[data-palette="v2"] {
   --chart-3: var(--palette-amber);
   --chart-4: oklch(0.58 0.025 256);
   --chart-5: oklch(0.62 0.12 155);
+  --chart-channel-with: var(--palette-brand);
+  --chart-channel-without: var(--primary-300);
+  --chart-channel-overdue-with: var(--palette-amber);
+  --chart-channel-overdue-without: color-mix(
+    in oklch,
+    var(--palette-amber) 45%,
+    transparent
+  );
 
   /* Sidebar más profundo que el canvas */
   --sidebar: oklch(0.09 0.016 256);
@@ -576,6 +607,28 @@ html.dark[data-palette="v2"] {
   /* Números tabulares por default en tablas para alineación de totales */
   table {
     font-variant-numeric: tabular-nums;
+  }
+
+  /**
+   * Barras de tendencia scorecard (F5 evolve-ds): mes en curso rayado.
+   * Consumidor: DashboardMetricTrendCards.
+   */
+  .scorecard-trend-bar {
+    display: block;
+    width: 100%;
+    max-width: 1.75rem;
+    border-radius: 3px 3px 0 0;
+    background: var(--primary-200);
+  }
+  .scorecard-trend-bar--ref {
+    background: var(--primary-300);
+  }
+  .scorecard-trend-bar--current {
+    background: repeating-linear-gradient(
+      135deg,
+      var(--primary) 0 4px,
+      var(--primary-400) 4px 7px
+    );
   }
 }
 

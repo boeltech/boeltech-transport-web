@@ -14,6 +14,17 @@ export const FINANCE_EXPENSE_CHART_TOKENS: ChartToken[] = [
   "chart-5",
 ];
 
+/**
+ * Tokens de canal con/sin factura (Q27 F5) — Inicio scorecard + Cartera.
+ * No reusar `--chart-2` slate para «sin factura».
+ */
+export const FINANCE_CHANNEL_CSS = {
+  with: "var(--chart-channel-with)",
+  without: "var(--chart-channel-without)",
+  overdueWith: "var(--chart-channel-overdue-with)",
+  overdueWithout: "var(--chart-channel-overdue-without)",
+} as const;
+
 export function pickFinanceExpenseChartToken(index: number): ChartToken {
   return FINANCE_EXPENSE_CHART_TOKENS[index % FINANCE_EXPENSE_CHART_TOKENS.length]!;
 }

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { FinancialTrendData } from "../../domain/types";
 import {
-  buildMarginSparkSeries,
+  buildMarginBarSeries,
   computePercentDelta,
   formatPercentDeltaLabel,
   getMarginMonthOverMonthDelta,
+  getPreviousClosedMargin,
+  marginShareOfRevenue,
+  resolveMarginComparison,
 } from "./scorecardTrendHelpers";
 
 function trend(
@@ -58,10 +61,10 @@ describe("formatPercentDeltaLabel", () => {
   });
 });
 
-describe("buildMarginSparkSeries", () => {
+describe("buildMarginBarSeries", () => {
   it("returns undefined with fewer than 2 periods", () => {
     expect(
-      buildMarginSparkSeries(
+      buildMarginBarSeries(
         trend({
           periods: ["2026-03"],
           actual_revenue: [100],
@@ -69,11 +72,11 @@ describe("buildMarginSparkSeries", () => {
         }),
       ),
     ).toBeUndefined();
-    expect(buildMarginSparkSeries(undefined)).toBeUndefined();
+    expect(buildMarginBarSeries(undefined)).toBeUndefined();
   });
 
-  it("builds revenue − cost series capped at 6 trailing points", () => {
-    const series = buildMarginSparkSeries(
+  it("builds up to 6 bars with current + reference flags", () => {
+    const series = buildMarginBarSeries(
       trend({
         periods: [
           "2025-10",
@@ -86,24 +89,131 @@ describe("buildMarginSparkSeries", () => {
         ],
         actual_revenue: [10, 20, 30, 40, 50, 60, 70],
         actual_cost: [5, 5, 5, 5, 5, 5, 5],
+        currentPeriod: "2026-04",
       }),
     );
 
-    // margins = [5, 15, 25, 35, 45, 55, 65] → last 6
-    expect(series).toEqual([
-      { value: 15 },
-      { value: 25 },
-      { value: 35 },
-      { value: 45 },
-      { value: 55 },
-      { value: 65 },
-    ]);
+    expect(series).toHaveLength(6);
+    expect(series![5]).toMatchObject({
+      period: "2026-04",
+      isCurrent: true,
+      isReference: false,
+      value: 65,
+    });
+    expect(series![4]).toMatchObject({
+      period: "2026-03",
+      isCurrent: false,
+      isReference: true,
+    });
   });
 });
 
-describe("getMarginMonthOverMonthDelta", () => {
-  it("compares the last two margin points", () => {
-    // margins 60 → 80 → +33.3%
+describe("resolveMarginComparison — hard rule never MoM full month", () => {
+  it("uses period_to_date for % when previous slice exists", () => {
+    expect(
+      resolveMarginComparison(
+        trend({
+          periods: ["2026-02", "2026-03"],
+          actual_revenue: [100, 120],
+          actual_cost: [40, 40],
+          periodToDate: {
+            day: 17,
+            current: {
+              from: "2026-03-01",
+              to: "2026-03-17",
+              actual_revenue: 80,
+              actual_cost: 20,
+              actual_margin: 60,
+              trip_count: 3,
+            },
+            previous: {
+              from: "2026-02-01",
+              to: "2026-02-17",
+              actual_revenue: 70,
+              actual_cost: 20,
+              actual_margin: 50,
+              trip_count: 2,
+            },
+          },
+        }),
+      ),
+    ).toEqual({
+      kind: "period_delta",
+      day: 17,
+      previousMonthAbbr: "feb",
+      previousAmount: 50,
+      delta: { kind: "percent", direction: "up", percent: 20 },
+    });
+  });
+
+  it("returns first_month when period_to_date.previous is null", () => {
+    expect(
+      resolveMarginComparison(
+        trend({
+          periods: ["2026-03"],
+          actual_revenue: [100],
+          actual_cost: [40],
+          periodToDate: {
+            day: 10,
+            current: {
+              from: "2026-03-01",
+              to: "2026-03-10",
+              actual_revenue: 100,
+              actual_cost: 40,
+              actual_margin: 60,
+              trip_count: 1,
+            },
+            previous: null,
+          },
+        }),
+      ),
+    ).toEqual({ kind: "first_month" });
+  });
+
+  it("falls back to closed month without % when period_to_date is absent", () => {
+    // Full-month MoM would be +33.3% — must NOT surface as percent.
+    expect(
+      resolveMarginComparison(
+        trend({
+          periods: ["2026-02", "2026-03"],
+          actual_revenue: [100, 120],
+          actual_cost: [40, 40],
+        }),
+      ),
+    ).toEqual({
+      kind: "closed_fallback",
+      previousMonthTitle: "Febrero",
+      previousAmount: 60,
+    });
+  });
+});
+
+describe("getPreviousClosedMargin", () => {
+  it("returns previous full-month margin for empty-state copy", () => {
+    expect(
+      getPreviousClosedMargin(
+        trend({
+          periods: ["2026-02", "2026-03"],
+          actual_revenue: [100, 10],
+          actual_cost: [40, 5],
+        }),
+      ),
+    ).toEqual({ monthTitle: "Febrero", amount: 60 });
+  });
+});
+
+describe("marginShareOfRevenue", () => {
+  it("returns null when revenue is 0", () => {
+    expect(marginShareOfRevenue(10, 0)).toBeNull();
+  });
+
+  it("rounds margin ÷ revenue * 100", () => {
+    expect(marginShareOfRevenue(94_830, 412_300)).toBe(23);
+  });
+});
+
+describe("getMarginMonthOverMonthDelta (isolated / deprecated)", () => {
+  it("still compares last two full months (must not be used by scorecard UI)", () => {
     expect(
       getMarginMonthOverMonthDelta(
         trend({
@@ -117,18 +227,5 @@ describe("getMarginMonthOverMonthDelta", () => {
       direction: "up",
       percent: 33.3,
     });
-  });
-
-  it("returns null without a comparable series", () => {
-    expect(getMarginMonthOverMonthDelta(undefined)).toBeNull();
-    expect(
-      getMarginMonthOverMonthDelta(
-        trend({
-          periods: ["2026-03"],
-          actual_revenue: [100],
-          actual_cost: [40],
-        }),
-      ),
-    ).toBeNull();
   });
 });

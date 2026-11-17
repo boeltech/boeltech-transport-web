@@ -9,6 +9,7 @@ import type {
   OperationalAgingBucket,
 } from "@features/finance/domain";
 import { financeCopy } from "../copy";
+import { FINANCE_CHANNEL_CSS } from "../config/financeChartConfig";
 
 interface FinanceAgingChartProps {
   agingSummary?: AgingSummary;
@@ -122,24 +123,24 @@ export function FinanceAgingChart({
                 <div className="flex h-3 min-w-0 overflow-hidden rounded-sm bg-muted">
                   {withPct > 0 ? (
                     <span
-                      className={cn(
-                        "h-full",
-                        row.overdue
-                          ? "bg-warning"
-                          : "bg-[var(--chart-1)]",
-                      )}
-                      style={{ width: `${withPct}%` }}
+                      className="h-full"
+                      style={{
+                        width: `${withPct}%`,
+                        background: row.overdue
+                          ? FINANCE_CHANNEL_CSS.overdueWith
+                          : FINANCE_CHANNEL_CSS.with,
+                      }}
                     />
                   ) : null}
                   {withoutPct > 0 ? (
                     <span
-                      className={cn(
-                        "h-full opacity-80",
-                        row.overdue
-                          ? "bg-warning/70"
-                          : "bg-[var(--chart-2)]",
-                      )}
-                      style={{ width: `${withoutPct}%` }}
+                      className="h-full"
+                      style={{
+                        width: `${withoutPct}%`,
+                        background: row.overdue
+                          ? FINANCE_CHANNEL_CSS.overdueWithout
+                          : FINANCE_CHANNEL_CSS.without,
+                      }}
                     />
                   ) : null}
                 </div>
@@ -158,14 +159,16 @@ export function FinanceAgingChart({
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <span
-                className="inline-block h-2 w-2 rounded-sm bg-[var(--chart-1)]"
+                className="inline-block h-2 w-2 rounded-sm"
+                style={{ background: FINANCE_CHANNEL_CSS.with }}
                 aria-hidden
               />
               {copy.withInvoice}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
-                className="inline-block h-2 w-2 rounded-sm bg-[var(--chart-2)]"
+                className="inline-block h-2 w-2 rounded-sm"
+                style={{ background: FINANCE_CHANNEL_CSS.without }}
                 aria-hidden
               />
               {copy.withoutInvoice}

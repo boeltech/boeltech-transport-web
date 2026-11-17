@@ -3,6 +3,7 @@ import { Skeleton } from "@shared/ui/skeleton";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import { financeCopy } from "../copy";
+import { FINANCE_CHANNEL_CSS } from "../config/financeChartConfig";
 
 export interface FinanceReceivableKpisProps {
   summary?: FinanceSummary;
@@ -34,14 +35,20 @@ function ChannelSplitBar({
     >
       {withPct > 0 ? (
         <span
-          className="h-full bg-[var(--chart-1)]"
-          style={{ width: `${withPct}%` }}
+          className="h-full"
+          style={{
+            width: `${withPct}%`,
+            background: FINANCE_CHANNEL_CSS.with,
+          }}
         />
       ) : null}
       {withoutPct > 0 ? (
         <span
-          className="h-full bg-[var(--chart-2)]"
-          style={{ width: `${withoutPct}%` }}
+          className="h-full"
+          style={{
+            width: `${withoutPct}%`,
+            background: FINANCE_CHANNEL_CSS.without,
+          }}
         />
       ) : null}
     </div>
@@ -60,7 +67,8 @@ function ChannelLegend({
     <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
       <span className="inline-flex items-center gap-1.5">
         <span
-          className="inline-block h-2 w-2 rounded-sm bg-[var(--chart-1)]"
+          className="inline-block h-2 w-2 rounded-sm"
+          style={{ background: FINANCE_CHANNEL_CSS.with }}
           aria-hidden
         />
         {copy.withInvoice}{" "}
@@ -70,7 +78,8 @@ function ChannelLegend({
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span
-          className="inline-block h-2 w-2 rounded-sm bg-[var(--chart-2)]"
+          className="inline-block h-2 w-2 rounded-sm"
+          style={{ background: FINANCE_CHANNEL_CSS.without }}
           aria-hidden
         />
         {copy.withoutInvoice}{" "}

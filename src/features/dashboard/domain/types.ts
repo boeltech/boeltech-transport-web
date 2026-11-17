@@ -54,6 +54,28 @@ export interface FinancialMonth {
   cost_variance: number;
   margin_variance: number;
   trips_with_pending_expenses: number;
+  /** F5a Q25 — nº de gastos pending|documented; ausente hasta el API. */
+  pending_expenses_count?: number;
+  /** F5a Q25 — Σ amount de esos gastos; ausente → copy sin `$X`. */
+  pending_expenses_amount?: number;
+}
+
+/** Tramo 1..D CDMX (F5a Q22). */
+export interface PeriodToDateSlice {
+  from: string;
+  to: string;
+  actual_revenue: number;
+  actual_cost: number;
+  actual_margin: number;
+  trip_count: number;
+}
+
+export interface PeriodToDate {
+  /** Día civil CDMX del corte (1..31). */
+  day: number;
+  current: PeriodToDateSlice;
+  /** `null` = primer mes con datos → sin %. */
+  previous: PeriodToDateSlice | null;
 }
 
 export interface FinancialTrendData {
@@ -64,6 +86,8 @@ export interface FinancialTrendData {
   actual_cost: number[];
   /** Mes en curso según el API (`YYYY-MM`); es el último de `periods`. */
   currentPeriod?: string;
+  /** F5a Q22 — comparación mismo tramo; ausente → fallback «cerró en $X» sin %. */
+  periodToDate?: PeriodToDate;
 }
 
 // ============================================

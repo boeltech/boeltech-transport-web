@@ -291,6 +291,10 @@ Utilidades: `bg-success-soft`, `text-success-soft-foreground`, etc.
 `--chart-3` ámbar · `--chart-4` ink muted · `--chart-5` success. Usar en
 gráficas del dashboard y módulo de finanzas.
 
+**Canal cobranza (Inicio + Cartera · F5 Q27):** `--chart-channel-with` /
+`--chart-channel-without` (+ `--chart-channel-overdue-*`). **No** usar
+`--chart-2` slate para «sin factura» en barras de canal.
+
 **Surfaces clave:**
 
 | Token | Uso |
