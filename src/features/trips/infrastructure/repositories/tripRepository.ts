@@ -30,6 +30,7 @@ import type {
   Trip,
   TripListItem,
   TripInvoiceableSummary,
+  TripOpsDaySummary,
   TripQueryParams,
 } from "@features/trips/domain";
 import type { CreateTripResult } from "@features/trips/application/useCases/trip/CreateTripUseCase";
@@ -62,6 +63,7 @@ interface ApiInvoiceableSummaryResponse {
     proration_pending: number;
     blocked: number;
     total: number;
+    ready_amount?: number;
   };
 }
 
@@ -238,6 +240,40 @@ export class TripRepository implements ITripRepository {
       prorationPending: data.proration_pending,
       blocked: data.blocked,
       total: data.total,
+      readyAmount:
+        typeof data.ready_amount === "number" && Number.isFinite(data.ready_amount)
+          ? data.ready_amount
+          : 0,
+    };
+  }
+
+  async getOpsDaySummary(): Promise<TripOpsDaySummary> {
+    const response = await apiClient.get<{
+      data: {
+        counts: {
+          departing: number;
+          in_progress: number;
+          overdue: number;
+          arrived: number;
+        };
+        overdue_breakdown: {
+          departure_late: number;
+          arrival_late: number;
+        };
+      };
+    }>(`${TRIPS_ENDPOINT}/ops-day-summary`);
+    const data = response.data;
+    return {
+      counts: {
+        departing: data.counts.departing,
+        inProgress: data.counts.in_progress,
+        overdue: data.counts.overdue,
+        arrived: data.counts.arrived,
+      },
+      overdueBreakdown: {
+        departureLate: data.overdue_breakdown.departure_late,
+        arrivalLate: data.overdue_breakdown.arrival_late,
+      },
     };
   }
 

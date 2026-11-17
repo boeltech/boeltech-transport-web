@@ -146,6 +146,30 @@ describe("mapFinanceSummary", () => {
     expect(summary.collectedThisMonth).toBe(500);
     expect(summary.totalOverdue).toBe(200);
   });
+
+  it("maps by_channel overdue when present (Inicio I3)", () => {
+    const summary = mapFinanceSummary({
+      total_receivable: 1000,
+      collected_this_month: 100,
+      total_overdue: 300,
+      expenses_this_month: 0,
+      invoices_by_status: {},
+      by_channel: {
+        with_invoice: {
+          receivable: 700,
+          collected_this_month: 80,
+          overdue: 200,
+        },
+        without_invoice: {
+          receivable: 300,
+          collected_this_month: 20,
+          overdue: 100,
+        },
+      },
+    });
+    expect(summary.byChannel?.withInvoice.overdue).toBe(200);
+    expect(summary.byChannel?.withoutInvoice.overdue).toBe(100);
+  });
 });
 
 describe("mapAccountStatementItem", () => {

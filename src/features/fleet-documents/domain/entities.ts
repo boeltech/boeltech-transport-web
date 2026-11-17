@@ -62,11 +62,25 @@ export interface DocumentExpiryQueryParams {
   status?: DocumentExpiryStatusValue;
 }
 
+/** GET /fleet/document-expiries/summary — fila Inicio «Documentos por vencer». */
+export interface DocumentExpirySummary {
+  withinDays: number;
+  total: number;
+  expired: number;
+  byType: {
+    license: number;
+    medicalCertificate: number;
+    insurance: number;
+    sctPermit: number;
+  };
+}
+
 export const fleetDocumentsQueryKeys = {
   all: ["fleet-documents"] as const,
   lists: () => [...fleetDocumentsQueryKeys.all, "list"] as const,
   list: (params?: DocumentExpiryQueryParams) =>
     [...fleetDocumentsQueryKeys.lists(), params] as const,
+  summary: () => [...fleetDocumentsQueryKeys.all, "summary"] as const,
 } as const;
 
 export const FLEET_DOCUMENTS_PATH = "/fleet/documents";

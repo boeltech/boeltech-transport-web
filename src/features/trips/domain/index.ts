@@ -157,6 +157,7 @@ export type {
   // Workbench (ADR-0090)
   TripWorkbenchSummary,
   TripInvoiceableSummary,
+  TripOpsDaySummary,
 } from "./entities";
 
 export { CFDI_EMISSION_INTENT_LABELS } from "./entities";

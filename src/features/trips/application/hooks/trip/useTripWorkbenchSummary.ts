@@ -52,18 +52,20 @@ function overdueCountQuery() {
   };
 }
 
-export function useTripWorkbenchSummary() {
+export function useTripWorkbenchSummary(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const queries = useMemo(
-    () => [
-      statusCountQuery("draft"),
-      statusCountQuery("scheduled"),
-      statusCountQuery("in_progress"),
-      statusCountQuery("completed"),
-      statusCountQuery("cancelled"),
-      fiscalAttentionCountQuery(),
-      overdueCountQuery(),
-    ],
-    [],
+    () =>
+      [
+        statusCountQuery("draft"),
+        statusCountQuery("scheduled"),
+        statusCountQuery("in_progress"),
+        statusCountQuery("completed"),
+        statusCountQuery("cancelled"),
+        fiscalAttentionCountQuery(),
+        overdueCountQuery(),
+      ].map((q) => ({ ...q, enabled })),
+    [enabled],
   );
 
   const results = useQueries({ queries });

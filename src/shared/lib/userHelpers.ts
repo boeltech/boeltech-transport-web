@@ -85,24 +85,26 @@ export function getUserFirstName(user: UserLike | null | undefined): string {
 }
 
 /**
- * Obtiene un saludo personalizado según la hora del día
+ * Obtiene un saludo personalizado según la hora del día.
+ * Sin firstName: solo el saludo (sin «Usuario» ni coma). Q18 — no muta getUserFirstName.
  *
  * @example
  * getGreeting({ firstName: 'Juan' }) // 'Buenos días, Juan' (si es mañana)
+ * getGreeting({}) // 'Buenos días'
  */
 export function getGreeting(user: UserLike | null | undefined): string {
   const hour = new Date().getHours();
-  const name = getUserFirstName(user);
+  const raw = user?.firstName?.trim();
+  const name = raw || null;
 
-  if (hour >= 5 && hour < 12) {
-    return `Buenos días, ${name}`;
-  }
+  const base =
+    hour >= 5 && hour < 12
+      ? "Buenos días"
+      : hour >= 12 && hour < 19
+        ? "Buenas tardes"
+        : "Buenas noches";
 
-  if (hour >= 12 && hour < 19) {
-    return `Buenas tardes, ${name}`;
-  }
-
-  return `Buenas noches, ${name}`;
+  return name ? `${base}, ${name}` : base;
 }
 
 // ============================================

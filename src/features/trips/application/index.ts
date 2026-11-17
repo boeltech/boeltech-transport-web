@@ -66,6 +66,7 @@ export {
   useTrips,
   useTripWorkbenchSummary,
   useInvoiceableWorkbenchSummary,
+  useTripOpsDaySummary,
   useActiveAssignmentTripsForBusy,
   useDraftHoldAssignmentTripsForSoft,
   useUpdateCargo,

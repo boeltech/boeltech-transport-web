@@ -170,6 +170,9 @@ export const tripQueryKeys = {
   invoiceableSummary: (search?: string) =>
     [...tripQueryKeys.all, "invoiceable-summary", search ?? ""] as const,
 
+  /** Resumen operativo del día CDMX (Inicio F1/F2). */
+  opsDaySummary: () => [...tripQueryKeys.all, "ops-day-summary"] as const,
+
   // Canvas intake (ADR-0078)
   corridors: (clientId: string) =>
     [...tripQueryKeys.all, "corridors", clientId] as const,

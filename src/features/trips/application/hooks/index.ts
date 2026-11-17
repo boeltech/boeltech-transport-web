@@ -63,6 +63,7 @@ export { useTrip } from "./trip/useTrip";
 export { useTrips } from "./trip/useTrips";
 export { useTripWorkbenchSummary } from "./trip/useTripWorkbenchSummary";
 export { useInvoiceableWorkbenchSummary } from "./trip/useInvoiceableWorkbenchSummary";
+export { useTripOpsDaySummary } from "./trip/useTripOpsDaySummary";
 export { useActiveAssignmentTripsForBusy } from "./trip/useActiveAssignmentTripsForBusy";
 export { useDraftHoldAssignmentTripsForSoft } from "./trip/useDraftHoldAssignmentTripsForSoft";
 export {

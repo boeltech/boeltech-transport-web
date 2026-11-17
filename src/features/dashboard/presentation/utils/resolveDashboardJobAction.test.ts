@@ -1,98 +1,100 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { resolveDashboardJobAction } from "./resolveDashboardJobAction";
 import { dashboardCopy } from "../copy/dashboardCopy";
 
 const job = dashboardCopy.page.jobActions;
-const onFocusAlerts = vi.fn();
 
 describe("resolveDashboardJobAction", () => {
-  it("null en portales o sin trips", () => {
+  it("null en portales", () => {
     expect(
       resolveDashboardJobAction({
         role: "client",
         canReadTrips: true,
+        canCreateTrip: true,
         isPortal: true,
-        showPendingApprovals: false,
-        pendingApprovalsTotal: 0,
-        pendingApprovalsCounts: undefined,
-        alertCount: 0,
-        todayOpsDay: "2026-10-26",
-        onFocusAlerts,
+        firstPending: null,
       }),
     ).toBeNull();
   });
 
-  it("dispatcher → Ir a Viajes", () => {
+  it("dispatcher → Nuevo viaje", () => {
     expect(
       resolveDashboardJobAction({
         role: "dispatcher",
         canReadTrips: true,
+        canCreateTrip: true,
         isPortal: false,
-        showPendingApprovals: false,
-        pendingApprovalsTotal: undefined,
-        pendingApprovalsCounts: undefined,
-        alertCount: 3,
-        todayOpsDay: "2026-10-26",
-        onFocusAlerts,
+        firstPending: null,
+      }),
+    ).toEqual({ id: "job-new-trip", label: job.newTrip, href: "/trips/new" });
+  });
+
+  it("dispatcher sin create → Ir a Viajes", () => {
+    expect(
+      resolveDashboardJobAction({
+        role: "dispatcher",
+        canReadTrips: true,
+        canCreateTrip: false,
+        isPortal: false,
+        firstPending: null,
       }),
     ).toEqual({ id: "job-trips", label: job.trips, href: "/trips" });
   });
 
-  it("admin prioriza Por autorizar cuando hay pendientes", () => {
+  it("accountant → Ir a Por facturar", () => {
+    expect(
+      resolveDashboardJobAction({
+        role: "accountant",
+        canReadTrips: true,
+        canCreateTrip: false,
+        isPortal: false,
+        firstPending: {
+          id: "approvals",
+          count: 4,
+          labelDetail: "por autorizar",
+          href: "/finance/approvals",
+          ctaVerb: "Revisar",
+        },
+      }),
+    ).toEqual({
+      id: "job-invoiceable",
+      label: job.invoiceable,
+      href: "/finance/invoiceable",
+    });
+  });
+
+  it("admin prioriza primer pendiente", () => {
     expect(
       resolveDashboardJobAction({
         role: "admin",
         canReadTrips: true,
+        canCreateTrip: true,
         isPortal: false,
-        showPendingApprovals: true,
-        pendingApprovalsTotal: 2,
-        pendingApprovalsCounts: { trip_expense: 2 },
-        alertCount: 5,
-        todayOpsDay: "2026-10-26",
-        onFocusAlerts,
+        firstPending: {
+          id: "approvals",
+          count: 4,
+          labelDetail: "por autorizar",
+          href: "/finance/approvals?type=trip_expense",
+          ctaVerb: "Revisar",
+        },
       }),
     ).toEqual({
       id: "job-approvals",
-      label: job.pendingApprovals,
+      label: "Revisar 4 por autorizar",
       href: "/finance/approvals?type=trip_expense",
     });
   });
 
-  it("admin sin pendientes con alertas → Ver alertas", () => {
-    const action = resolveDashboardJobAction({
-      role: "admin",
-      canReadTrips: true,
-      isPortal: false,
-      showPendingApprovals: true,
-      pendingApprovalsTotal: 0,
-      pendingApprovalsCounts: undefined,
-      alertCount: 2,
-      todayOpsDay: "2026-10-26",
-      onFocusAlerts,
-    });
-    expect(action?.id).toBe("job-alerts");
-    expect(action?.label).toBe(job.viewAlerts);
-    expect(action?.onClick).toBe(onFocusAlerts);
-  });
-
-  it("admin sin cola ni alertas → Viajes de hoy", () => {
+  it("admin al día → Nuevo viaje", () => {
     expect(
       resolveDashboardJobAction({
         role: "admin",
         canReadTrips: true,
+        canCreateTrip: true,
         isPortal: false,
-        showPendingApprovals: false,
-        pendingApprovalsTotal: undefined,
-        pendingApprovalsCounts: undefined,
-        alertCount: 0,
-        todayOpsDay: "2026-10-26",
-        onFocusAlerts,
+        firstPending: null,
       }),
-    ).toEqual({
-      id: "job-trips-today",
-      label: job.tripsToday,
-      href: "/trips?opsDay=2026-10-26",
-    });
+    ).toEqual({ id: "job-new-trip", label: job.newTrip, href: "/trips/new" });
   });
 });

@@ -19,6 +19,7 @@ import type {
   CargoMovement,
   ExpensesSummary,
   TripInvoiceableSummary,
+  TripOpsDaySummary,
 } from "./entities";
 import type {
   CreateTripInput,
@@ -136,6 +137,9 @@ export interface ITripRepository {
    * Totales del workbench Por facturar (ADR-0090).
    */
   getInvoiceableSummary(search?: string): Promise<TripInvoiceableSummary>;
+
+  /** Resumen operativo del día CDMX (Inicio). */
+  getOpsDaySummary(): Promise<TripOpsDaySummary>;
 }
 
 // ============================================================================

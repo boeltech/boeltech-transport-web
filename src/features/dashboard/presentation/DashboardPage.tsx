@@ -1,8 +1,6 @@
 /**
- * DashboardPage
- *
- * Panel de control principal — banda matutina (F1) + cluster Aurora (F-layout)
- * + layout configurable. Pulido Conform: ranking Operate D1, ATF D3, errores H3.
+ * DashboardPage — F1: encabezado I12 + zona «Lo que te toca».
+ * Widgets legacy / Personalizar completo → F3. Viajes de hoy / Disponibles → F2.
  */
 
 import { useMemo, useState } from "react";
@@ -17,17 +15,16 @@ import {
 import {
   isClientPortalRole,
   isDriverPortalRole,
+  ROLES,
 } from "@shared/constants/roles";
 import { useAuth } from "@/features/auth";
 import { usePermissions } from "@shared/permissions";
-import { useApprovalsPendingCountsByType } from "@features/approvals/application";
 import { getGreeting } from "@/shared/lib/userHelpers";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import { resolveDashboardOutgoingFrom } from "@shared/utils/reportsWayfinding";
-import { getTodayString } from "@shared/utils/dateUtils";
-import { formatDashboardTodayLabel } from "./utils/dashboardChartHelpers";
 import { resolveDashboardJobAction } from "./utils/resolveDashboardJobAction";
 import { useDashboard } from "../application/hooks/useDashboard";
+import { useDashboardAttention } from "../application/hooks/useDashboardAttention";
 import { useTripsByDay } from "../application/hooks/useTripsByDay";
 import { useFinancialTrend } from "../application/hooks/useFinancialTrend";
 import { useDashboardLayout } from "../application/hooks/useDashboardLayout";
@@ -38,28 +35,20 @@ import {
 } from "@features/finance";
 import type { FinancialTrendMonths } from "./components";
 import { DashboardActivationChecklist } from "./components/DashboardActivationChecklist";
+import { DashboardAttentionZone } from "./components/DashboardAttentionZone";
 import { DashboardCustomizePanel } from "./components/DashboardCustomizePanel";
-import { DashboardMorningBrief } from "./components/DashboardMorningBrief";
-import { DashboardOrientationAlert } from "./components/DashboardOrientationAlert";
-import {
-  DASHBOARD_ALERTS_WIDGET_DOM_ID,
-  shouldShowMorningBrief,
-} from "../domain/morningBrief";
 import { getWidgetRegistryEntry } from "./widgets/registry";
 import type { DashboardWidgetContext, TripsDayRange } from "./widgets/types";
 import { dashboardCopy } from "./copy/dashboardCopy";
+import {
+  buildDayLine,
+  formatAttentionEyebrow,
+} from "../domain/attentionQueue";
 
 import { Button } from "@/shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { HubPageShell } from "@shared/ui/page-shells";
 import { ReportsReturnLink } from "@shared/ui/reports-return/ReportsReturnLink";
-
-function focusAlertsPanel() {
-  const el = document.getElementById(DASHBOARD_ALERTS_WIDGET_DOM_ID);
-  if (!el) return;
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
-  el.focus({ preventScroll: true });
-}
 
 function DashboardPage() {
   const { user } = useAuth();
@@ -96,23 +85,12 @@ function DashboardPage() {
     customizableWidgets.length - visibleWidgets.length,
   );
 
-  const showMorningBrief = shouldShowMorningBrief({
-    role: user?.role,
-    canReadTrips,
-    showFinance,
-  });
-
-  // «Por autorizar» (cola Me toca): sin finance_approvals.read no monta fila ni dispara el hook.
   const { hasPermission } = usePermissions();
-  const canReadApprovals = hasPermission("finance_approvals", "read");
-  const showPendingApprovalsStat = showMorningBrief && canReadApprovals;
-  const { data: pendingApprovalCounts, isLoading: pendingApprovalsLoading } =
-    useApprovalsPendingCountsByType({
-      queue: "mine",
-      enabled: showPendingApprovalsStat,
-    });
+  const canCreateTrip = hasPermission("trips", "create");
 
-  /** Aurora chrome: cluster → unidades gasto → chart (orden fijo del wireframe). */
+  const { rows: attentionRows, snapshot: attention, isLoading: attentionLoading } =
+    useDashboardAttention({ showFinance });
+
   const auroraClusterPref = visibleWidgets.find(
     (pref) => pref.id === "metric_trends",
   );
@@ -172,7 +150,6 @@ function DashboardPage() {
     () => ({
       data,
       isLoading,
-      // H3: el error de página es dueño del retry — widgets no duplican unavailable.
       isError: false,
       onRetry: () => {
         void refetch();
@@ -197,7 +174,6 @@ function DashboardPage() {
     [
       data,
       isLoading,
-      isError,
       refetch,
       navigate,
       fromHref,
@@ -224,13 +200,9 @@ function DashboardPage() {
   const jobAction = resolveDashboardJobAction({
     role: user?.role,
     canReadTrips,
+    canCreateTrip,
     isPortal,
-    showPendingApprovals: showPendingApprovalsStat,
-    pendingApprovalsTotal: pendingApprovalCounts?.total,
-    pendingApprovalsCounts: pendingApprovalCounts,
-    alertCount: data?.alerts?.length ?? 0,
-    todayOpsDay: getTodayString(),
-    onFocusAlerts: focusAlertsPanel,
+    firstPending: attention.firstPending,
   });
 
   const primaryActions = jobAction
@@ -246,13 +218,13 @@ function DashboardPage() {
     : undefined;
 
   const secondaryActions = [
-    ...(canReadTrips && !hideDashboardCustomize
+    ...(!hideDashboardCustomize
       ? [
           {
             id: "customize",
             label: customizeLabel,
             onClick: () => setCustomizeOpen(true),
-            variant: "outline" as const,
+            variant: "ghost" as const,
             icon: <SlidersHorizontal className="mr-2 h-4 w-4" />,
           },
         ]
@@ -272,31 +244,103 @@ function DashboardPage() {
     },
   ];
 
+  const isStaff = !isPortal;
+  const firstName = user?.firstName?.trim() || null;
+  const greetingTitle =
+    isStaff && activationGuideVisible && firstName
+      ? dashboardCopy.attention.helloGreeting(firstName)
+      : isStaff
+        ? getGreeting(user)
+        : getGreeting(user);
+
+  const dayLine = isStaff
+    ? buildDayLine({
+        pendingCount: attention.pendingCount,
+        topDetail: attention.topDetail,
+        allClear:
+          attention.pendingCount === 0
+            ? user?.role === ROLES.ACCOUNTANT
+              ? {
+                  mode: "fiscal",
+                  fiscalReady: attention.fiscalReady,
+                }
+              : canReadTrips
+                ? {
+                    mode: "ops",
+                    tripsToday: attention.opsDay?.tripsToday,
+                    inProgress: attention.opsDay?.inProgress,
+                  }
+                : { mode: "generic" }
+            : undefined,
+      })
+    : undefined;
+
+  // Portales: keep OrientationAlert-style bridges via orientation prop (sin ATF alert).
+  const portalOrientation = isClientPortal
+    ? {
+        text: dashboardCopy.page.subtitleClient,
+        link: {
+          label: dashboardCopy.page.tripsBridgeClientLink,
+          href: "/trips",
+        },
+      }
+    : isDriverPortal
+      ? {
+          text: dashboardCopy.page.subtitleDriver,
+          link: {
+            label: dashboardCopy.page.tripsBridgeDriverLink,
+            href: "/trips",
+          },
+        }
+      : undefined;
+
   return (
     <>
       <ReportsReturnLink />
       <HubPageShell
-        title={
-          showMorningBrief
-            ? dashboardCopy.page.titleShort
-            : getGreeting(user)
-        }
-        description={
-          showMorningBrief ? undefined : formatDashboardTodayLabel()
-        }
-        primaryActions={primaryActions}
-        secondaryActions={secondaryActions}
+        eyebrow={isStaff ? formatAttentionEyebrow() : undefined}
+        title={greetingTitle}
+        description={isStaff ? dayLine : undefined}
+        orientation={portalOrientation}
+        primaryActions={isStaff ? primaryActions : undefined}
+        secondaryActions={isStaff ? secondaryActions : undefined}
       >
-        {!activationGuideVisible ? (
-          <DashboardOrientationAlert
-            role={user?.role}
-            canReadTrips={canReadTrips}
-          />
+        {isStaff ? (
+          <>
+            {/* Checklist siempre montado (dismiss/localStorage); si visible, ocupa la zona. */}
+            <section
+              className={
+                activationGuideVisible
+                  ? "flex min-w-0 flex-col gap-2"
+                  : undefined
+              }
+              aria-labelledby={
+                activationGuideVisible ? "attention-zone-title" : undefined
+              }
+            >
+              {activationGuideVisible ? (
+                <div className="flex flex-wrap items-baseline gap-2.5">
+                  <h2
+                    id="attention-zone-title"
+                    className="text-base font-semibold leading-6 text-foreground"
+                  >
+                    {dashboardCopy.attention.title}
+                  </h2>
+                </div>
+              ) : null}
+              <DashboardActivationChecklist
+                onGuideVisibleChange={setActivationGuideVisible}
+              />
+            </section>
+            {!activationGuideVisible ? (
+              <DashboardAttentionZone
+                role={user?.role}
+                rows={attentionRows}
+                isLoading={attentionLoading}
+              />
+            ) : null}
+          </>
         ) : null}
-
-        <DashboardActivationChecklist
-          onGuideVisibleChange={setActivationGuideVisible}
-        />
 
         {isError ? (
           <DetailAlertCard
@@ -320,31 +364,8 @@ function DashboardPage() {
 
         {canReadTrips ? (
           <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:items-stretch">
-            {showMorningBrief ? (
-              <div className="h-full min-h-0 min-w-0 lg:col-span-4">
-                <DashboardMorningBrief
-                  user={user}
-                  pendingApprovals={pendingApprovalCounts?.total}
-                  pendingApprovalsCounts={pendingApprovalCounts}
-                  showPendingApprovalsStat={showPendingApprovalsStat}
-                  isPendingApprovalsLoading={pendingApprovalsLoading}
-                  collectedYesterday={data?.stats.collectedYesterday}
-                  showCollectedStat={showFinance}
-                  alertCount={data?.alerts?.length ?? 0}
-                  tripsToday={data?.tripsToday}
-                  isLoading={isLoading}
-                  navigate={navigate}
-                  fromHref={fromHref}
-                />
-              </div>
-            ) : null}
-
             {auroraClusterPref || pinnedExpenseRankingPref ? (
-              <div
-                className={`flex h-full min-h-0 min-w-0 flex-col gap-6 ${
-                  showMorningBrief ? "lg:col-span-8" : "lg:col-span-12"
-                }`}
-              >
+              <div className="flex h-full min-h-0 min-w-0 flex-col gap-6 lg:col-span-12">
                 {auroraClusterPref
                   ? getWidgetRegistryEntry("metric_trends")?.render(widgetCtx)
                   : null}
@@ -367,12 +388,9 @@ function DashboardPage() {
             {gridWidgets.map((pref) => {
               const entry = getWidgetRegistryEntry(pref.id);
               if (!entry) return null;
-              const isAlerts = pref.id === "alerts";
               return (
                 <div
                   key={pref.id}
-                  id={isAlerts ? DASHBOARD_ALERTS_WIDGET_DOM_ID : undefined}
-                  tabIndex={isAlerts ? -1 : undefined}
                   className={`${getSpanClass(pref.id)} h-full min-h-0 min-w-0 outline-none`}
                 >
                   {entry.render(widgetCtx)}

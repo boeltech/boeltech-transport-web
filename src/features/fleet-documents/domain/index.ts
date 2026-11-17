@@ -13,5 +13,6 @@ export {
   type DocumentExpirySeverityValue,
   type DocumentExpiryWithinDays,
   type DocumentExpiryItem,
+  type DocumentExpirySummary,
   type DocumentExpiryQueryParams,
 } from "./entities";

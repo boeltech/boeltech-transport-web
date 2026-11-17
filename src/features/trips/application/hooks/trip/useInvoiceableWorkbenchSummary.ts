@@ -9,10 +9,14 @@ import { tripRepository } from "@features/trips/infrastructure";
 
 const STALE_TIME = 30_000;
 
-export function useInvoiceableWorkbenchSummary(search?: string) {
+export function useInvoiceableWorkbenchSummary(
+  search?: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: tripQueryKeys.invoiceableSummary(search),
     queryFn: () => tripRepository.getInvoiceableSummary(search),
     staleTime: STALE_TIME,
+    enabled: options?.enabled ?? true,
   });
 }

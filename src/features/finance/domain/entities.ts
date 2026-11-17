@@ -19,6 +19,12 @@ export type ProfitabilityDimension =
   | "route"
   | "month";
 
+export interface FinanceChannelMoneySnapshot {
+  receivable: number;
+  collectedThisMonth: number;
+  overdue: number;
+}
+
 export interface FinanceSummary {
   totalReceivable: number;
   collectedThisMonth: number;
@@ -29,6 +35,11 @@ export interface FinanceSummary {
     stamped: number;
     cancellationPending: number;
     cancelled: number;
+  };
+  /** Q21 / Inicio I3 — desglose por canal cuando el API lo envía. */
+  byChannel?: {
+    withInvoice: FinanceChannelMoneySnapshot;
+    withoutInvoice: FinanceChannelMoneySnapshot;
   };
 }
 

@@ -883,4 +883,20 @@ export interface TripInvoiceableSummary {
   readonly prorationPending: number;
   readonly blocked: number;
   readonly total: number;
+  /** Σ base_rate del bucket ready (Inicio Q15 / F0b). */
+  readonly readyAmount: number;
+}
+
+/** GET /trips/ops-day-summary — Viajes de hoy + desglose retraso (F0b / F1–F2). */
+export interface TripOpsDaySummary {
+  readonly counts: {
+    departing: number;
+    inProgress: number;
+    overdue: number;
+    arrived: number;
+  };
+  readonly overdueBreakdown: {
+    departureLate: number;
+    arrivalLate: number;
+  };
 }

@@ -1,15 +1,11 @@
 /**
- * Ranking Operate del CTA primario en Inicio (D1 / H1).
- * Personalizar y Actualizar quedan fuera — son terciarios del shell.
+ * CTA primaria del Inicio (Q13 / I9).
+ * Personalizar y Actualizar quedan fuera — son ghost/terciarios del shell.
  */
 
 import { ROLES } from "@shared/constants/roles";
-import { APPROVALS_INBOX_PATH } from "@features/approvals/presentation/utils/approvalsInboxPath";
-import {
-  buildPendingApprovalsHref,
-  type PendingApprovalsBriefCounts,
-} from "../../domain/morningBrief";
 import { dashboardCopy } from "../copy/dashboardCopy";
+import type { AttentionRowId } from "../../domain/attentionQueue";
 
 export type DashboardJobAction = {
   id: string;
@@ -18,25 +14,28 @@ export type DashboardJobAction = {
   onClick?: () => void;
 };
 
+export type DashboardJobPending = {
+  id: AttentionRowId;
+  count: number;
+  /** Texto corto para el CTA (p. ej. «por autorizar»). */
+  labelDetail: string;
+  href: string;
+  /** Verbo de CTA de fila (Revisar / Ver viajes / …). */
+  ctaVerb: string;
+};
+
 export function resolveDashboardJobAction(input: {
   role: string | undefined;
   canReadTrips: boolean;
+  canCreateTrip: boolean;
   /** Portal client/driver: sin CTA de job staff. */
   isPortal: boolean;
-  showPendingApprovals: boolean;
-  pendingApprovalsTotal: number | undefined;
-  pendingApprovalsCounts: PendingApprovalsBriefCounts | undefined;
-  alertCount: number;
-  todayOpsDay: string;
-  onFocusAlerts: () => void;
+  /** Primer pendiente visible (ya ordenado por urgencia). */
+  firstPending: DashboardJobPending | null;
 }): DashboardJobAction | null {
-  if (input.isPortal || !input.canReadTrips) return null;
+  if (input.isPortal) return null;
 
   const job = dashboardCopy.page.jobActions;
-
-  if (input.role === ROLES.DISPATCHER) {
-    return { id: "job-trips", label: job.trips, href: "/trips" };
-  }
 
   if (input.role === ROLES.ACCOUNTANT) {
     return {
@@ -46,36 +45,33 @@ export function resolveDashboardJobAction(input: {
     };
   }
 
-  if (input.role === ROLES.OPERATOR) {
+  if (input.role === ROLES.DISPATCHER || input.role === ROLES.OPERATOR) {
+    if (input.canCreateTrip) {
+      return { id: "job-new-trip", label: job.newTrip, href: "/trips/new" };
+    }
+    if (input.canReadTrips) {
+      return { id: "job-trips", label: job.trips, href: "/trips" };
+    }
+    return null;
+  }
+
+  // admin / manager: primer pendiente → Nuevo viaje si al día
+  if (input.firstPending && input.firstPending.count > 0) {
+    const p = input.firstPending;
+    return {
+      id: `job-${p.id}`,
+      label: `${p.ctaVerb} ${p.count} ${p.labelDetail}`,
+      href: p.href,
+    };
+  }
+
+  if (input.canCreateTrip) {
+    return { id: "job-new-trip", label: job.newTrip, href: "/trips/new" };
+  }
+
+  if (input.canReadTrips) {
     return { id: "job-trips", label: job.trips, href: "/trips" };
   }
 
-  // admin / manager (y staff con brief): cola → alertas → viajes de hoy
-  if (
-    input.showPendingApprovals &&
-    (input.pendingApprovalsTotal ?? 0) > 0
-  ) {
-    return {
-      id: "job-approvals",
-      label: job.pendingApprovals,
-      href: buildPendingApprovalsHref(
-        APPROVALS_INBOX_PATH,
-        input.pendingApprovalsCounts,
-      ),
-    };
-  }
-
-  if (input.alertCount > 0) {
-    return {
-      id: "job-alerts",
-      label: job.viewAlerts,
-      onClick: input.onFocusAlerts,
-    };
-  }
-
-  return {
-    id: "job-trips-today",
-    label: job.tripsToday,
-    href: `/trips?opsDay=${encodeURIComponent(input.todayOpsDay)}`,
-  };
+  return null;
 }

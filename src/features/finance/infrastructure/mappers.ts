@@ -41,6 +41,22 @@ function asBoolean(value: unknown): boolean {
 
 export function mapFinanceSummary(raw: Record<string, unknown>): FinanceSummary {
   const status = (raw.invoices_by_status ?? {}) as Record<string, unknown>;
+  const byChannelRaw = raw.by_channel as
+    | {
+        with_invoice?: Record<string, unknown>;
+        without_invoice?: Record<string, unknown>;
+      }
+    | undefined;
+  const mapChannel = (ch: Record<string, unknown> | undefined) =>
+    ch
+      ? {
+          receivable: asNumber(ch.receivable),
+          collectedThisMonth: asNumber(ch.collected_this_month),
+          overdue: asNumber(ch.overdue),
+        }
+      : undefined;
+  const withInvoice = mapChannel(byChannelRaw?.with_invoice);
+  const withoutInvoice = mapChannel(byChannelRaw?.without_invoice);
   return {
     totalReceivable: asNumber(raw.total_receivable),
     collectedThisMonth: asNumber(raw.collected_this_month),
@@ -52,6 +68,9 @@ export function mapFinanceSummary(raw: Record<string, unknown>): FinanceSummary 
       cancellationPending: asNumber(status.cancellation_pending),
       cancelled: asNumber(status.cancelled),
     },
+    ...(withInvoice && withoutInvoice
+      ? { byChannel: { withInvoice, withoutInvoice } }
+      : {}),
   };
 }
 

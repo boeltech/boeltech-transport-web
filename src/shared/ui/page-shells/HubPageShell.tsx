@@ -95,6 +95,11 @@ export interface HubReadinessItem {
 
 export interface HubPageShellProps {
   title: string;
+  /**
+   * Línea corta encima del h1 (p. ej. fecha · alcance en Inicio).
+   * evolve-ds hub F1 — `text-xs` muted.
+   */
+  eyebrow?: string;
   description?: string;
   orientation?: HubOrientation;
   /** Franja de readiness (D3.2). Opcional; sin items = no se renderiza. */
@@ -327,6 +332,7 @@ function HubGuidePanel({ guide }: { guide: HubGuide }) {
  */
 export const HubPageShell = memo(function HubPageShell({
   title,
+  eyebrow,
   description,
   orientation,
   readiness,
@@ -351,9 +357,14 @@ export const HubPageShell = memo(function HubPageShell({
     <div className={cn("space-y-6", className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
+          {eyebrow ? (
+            <p className="mb-0.5 text-xs leading-4 text-muted-foreground">
+              {eyebrow}
+            </p>
+          ) : null}
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            <p className="mt-1 text-sm text-foreground/90">{description}</p>
           ) : null}
         </div>
         {hasActions ? (

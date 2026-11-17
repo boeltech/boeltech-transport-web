@@ -96,8 +96,9 @@ export const dashboardCopy = {
     exampleBadge: "Ejemplo",
   },
   page: {
-    /** Título corto cuando la banda matutina lleva el saludo (admin/manager). */
+    /** @deprecated I12 — saludo es el h1; no usar titleShort. */
     titleShort: "Inicio",
+    /** @deprecated I12 — retirado; la línea del día sustituye el subtítulo fijo. */
     subtitle: "Operación, alertas y documentación del día",
     tripsBridge: "El trabajo del día está en Viajes.",
     tripsBridgeLink: "Ir a Viajes",
@@ -131,12 +132,13 @@ export const dashboardCopy = {
     tripsBridgeDriverLink: "Ir a Mis viajes",
     refresh: "Actualizar",
     orientationDismiss: "Entendido",
-    /** CTAs de job en toolbar (D1) — no confundir con Personalizar/Actualizar. */
+    /** CTAs de job en toolbar (Q13) — no confundir con Personalizar/Actualizar. */
     jobActions: {
       pendingApprovals: "Por autorizar",
       viewAlerts: "Ver alertas",
       tripsToday: "Viajes de hoy",
       trips: "Ir a Viajes",
+      newTrip: "Nuevo viaje",
       invoiceable: "Ir a Por facturar",
       fiscalAttention: "Ir a Atención fiscal",
     },
@@ -144,6 +146,22 @@ export const dashboardCopy = {
       title: "No se pudieron cargar los datos del dashboard.",
       retry: "Reintentar",
     },
+  },
+  attention: {
+    title: "Lo que te toca",
+    subtitle: {
+      manager: "Cada fila abre su bandeja con el filtro puesto. Lo urgente arriba.",
+      dispatcher: "Solo lo de operación. Cada fila abre Viajes o la bandeja.",
+      accountant: "Facturación y cobranza del día. Cada fila abre la bandeja.",
+      default: "Cada fila abre su bandeja con el filtro puesto.",
+    },
+    clearLabel: "Al día:",
+    emptyTitle: "Estás al día",
+    emptyDescription: "No hay nada pendiente en tus bandejas. Se actualiza solo.",
+    rowError: "No se pudo cargar este conteo.",
+    retry: "Reintentar",
+    draftBreakdown: "Les falta ruta, carga o tarifa para programar",
+    helloGreeting: (name: string) => `Hola, ${name}`,
   },
   customize: {
     title: "Personalizar Inicio",
