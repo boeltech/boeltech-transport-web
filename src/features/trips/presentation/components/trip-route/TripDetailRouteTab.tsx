@@ -113,6 +113,8 @@ type CompleteTarget =
       cityName?: string;
       /** Prefill desde Location create-new / pick incompleto. */
       prefill?: StopFormData;
+      /** F9b — Completar / pick → confirm; captura vacía puede abrir en search. */
+      initialStep?: "search" | "confirm";
     };
 
 function composerPickToStopFormData(
@@ -166,6 +168,68 @@ function getDisplayOrder(stop: TripStop, ordered: readonly TripStop[]): number {
 
 function stopDisplayLabel(stop: TripStop): string {
   return stop.locationName?.trim() || stop.city?.trim() || stop.address?.trim() || "";
+}
+
+function panelRoleLabel(category: RouteStopCategory): string {
+  if (category === "origin") return copy.panel.roleOrigin;
+  if (category === "destination") return copy.panel.roleDestination;
+  return copy.panel.roleWaypoint;
+}
+
+/** Ctx artboard: índice/total de la parada que abre el Sheet de alta/confirmación. */
+function resolvePanelStopPosition(args: {
+  completeTarget: CompleteTarget;
+  ordered: readonly TripStop[];
+  editingStop: TripStop | undefined;
+  hasOrigin: boolean;
+  hasDestination: boolean;
+  waypointCount: number;
+}): { index: number; total: number; role: string } {
+  const {
+    completeTarget,
+    ordered,
+    editingStop,
+    hasOrigin,
+    hasDestination,
+    waypointCount,
+  } = args;
+
+  if (completeTarget.kind === "edit") {
+    if (editingStop) {
+      const category = getRouteStopCategory(editingStop);
+      return {
+        index: getDisplayOrder(editingStop, ordered),
+        total: Math.max(ordered.length, 1),
+        role: panelRoleLabel(category),
+      };
+    }
+    return {
+      index: 1,
+      total: Math.max(ordered.length, 1),
+      role: copy.panel.roleDestination,
+    };
+  }
+
+  const category = completeTarget.category;
+  const role = panelRoleLabel(category);
+  const countsOrigin = hasOrigin || category === "origin";
+  const countsDestination = hasDestination || category === "destination";
+  let total =
+    (countsOrigin ? 1 : 0) + waypointCount + (countsDestination ? 1 : 0);
+  if (category !== "waypoint" && waypointCount === 0) {
+    total = Math.max(total, 2);
+  }
+  total = Math.max(total, 1);
+
+  let index = 1;
+  if (category === "origin") {
+    index = 1;
+  } else if (category === "waypoint") {
+    index = (hasOrigin ? 1 : 0) + Math.max(waypointCount, 1);
+  } else {
+    index = (hasOrigin ? 1 : 0) + waypointCount + 1;
+  }
+  return { index: Math.min(index, total), total, role };
 }
 
 export function TripDetailRouteTab({
@@ -516,8 +580,16 @@ export function TripDetailRouteTab({
           targetPick,
           cityHint || undefined,
         ),
+        initialStep: "confirm",
       });
     };
+
+    // F9b D58/D68 — en alta, todo pick de extremo abre el panel Confirmar
+    // (sin LocationSheet ADR-0092 ni PUT directo desde Buscar).
+    if (canEditStructural) {
+      openCompleteFromPick(category);
+      return;
+    }
 
     const pickReady = isComposerPickPutReady(pick);
     const stops = mergeComposerEndpointDraft({
@@ -667,6 +739,7 @@ export function TripDetailRouteTab({
       category,
       locationName,
       cityName: cityHint || undefined,
+      initialStep: "confirm",
     });
   };
 
@@ -801,43 +874,53 @@ export function TripDetailRouteTab({
     completeTarget?.kind === "edit" &&
     editingStop != null &&
     isStopDomicilioComplete(editingStop);
+  const createCategory =
+    completeTarget?.kind === "create" ? completeTarget.category : undefined;
   const completeHeading =
     completeTarget?.kind === "edit" && editingStop
       ? editingCompleteStop
         ? copy.format.editStopTitle(getDisplayOrder(editingStop, ordered))
         : copy.format.completeAddressTitle(getDisplayOrder(editingStop, ordered))
-      : copy.action.completeAddress;
+      : createCategory === "origin"
+        ? copy.panel.chooseOrigin
+        : createCategory === "destination"
+          ? copy.panel.chooseDestination
+          : createCategory === "waypoint"
+            ? copy.panel.chooseWaypoint
+            : copy.action.completeAddress;
   const completeDescription = editingCompleteStop
     ? copy.hint.sheetDescriptionEdit
-    : copy.hint.sheetDescriptionComplete;
+    : copy.panel.chooseDescription;
 
-  /** F9 — alta usa panel Confirmar (inline en detalle); mid-trip conserva sheet. */
-  const confirmPanelVariant = canEditStructural ? "inline" : "sheet";
-  const stopConfirmPanel =
-    completeTarget != null ? (
-      <TripStopSearchConfirmSheet
-        key={
-          completeTarget.kind === "edit"
-            ? completeTarget.stopId
-            : `new-${completeTarget.category}`
-        }
-        open
-        onOpenChange={(open) => {
-          if (!open) setCompleteTarget(null);
-        }}
-        onSubmit={handleSheetSubmit}
-        initialData={sheetInitialData}
-        mode={completeTarget.kind === "edit" ? "edit" : "create"}
-        heading={completeHeading}
-        description={completeDescription}
-        cfdiDocumentIntent={trip.cfdiDocumentIntent}
-        tripContractingClientId={trip.clientId ?? undefined}
-        originBranchId={trip.originBranchId ?? undefined}
-        keepBillingCollapsed
-        variant={confirmPanelVariant}
-        isPending={isRouteMutationPending}
-      />
-    ) : null;
+  /** F9c — alta y mid-trip abren el mismo Sheet overlay (no inline). */
+  const confirmInitialStep =
+    completeTarget?.kind === "create"
+      ? (completeTarget.initialStep ?? "confirm")
+      : "confirm";
+  const consequenceFromLabel =
+    createCategory === "destination"
+      ? origin
+        ? stopDisplayLabel(origin)
+        : endpointDraft.origin
+          ? pickerItemLabel(endpointDraft.origin)
+          : composerOriginLabel
+      : createCategory === "origin"
+        ? sheetInitialData?.locationName ?? null
+        : origin
+          ? stopDisplayLabel(origin)
+          : null;
+  const consequenceToLabel =
+    createCategory === "origin"
+      ? destination
+        ? stopDisplayLabel(destination)
+        : endpointDraft.destination
+          ? pickerItemLabel(endpointDraft.destination)
+          : composerDestinationLabel
+      : createCategory === "destination"
+        ? sheetInitialData?.locationName ?? null
+        : destination
+          ? stopDisplayLabel(destination)
+          : null;
 
   const corridors = corridorsQuery.data ?? [];
   const matchingCorridors = filterCorridorsMatchingCityPair(
@@ -865,6 +948,82 @@ export function TripDetailRouteTab({
     originPick: endpointDraft.origin,
     destinationPick: endpointDraft.destination,
   });
+  const plannedKmForConsequences = sumRouteSegmentDistanceKm(ordered);
+
+  const panelCategory: RouteStopCategory | undefined =
+    completeTarget?.kind === "create"
+      ? completeTarget.category
+      : editingStop
+        ? getRouteStopCategory(editingStop)
+        : undefined;
+  const panelPosition =
+    completeTarget != null
+      ? resolvePanelStopPosition({
+          completeTarget,
+          ordered,
+          editingStop,
+          hasOrigin: Boolean(origin) || Boolean(endpointDraft.origin),
+          hasDestination:
+            Boolean(destination) || Boolean(endpointDraft.destination),
+          waypointCount: waypoints.length + waypointDraftIds.length,
+        })
+      : null;
+  const panelContextLine =
+    panelPosition != null
+      ? copy.panel.contextLine(
+          trip.tripCode,
+          panelPosition.index,
+          panelPosition.total,
+          panelPosition.role,
+        )
+      : null;
+
+  const stopConfirmPanel =
+    completeTarget != null ? (
+      <TripStopSearchConfirmSheet
+        key={
+          completeTarget.kind === "edit"
+            ? completeTarget.stopId
+            : `new-${completeTarget.category}-${confirmInitialStep}`
+        }
+        open
+        onOpenChange={(open) => {
+          if (!open) setCompleteTarget(null);
+        }}
+        onSubmit={handleSheetSubmit}
+        initialData={sheetInitialData}
+        mode={completeTarget.kind === "edit" ? "edit" : "create"}
+        heading={completeHeading}
+        description={completeDescription}
+        cfdiDocumentIntent={trip.cfdiDocumentIntent}
+        tripContractingClientId={trip.clientId ?? undefined}
+        originBranchId={trip.originBranchId ?? undefined}
+        keepBillingCollapsed
+        isPending={isRouteMutationPending}
+        initialStep={confirmInitialStep}
+        category={panelCategory}
+        proximity={captureProximity}
+        cityHint={
+          completeTarget.kind === "create"
+            ? completeTarget.cityName ??
+              (completeTarget.category === "origin"
+                ? originCityHint
+                : completeTarget.category === "destination"
+                  ? destinationCityHint
+                  : null)
+            : null
+        }
+        clientId={trip.clientId ?? null}
+        consequenceFromLabel={consequenceFromLabel}
+        consequenceToLabel={consequenceToLabel}
+        estimatedDistanceKm={
+          plannedKmForConsequences != null && plannedKmForConsequences > 0
+            ? plannedKmForConsequences
+            : null
+        }
+        contextLine={panelContextLine}
+      />
+    ) : null;
 
   if (orderedStops.length === 0 && !canMutateRoute) {
     return (
@@ -918,11 +1077,7 @@ export function TripDetailRouteTab({
     canMutateRoute;
 
   const detailPanel = (() => {
-    // F9 D58/D68 — Confirmar / Completar domicilio en el mismo panel (inline alta).
-    if (completeTarget != null && canEditStructural && stopConfirmPanel) {
-      return stopConfirmPanel;
-    }
-
+    // F9c — Confirmar / Completar domicilio vive en Sheet overlay (stopConfirmPanel).
     if (!selectedRow) {
       return (
         <p className="py-12 text-center text-sm text-muted-foreground">
@@ -1194,8 +1349,7 @@ export function TripDetailRouteTab({
           }}
         />
         <div className="space-y-4">
-          {showComposerCapture ||
-          (completeTarget != null && canEditStructural) ? (
+          {showComposerCapture ? (
             <div className="rounded-xl border bg-card p-4">{detailPanel}</div>
           ) : (
             <TripRouteMapPanel stops={ordered} />
@@ -1270,8 +1424,8 @@ export function TripDetailRouteTab({
       {artboardLayout}
       {emptyComposerLayout}
 
-      {/* Mid-trip / no-alta: Confirmar sigue en sheet. Alta = inline en detailPanel. */}
-      {!canEditStructural ? stopConfirmPanel : null}
+      {/* F9c — alta y mid-trip: mismo Sheet overlay (Buscar→Confirmar). */}
+      {stopConfirmPanel}
 
       <AlertDialog
         open={removeDialog?.kind === "confirm"}

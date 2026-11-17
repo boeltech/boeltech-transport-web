@@ -5,6 +5,9 @@ import {
   buildReserveStopsFromEndpointDraft,
   cityLabelFromLocationValue,
   cityOnlyLocationValue,
+  isPlaceLikeLocationValue,
+  placeIncompleteForReserveMessage,
+  reserveCityLabelForForm,
 } from "./reserveEndpointLocation";
 
 function putReadyPick(
@@ -36,13 +39,31 @@ function putReadyPick(
 }
 
 describe("cityLabelFromLocationValue", () => {
-  it("prefers localityName then locationName before comma", () => {
+  it("prefers localityName over commercial locationName", () => {
     expect(
       cityLabelFromLocationValue({
-        locationName: "Monterrey, N.L., México",
+        locationName: "Bambú Coffee",
         localityName: "Apodaca",
+        postalCode: "66600",
+        latitude: 25.78,
+        longitude: -100.24,
       }),
     ).toBe("Apodaca");
+  });
+
+  it("does not use commercial locationName for place-like values", () => {
+    expect(
+      cityLabelFromLocationValue({
+        locationName: "Amazón México",
+        postalCode: "06600",
+        latitude: 19.43,
+        longitude: -99.13,
+        geocodingAccuracy: "manual",
+      }),
+    ).toBe("");
+  });
+
+  it("uses locationName for city-only (not place-like)", () => {
     expect(
       cityLabelFromLocationValue({
         locationName: "Monterrey, N.L., México",
@@ -52,6 +73,67 @@ describe("cityLabelFromLocationValue", () => {
 
   it("returns empty for null", () => {
     expect(cityLabelFromLocationValue(null)).toBe("");
+  });
+});
+
+describe("reserveCityLabelForForm", () => {
+  it("falls back to satStateCode when put-ready lacks locality", () => {
+    expect(
+      reserveCityLabelForForm(
+        {
+          locationName: "CEDIS Norte",
+          postalCode: "64000",
+          satStateCode: "NLE",
+          latitude: 25.68,
+          longitude: -100.31,
+        },
+        true,
+      ),
+    ).toBe("NLE");
+  });
+});
+
+describe("isPlaceLikeLocationValue / placeIncompleteForReserveMessage", () => {
+  it("treats coords+CP as place-like", () => {
+    expect(
+      isPlaceLikeLocationValue({
+        locationName: "Bambú Coffee",
+        postalCode: "76127",
+        latitude: 20.59,
+        longitude: -100.39,
+      }),
+    ).toBe(true);
+  });
+
+  it("returns message when place-like lacks satStateCode", () => {
+    const message = placeIncompleteForReserveMessage({
+      locationName: "Bambú Coffee",
+      postalCode: "76127",
+      street: "Av. Central",
+      latitude: 20.59,
+      longitude: -100.39,
+      geocodingAccuracy: "manual",
+    });
+    expect(message).toMatch(/estado SAT/i);
+  });
+
+  it("returns null for put-ready place", () => {
+    expect(
+      placeIncompleteForReserveMessage({
+        locationName: "CEDIS Norte",
+        street: "Av. Industrial",
+        postalCode: "64000",
+        satStateCode: "NLE",
+        latitude: 25.68,
+        longitude: -100.31,
+      }),
+    ).toBeNull();
+  });
+
+  it("returns null for city-only", () => {
+    expect(
+      placeIncompleteForReserveMessage({ locationName: "Monterrey" }),
+    ).toBeNull();
   });
 });
 

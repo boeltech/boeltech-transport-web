@@ -282,6 +282,8 @@ export function TripRouteSlotCapture({
         proximity={proximity}
         ownerTypes={ownerTypesForRouteSlot(category)}
         filterItem={isAllowedRoutePickerItem}
+        selectionConfirm="immediate"
+        onCreateRequest={() => onCompleteLabel(category, labelDraft.trim())}
       />
       {isWaypoint && pendingWaypointItem ? (
         <div className="space-y-3 rounded-lg border p-3">

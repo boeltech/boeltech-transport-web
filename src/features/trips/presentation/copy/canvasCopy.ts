@@ -127,4 +127,9 @@ export const canvasCopy = {
     pending: "Guardando reserva…",
     validationTitle: "Revisa el pedido y la flota",
   },
+  /** F8b — lugar incompleto vs put-ready (no discard silencioso). */
+  endpoint: {
+    placeIncompleteSummary:
+      "Hay un lugar incompleto para guardar como parada. Completa Confirmar o elige solo una ciudad.",
+  },
 } as const;

@@ -60,6 +60,9 @@ interface ReservePedidoStepProps {
   destinationLocation?: LocationValue | null;
   onOriginLocationChange?: (value: LocationValue | null) => void;
   onDestinationLocationChange?: (value: LocationValue | null) => void;
+  /** F8b: lugar que parece parada pero no está put-ready. */
+  originEndpointError?: string | null;
+  destinationEndpointError?: string | null;
 }
 
 export function ReservePedidoStep({
@@ -71,6 +74,8 @@ export function ReservePedidoStep({
   destinationLocation,
   onOriginLocationChange,
   onDestinationLocationChange,
+  originEndpointError,
+  destinationEndpointError,
 }: ReservePedidoStepProps) {
   const { control, watch } = form;
   const { hasPermission } = usePermissions();
@@ -192,7 +197,9 @@ export function ReservePedidoStep({
                     fieldId="originCity"
                     label={fields.label.originCity}
                     required
-                    errorMessage={fieldState.error?.message}
+                    errorMessage={
+                      originEndpointError ?? fieldState.error?.message
+                    }
                   >
                     <LocationField
                       context="tripStop"
@@ -200,7 +207,9 @@ export function ReservePedidoStep({
                       value={originLocation ?? null}
                       onChange={onOriginLocationChange}
                       placeholder={fields.placeholder.originCity}
-                      error={fieldState.error?.message}
+                      error={
+                        originEndpointError ?? fieldState.error?.message
+                      }
                       ownerTypes={ownerTypesForRouteSlot("origin")}
                       filterItem={isAllowedRoutePickerItem}
                     />
@@ -215,7 +224,9 @@ export function ReservePedidoStep({
                     fieldId="destinationCity"
                     label={fields.label.destinationCity}
                     required
-                    errorMessage={fieldState.error?.message}
+                    errorMessage={
+                      destinationEndpointError ?? fieldState.error?.message
+                    }
                   >
                     <LocationField
                       context="tripStop"
@@ -223,7 +234,9 @@ export function ReservePedidoStep({
                       value={destinationLocation ?? null}
                       onChange={onDestinationLocationChange}
                       placeholder={fields.placeholder.destinationCity}
-                      error={fieldState.error?.message}
+                      error={
+                        destinationEndpointError ?? fieldState.error?.message
+                      }
                       ownerTypes={ownerTypesForRouteSlot("destination")}
                       filterItem={isAllowedRoutePickerItem}
                     />

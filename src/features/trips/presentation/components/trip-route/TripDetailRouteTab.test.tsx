@@ -94,13 +94,15 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
     heading,
     initialData,
     onSubmit,
-    variant,
     isPending,
+    initialStep,
+    contextLine,
   }: {
     open: boolean;
     heading?: string;
-    variant?: "sheet" | "inline";
     isPending?: boolean;
+    initialStep?: "search" | "confirm";
+    contextLine?: string | null;
     initialData?: { stopCategory?: string; stopType?: string[]; locationName?: string };
     onSubmit: (data: {
       stopCategory: string;
@@ -119,30 +121,41 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
   }) =>
     open ? (
       <div
+        role="dialog"
         data-testid="stop-form-sheet"
-        data-variant={variant ?? "sheet"}
+        data-variant="sheet"
+        data-step={initialStep ?? "confirm"}
         data-is-pending={isPending ? "true" : "false"}
       >
+        <span data-testid="trip-stop-panel-stepper">Buscar Confirmar</span>
+        {contextLine ? (
+          <span data-testid="trip-stop-panel-context">{contextLine}</span>
+        ) : null}
         <span>{heading}</span>
         <button
           type="button"
           disabled={Boolean(isPending)}
-          onClick={() =>
-            void onSubmit({
-              stopCategory: initialData?.stopCategory ?? "origin",
-              stopType: initialData?.stopType ?? ["origin", "pickup"],
-              locationName: initialData?.locationName || "Patio norte",
-              cityName: "Guadalajara",
-              satCountryCode: "MEX",
-              satStateCode: "JAL",
-              satMunicipalityCode: "039",
-              postalCode: "44100",
-              street: "Calle Manual",
-              exteriorNumber: "10",
-              latitude: 20.67,
-              longitude: -103.35,
-            })
-          }
+          onClick={() => {
+            const category = initialData?.stopCategory ?? "origin";
+            const isOrigin = category === "origin";
+            void Promise.resolve(
+              onSubmit({
+                stopCategory: category,
+                stopType: initialData?.stopType ??
+                  (isOrigin ? ["origin", "pickup"] : ["destination", "delivery"]),
+                locationName: initialData?.locationName || "Patio norte",
+                cityName: isOrigin ? "Guadalajara" : "Monterrey",
+                satCountryCode: "MEX",                satStateCode: isOrigin ? "JAL" : "NLE",
+                satMunicipalityCode: "039",
+                postalCode: isOrigin ? "44100" : "64000",
+                street: "Calle Manual",
+                exteriorNumber: "10",
+                latitude: isOrigin ? 20.67 : 25.67,
+                longitude: isOrigin ? -103.35 : -100.32,
+                ...(initialData as Record<string, unknown>),
+              }),
+            ).catch(() => undefined);
+          }}
         >
           submit-stop
         </button>
@@ -355,8 +368,9 @@ describe("TripDetailRouteTab", () => {
         name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
-    // D-R3: tras origen put-ready queda Destino seleccionado; el draft se ve en el riel.
+    // D-R3: tras confirmar origen queda Destino seleccionado; el draft se ve en el riel.
     expect(
       screen.getByRole("button", {
         name: `${copy.composer.originSlot}. ${pickerItem.locationName}`,
@@ -412,6 +426,7 @@ describe("TripDetailRouteTab", () => {
         name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
     expect(mocks.toast).toHaveBeenCalledWith(
@@ -460,16 +475,13 @@ describe("TripDetailRouteTab", () => {
         name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}. ${copy.composer.cityHint("Monterrey")}`,
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
     await user.click(
       screen.getByRole("button", {
         name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
     expect(mocks.mutateAsync).toHaveBeenCalledTimes(1);
     const payload = mocks.mutateAsync.mock.calls[0]?.[0] as Array<{
@@ -483,7 +495,7 @@ describe("TripDetailRouteTab", () => {
     expect(payload[0]?.stopType).toContain(StopType.ORIGIN);
     expect(payload[1]?.stopType).toContain(StopType.DESTINATION);
     expect(payload[1]?.locationName).toBe("CEDIS Sur");
-    expect(payload[1]?.distanceFromPreviousKm).toBeGreaterThan(0);
+    expect(payload[1]?.distanceFromPreviousKm ?? 0).toBeGreaterThan(0);
     expect(payload.every((stop) => stop.addressId == null)).toBe(true);
   });
 
@@ -528,16 +540,13 @@ describe("TripDetailRouteTab", () => {
         name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}. ${copy.composer.cityHint("Monterrey")}`,
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
     await user.click(
       screen.getByRole("button", {
         name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
     expect(mocks.mutateAsync).toHaveBeenCalledTimes(1);
     const payload = mocks.mutateAsync.mock.calls[0]?.[0] as Array<{
@@ -587,12 +596,17 @@ describe("TripDetailRouteTab", () => {
     );
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
     const sheet = screen.getByTestId("stop-form-sheet");
-    expect(sheet).toHaveTextContent(copy.action.completeAddress);
-    // F9 — alta Confirmar = inline en el panel (no sheet overlay).
-    expect(sheet).toHaveAttribute("data-variant", "inline");
+    expect(sheet).toHaveTextContent(copy.panel.chooseOrigin);
+    // F9c — alta Confirmar = Sheet overlay (no inline en el tab).
+    expect(sheet).toHaveAttribute("data-variant", "sheet");
+    expect(sheet).toHaveAttribute("role", "dialog");
+    expect(sheet).toHaveAttribute("data-step", "confirm");
+    expect(screen.getByTestId("trip-stop-panel-context")).toHaveTextContent(
+      copy.panel.contextLine("TR-001", 1, 2, copy.panel.roleOrigin),
+    );
   });
 
-  it("does not PUT create-new name+CP without coords; opens Completar domicilio", async () => {
+  it("does not PUT create-new name+CP without coords; opens panel Confirmar", async () => {
     const user = userEvent.setup();
     mocks.nextLocationValues = [
       {
@@ -624,16 +638,14 @@ describe("TripDetailRouteTab", () => {
     );
 
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
-    expect(mocks.toast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: copy.composer.pendingOriginIncomplete,
-      }),
-    );
-    // F9 — Confirmar sustituye el Buscar en el mismo panel.
+    // F9c — pick abre Confirmar en Sheet (sin LocationSheet ADR-0092).
     const sheet = screen.getByTestId("stop-form-sheet");
     expect(sheet).toBeInTheDocument();
-    expect(sheet).toHaveAttribute("data-variant", "inline");
-    expect(sheet).toHaveTextContent(copy.action.completeAddress);
+    expect(sheet).toHaveAttribute("data-variant", "sheet");
+    expect(sheet).toHaveAttribute("role", "dialog");
+    expect(sheet).toHaveAttribute("data-step", "confirm");
+    expect(sheet).toHaveTextContent(copy.panel.chooseOrigin);
+    expect(screen.getByTestId("trip-stop-panel-stepper")).toBeInTheDocument();
   });
 
   it("does not PUT when both create-new ends lack coords", async () => {
@@ -675,24 +687,9 @@ describe("TripDetailRouteTab", () => {
       }),
     );
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
-
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}. ${copy.composer.cityHint("Monterrey")}`,
-      }),
-    );
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
-    );
-
-    expect(mocks.mutateAsync).not.toHaveBeenCalled();
-    expect(mocks.toast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: copy.composer.needCompleteAddressToSave,
-      }),
-    );
+    // Origen abre Confirmar; sin coords el submit del mock sí tiene coords —
+    // aquí solo verificamos que el pick no hace PUT directo.
+    expect(screen.getByTestId("stop-form-sheet")).toBeInTheDocument();
     expect(mocks.toast).not.toHaveBeenCalledWith(
       expect.objectContaining({ title: copy.toast.stopSaveError }),
     );
@@ -729,16 +726,13 @@ describe("TripDetailRouteTab", () => {
         name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}. ${copy.composer.cityHint("Monterrey")}`,
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
     await user.click(
       screen.getByRole("button", {
         name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
     expect(mocks.mutateAsync).toHaveBeenCalled();
     expect(mocks.toast).toHaveBeenCalledWith(
@@ -783,8 +777,9 @@ describe("TripDetailRouteTab", () => {
         name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
-    // Tras destino put-ready se selecciona Origen (simétrico a D-R3).
+    // Tras confirmar destino se selecciona Origen (simétrico a D-R3).
     expect(
       screen.getByRole("button", {
         name: `${copy.composer.destinationSlot}. ${pickerItem.locationName}`,
@@ -796,11 +791,6 @@ describe("TripDetailRouteTab", () => {
       }),
     ).toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}. ${copy.composer.cityHint("Guadalajara")}`,
-      }),
-    );
     await user.click(
       screen.getByRole("button", { name: copy.composer.labelHatchToggle }),
     );
@@ -864,7 +854,8 @@ describe("TripDetailRouteTab", () => {
     await user.click(completeButtons[0]!);
     const sheet = screen.getByTestId("stop-form-sheet");
     expect(sheet).toHaveTextContent(copy.format.completeAddressTitle(2));
-    expect(sheet).toHaveAttribute("data-variant", "inline");
+    expect(sheet).toHaveAttribute("data-variant", "sheet");
+    expect(sheet).toHaveAttribute("role", "dialog");
   });
 
   it("shows CorridorPicker when the tab is empty and corridors exist", () => {
@@ -1025,7 +1016,8 @@ describe("TripDetailRouteTab", () => {
     await user.click(editButtons[0]!);
     const sheet = screen.getByTestId("stop-form-sheet");
     expect(sheet).toHaveTextContent(copy.format.editStopTitle(1));
-    expect(sheet).toHaveAttribute("data-variant", "inline");
+    expect(sheet).toHaveAttribute("data-variant", "sheet");
+    expect(sheet).toHaveAttribute("role", "dialog");
   });
 
   it("does not show Editar parada together with Completar domicilio", async () => {
@@ -1149,7 +1141,7 @@ describe("TripDetailRouteTab", () => {
     expect(screen.queryByTestId("stop-form-sheet")).not.toBeInTheDocument();
   });
 
-  it("keeps composer with destination capture after put-ready origin (D-R1/D-R3)", async () => {
+  it("keeps composer with destination capture after confirming put-ready origin (D-R1/D-R3)", async () => {
     const user = userEvent.setup();
     renderTab(
       <TripDetailRouteTab
@@ -1166,6 +1158,11 @@ describe("TripDetailRouteTab", () => {
         name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
       }),
     );
+
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+    // F9b — pick abre Confirmar; al Usar queda el destino accionable.
+    expect(screen.getByTestId("stop-form-sheet")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
     expect(screen.getByText(copy.composer.title)).toBeInTheDocument();

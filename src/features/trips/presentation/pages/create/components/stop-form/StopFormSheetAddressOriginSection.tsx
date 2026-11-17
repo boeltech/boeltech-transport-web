@@ -26,6 +26,11 @@ export interface StopFormSheetAddressOriginSectionProps {
   defaultOwnerTypes?: SearchableOwnerType[];
   clientId?: string | null;
   disabled?: boolean;
+  /**
+   * Alta de ruta: no abrir LocationSheet ADR-0092; el panel Confirmar es la
+   * superficie de confirmación (D58/D68).
+   */
+  selectionConfirm?: "sheet" | "immediate";
 }
 
 export function StopFormSheetAddressOriginSection({
@@ -36,6 +41,7 @@ export function StopFormSheetAddressOriginSection({
   defaultOwnerTypes,
   clientId,
   disabled = false,
+  selectionConfirm = "sheet",
 }: StopFormSheetAddressOriginSectionProps) {
   const handleChange = (value: LocationValue | null) => {
     if (!value) {
@@ -67,6 +73,7 @@ export function StopFormSheetAddressOriginSection({
         clientId={clientId}
         ownerTypes={defaultOwnerTypes}
         filterItem={isAllowedRoutePickerItem}
+        selectionConfirm={selectionConfirm}
       />
     </FormSectionCard>
   );

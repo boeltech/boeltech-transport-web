@@ -32,9 +32,9 @@ export const routeCopy = {
       "Domicilio, mapa y contacto. Guardar la ruta no es lo mismo que dejarla lista para Carta Porte.",
     sheetDescriptionEdit:
       "Cambia domicilio, contacto u operación. La secuencia de la ruta no cambia.",
-    /** DOM wording — ruta guardada ≠ lista para Carta Porte. */
+    /** DOM wording — ruta guardada ≠ lista para Carta Porte (sin citar RFC en superficie). */
     routeSavedVsCartaPorte:
-      "Con pin, CP y estado la ruta queda guardada. RFC y nombre de quien recibe se piden al timbrar.",
+      "Con pin, CP y estado la ruta queda guardada. Identificación y nombre de quien recibe se piden al timbrar.",
     /** @deprecated E1 — path mid-trip = composer pending-only, no append sheet. */
     sheetDescriptionAppend:
       "La nueva parada queda al final del recorrido. No se reordenan ni eliminan paradas existentes.",
@@ -99,6 +99,43 @@ export const routeCopy = {
     reorderDown: "Bajar escala",
     goToCargoTab: "Ir a Cargas",
     confirmFiscalReplan: "Confirmar",
+    changeLocation: "Cambiar",
+    continueSearch: "Continuar",
+  },
+  /** F9b/F9c — panel único Buscar→Confirmar (D58/D68) como Sheet. */
+  panel: {
+    stepSearch: "Buscar",
+    stepConfirm: "Confirmar",
+    chooseOrigin: "Elegir origen",
+    chooseDestination: "Elegir destino",
+    chooseWaypoint: "Elegir escala",
+    chooseDescription:
+      "Confirma el punto y el domicilio. Guardar la ruta no es lo mismo que dejarla lista para Carta Porte.",
+    useAsOrigin: "Usar como origen",
+    useAsDestination: "Usar como destino",
+    useAsWaypoint: "Usar como escala",
+    searchFooterHint:
+      "El mapa encuentra calles, números, colonias y CP. Los nombres de negocio salen del catálogo.",
+    /** Artboard ctx: `{código} · parada N de M · {rol}`. */
+    contextLine: (
+      tripCode: string,
+      stopIndex: number,
+      stopTotal: number,
+      role: string,
+    ) => `${tripCode} · parada ${stopIndex} de ${stopTotal} · ${role}`,
+    roleOrigin: "Origen",
+    roleDestination: "Entrega",
+    roleWaypoint: "Escala",
+    consequencesTitleOrigin: "Al usar como origen",
+    consequencesTitleDestination: "Al usar como destino",
+    consequencesTitleWaypoint: "Al usar como escala",
+    consequenceSaveRoute: (from: string, to: string) =>
+      `Se guarda la ruta: ${from} → ${to}.`,
+    consequenceDistance: (km: string) => `Se calcula la distancia: ${km} km.`,
+    consequenceDistancePending:
+      "Se calculará la distancia al tener ambos extremos con mapa.",
+    consequenceCartaPorte:
+      "Si faltan datos de Carta Porte, la parada queda marcada sin bloquear la reserva.",
   },
   confirm: {
     removeWaypointTitle: "¿Eliminar esta escala?",

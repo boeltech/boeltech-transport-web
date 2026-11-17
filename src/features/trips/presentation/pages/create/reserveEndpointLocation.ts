@@ -1,5 +1,5 @@
 /**
- * Helpers F8 — Origen/Destino del canvas: ciudad vs lugar put-ready (Q14).
+ * Helpers F8 / F8b — Origen/Destino del canvas: ciudad vs lugar put-ready (Q14).
  */
 import type { CreateStopInput } from "@features/trips/domain";
 import type { LocationValue } from "@shared/ui/location";
@@ -16,17 +16,71 @@ import {
   type ComposerEndpointPick,
 } from "../../components/trip-route/buildReplaceStopsPayload";
 
-/** Ciudad de filtro para reserve (nunca inventa parada CP). */
+/**
+ * Evidencia de «lugar» en la card (no solo ciudad): coords+CP, o badge
+ * ajustada/aproximada/exacta con rastro de domicilio.
+ */
+export function isPlaceLikeLocationValue(
+  value: LocationValue | null | undefined,
+): boolean {
+  if (!value) return false;
+  const lat = value.latitude;
+  const lng = value.longitude;
+  const hasCoords =
+    lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng);
+  const hasCp = /^\d{5}$/.test(value.postalCode?.trim() ?? "");
+  if (hasCoords && hasCp) return true;
+
+  const accuracy = value.geocodingAccuracy;
+  const adjusted =
+    accuracy === "manual" ||
+    accuracy === "exact" ||
+    accuracy === "approximate";
+  if (
+    adjusted &&
+    (hasCoords || hasCp || Boolean(value.street?.trim()) || Boolean(value.satStateCode?.trim()))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Ciudad de filtro para reserve (D56 / O4).
+ * Preferir localidad SAT; ciudad-only puede usar `locationName`.
+ * Nunca el nombre comercial de un lugar.
+ */
 export function cityLabelFromLocationValue(
   value: LocationValue | null | undefined,
 ): string {
   if (!value) return "";
   const locality = value.localityName?.trim();
   if (locality) return locality;
-  const name = value.locationName?.trim();
-  if (!name) return "";
-  const beforeComma = name.split(",")[0]?.trim();
-  return beforeComma || name;
+
+  if (!isPlaceLikeLocationValue(value)) {
+    const name = value.locationName?.trim();
+    if (!name) return "";
+    const beforeComma = name.split(",")[0]?.trim();
+    return beforeComma || name;
+  }
+
+  return "";
+}
+
+/**
+ * Label de ciudad para el form de reserve: localidad SAT, o fallback no comercial
+ * cuando el extremo ya es put-ready (Zod exige ciudad ≥2).
+ */
+export function reserveCityLabelForForm(
+  value: LocationValue | null | undefined,
+  pickReady: boolean,
+): string {
+  const city = cityLabelFromLocationValue(value);
+  if (city.length >= 2) return city;
+  if (!pickReady || !value) return city;
+  const state = value.satStateCode?.trim();
+  if (state && state.length >= 2) return state;
+  return city;
 }
 
 export function locationValueToEndpointPick(
@@ -40,6 +94,41 @@ export function locationValueToEndpointPick(
 
 export function cityOnlyLocationValue(city: string): LocationValue {
   return { locationName: city.trim() || null };
+}
+
+/** Mensaje cuando la card parece lugar pero no pasa put-ready (O2/O3). */
+export function placeIncompleteForReserveMessage(
+  value: LocationValue | null | undefined,
+): string | null {
+  if (!value || !isPlaceLikeLocationValue(value)) return null;
+  const pick = locationValueToEndpointPick(value);
+  if (isComposerPickPutReady(pick)) return null;
+
+  if ((value.satAmbiguities?.length ?? 0) > 0) {
+    return "Hay más de una colonia o municipio posibles. Completa el domicilio en Confirmar para guardarlo como parada.";
+  }
+  if (!value.satStateCode?.trim()) {
+    return "Falta el estado SAT para guardar como parada. Completa Confirmar o elige solo una ciudad.";
+  }
+  const street = value.street?.trim() ?? "";
+  const label = value.locationName?.trim() ?? "";
+  if (street.length < 1 && label.length < 5) {
+    return "Falta calle o un nombre de al menos 5 caracteres para guardar como parada.";
+  }
+  const lat = value.latitude;
+  const lng = value.longitude;
+  if (
+    lat == null ||
+    lng == null ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ) {
+    return "Falta el punto en el mapa para guardar como parada.";
+  }
+  if (!/^\d{5}$/.test(value.postalCode?.trim() ?? "")) {
+    return "Falta un código postal de 5 dígitos para guardar como parada.";
+  }
+  return "Faltan datos para guardar como parada. Completa Confirmar o elige solo una ciudad.";
 }
 
 /**

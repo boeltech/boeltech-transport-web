@@ -58,9 +58,10 @@ import {
 import { buildAssignableDriversForTripWizard } from "./tripAssignmentDrivers";
 import {
   buildReserveStopsFromEndpointDraft,
-  cityLabelFromLocationValue,
   cityOnlyLocationValue,
   locationValueToEndpointPick,
+  placeIncompleteForReserveMessage,
+  reserveCityLabelForForm,
 } from "./reserveEndpointLocation";
 import { buildCreateTripInputFromWizardValues } from "./wizardToCreateTripInput";
 import {
@@ -245,19 +246,23 @@ export function TripCanvasPage() {
   const handleOriginLocationChange = useCallback(
     (value: LocationValue | null) => {
       setOriginLocation(value);
-      const city = cityLabelFromLocationValue(value);
-      form.setValue("originCity", city, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
       if (!value) {
+        form.setValue("originCity", "", {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
         setEndpointDraft((prev) => ({ ...prev, origin: undefined }));
         return;
       }
       const pick = locationValueToEndpointPick(value);
+      const pickReady = isComposerPickPutReady(pick);
+      form.setValue("originCity", reserveCityLabelForForm(value, pickReady), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
       setEndpointDraft((prev) => ({
         ...prev,
-        origin: isComposerPickPutReady(pick) ? pick : undefined,
+        origin: pickReady ? pick : undefined,
       }));
     },
     [form],
@@ -266,25 +271,45 @@ export function TripCanvasPage() {
   const handleDestinationLocationChange = useCallback(
     (value: LocationValue | null) => {
       setDestinationLocation(value);
-      const city = cityLabelFromLocationValue(value);
-      form.setValue("destinationCity", city, {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
       if (!value) {
+        form.setValue("destinationCity", "", {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
         setEndpointDraft((prev) => ({ ...prev, destination: undefined }));
         return;
       }
       const pick = locationValueToEndpointPick(value);
+      const pickReady = isComposerPickPutReady(pick);
+      form.setValue(
+        "destinationCity",
+        reserveCityLabelForForm(value, pickReady),
+        {
+          shouldDirty: true,
+          shouldValidate: true,
+        },
+      );
       setEndpointDraft((prev) => ({
         ...prev,
-        destination: isComposerPickPutReady(pick) ? pick : undefined,
+        destination: pickReady ? pick : undefined,
       }));
     },
     [form],
   );
 
+  const originPlaceIncompleteMessage =
+    placeIncompleteForReserveMessage(originLocation);
+  const destinationPlaceIncompleteMessage =
+    placeIncompleteForReserveMessage(destinationLocation);
+  const hasIncompletePlaceEndpoint = Boolean(
+    originPlaceIncompleteMessage || destinationPlaceIncompleteMessage,
+  );
+
   const handleSubmit = form.handleSubmit(async (data) => {
+    if (hasIncompletePlaceEndpoint) {
+      setShowValidationSummary(true);
+      return;
+    }
     setShowValidationSummary(false);
     const clonedStops =
       selectedCorridor && selectedCorridor.stopsSnapshot.length > 0
@@ -337,7 +362,12 @@ export function TripCanvasPage() {
   });
 
   const validationMessages = showValidationSummary
-    ? collectFieldErrorMessages(form.formState.errors)
+    ? [
+        ...collectFieldErrorMessages(form.formState.errors),
+        ...(hasIncompletePlaceEndpoint
+          ? [copy.endpoint.placeIncompleteSummary]
+          : []),
+      ]
     : [];
 
   useEffect(() => {
@@ -375,6 +405,8 @@ export function TripCanvasPage() {
                 destinationLocation={destinationLocation}
                 onOriginLocationChange={handleOriginLocationChange}
                 onDestinationLocationChange={handleDestinationLocationChange}
+                originEndpointError={originPlaceIncompleteMessage}
+                destinationEndpointError={destinationPlaceIncompleteMessage}
                 afterClient={
                   clientId ? (
                     <CorridorPicker
@@ -459,7 +491,7 @@ export function TripCanvasPage() {
           <div className="flex justify-end">
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || hasIncompletePlaceEndpoint}
               leftIcon={
                 createMutation.isPending ? undefined : (
                   <CalendarPlus className="h-4 w-4" />

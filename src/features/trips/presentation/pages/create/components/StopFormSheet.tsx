@@ -23,6 +23,7 @@ import {
   useCallback,
   useMemo,
   useRef,
+  type ReactNode,
 } from "react";
 import { isGenericRfc } from "@boeltech/cfdi-domain";
 import { useForm, useFormState, useWatch, Controller } from "react-hook-form";
@@ -188,6 +189,17 @@ export interface StopFormSheetProps {
   variant?: "sheet" | "inline";
   /** True mientras el caller persiste (p. ej. replace-stops); deshabilita Guardar. */
   isPending?: boolean;
+  /**
+   * Alta F9b — sin LocationSheet ADR-0092 en el origen de dirección.
+   * Default `"sheet"` conserva wizard / otros flujos.
+   */
+  selectionConfirm?: "sheet" | "immediate";
+  /** CTA primario (alta: «Usar como origen/destino»). Default: Guardar parada. */
+  primaryActionLabel?: string;
+  /** Caja de consecuencias bajo el footer (alta Confirmar). */
+  consequences?: ReactNode;
+  /** Si true, el padre ya pintó título/stepper (panel único). */
+  hideChromeHeader?: boolean;
 }
 
 function stopUbicacionRfcDescription(rfc: string | null | undefined) {
@@ -275,6 +287,10 @@ export function StopFormSheet({
   description,
   variant = "sheet",
   isPending = false,
+  selectionConfirm = "sheet",
+  primaryActionLabel,
+  consequences = null,
+  hideChromeHeader = false,
 }: StopFormSheetProps) {
   const [attemptedSubmitValidation, setAttemptedSubmitValidation] = useState(false);
   const validationAlertRef = useRef<HTMLDivElement | null>(null);
@@ -1252,6 +1268,7 @@ export function StopFormSheet({
                 ? tripContractingClientId
                 : clientId || null
             }
+            selectionConfirm={selectionConfirm}
           />
 
           {isBranchOriginPrefill ? (
@@ -1777,6 +1794,7 @@ export function StopFormSheet({
               ) : null}
             </div>
           ) : null}
+          {consequences}
           <div className="flex w-full flex-row justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => closeDialog()}>
               {stopForm.action.cancel}
@@ -1786,7 +1804,7 @@ export function StopFormSheet({
               disabled={saveDisabled || isPersistingClientAddress}
               onClick={() => handlePrimaryFooterAction()}
             >
-              {stopForm.action.save}
+              {primaryActionLabel ?? stopForm.action.save}
             </Button>
           </div>
     </>
@@ -1795,12 +1813,14 @@ export function StopFormSheet({
   const formChrome =
     variant === "inline" ? (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <header className="mb-4 shrink-0 border-b pb-3">
-          <h3 className="text-base font-semibold">{sheetTitle}</h3>
-          {sheetDescription ? (
-            <p className="text-sm text-muted-foreground">{sheetDescription}</p>
-          ) : null}
-        </header>
+        {hideChromeHeader ? null : (
+          <header className="mb-4 shrink-0 border-b pb-3">
+            <h3 className="text-base font-semibold">{sheetTitle}</h3>
+            {sheetDescription ? (
+              <p className="text-sm text-muted-foreground">{sheetDescription}</p>
+            ) : null}
+          </header>
+        )}
         <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto">
           {formBody}
         </div>
