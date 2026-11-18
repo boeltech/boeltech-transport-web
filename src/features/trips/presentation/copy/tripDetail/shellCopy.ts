@@ -275,10 +275,12 @@ export const shellCopy = {
     lateSuffix: "va tarde",
     completeRouteCargo: "Completar ruta y cargas",
     completeRoute: "Completar ruta",
-    /** D57 — Qué sigue nombra el pendiente concreto. */
-    completeOrigin: "Completar origen",
-    completeDestination: "Completar destino",
+    /** D57 / F8c — Qué sigue nombra el pendiente concreto (AmbosCiudad). */
+    completeOrigin: "Elegir el origen",
+    completeDestination: "Elegir el destino",
     completeDomicilio: "Completar domicilio",
+    /** Ambos extremos solo ciudad / 0 stops. */
+    completeRouteCities: "Elegir el origen",
     completeCargo: "Completar cargas",
     confirmReserve: "Confirmar reserva",
     /** HB-G2-CTA: abre StartTripSheet / sheets de parada. */

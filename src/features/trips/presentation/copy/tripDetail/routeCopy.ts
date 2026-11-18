@@ -87,6 +87,7 @@ export const routeCopy = {
     editStop: "Editar parada",
     changeDestination: "Cambiar destino",
     completeAddress: "Completar domicilio",
+    choosePlace: "Elegir lugar",
     calculateDistances: "Calcular distancias",
     saveChanges: "Guardar cambios",
     discardChanges: "Descartar",
@@ -165,21 +166,29 @@ export const routeCopy = {
         : `Origen/destino y ${waypointCount} escalas sin guardar.`,
   },
   composer: {
-    title: "Elige origen y destino",
+    /** F8c AmbosCiudad — panel «Paradas del recorrido» (no chrome legado). */
+    title: "Paradas del recorrido",
     description:
-      "Elige origen y destino. El domicilio se completa después.",
+      "Origen, escalas y destino. Lo que elegiste al reservar ya está aquí.",
     originSlot: "Origen",
     destinationSlot: "Destino",
     waypointSlot: "Escala",
     pickerLabel: "Dirección guardada",
     selectedStop: "En la ruta",
-    cityHint: (city: string) => `Sugerencia: ${city}`,
+    /** Nombre de ciudad en el slot (sin prefijo «Sugerencia:»). */
+    cityHint: (city: string) => city,
+    cityReserveHint: "Ciudad de la reserva. Falta elegir el lugar exacto.",
+    choosePlace: "Elegir lugar",
+    choosePlaceBadge: "Elige el lugar",
     emptySlot: "Sin domicilio",
     lockedStop: "Bloqueada",
     labelHatchToggle: "No está en el catálogo",
     labelPlaceholder: "Nombre del lugar (opcional)",
     labelHint: "Escribe un nombre y usa Completar domicilio.",
     corridorTitle: "Corredor frecuente",
+    composerFooter: (readyCount: number) => `${readyCount} de 2 paradas`,
+    composerFooterHint: "sin guardar hasta tener origen y destino",
+    mapEmptyNote: "Elige origen y destino para trazar la ruta.",
     pendingOriginSaved:
       "Origen listo. Elige el destino para guardar la ruta.",
     pendingDestinationSaved:

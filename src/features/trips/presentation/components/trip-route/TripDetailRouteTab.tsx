@@ -743,6 +743,24 @@ export function TripDetailRouteTab({
     });
   };
 
+  /** F8c — AmbosCiudad / RutaPrecargada: Elegir lugar → Sheet F9c Buscar. */
+  const openChoosePlace = (rowId: string) => {
+    const row = masterRows.find((item) => item.id === rowId);
+    if (!row || row.stop) return;
+    if (row.category !== "origin" && row.category !== "destination") return;
+    const cityHint =
+      row.category === "origin" ? originCityHint : destinationCityHint;
+    setSelectedId(rowId);
+    setChangingDestination(false);
+    setCaptureError(null);
+    setCompleteTarget({
+      kind: "create",
+      category: row.category,
+      cityName: cityHint || undefined,
+      initialStep: "search",
+    });
+  };
+
   const handleSheetSubmit = async (data: StopFormData) => {
     if (isRouteMutationPending) return;
     const editingStopId =
@@ -1363,14 +1381,17 @@ export function TripDetailRouteTab({
     </div>
   ) : null;
 
+  const emptyComposerReadyCount = masterRows.filter((row) =>
+    Boolean(row.stop),
+  ).length;
+  const emptyComposerFooter = `${copy.composer.composerFooter(emptyComposerReadyCount)} · ${copy.composer.composerFooterHint}`;
+
   const emptyComposerLayout = !hasBothPersistedEndpoints ? (
     <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      {showMidTripReplan ? (
         <div>
           <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold">
-            {showMidTripReplan
-              ? copy.state.emptyMidTripTitle
-              : copy.composer.title}
+            {copy.state.emptyMidTripTitle}
             {hasLocalDraft ? (
               <Badge variant="info" tone="soft" className="font-normal">
                 {copy.chip.editing}
@@ -1378,16 +1399,13 @@ export function TripDetailRouteTab({
             ) : null}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {showMidTripReplan
-              ? hasLocalDraft
-                ? copy.hint.midTripComposer
-                : copy.hint.stopsMidTrip
-              : copy.composer.description}
+            {hasLocalDraft ? copy.hint.midTripComposer : copy.hint.stopsMidTrip}
           </p>
         </div>
-      </div>
+      ) : null}
       {unsavedAndErrors}
-      <div className="grid gap-4 rounded-md border bg-muted/30 p-2 md:grid-cols-[280px_1fr] md:items-stretch md:gap-0">
+      {/* F8c — AmbosCiudad / RutaPrecargada: panel + mapa/distancias; Elegir lugar → F9c. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
         <TripRouteComposer
           rows={masterRows}
           selectedId={resolvedViewId}
@@ -1400,6 +1418,9 @@ export function TripDetailRouteTab({
           addWaypointDisabledReason={copy.composer.needBothEnds}
           mode={showMidTripReplan ? "pending-only" : "full"}
           showVisitState={showVisitState}
+          layout="panel"
+          footerText={emptyComposerFooter}
+          onChoosePlace={canMutateRoute ? openChoosePlace : undefined}
           corridor={
             showCorridorPicker ? (
               <CorridorPicker
@@ -1411,8 +1432,16 @@ export function TripDetailRouteTab({
             ) : null
           }
         />
-        <div className="flex min-h-0 flex-col bg-background md:max-h-[640px] md:overflow-hidden md:rounded-r-md md:p-5">
-          {detailPanel}
+        <div className="space-y-4">
+          {showMidTripReplan && showComposerCapture ? (
+            <div className="rounded-xl border bg-card p-4">{detailPanel}</div>
+          ) : (
+            <TripRouteMapPanel stops={ordered} />
+          )}
+          <TripRouteDistancesCard
+            segments={distanceSegments}
+            totalKm={totalPlannedKm}
+          />
         </div>
       </div>
     </div>

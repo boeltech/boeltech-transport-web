@@ -138,21 +138,68 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
           onClick={() => {
             const category = initialData?.stopCategory ?? "origin";
             const isOrigin = category === "origin";
+            const queuedItem = mocks.nextPickerItems.shift();
+            const queuedValue = mocks.nextLocationValues.shift();
             void Promise.resolve(
               onSubmit({
+                ...(initialData as Record<string, unknown>),
                 stopCategory: category,
                 stopType: initialData?.stopType ??
                   (isOrigin ? ["origin", "pickup"] : ["destination", "delivery"]),
-                locationName: initialData?.locationName || "Patio norte",
+                locationName:
+                  queuedItem?.locationName ||
+                  queuedValue?.locationName ||
+                  initialData?.locationName ||
+                  "Patio norte",
                 cityName: isOrigin ? "Guadalajara" : "Monterrey",
-                satCountryCode: "MEX",                satStateCode: isOrigin ? "JAL" : "NLE",
-                satMunicipalityCode: "039",
-                postalCode: isOrigin ? "44100" : "64000",
-                street: "Calle Manual",
-                exteriorNumber: "10",
-                latitude: isOrigin ? 20.67 : 25.67,
-                longitude: isOrigin ? -103.35 : -100.32,
-                ...(initialData as Record<string, unknown>),
+                satCountryCode: "MEX",
+                satStateCode:
+                  queuedItem?.satStateCode ||
+                  (isOrigin ? "JAL" : "NLE"),
+                satMunicipalityCode:
+                  queuedItem?.satMunicipalityCode || "039",
+                postalCode:
+                  queuedItem?.postalCode ||
+                  queuedValue?.postalCode ||
+                  (isOrigin ? "44100" : "64000"),
+                street:
+                  queuedItem?.street ||
+                  queuedValue?.street ||
+                  "Calle Manual",
+                exteriorNumber:
+                  queuedItem?.exteriorNumber ||
+                  queuedValue?.exteriorNumber ||
+                  "10",
+                latitude:
+                  queuedItem?.latitude ??
+                  queuedValue?.latitude ??
+                  (isOrigin ? 20.67 : 25.67),
+                longitude:
+                  queuedItem?.longitude ??
+                  queuedValue?.longitude ??
+                  (isOrigin ? -103.35 : -100.32),
+                sourceAddressId: queuedItem?.id,
+                ...(queuedItem
+                  ? {
+                      locationName: queuedItem.locationName,
+                      sourceAddressId: queuedItem.id,
+                      street: queuedItem.street,
+                      exteriorNumber: queuedItem.exteriorNumber,
+                      postalCode: queuedItem.postalCode,
+                      satStateCode: queuedItem.satStateCode,
+                      satMunicipalityCode: queuedItem.satMunicipalityCode,
+                      latitude: queuedItem.latitude,
+                      longitude: queuedItem.longitude,
+                      rfcRemitenteDestinatario:
+                        queuedItem.remitenteRfc ??
+                        queuedItem.destinatarioRfc ??
+                        "",
+                      nombreRemitenteDestinatario:
+                        queuedItem.remitenteName ??
+                        queuedItem.destinatarioName ??
+                        "",
+                    }
+                  : {}),
               }),
             ).catch(() => undefined);
           }}
@@ -325,11 +372,14 @@ describe("TripDetailRouteTab", () => {
     );
 
     expect(screen.getByText(copy.state.readOnlyEmpty)).toBeInTheDocument();
-    expect(screen.queryByText(copy.composer.title)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.composer.choosePlace }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: copy.action.addStop })).not.toBeInTheDocument();
   });
 
-  it("shows city hints without creating stops", () => {
+  it("shows AmbosCiudad city slots with Elegir lugar without creating stops", async () => {
+    const user = userEvent.setup();
     renderTab(
       <TripDetailRouteTab
         trip={trip}
@@ -346,7 +396,19 @@ describe("TripDetailRouteTab", () => {
     expect(
       screen.getAllByText(copy.composer.cityHint("Monterrey")).length,
     ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(copy.composer.cityReserveHint).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/0 de 2 paradas/)).toBeInTheDocument();
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
+
+    const chooseButtons = screen.getAllByRole("button", {
+      name: copy.composer.choosePlace,
+    });
+    await user.click(chooseButtons[0]!);
+    const sheet = screen.getByTestId("stop-form-sheet");
+    expect(sheet).toBeInTheDocument();
+    expect(sheet).toHaveAttribute("data-step", "search");
   });
 
   it("clears composer endpoint draft when orderedStops change externally", async () => {
@@ -364,23 +426,15 @@ describe("TripDetailRouteTab", () => {
     );
 
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
     // D-R3: tras confirmar origen queda Destino seleccionado; el draft se ve en el riel.
+    expect(screen.getByText("Patio norte")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}. ${pickerItem.locationName}`,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).length,
+    ).toBeGreaterThan(0);
 
     rerender(
       <MemoryRouter>
@@ -402,14 +456,10 @@ describe("TripDetailRouteTab", () => {
 
     // Draft local se limpia; el origen pasa a ser la parada persistida (N=1 → composer).
     expect(screen.getByText(copy.composer.title)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}. ${originStop.locationName}`,
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(originStop.locationName!)).toBeInTheDocument();
   });
 
-  it("buffers origin alone and rejects the same address for destination", async () => {
+  it("buffers origin alone and keeps destination Elegir lugar actionable (D-R3)", async () => {
     const user = userEvent.setup();
     renderTab(
       <TripDetailRouteTab
@@ -422,9 +472,7 @@ describe("TripDetailRouteTab", () => {
     );
 
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
@@ -432,21 +480,15 @@ describe("TripDetailRouteTab", () => {
     expect(mocks.toast).toHaveBeenCalledWith(
       expect.objectContaining({ title: copy.composer.pendingOriginSaved }),
     );
-    // Destino ya seleccionado (D-R3); mismo id de catálogo → duplicado.
+    // Destino sigue con Elegir lugar → Sheet F9c (AmbosCiudad / RutaPrecargada).
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).at(-1)!,
     );
-
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
-    expect(mocks.toast).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: copy.composer.duplicateEndpointAddress,
-      }),
+    expect(screen.getByTestId("stop-form-sheet")).toHaveAttribute(
+      "data-step",
+      "search",
     );
-    expect(screen.getByText(copy.alert.captureTitle)).toBeInTheDocument();
-    expect(screen.getByText(copy.composer.duplicateEndpointAddress)).toBeInTheDocument();
   });
 
   it("PUTs distinct origin and destination without owned addressId", async () => {
@@ -471,15 +513,11 @@ describe("TripDetailRouteTab", () => {
     );
 
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).at(-1)!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
@@ -536,15 +574,11 @@ describe("TripDetailRouteTab", () => {
     );
 
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).at(-1)!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
@@ -568,7 +602,7 @@ describe("TripDetailRouteTab", () => {
   });
 
 
-  it("does not PUT a label-only name; Completar domicilio opens the form", async () => {
+  it("does not PUT from Elegir lugar alone; Sheet F9c opens in search", async () => {
     const user = userEvent.setup();
     renderTab(
       <TripDetailRouteTab
@@ -580,27 +614,16 @@ describe("TripDetailRouteTab", () => {
       />,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: copy.composer.labelHatchToggle }),
-    );
-    await user.type(
-      screen.getByLabelText(copy.composer.labelPlaceholder, {
-        selector: "#trip-route-composer-origin-label",
-      }),
-      "Patio norte",
-    );
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
-
     await user.click(
-      screen.getByRole("button", { name: copy.action.completeAddress }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
     const sheet = screen.getByTestId("stop-form-sheet");
     expect(sheet).toHaveTextContent(copy.panel.chooseOrigin);
-    // F9c — alta Confirmar = Sheet overlay (no inline en el tab).
     expect(sheet).toHaveAttribute("data-variant", "sheet");
     expect(sheet).toHaveAttribute("role", "dialog");
-    expect(sheet).toHaveAttribute("data-step", "confirm");
+    expect(sheet).toHaveAttribute("data-step", "search");
     expect(screen.getByTestId("trip-stop-panel-context")).toHaveTextContent(
       copy.panel.contextLine("TR-001", 1, 2, copy.panel.roleOrigin),
     );
@@ -632,18 +655,16 @@ describe("TripDetailRouteTab", () => {
     );
 
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
 
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
-    // F9c — pick abre Confirmar en Sheet (sin LocationSheet ADR-0092).
+    // F8c — Elegir lugar abre Sheet F9c en Buscar (sin LocationSheet ADR-0092).
     const sheet = screen.getByTestId("stop-form-sheet");
     expect(sheet).toBeInTheDocument();
     expect(sheet).toHaveAttribute("data-variant", "sheet");
     expect(sheet).toHaveAttribute("role", "dialog");
-    expect(sheet).toHaveAttribute("data-step", "confirm");
+    expect(sheet).toHaveAttribute("data-step", "search");
     expect(sheet).toHaveTextContent(copy.panel.chooseOrigin);
     expect(screen.getByTestId("trip-stop-panel-stepper")).toBeInTheDocument();
   });
@@ -682,9 +703,7 @@ describe("TripDetailRouteTab", () => {
     );
 
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
     // Origen abre Confirmar; sin coords el submit del mock sí tiene coords —
@@ -722,15 +741,11 @@ describe("TripDetailRouteTab", () => {
     );
 
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).at(-1)!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
@@ -739,20 +754,12 @@ describe("TripDetailRouteTab", () => {
       expect.objectContaining({ title: copy.toast.stopSaveError }),
     );
 
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}. Bodega Alpha`,
-      }),
-    );
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}. CEDIS Sur`,
-      }),
-    );
-
+    // Tras fallo, el draft de origen (buffer previo) sigue en el composer.
+    expect(screen.getByText("Bodega Alpha")).toBeInTheDocument();
+    expect(screen.getByTestId("trip-route-unsaved-bar")).toBeInTheDocument();
     expect(
-      screen.getByText(`${copy.composer.selectedStop}: CEDIS Sur`),
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).length,
+    ).toBeGreaterThan(0);
   });
 
   it("PUTs picker destination together with origin captured in Completar domicilio", async () => {
@@ -767,41 +774,33 @@ describe("TripDetailRouteTab", () => {
       />,
     );
 
+    mocks.nextPickerItems = [
+      {
+        ...pickerItem,
+        id: "22222222-2222-4222-8222-222222222222",
+        locationName: "CEDIS Sur",
+        latitude: 25.67,
+        longitude: -100.32,
+      },
+      {
+        ...pickerItem,
+        locationName: "Tecnológico de Monterrey",
+      },
+    ];
+
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}. ${copy.composer.cityHint("Monterrey")}`,
-      }),
-    );
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).at(-1)!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
     // Tras confirmar destino se selecciona Origen (simétrico a D-R3).
+    expect(screen.getByText("CEDIS Sur")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}. ${pickerItem.locationName}`,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).length,
+    ).toBeGreaterThan(0);
 
     await user.click(
-      screen.getByRole("button", { name: copy.composer.labelHatchToggle }),
-    );
-    await user.type(
-      screen.getByLabelText(copy.composer.labelPlaceholder, {
-        selector: "#trip-route-composer-origin-label",
-      }),
-      "Tecnológico de Monterrey",
-    );
-    await user.click(
-      screen.getByRole("button", { name: copy.action.completeAddress }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
@@ -815,8 +814,7 @@ describe("TripDetailRouteTab", () => {
     expect(payload[0]?.stopType).toContain(StopType.ORIGIN);
     expect(payload[0]?.locationName).toBe("Tecnológico de Monterrey");
     expect(payload[1]?.stopType).toContain(StopType.DESTINATION);
-    expect(payload[1]?.locationName).toBe(pickerItem.locationName);
-    expect(payload[1]?.sourceAddressId).toBe(pickerItem.id);
+    expect(payload[1]?.locationName).toBe("CEDIS Sur");
   });
 
   it("shows Sin domicilio on pending stops and Completar domicilio opens the form", async () => {
@@ -923,7 +921,10 @@ describe("TripDetailRouteTab", () => {
 
     expect(screen.queryByText("Guadalajara, JAL → Monterrey, NLE")).not.toBeInTheDocument();
     expect(screen.getByText(copy.section.stops)).toBeInTheDocument();
-    expect(screen.queryByText(copy.composer.title)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.composer.choosePlace }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/de 2 paradas/)).not.toBeInTheDocument();
     expect(screen.getByText(copy.section.distances)).toBeInTheDocument();
     expect(screen.getByText(copy.label.totalPlanned)).toBeInTheDocument();
     expect(screen.getByText(copy.hint.distancesBilling)).toBeInTheDocument();
@@ -973,9 +974,7 @@ describe("TripDetailRouteTab", () => {
     expect(screen.getByRole("button", { name: /Destino/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: copy.action.addWaypoint })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.queryByRole("button", { name: copy.composer.choosePlace }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: copy.action.editStop }),
@@ -1154,9 +1153,7 @@ describe("TripDetailRouteTab", () => {
     );
 
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
 
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
@@ -1166,14 +1163,12 @@ describe("TripDetailRouteTab", () => {
 
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
     expect(screen.getByText(copy.composer.title)).toBeInTheDocument();
-    expect(screen.queryByText(copy.section.stops)).not.toBeInTheDocument();
+    expect(screen.getByText(/1 de 2 paradas|0 de 2 paradas/)).toBeInTheDocument();
     expect(mocks.toast).toHaveBeenCalledWith(
       expect.objectContaining({ title: copy.composer.pendingOriginSaved }),
     );
     expect(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).at(-1)!,
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: copy.action.addWaypoint }),
@@ -1192,16 +1187,14 @@ describe("TripDetailRouteTab", () => {
     );
 
     expect(screen.getByText(copy.composer.title)).toBeInTheDocument();
-    expect(screen.queryByText(copy.section.stops)).not.toBeInTheDocument();
+    expect(screen.getByText(/1 de 2 paradas/)).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: `${copy.composer.originSlot}. Bodega Alpha`,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).at(-1)!,
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: copy.action.addWaypoint }),
@@ -1221,21 +1214,7 @@ describe("TripDetailRouteTab", () => {
     );
 
     await user.click(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}. ${copy.composer.cityHint("Guadalajara")}`,
-      }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: copy.composer.labelHatchToggle }),
-    );
-    await user.type(
-      screen.getByLabelText(copy.composer.labelPlaceholder, {
-        selector: "#trip-route-composer-origin-label",
-      }),
-      "Patio norte",
-    );
-    await user.click(
-      screen.getByRole("button", { name: copy.action.completeAddress }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!,
     );
     await user.click(screen.getByRole("button", { name: "submit-stop" }));
 
@@ -1246,15 +1225,9 @@ describe("TripDetailRouteTab", () => {
     expect(screen.getByText(copy.composer.title)).toBeInTheDocument();
     expect(screen.queryByTestId("stop-form-sheet")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
-        name: `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`,
-      }),
+      screen.getAllByRole("button", { name: copy.composer.choosePlace }).at(-1)!,
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: `${copy.composer.originSlot}. Patio norte`,
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Patio norte")).toBeInTheDocument();
   });
 
   it("does not call replaceStops while a mutation is already pending", async () => {
@@ -1291,9 +1264,7 @@ describe("TripDetailRouteTab", () => {
     expect(corridorButton).toBeDisabled();
     await user.click(corridorButton);
 
-    const originPicker = screen.getByRole("button", {
-      name: `${copy.composer.originSlot}: ${copy.composer.pickerLabel}`,
-    });
+    const originPicker = screen.getAllByRole("button", { name: copy.composer.choosePlace })[0]!;
     expect(originPicker).toBeDisabled();
     await user.click(originPicker);
 

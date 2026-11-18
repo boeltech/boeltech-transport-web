@@ -108,6 +108,7 @@ function primaryLabel(
       if (primary.routeGap === "origin") return copy.completeOrigin;
       if (primary.routeGap === "destination") return copy.completeDestination;
       if (primary.routeGap === "domicilio") return copy.completeDomicilio;
+      if (primary.routeGap === "route") return copy.completeRouteCities;
       if (secondaries.some((s) => s.id === "go_to_cargo")) {
         return copy.completeRouteCargo;
       }

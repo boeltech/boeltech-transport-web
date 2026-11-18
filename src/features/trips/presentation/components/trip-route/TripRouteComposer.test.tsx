@@ -72,7 +72,8 @@ vi.mock("@shared/ui/location", async (importOriginal) => {
 });
 
 describe("TripRouteComposer", () => {
-  it("shows origin and destination master rows with city hints and no SAT form", () => {
+  it("shows AmbosCiudad slots with city hints and Elegir lugar", () => {
+    const onChoosePlace = vi.fn();
     const rows = buildRouteMasterRows({
       waypoints: [],
       originCityHint: "Guadalajara",
@@ -84,15 +85,46 @@ describe("TripRouteComposer", () => {
         selectedId={ROUTE_SLOT_ORIGIN_ID}
         onSelect={vi.fn()}
         onAddWaypoint={vi.fn()}
+        layout="panel"
+        onChoosePlace={onChoosePlace}
       />,
     );
 
+    expect(screen.getByText(copy.composer.title)).toBeInTheDocument();
     expect(screen.getByText(copy.composer.originSlot)).toBeInTheDocument();
     expect(screen.getByText(copy.composer.destinationSlot)).toBeInTheDocument();
     expect(screen.getByText(copy.composer.cityHint("Guadalajara"))).toBeInTheDocument();
     expect(screen.getByText(copy.composer.cityHint("Monterrey"))).toBeInTheDocument();
+    expect(screen.getAllByText(copy.composer.cityReserveHint).length).toBe(2);
+    expect(screen.getAllByText(copy.composer.choosePlaceBadge).length).toBe(2);
+    expect(screen.getByText(/0 de 2 paradas/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: copy.action.addWaypoint })).toBeInTheDocument();
     expect(screen.queryByText(/código postal/i)).not.toBeInTheDocument();
+  });
+
+  it("Elegir lugar calls onChoosePlace for the slot", async () => {
+    const user = userEvent.setup();
+    const onChoosePlace = vi.fn();
+    const rows = buildRouteMasterRows({
+      waypoints: [],
+      originCityHint: "Guadalajara",
+      destinationCityHint: "Monterrey",
+    });
+    render(
+      <TripRouteComposer
+        rows={rows}
+        selectedId={ROUTE_SLOT_ORIGIN_ID}
+        onSelect={vi.fn()}
+        onAddWaypoint={vi.fn()}
+        onChoosePlace={onChoosePlace}
+      />,
+    );
+
+    const buttons = screen.getAllByRole("button", {
+      name: copy.composer.choosePlace,
+    });
+    await user.click(buttons[0]!);
+    expect(onChoosePlace).toHaveBeenCalledWith(ROUTE_SLOT_ORIGIN_ID);
   });
 
   it("hides add waypoint in read-only", () => {

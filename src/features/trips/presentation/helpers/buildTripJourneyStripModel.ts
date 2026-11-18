@@ -370,7 +370,10 @@ function buildFacts(input: BuildTripJourneyStripModelInput): TripJourneyFact[] {
   // ── Recorrido ───────────────────────────────────────────────────────────
   let routeValue = "—";
   let routeDetail: string | null = null;
+  let routeTone: TripJourneyFactTone = "default";
   const stopCount = orderedStops.length;
+  const hasReserveCities =
+    Boolean(trip.originCity?.trim()) || Boolean(trip.destinationCity?.trim());
   const stopCargoDetail = [
     stopCount > 0
       ? stopCount === 1
@@ -402,6 +405,15 @@ function buildFacts(input: BuildTripJourneyStripModelInput): TripJourneyFact[] {
   } else if (distanceKm != null && distanceKm > 0) {
     routeValue = `${Math.round(distanceKm).toLocaleString("es-MX")} km`;
     routeDetail = stopCargoDetail;
+  } else if (
+    status === TripStatus.DRAFT &&
+    stopCount === 0 &&
+    hasReserveCities
+  ) {
+    // F8c AmbosCiudad — franja Recorrido (PRD C.2).
+    routeValue = "Faltan origen y destino";
+    routeDetail = "Solo ciudades";
+    routeTone = "missing";
   } else {
     routeValue = stopCount > 0 ? stopCargoDetail : "—";
     routeDetail = cargoCount > 0 ? null : stopCargoDetail;
@@ -474,7 +486,7 @@ function buildFacts(input: BuildTripJourneyStripModelInput): TripJourneyFact[] {
       label: "Recorrido",
       value: routeValue,
       detail: routeDetail,
-      tone: "default",
+      tone: routeTone,
     },
     {
       id: "rate",

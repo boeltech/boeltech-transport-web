@@ -31,7 +31,9 @@ describe("routeCopy — léxico operativo (Capa 1 D3)", () => {
   });
 
   it("usa sentence case en títulos de itinerario y CTA", () => {
-    expect(routeCopy.composer.title).toBe("Elige origen y destino");
+    expect(routeCopy.composer.title).toBe("Paradas del recorrido");
+    expect(routeCopy.composer.choosePlace).toBe("Elegir lugar");
+    expect(routeCopy.composer.cityReserveHint).toMatch(/Ciudad de la reserva/);
     expect(routeCopy.hint.captureHintOrigin).toMatch(/directorio/i);
     expect(routeCopy.hint.captureHintStop).not.toMatch(/sucursal/i);
     expect(routeCopy.section.stops).toBe("Paradas del recorrido");

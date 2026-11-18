@@ -66,6 +66,9 @@ export interface TripRouteMasterRowProps {
   showVisitState?: boolean;
   tripTimes?: TripScheduleTimes;
   onSelect: (id: string) => void;
+  /** F8c — AmbosCiudad / RutaPrecargada: abre Sheet F9c. */
+  onChoosePlace?: (id: string) => void;
+  choosePlaceDisabled?: boolean;
 }
 
 export function TripRouteMasterRow({
@@ -74,6 +77,8 @@ export function TripRouteMasterRow({
   showVisitState = false,
   tripTimes,
   onSelect,
+  onChoosePlace,
+  choosePlaceDisabled = false,
 }: TripRouteMasterRowProps) {
   const title = slotTitle(row.category);
   const persistedLabel =
@@ -81,10 +86,14 @@ export function TripRouteMasterRow({
     row.stop?.city?.trim() ||
     row.stop?.address?.trim() ||
     "";
+  const cityLabel = row.cityHint?.trim()
+    ? copy.composer.cityHint(row.cityHint)
+    : "";
+  const draftLabel = row.draftLabel?.trim() || "";
+  /** Sin stop persistido: AmbosCiudad / RutaPrecargada — CTA Elegir lugar (F8c). */
+  const needsPlace = !row.stop;
   const subtitle =
-    persistedLabel ||
-    row.draftLabel?.trim() ||
-    (row.cityHint ? copy.composer.cityHint(row.cityHint) : copy.composer.emptySlot);
+    persistedLabel || draftLabel || cityLabel || copy.composer.emptySlot;
   const missingDomicilio = row.stop ? !isStopDomicilioComplete(row.stop) : false;
   const missingOperation =
     row.stop != null && !isStopWaypointOperationComplete(row.stop);
@@ -103,23 +112,25 @@ export function TripRouteMasterRow({
       : null;
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(row.id)}
-      aria-pressed={selected}
-      aria-label={`${title}. ${subtitle}${locked ? `. ${copy.composer.lockedStop}` : ""}`}
+    <div
       className={cn(
         "group w-full rounded-md border p-3 text-left transition-colors",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         locked && "bg-muted/60",
         selected
           ? "border-primary bg-background shadow-sm"
           : locked
-            ? "border-transparent hover:border-border"
-            : "border-transparent bg-card hover:border-border",
+            ? "border-transparent"
+            : "border-transparent bg-card",
         selected && locked && "bg-muted",
       )}
     >
+      <button
+        type="button"
+        onClick={() => onSelect(row.id)}
+        aria-pressed={selected}
+        aria-label={`${title}. ${subtitle}${locked ? `. ${copy.composer.lockedStop}` : ""}`}
+        className="w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
       <div className="flex items-start gap-2.5">
         <div
           className={cn(
@@ -136,6 +147,11 @@ export function TripRouteMasterRow({
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-medium">{title}</span>
+            {needsPlace && (draftLabel || cityLabel) ? (
+              <span className="text-sm font-semibold text-foreground">
+                {draftLabel || cityLabel}
+              </span>
+            ) : null}
             {statusLabel ? (
               <Badge variant="secondary" className="font-normal">
                 {statusLabel}
@@ -146,7 +162,12 @@ export function TripRouteMasterRow({
                 {visitLabel}
               </Badge>
             ) : null}
-            {!locked && missingDomicilio ? (
+            {needsPlace && !draftLabel ? (
+              <Badge variant="warning" tone="soft" className="text-xs font-normal">
+                {copy.composer.choosePlaceBadge}
+              </Badge>
+            ) : null}
+            {!locked && !needsPlace && missingDomicilio ? (
               <Badge variant="warning" tone="soft" className="text-xs font-normal">
                 {copy.chip.missingAddress}
               </Badge>
@@ -157,10 +178,36 @@ export function TripRouteMasterRow({
               </Badge>
             ) : null}
           </div>
-          <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+          {needsPlace && !draftLabel ? (
+            <p className="text-xs text-muted-foreground">
+              {cityLabel
+                ? copy.composer.cityReserveHint
+                : copy.composer.emptySlot}
+            </p>
+          ) : needsPlace && draftLabel ? (
+            <p className="truncate text-xs text-muted-foreground">
+              {cityLabel ? copy.composer.cityReserveHint : subtitle}
+            </p>
+          ) : (
+            <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+          )}
         </div>
       </div>
-    </button>
+      </button>
+      {needsPlace && onChoosePlace ? (
+        <div className="mt-2 pl-10">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={choosePlaceDisabled}
+            onClick={() => onChoosePlace(row.id)}
+          >
+            {copy.composer.choosePlace}
+          </Button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -411,6 +458,11 @@ export interface TripRouteComposerProps {
   mode?: "full" | "pending-only";
   showVisitState?: boolean;
   corridor?: ReactNode;
+  /** F8c — CTA AmbosCiudad → Sheet F9c. */
+  onChoosePlace?: (id: string) => void;
+  /** Layout panel card (AmbosCiudad) vs columna master legacy. */
+  layout?: "panel" | "rail";
+  footerText?: string | null;
 }
 
 export function TripRouteComposer({
@@ -426,14 +478,21 @@ export function TripRouteComposer({
   mode = "full",
   showVisitState = false,
   corridor,
+  onChoosePlace,
+  layout = "rail",
+  footerText = null,
 }: TripRouteComposerProps) {
   const showAddWaypoint = !readOnly;
   const addDisabled = disabled || !canAddWaypoint;
-  return (
-    <div
-      className="flex flex-col gap-1.5 md:max-h-[640px] md:overflow-y-auto md:border-r md:p-2"
-      data-route-composer-mode={mode}
-    >
+  const readyCount = rows.filter((row) => Boolean(row.stop)).length;
+  const resolvedFooter =
+    footerText ??
+    (layout === "panel"
+      ? `${copy.composer.composerFooter(readyCount)} · ${copy.composer.composerFooterHint}`
+      : null);
+
+  const body = (
+    <>
       {corridor ? <div className="mb-1 px-0.5 pb-2">{corridor}</div> : null}
       {rows.map((row) => (
         <TripRouteMasterRow
@@ -443,6 +502,8 @@ export function TripRouteComposer({
           showVisitState={showVisitState}
           tripTimes={tripTimes}
           onSelect={onSelect}
+          onChoosePlace={onChoosePlace}
+          choosePlaceDisabled={disabled || readOnly}
         />
       ))}
       {showAddWaypoint ? (
@@ -466,6 +527,48 @@ export function TripRouteComposer({
             {copy.action.addWaypoint}
           </Button>
         </span>
+      ) : null}
+    </>
+  );
+
+  if (layout === "panel") {
+    return (
+      <div
+        className="flex min-h-0 flex-col rounded-xl border bg-card"
+        data-route-composer-mode={mode}
+        data-composer-layout="panel"
+      >
+        <div className="space-y-3 border-b p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <h3 className="text-base font-semibold">{copy.composer.title}</h3>
+              <p className="text-sm text-muted-foreground">
+                {copy.composer.description}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5 p-3">{body}</div>
+        {resolvedFooter ? (
+          <div className="border-t px-4 py-3 text-xs text-muted-foreground">
+            {resolvedFooter}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-1.5 md:max-h-[640px] md:overflow-y-auto md:border-r md:p-2"
+      data-route-composer-mode={mode}
+      data-composer-layout="rail"
+    >
+      {body}
+      {resolvedFooter ? (
+        <div className="mt-2 border-t px-1 pt-2 text-xs text-muted-foreground">
+          {resolvedFooter}
+        </div>
       ) : null}
     </div>
   );

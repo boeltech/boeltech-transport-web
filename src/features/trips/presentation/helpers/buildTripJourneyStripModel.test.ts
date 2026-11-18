@@ -66,4 +66,28 @@ describe("buildTripJourneyStripModel", () => {
       "current",
     );
   });
+
+  it("F8c AmbosCiudad: Recorrido Solo ciudades cuando draft sin stops", () => {
+    const model = buildTripJourneyStripModel({
+      trip: makeTrip({
+        status: TripStatus.DRAFT,
+        originCity: "Monterrey",
+        destinationCity: "Torreón",
+        costs: { baseRate: null },
+        vehicle: null,
+        driver: null,
+        totalDistRec: null,
+      }),
+      status: TripStatus.DRAFT,
+      orderedStops: [],
+      cargoCount: 0,
+      distanceKm: null,
+      durationLabel: null,
+      nowMs: new Date("2026-11-13T12:00:00.000Z").getTime(),
+    });
+    const route = model.facts.find((f) => f.id === "route");
+    expect(route?.value).toBe("Faltan origen y destino");
+    expect(route?.detail).toBe("Solo ciudades");
+    expect(route?.tone).toBe("missing");
+  });
 });
