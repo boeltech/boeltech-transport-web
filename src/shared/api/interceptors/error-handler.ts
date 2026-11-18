@@ -261,6 +261,12 @@ const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
     "No se pudo completar la mercancía del viaje. Intenta de nuevo o contacta a soporte.",
   TRIP_ROUTE_TYPE_LOCKED_BY_SETTLEMENT:
     "No se puede cambiar la clase de ruta: el viaje ya está en una liquidación pagada",
+  ORIGIN_NO_CARGO_OUTCOME_PENDING:
+    "Todas las cargas están canceladas en origen; declara viaje en falso o cancela el viaje antes de continuar",
+  RETURN_REPLAN_REQUIRED:
+    "Hay mercancía devuelta; planea el retorno (replan de paradas) antes de cerrar el viaje",
+  CARGO_RETURN_NOT_ALLOWED_AT_LOAD_STOP:
+    "En parada de carga no se puede devolver mercancía pendiente; cancélala o recógela",
 
   // ── Clientes ───────────────────────────────────────────────────────────────
   CLIENT_NOT_FOUND: "Cliente no encontrado",

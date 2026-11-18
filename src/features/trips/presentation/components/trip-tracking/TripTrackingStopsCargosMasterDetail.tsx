@@ -245,7 +245,7 @@ export function TripTrackingStopsCargosMasterDetail({
   updatedAgoLabel = null,
   onRefresh,
   isRefreshing = false,
-  showProgressStrip = true,
+  showProgressStrip = false,
   showObjectiveHub = true,
   compactDetailHeader = false,
   className,

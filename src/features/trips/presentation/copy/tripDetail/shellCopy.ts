@@ -292,10 +292,20 @@ export const shellCopy = {
     goToCargo: "Ir a Cargas",
     adjustRoute: "Ajustar ruta",
     adjustCargo: "Ajustar cargas",
-    /** D18: un borrador direccionable. */
+    /** D18: un borrador direccionable (fuera de Qué sigue en F3d-4). */
     openDraft: "Abrir borrador",
     /** D18: varios borradores — reuso léxico listado. */
     viewInvoices: "Ver facturas",
+    /** F3d-4: secundaria outline en En ruta. */
+    registerNote: "Nota",
+    /** F3b desenlaces. */
+    declareFalseTrip: "Declarar viaje en falso",
+    cancelTrip: "Cancelar viaje",
+    planReturn: "Planear retorno",
+    descriptionOriginOutcome:
+      "Elige: cobrar el desplazamiento (viaje en falso) o cancelar el viaje.",
+    descriptionReturnReplan:
+      "Hay mercancía devuelta. Planea el retorno en Ruta antes de cerrar el viaje.",
     /** D3: Qué falta abierto en Reserva / Programado. */
     whatMissing: "Qué falta",
 

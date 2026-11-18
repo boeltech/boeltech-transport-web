@@ -89,6 +89,7 @@ import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
 import { TripJourneyStrip } from "../components/trip-shell/TripJourneyStrip";
 import { TripShellAlertsStack } from "../components/trip-shell/TripShellAlertsStack";
 import { TripPhaseOperateSheets } from "../components/trip-shell/TripPhaseOperateSheets";
+import { RegisterTrackingNoteSheet } from "../components/trip-tracking/RegisterTrackingNoteSheet";
 import { buildRegisterCollectionPath } from "@features/finance/application";
 import { buildTripJourneyStripModel } from "../helpers/buildTripJourneyStripModel";
 import {
@@ -96,6 +97,7 @@ import {
   resolveTripLateDelayMs,
 } from "../helpers/formatTripLateDelayChip";
 import { formatTripRouteTitle } from "../helpers/formatTripRouteTitle";
+import { canDeclareFalseTrip } from "../components/trip-tracking/canDeclareFalseTrip";
 import {
   resolveTrackingPrimaryAction,
   resolveTrackingPrimaryCtaLabel,
@@ -394,6 +396,10 @@ export function TripDetailPage() {
   const [invoiceScopeSheetOpen, setInvoiceScopeSheetOpen] = useState(false);
   const [linkedDraftsSheetOpen, setLinkedDraftsSheetOpen] = useState(false);
   const [phaseOperateOpen, setPhaseOperateOpen] = useState(false);
+  /** F3b: abre dialog Cancelar viaje de TripActions desde Qué sigue. */
+  const [openCancelSignal, setOpenCancelSignal] = useState(0);
+  /** F3d-4: Nota desde Qué sigue (chrome), sin montar el tab Seguimiento. */
+  const [chromeNoteSheetOpen, setChromeNoteSheetOpen] = useState(false);
   /** D44 — edición local en tab Ruta (drafts / sheet parada). */
   const [routeEditing, setRouteEditing] = useState(false);
   useEffect(() => {
@@ -480,6 +486,20 @@ export function TripDetailPage() {
     [linkedDraftInvoices],
   );
 
+  const declareFalseTripEligible = useMemo(() => {
+    if (!trip) return false;
+    return (
+      canDeclareFalseTrip({
+        tripStatus: displayStatus ?? trip.status,
+        stops: orderedStops,
+        cargos,
+        hasActiveRevenueSplit: trip.invoicing.hasActiveSplit,
+        cfdiEmissionIntent: trip.cfdiEmissionIntent,
+        operationalOutcome: trip.operationalOutcome,
+      }) && !trip.invoicing.hasActiveSplit
+    );
+  }, [trip, displayStatus, orderedStops, cargos]);
+
   const nextStepPlan = useMemo(() => {
     if (!trip || isLeanTripPortal || !tripReadiness) return null;
     const routeReady = tripReadiness.items.some(
@@ -500,6 +520,9 @@ export function TripDetailPage() {
       requiresFiscalAttention: Boolean(trip.requiresFiscalAttention),
       activeTab: resolvedActiveTab,
       linkedDraftInvoiceIds,
+      originNoCargoPendingOutcome: trip.originNoCargoPendingOutcome,
+      returnReplanRequired: trip.returnReplanRequired,
+      canDeclareFalseTrip: declareFalseTripEligible,
     });
   }, [
     trip,
@@ -510,6 +533,7 @@ export function TripDetailPage() {
     canInvoiceNextStep,
     resolvedActiveTab,
     linkedDraftInvoiceIds,
+    declareFalseTripEligible,
   ]);
 
   const tripAlerts = useMemo(() => {
@@ -1184,6 +1208,38 @@ export function TripDetailPage() {
     setPhaseOperateOpen(true);
   };
 
+  const handleNextStepRegisterNote = () => {
+    setChromeNoteSheetOpen(true);
+  };
+
+  const handleNextStepDeclareFalseTrip = () => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", "tracking");
+        next.set("intent", "declare_false");
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const handleNextStepCancelTrip = () => {
+    setOpenCancelSignal((n) => n + 1);
+  };
+
+  const handlePlanReturn = () => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", "route");
+        next.set("intent", "plan_return");
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
   const goToTrackingTab = () => {
     setSearchParams(
       (prev) => {
@@ -1200,7 +1256,11 @@ export function TripDetailPage() {
         resolvedDisplayStatus,
         orderedStops,
         cargos,
-        { canMutateCargo: canUpdateTrip },
+        {
+          canMutateCargo: canUpdateTrip,
+          originNoCargoPendingOutcome: trip?.originNoCargoPendingOutcome,
+          returnReplanRequired: trip?.returnReplanRequired,
+        },
       )
     : null;
   const operatePrimaryLabel = trackingPrimaryAction?.title ?? null;
@@ -1299,6 +1359,10 @@ export function TripDetailPage() {
       onOpenOperate={handleNextStepOpenOperate}
       onOpenDraft={handleNextStepOpenDraft}
       onViewInvoices={handleNextStepViewInvoices}
+      onRegisterNote={handleNextStepRegisterNote}
+      onDeclareFalseTrip={handleNextStepDeclareFalseTrip}
+      onCancelTrip={handleNextStepCancelTrip}
+      onPlanReturn={handlePlanReturn}
       readinessStatus={
         resolvedDisplayStatus === TripStatus.DRAFT ||
         resolvedDisplayStatus === TripStatus.SCHEDULED
@@ -1501,6 +1565,7 @@ export function TripDetailPage() {
                   hasDeliveredCargo={cargos.some(
                     (cargo) => cargo.status === CargoStatus.DELIVERED,
                   )}
+                  openCancelSignal={openCancelSignal}
                   onActionComplete={(updated) => {
                     const f = updated?.fiscalActionRequired;
                     if (f) {
@@ -1572,6 +1637,7 @@ export function TripDetailPage() {
                 canEditStructural={canEditStructural}
                 canReplanPendingStops={canReplanPendingStops}
                 cargos={cargos}
+                returnReplanRequired={trip.returnReplanRequired}
                 legacyRoute={{
                   originCity: trip.originCity,
                   originState: trip.originState,
@@ -1621,6 +1687,11 @@ export function TripDetailPage() {
                   falseTripDeclaredBy={trip.falseTripDeclaredBy}
                   hasActiveSplit={trip.invoicing.hasActiveSplit}
                   requiresFiscalAttention={trip.requiresFiscalAttention}
+                  originNoCargoPendingOutcome={
+                    trip.originNoCargoPendingOutcome
+                  }
+                  returnReplanRequired={trip.returnReplanRequired}
+                  onPlanReturn={handlePlanReturn}
                   contact={{
                     driverName: trip.driver?.fullName ?? null,
                     driverPhone: trip.driver?.phone ?? null,
@@ -1752,7 +1823,8 @@ export function TripDetailPage() {
                         : shell.tab.billing}
                       {trip.requiresFiscalAttention ||
                       Boolean(postCancelFiscal) ||
-                      trip.settlementException?.status === "in_progress" ? (
+                      trip.settlementException?.status === "in_progress" ||
+                      linkedDraftInvoiceIds.length > 0 ? (
                         <span
                           className="ml-1 inline-flex h-2 w-2 shrink-0 rounded-full bg-warning"
                           role="status"
@@ -1819,9 +1891,18 @@ export function TripDetailPage() {
             trip.settlementException?.status === "in_progress"
           }
           requiresFiscalAttention={trip.requiresFiscalAttention}
+          originNoCargoPendingOutcome={trip.originNoCargoPendingOutcome}
+          returnReplanRequired={trip.returnReplanRequired}
           open={phaseOperateOpen}
           onOpenChange={setPhaseOperateOpen}
           onFallbackToTracking={goToTrackingTab}
+        />
+      ) : null}
+      {!isLeanTripPortal && trip ? (
+        <RegisterTrackingNoteSheet
+          tripId={trip.id}
+          open={chromeNoteSheetOpen}
+          onOpenChange={setChromeNoteSheetOpen}
         />
       ) : null}
     </>

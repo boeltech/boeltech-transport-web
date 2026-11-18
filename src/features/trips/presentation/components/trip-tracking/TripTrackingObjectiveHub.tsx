@@ -101,6 +101,10 @@ export type TripTrackingObjectiveHubProps = {
   cfdiEmissionIntent?: CfdiEmissionIntent;
   hasActiveSplit?: boolean;
   onDeclareFalseTrip?: () => void;
+  onCancelTrip?: () => void;
+  onPlanReturn?: () => void;
+  originNoCargoPendingOutcome?: boolean;
+  returnReplanRequired?: boolean;
   /**
    * Legacy / workbench: abrir cargas de la parada (N cargas o sin onCargoAction).
    * F3: no debe ser el único camino cuando hay mutación directa.
@@ -152,6 +156,10 @@ function hubActionIcon(kind: TrackingPrimaryActionKind) {
       return CheckCircle2;
     case "cargo_blocked":
       return Package;
+    case "origin_outcome":
+      return Ban;
+    case "plan_return":
+      return Navigation;
     default:
       return MapPin;
   }
@@ -235,6 +243,10 @@ export function TripTrackingObjectiveHub({
   cfdiEmissionIntent,
   hasActiveSplit = false,
   onDeclareFalseTrip,
+  onCancelTrip,
+  onPlanReturn,
+  originNoCargoPendingOutcome = false,
+  returnReplanRequired = false,
   onGoToCargos,
   onCargoAction,
   pendingCargoAction = null,
@@ -264,8 +276,18 @@ export function TripTrackingObjectiveHub({
     () =>
       resolveTrackingPrimaryAction(tripStatus, stops, cargos, {
         canMutateCargo: canMutateCargoProp ?? canOperateTracking,
+        originNoCargoPendingOutcome,
+        returnReplanRequired,
       }),
-    [tripStatus, stops, cargos, canMutateCargoProp, canOperateTracking],
+    [
+      tripStatus,
+      stops,
+      cargos,
+      canMutateCargoProp,
+      canOperateTracking,
+      originNoCargoPendingOutcome,
+      returnReplanRequired,
+    ],
   );
 
   const hubTargetRow = useMemo(() => {
@@ -368,17 +390,14 @@ export function TripTrackingObjectiveHub({
     !showsDirectCargoCta &&
     !showsInlineCargoList &&
     onGoToCargos != null;
-  const showsOperableCta =
-    showsDispatchCta ||
-    showsStopCta ||
-    showsDirectCargoCta ||
-    showsInlineCargoList ||
-    showsGoToCargosCta;
   const quickCloseEligible =
     !isClientPortal &&
     canOperateTracking &&
     onQuickCloseTrip != null &&
-    canQuickCloseTrip(tripStatus, stops, cargos, operationalOutcome);
+    canQuickCloseTrip(tripStatus, stops, cargos, operationalOutcome, {
+      originNoCargoPendingOutcome,
+      returnReplanRequired,
+    });
   const quickCloseCargoBlockReason = quickCloseEligible
     ? sinCfdiCargoBlockReason(cfdiEmissionIntent, cargos, "complete")
     : null;
@@ -395,11 +414,33 @@ export function TripTrackingObjectiveHub({
     !isClientPortal &&
     canOperateTracking &&
     onDeclareFalseTrip != null &&
-    declareFalseTripDomainEligible;
+    declareFalseTripDomainEligible &&
+    !returnReplanRequired;
   const showsDeclareFalseTripCta =
     declareFalseTripBaseEligible && !hasActiveSplit;
   const showsDeclareFalseTripSplitBlockHint =
     declareFalseTripBaseEligible && hasActiveSplit;
+  const showsOriginOutcomeCtas =
+    !isClientPortal &&
+    canOperateTracking &&
+    originNoCargoPendingOutcome &&
+    (showsDeclareFalseTripCta || onCancelTrip != null);
+  const canPlanReturnNavigate =
+    !isClientPortal &&
+    canOperateTracking &&
+    returnReplanRequired &&
+    (onPlanReturn != null || onGoToRouteTab != null);
+  /** Primaria solo cuando el next action ya es plan_return (cierre bloqueado). */
+  const showsPlanReturnPrimary =
+    canPlanReturnNavigate && primary.kind === "plan_return";
+  const showsOperableCta =
+    showsDispatchCta ||
+    showsStopCta ||
+    showsDirectCargoCta ||
+    showsInlineCargoList ||
+    showsGoToCargosCta ||
+    showsOriginOutcomeCtas ||
+    showsPlanReturnPrimary;
 
   const demoteSecondaryClose = compact && primary.kind !== "close";
   const ctaSize = compact ? "default" : "lg";
@@ -506,7 +547,52 @@ export function TripTrackingObjectiveHub({
                 compact ? "w-full sm:w-auto" : null,
               )}
             >
-              {showsDispatchCta ? (
+              {showsOriginOutcomeCtas ? (
+                <div className="flex w-full flex-col gap-2 sm:w-auto">
+                  {showsDeclareFalseTripCta ? (
+                    <Button
+                      type="button"
+                      variant="default"
+                      size={ctaSize}
+                      className="h-auto min-h-9 w-full justify-start whitespace-normal py-2 text-left sm:w-auto"
+                      onClick={() => onDeclareFalseTrip?.()}
+                    >
+                      <Ban className="mr-2 h-4 w-4 shrink-0" />
+                      <span className="font-medium">
+                        {trackingCopy.action.declareFalseTrip}
+                      </span>
+                    </Button>
+                  ) : null}
+                  {onCancelTrip != null ? (
+                    <Button
+                      type="button"
+                      variant={showsDeclareFalseTripCta ? "outline" : "default"}
+                      size={ctaSize}
+                      className="h-auto min-h-9 w-full justify-start whitespace-normal py-2 text-left sm:w-auto"
+                      onClick={() => onCancelTrip()}
+                    >
+                      <Ban className="mr-2 h-4 w-4 shrink-0" />
+                      <span className="font-medium">
+                        {trackingCopy.action.cancelTrip}
+                      </span>
+                    </Button>
+                  ) : null}
+                </div>
+              ) : showsPlanReturnPrimary ? (
+                <Button
+                  type="button"
+                  variant="default"
+                  size={ctaSize}
+                  className="h-auto min-h-9 w-full justify-start whitespace-normal py-2 text-left sm:w-auto"
+                  onClick={() => (onPlanReturn ?? onGoToRouteTab)?.()}
+                  data-tracking-section="plan-return-hub"
+                >
+                  <Navigation className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="font-medium">
+                    {trackingCopy.action.planReturn}
+                  </span>
+                </Button>
+              ) : showsDispatchCta ? (
                 <StopActionInline
                   label={trackingCopy.action.start}
                   action="dispatch"

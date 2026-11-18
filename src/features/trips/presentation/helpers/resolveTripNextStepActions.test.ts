@@ -118,7 +118,7 @@ describe("resolveTripNextStepActions", () => {
     });
   });
 
-  it("Programado con 1 borrador (D18): primaria open_operate; secundaria open_draft", () => {
+  it("Programado con borrador (F3d-4): open_operate sin secundaria open_draft", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.SCHEDULED,
       routeReady: true,
@@ -132,11 +132,11 @@ describe("resolveTripNextStepActions", () => {
     expect(plan).toEqual({
       phase: "scheduled",
       primary: { id: "open_operate" },
-      secondaries: [{ id: "open_draft", invoiceId: "inv-draft-1" }],
+      secondaries: [],
     });
   });
 
-  it("Programado con N borradores (D18): secundaria view_invoices", () => {
+  it("Programado con N borradores (F3d-4): sin secundaria view_invoices", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.SCHEDULED,
       routeReady: true,
@@ -148,10 +148,10 @@ describe("resolveTripNextStepActions", () => {
     });
 
     expect(plan?.primary.id).toBe("open_operate");
-    expect(plan?.secondaries).toEqual([{ id: "view_invoices" }]);
+    expect(plan?.secondaries).toEqual([]);
   });
 
-  it("Programado create: sigue open_operate; borrador como secundaria", () => {
+  it("Programado create (F3d-4): open_operate; borrador fuera de Qué sigue", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.SCHEDULED,
       routeReady: true,
@@ -163,9 +163,7 @@ describe("resolveTripNextStepActions", () => {
     });
 
     expect(plan?.primary.id).toBe("open_operate");
-    expect(plan?.secondaries).toEqual([
-      { id: "open_draft", invoiceId: "inv-draft-1" },
-    ]);
+    expect(plan?.secondaries).toEqual([]);
   });
 
   it("Programado en tab Seguimiento: sigue open_operate (abre sheet)", () => {
@@ -215,7 +213,7 @@ describe("resolveTripNextStepActions", () => {
     ).toBeNull();
   });
 
-  it("En ruta billable: open_operate primaria (D3 / HB-G2-CTA)", () => {
+  it("En ruta billable: open_operate primaria + Nota secundaria (F3d-4)", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.IN_PROGRESS,
       routeReady: true,
@@ -227,7 +225,22 @@ describe("resolveTripNextStepActions", () => {
 
     expect(plan?.phase).toBe("in_progress");
     expect(plan?.primary.id).toBe("open_operate");
-    expect(plan?.secondaries).toHaveLength(0);
+    expect(plan?.secondaries).toEqual([{ id: "register_note" }]);
+  });
+
+  it("En ruta con borrador (F3d-4): secundaria Nota, no open_draft", () => {
+    const plan = resolveTripNextStepActions({
+      status: TripStatus.IN_PROGRESS,
+      routeReady: true,
+      cargoReady: true,
+      canUpdateTrip: true,
+      canInvoice: true,
+      activeTab: "operation",
+      linkedDraftInvoiceIds: ["inv-draft-1"],
+    });
+
+    expect(plan?.primary.id).toBe("open_operate");
+    expect(plan?.secondaries).toEqual([{ id: "register_note" }]);
   });
 
   it("En ruta con ATF: open_operate (Facturar no eleva)", () => {
@@ -282,5 +295,35 @@ describe("resolveTripNextStepActions", () => {
         canInvoice: true,
       }),
     ).toBeNull();
+  });
+
+  it("F3b origen sin carga: primaria falso + secundaria cancelar viaje", () => {
+    const plan = resolveTripNextStepActions({
+      status: TripStatus.IN_PROGRESS,
+      routeReady: true,
+      cargoReady: true,
+      canUpdateTrip: true,
+      canInvoice: false,
+      originNoCargoPendingOutcome: true,
+      canDeclareFalseTrip: true,
+    });
+    expect(plan?.primary).toEqual({ id: "declare_false_trip" });
+    expect(plan?.secondaries.map((s) => s.id)).toEqual([
+      "cancel_trip",
+      "register_note",
+    ]);
+  });
+
+  it("F3b retorno pendiente: primaria plan_return", () => {
+    const plan = resolveTripNextStepActions({
+      status: TripStatus.IN_PROGRESS,
+      routeReady: true,
+      cargoReady: true,
+      canUpdateTrip: true,
+      canInvoice: false,
+      returnReplanRequired: true,
+    });
+    expect(plan?.primary).toEqual({ id: "plan_return", tab: "route" });
+    expect(plan?.secondaries).toEqual([{ id: "register_note" }]);
   });
 });

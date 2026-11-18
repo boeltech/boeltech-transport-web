@@ -23,7 +23,15 @@ export type TripNextStepActionId =
   | "go_to_route"
   | "go_to_cargo"
   | "open_draft"
-  | "view_invoices";
+  | "view_invoices"
+  /** F3d-4: secundaria en En ruta (outline). */
+  | "register_note"
+  /** F3b desenlaces: declarar viaje en falso (origen sin carga). */
+  | "declare_false_trip"
+  /** F3b desenlaces: cancelar viaje (mismo dialog del shell). */
+  | "cancel_trip"
+  /** F3b desenlaces: deep-link a Ruta mid-trip (`intent=plan_return`). */
+  | "plan_return";
 
 export type TripNextStepTab = "route" | "cargo" | "tracking";
 
@@ -71,9 +79,16 @@ export type ResolveTripNextStepActionsInput = {
   /** Tab activo del detalle (informativo; ya no suprime open_operate). */
   readonly activeTab?: string | null;
   /**
-   * Borradores ligados (D18).
+   * Borradores ligados (D18). Conservado en el input por callers / descripción;
+   * F3d-4 ya no eleva open_draft / view_invoices como secundaria de Qué sigue.
    */
   readonly linkedDraftInvoiceIds?: readonly string[];
+  /** GET aditivo — modo desenlace origen (CA-02…05). */
+  readonly originNoCargoPendingOutcome?: boolean;
+  /** GET aditivo — modo planear retorno (CA-06…11). */
+  readonly returnReplanRequired?: boolean;
+  /** Dominio + UX: puede declarar viaje en falso. */
+  readonly canDeclareFalseTrip?: boolean;
 };
 
 const MAX_SECONDARIES = 2;
@@ -82,17 +97,6 @@ function takeSecondaries(
   actions: readonly TripNextStepAction[],
 ): TripNextStepAction[] {
   return actions.slice(0, MAX_SECONDARIES);
-}
-
-function draftSecondary(
-  linkedDraftInvoiceIds: readonly string[] | undefined,
-): TripNextStepAction | null {
-  const ids = linkedDraftInvoiceIds ?? [];
-  if (ids.length === 0) return null;
-  if (ids.length === 1) {
-    return { id: "open_draft", invoiceId: ids[0] };
-  }
-  return { id: "view_invoices" };
 }
 
 /**
@@ -110,7 +114,6 @@ export function resolveTripNextStepActions(
     canUpdateTrip,
     canInvoice,
     requiresFiscalAttention = false,
-    linkedDraftInvoiceIds,
   } = input;
 
   if (status === TripStatus.DRAFT) {
@@ -155,12 +158,39 @@ export function resolveTripNextStepActions(
       status === TripStatus.SCHEDULED ? "scheduled" : "in_progress";
 
     // D11 / HB-G2-CTA: Despachar / acción de parada = primaria; Facturar en header.
+    // F3d-4: borrador fuera de Qué sigue (punto ámbar Facturación / aviso D22/D30).
+    // En ruta: secundaria = Nota. Programado: sin secundaria de borrador.
+    // F3b: desenlaces sustituyen open_operate (salida/cierre bloqueados).
     if (canUpdateTrip) {
-      const draft = draftSecondary(linkedDraftInvoiceIds);
+      if (
+        phase === "in_progress" &&
+        input.originNoCargoPendingOutcome === true
+      ) {
+        const canFalse = input.canDeclareFalseTrip === true;
+        const secondaries: TripNextStepAction[] = canFalse
+          ? [{ id: "cancel_trip" }, { id: "register_note" }]
+          : [{ id: "register_note" }];
+        return {
+          phase,
+          primary: {
+            id: canFalse ? "declare_false_trip" : "cancel_trip",
+          },
+          secondaries: takeSecondaries(secondaries),
+        };
+      }
+      if (phase === "in_progress" && input.returnReplanRequired === true) {
+        return {
+          phase,
+          primary: { id: "plan_return", tab: "route" },
+          secondaries: takeSecondaries([{ id: "register_note" }]),
+        };
+      }
+      const secondaries: TripNextStepAction[] =
+        phase === "in_progress" ? [{ id: "register_note" }] : [];
       return {
         phase,
         primary: { id: "open_operate" },
-        secondaries: takeSecondaries(draft ? [draft] : []),
+        secondaries: takeSecondaries(secondaries),
       };
     }
 

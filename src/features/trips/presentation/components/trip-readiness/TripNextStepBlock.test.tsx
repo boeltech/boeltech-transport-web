@@ -66,20 +66,18 @@ describe("TripNextStepBlock", () => {
     expect(onOpenOperate).toHaveBeenCalledOnce();
   });
 
-  it("Programado con borrador: Despachar… + Abrir borrador (D18)", async () => {
+  it("Programado con borrador (F3d-4): Despachar… sin Abrir borrador", async () => {
     const user = userEvent.setup();
     const onOpenOperate = vi.fn();
-    const onOpenDraft = vi.fn();
     render(
       <TripNextStepBlock
         plan={{
           phase: "scheduled",
           primary: { id: "open_operate" },
-          secondaries: [{ id: "open_draft", invoiceId: "inv-1" }],
+          secondaries: [],
         }}
         onNavigateTab={vi.fn()}
         onOpenOperate={onOpenOperate}
-        onOpenDraft={onOpenDraft}
         description={copy.descriptionScheduledWithDraft}
       />,
     );
@@ -88,49 +86,27 @@ describe("TripNextStepBlock", () => {
       screen.getByText(copy.descriptionScheduledWithDraft),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/empezar a facturar/i),
+      screen.queryByRole("button", { name: copy.openDraft }),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: copy.goToStart }));
     expect(onOpenOperate).toHaveBeenCalledOnce();
-    await user.click(screen.getByRole("button", { name: copy.openDraft }));
-    expect(onOpenDraft).toHaveBeenCalledWith("inv-1");
   });
 
-  it("Programado con N borradores: Ver facturas dispara onViewInvoices (D18′)", async () => {
-    const user = userEvent.setup();
-    const onViewInvoices = vi.fn();
-    render(
-      <TripNextStepBlock
-        plan={{
-          phase: "scheduled",
-          primary: { id: "open_operate" },
-          secondaries: [{ id: "view_invoices" }],
-        }}
-        onNavigateTab={vi.fn()}
-        onOpenOperate={vi.fn()}
-        onViewInvoices={onViewInvoices}
-        description={copy.descriptionScheduledWithDrafts}
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: copy.viewInvoices }));
-    expect(onViewInvoices).toHaveBeenCalledOnce();
-  });
-
-  it("En ruta: primaria open_operate con label dinámico", async () => {
+  it("En ruta: primaria open_operate + secundaria Nota (F3d-4)", async () => {
     const user = userEvent.setup();
     const onOpenOperate = vi.fn();
+    const onRegisterNote = vi.fn();
     render(
       <TripNextStepBlock
         plan={{
           phase: "in_progress",
           primary: { id: "open_operate" },
-          secondaries: [{ id: "open_draft", invoiceId: "inv-1" }],
+          secondaries: [{ id: "register_note" }],
         }}
         onNavigateTab={vi.fn()}
         onOpenOperate={onOpenOperate}
-        onOpenDraft={vi.fn()}
+        onRegisterNote={onRegisterNote}
         operatePrimaryLabel="Registrar salida"
         description={copy.descriptionInProgressWithDraft}
       />,
@@ -142,8 +118,13 @@ describe("TripNextStepBlock", () => {
     expect(
       screen.queryByRole("button", { name: copy.goToStart }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.openDraft }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Registrar salida" }));
     expect(onOpenOperate).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: copy.registerNote }));
+    expect(onRegisterNote).toHaveBeenCalledOnce();
   });
 
   it("P2-1: CTA corto distinto del título contextual largo", () => {
@@ -244,5 +225,104 @@ describe("TripNextStepBlock", () => {
     expect(
       screen.getByText(copy.descriptionDraftReadyFleetBlocked),
     ).toBeInTheDocument();
+  });
+
+  describe("QS-I1 icon map (D-QS1…6)", () => {
+    it("CA1 Reserva sin cargas: Completar cargas=Package · Ir a Ruta=MapPin", () => {
+      render(
+        <TripNextStepBlock
+          plan={{
+            phase: "draft_incomplete",
+            primary: { id: "complete_route_cargo", tab: "cargo" },
+            secondaries: [{ id: "go_to_route", tab: "route" }],
+          }}
+          onNavigateTab={vi.fn()}
+        />,
+      );
+
+      const primary = screen.getByTestId("trip-next-step-primary");
+      const goToRoute = screen.getByTestId("trip-next-step-secondary-go_to_route");
+      expect(primary.querySelector("svg.lucide-package")).toBeTruthy();
+      expect(goToRoute.querySelector("svg.lucide-map-pin")).toBeTruthy();
+      expect(primary.querySelector("svg.lucide-map-pin")).toBeNull();
+    });
+
+    it("CA2 Reserva falta ruta: primaria MapPin · Ir a Cargas=Package", () => {
+      render(
+        <TripNextStepBlock
+          plan={{
+            phase: "draft_incomplete",
+            primary: { id: "complete_route_cargo", tab: "route" },
+            secondaries: [{ id: "go_to_cargo", tab: "cargo" }],
+          }}
+          onNavigateTab={vi.fn()}
+        />,
+      );
+
+      const primary = screen.getByTestId("trip-next-step-primary");
+      const goToCargo = screen.getByTestId("trip-next-step-secondary-go_to_cargo");
+      expect(primary.querySelector("svg.lucide-map-pin")).toBeTruthy();
+      expect(goToCargo.querySelector("svg.lucide-package")).toBeTruthy();
+      expect(primary.querySelector("svg.lucide-package")).toBeNull();
+    });
+
+    it("CA3 Programado: Despachar… = Play", () => {
+      render(
+        <TripNextStepBlock
+          plan={{
+            phase: "scheduled",
+            primary: { id: "open_operate" },
+            secondaries: [],
+          }}
+          onNavigateTab={vi.fn()}
+          onOpenOperate={vi.fn()}
+        />,
+      );
+
+      const primary = screen.getByTestId("trip-next-step-primary");
+      expect(primary.querySelector("svg.lucide-play")).toBeTruthy();
+      expect(primary.querySelector("svg.lucide-navigation")).toBeNull();
+      expect(primary.querySelector("svg.lucide-truck")).toBeNull();
+    });
+
+    it("CA4 En ruta: operate=Navigation · Nota=StickyNote · distintos", () => {
+      render(
+        <TripNextStepBlock
+          plan={{
+            phase: "in_progress",
+            primary: { id: "open_operate" },
+            secondaries: [{ id: "register_note" }],
+          }}
+          onNavigateTab={vi.fn()}
+          onOpenOperate={vi.fn()}
+          onRegisterNote={vi.fn()}
+          operatePrimaryLabel="Registrar salida"
+          operateCtaLabel="Registrar salida"
+        />,
+      );
+
+      const primary = screen.getByTestId("trip-next-step-primary");
+      const note = screen.getByTestId("trip-next-step-secondary-register_note");
+      expect(primary.querySelector("svg.lucide-navigation")).toBeTruthy();
+      expect(note.querySelector("svg.lucide-sticky-note")).toBeTruthy();
+      expect(primary.querySelector("svg.lucide-sticky-note")).toBeNull();
+      expect(note.querySelector("svg.lucide-navigation")).toBeNull();
+    });
+
+    it("D-QS3 confirm_reserve sin slot usa CheckCircle2", () => {
+      render(
+        <TripNextStepBlock
+          plan={{
+            phase: "draft_ready",
+            primary: { id: "confirm_reserve" },
+            secondaries: [],
+          }}
+          onNavigateTab={vi.fn()}
+        />,
+      );
+
+      const primary = screen.getByTestId("trip-next-step-primary");
+      expect(primary.querySelector("svg.lucide-circle-check")).toBeTruthy();
+    });
   });
 });

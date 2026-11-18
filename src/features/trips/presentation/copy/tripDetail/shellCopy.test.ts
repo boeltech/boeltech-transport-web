@@ -60,6 +60,7 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.nextStep.invoice).toBe("Facturar");
     expect(shellCopy.nextStep.openDraft).toBe("Abrir borrador");
     expect(shellCopy.nextStep.viewInvoices).toBe("Ver facturas");
+    expect(shellCopy.nextStep.registerNote).toBe("Nota");
     expect(shellCopy.tab.operation).toBe("Resumen");
     expect(shellCopy.tab.billing).toBe("Facturación");
     expect(shellCopy.tab.billingSinCfdi).toBe("Cobro");

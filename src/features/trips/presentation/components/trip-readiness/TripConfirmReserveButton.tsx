@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
 import { useClientCreditSummary } from "@features/clients/application";
 import { useScheduleTrip, useUpdateTrip } from "@features/trips/application";
@@ -255,7 +255,7 @@ export function TripConfirmReserveButton({
         {isPending ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
-          <Calendar className="mr-2 h-4 w-4" />
+          <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden />
         )}
         {copy.action.confirmReserve}
       </Button>

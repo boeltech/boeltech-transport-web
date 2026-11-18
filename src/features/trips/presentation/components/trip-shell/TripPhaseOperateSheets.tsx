@@ -40,6 +40,8 @@ export type TripPhaseOperateSheetsProps = {
   cfdiEmissionIntent?: CfdiEmissionIntent;
   pendingSinCfdiRequest?: boolean;
   requiresFiscalAttention?: boolean;
+  originNoCargoPendingOutcome?: boolean;
+  returnReplanRequired?: boolean;
   /** Cuando true, abre el sheet que corresponde a la acción de fase. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,6 +61,8 @@ export function TripPhaseOperateSheets({
   cfdiEmissionIntent,
   pendingSinCfdiRequest,
   requiresFiscalAttention,
+  originNoCargoPendingOutcome = false,
+  returnReplanRequired = false,
   open,
   onOpenChange,
   onFallbackToTracking,
@@ -88,8 +92,17 @@ export function TripPhaseOperateSheets({
     () =>
       resolveTrackingPrimaryAction(tripStatus, orderedStops, cargos, {
         canMutateCargo,
+        originNoCargoPendingOutcome,
+        returnReplanRequired,
       }).kind,
-    [tripStatus, orderedStops, cargos, canMutateCargo],
+    [
+      tripStatus,
+      orderedStops,
+      cargos,
+      canMutateCargo,
+      originNoCargoPendingOutcome,
+      returnReplanRequired,
+    ],
   );
 
   const [startOpen, setStartOpen] = useState(false);

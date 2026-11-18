@@ -33,6 +33,8 @@ export type TrackingPrimaryActionKind =
   | "depart_origin"
   | "close"
   | "cargo_blocked"
+  | "origin_outcome"
+  | "plan_return"
   | "idle"
   | "none";
 
@@ -42,6 +44,14 @@ export type TrackingPrimaryAction = {
   transitionText: string | null;
   stop?: TripStop;
   displayOrder?: number;
+};
+
+export type ResolveTrackingPrimaryActionOptions = {
+  canMutateCargo?: boolean;
+  /** GET aditivo — bloquea salida/cierre hasta falso o cancelar viaje. */
+  originNoCargoPendingOutcome?: boolean;
+  /** GET aditivo — bloquea cierre hasta replan de retorno. */
+  returnReplanRequired?: boolean;
 };
 
 function formatStopLabel(
@@ -57,9 +67,12 @@ export function resolveTrackingPrimaryAction(
   tripStatus: TripStatusType,
   stops: readonly TripStop[],
   cargos?: readonly TripCargo[],
-  options?: { canMutateCargo?: boolean },
+  options?: ResolveTrackingPrimaryActionOptions,
 ): TrackingPrimaryAction {
   const ordered = [...stops];
+  const originNoCargoPendingOutcome =
+    options?.originNoCargoPendingOutcome === true;
+  const returnReplanRequired = options?.returnReplanRequired === true;
 
   if (tripStatus === TripStatus.SCHEDULED) {
     const origin = ordered.find((stop) => isOriginStop(stop));
@@ -79,6 +92,14 @@ export function resolveTrackingPrimaryAction(
       kind: "none",
       title: trackingCopy.state.readOnly,
       transitionText: null,
+    };
+  }
+
+  if (originNoCargoPendingOutcome) {
+    return {
+      kind: "origin_outcome",
+      title: trackingCopy.hint.originNoCargoOutcomeTitle,
+      transitionText: trackingCopy.hint.originNoCargoOutcomeBody,
     };
   }
 
@@ -152,6 +173,13 @@ export function resolveTrackingPrimaryAction(
   }
 
   if (next === "close_at_destination") {
+    if (returnReplanRequired) {
+      return {
+        kind: "plan_return",
+        title: trackingCopy.action.planReturn,
+        transitionText: trackingCopy.hint.planReturnBlockedClose,
+      };
+    }
     const stop = findDestinationAwaitingTripArrival(ordered);
     const displayOrder = stop
       ? resolveStopDisplayOrder(ordered, stop.id)
@@ -162,6 +190,14 @@ export function resolveTrackingPrimaryAction(
       transitionText: STOP_TRANSITION_COPY.close,
       stop,
       displayOrder,
+    };
+  }
+
+  if (returnReplanRequired) {
+    return {
+      kind: "plan_return",
+      title: trackingCopy.action.planReturn,
+      transitionText: trackingCopy.hint.planReturnBlockedClose,
     };
   }
 
@@ -192,6 +228,10 @@ export function resolveTrackingPrimaryCtaLabel(
       return trackingCopy.action.close;
     case "cargo_blocked":
       return trackingCopy.action.goToCargos;
+    case "origin_outcome":
+      return trackingCopy.action.declareFalseTrip;
+    case "plan_return":
+      return trackingCopy.action.planReturn;
     case "idle":
     case "none":
       return action.title;

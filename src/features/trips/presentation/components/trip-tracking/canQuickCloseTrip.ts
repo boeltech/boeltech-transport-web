@@ -23,18 +23,27 @@ function findDestinationStop(stops: readonly TripStop[]): TripStop | undefined {
   return undefined;
 }
 
+export type CanQuickCloseTripOptions = {
+  originNoCargoPendingOutcome?: boolean;
+  returnReplanRequired?: boolean;
+};
+
 /**
  * Elegibilidad UX para atajo «Completar viaje» (ADR-0088 / PD2).
  * Oculta cuando cargo gating bloquearía `trip_arrived` en destino con visita activa.
+ * F3b: también oculta bajo desenlace origen / retorno pendiente.
  */
 export function canQuickCloseTrip(
   tripStatus: TripStatusType,
   stops: readonly TripStop[],
   cargos: readonly TripCargo[] = [],
   operationalOutcome: TripOperationalOutcomeType = TripOperationalOutcome.STANDARD,
+  options?: CanQuickCloseTripOptions,
 ): boolean {
   if (tripStatus !== TripStatus.IN_PROGRESS) return false;
   if (operationalOutcome === TripOperationalOutcome.FALSE_TRIP) return false;
+  if (options?.originNoCargoPendingOutcome === true) return false;
+  if (options?.returnReplanRequired === true) return false;
 
   const orderedStops = getOrderedStops(stops);
   const destination = findDestinationStop(orderedStops);

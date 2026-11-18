@@ -1,12 +1,17 @@
 import { useState, type ReactNode } from "react";
 import {
+  Ban,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   FileText,
   MapPin,
   Navigation,
   Package,
+  Play,
   Receipt,
+  RotateCcw,
+  StickyNote,
 } from "lucide-react";
 
 import { TripStatus, type TripStatusType } from "@features/trips/domain";
@@ -36,10 +41,18 @@ export type TripNextStepBlockProps = {
   onInvoice?: () => void;
   /** HB-G2-CTA: abre sheet de fase (Despachar / llegada / salida…). */
   onOpenOperate?: () => void;
-  /** D18: abrir detalle de un borrador. */
+  /** D18: abrir detalle de un borrador (fuera de Qué sigue en F3d-4). */
   onOpenDraft?: (invoiceId: string) => void;
   /** D18′: varios borradores → sheet de elección (wiring en detalle). */
   onViewInvoices?: () => void;
+  /** F3d-4: secundaria Nota en En ruta. */
+  onRegisterNote?: () => void;
+  /** F3b: declarar viaje en falso (sheet existente). */
+  onDeclareFalseTrip?: () => void;
+  /** F3b: abrir dialog Cancelar viaje del shell. */
+  onCancelTrip?: () => void;
+  /** F3b: deep-link a Ruta con intent plan_return. */
+  onPlanReturn?: () => void;
   /** Description ya resuelta (F8/F9: blockers / create / borrador). */
   description?: string;
   /**
@@ -128,6 +141,14 @@ function primaryLabel(
       return copy.openDraft;
     case "view_invoices":
       return copy.viewInvoices;
+    case "register_note":
+      return copy.registerNote;
+    case "declare_false_trip":
+      return copy.declareFalseTrip;
+    case "cancel_trip":
+      return copy.cancelTrip;
+    case "plan_return":
+      return copy.planReturn;
   }
 }
 
@@ -148,27 +169,57 @@ function secondaryLabel(
   if (action.id === "invoice") return copy.invoice;
   if (action.id === "open_draft") return copy.openDraft;
   if (action.id === "view_invoices") return copy.viewInvoices;
+  if (action.id === "register_note") return copy.registerNote;
+  if (action.id === "declare_false_trip") return copy.declareFalseTrip;
+  if (action.id === "cancel_trip") return copy.cancelTrip;
+  if (action.id === "plan_return") return copy.planReturn;
   return primaryLabel(
     { phase, primary: action, secondaries: [] },
     operateCtaPreferred,
   );
 }
 
-function ActionIcon({ action }: { action: TripNextStepAction }) {
+function ActionIcon({
+  action,
+  phase,
+}: {
+  action: TripNextStepAction;
+  phase: TripNextStepPlan["phase"];
+}) {
+  const iconClass = "mr-1.5 h-4 w-4";
   switch (action.id) {
     case "complete_route_cargo":
+      // D-QS1: cargo → Package; route gaps → MapPin
+      if (action.tab === "cargo") {
+        return <Package className={iconClass} aria-hidden />;
+      }
+      return <MapPin className={iconClass} aria-hidden />;
     case "go_to_route":
-      return <MapPin className="mr-1.5 h-4 w-4" aria-hidden />;
+      return <MapPin className={iconClass} aria-hidden />;
     case "go_to_cargo":
-      return <Package className="mr-1.5 h-4 w-4" aria-hidden />;
+      return <Package className={iconClass} aria-hidden />;
+    case "confirm_reserve":
+      return <CheckCircle2 className={iconClass} aria-hidden />;
     case "open_operate":
     case "go_to_tracking":
-      return <Navigation className="mr-1.5 h-4 w-4" aria-hidden />;
+      // D-QS4: scheduled → Play (alinea StartTripSheet); in_progress → Navigation
+      if (phase === "scheduled") {
+        return <Play className={iconClass} aria-hidden />;
+      }
+      return <Navigation className={iconClass} aria-hidden />;
     case "invoice":
     case "view_invoices":
-      return <Receipt className="mr-1.5 h-4 w-4" aria-hidden />;
+      return <Receipt className={iconClass} aria-hidden />;
     case "open_draft":
-      return <FileText className="mr-1.5 h-4 w-4" aria-hidden />;
+      return <FileText className={iconClass} aria-hidden />;
+    case "register_note":
+      return <StickyNote className={iconClass} aria-hidden />;
+    case "declare_false_trip":
+      return <Ban className={iconClass} aria-hidden />;
+    case "cancel_trip":
+      return <Ban className={iconClass} aria-hidden />;
+    case "plan_return":
+      return <RotateCcw className={iconClass} aria-hidden />;
     default:
       return null;
   }
@@ -182,6 +233,10 @@ function runAction(
     onOpenOperate?: () => void;
     onOpenDraft?: (invoiceId: string) => void;
     onViewInvoices?: () => void;
+    onRegisterNote?: () => void;
+    onDeclareFalseTrip?: () => void;
+    onCancelTrip?: () => void;
+    onPlanReturn?: () => void;
   },
 ): void {
   if (action.id === "invoice") {
@@ -198,6 +253,22 @@ function runAction(
   }
   if (action.id === "view_invoices") {
     handlers.onViewInvoices?.();
+    return;
+  }
+  if (action.id === "register_note") {
+    handlers.onRegisterNote?.();
+    return;
+  }
+  if (action.id === "declare_false_trip") {
+    handlers.onDeclareFalseTrip?.();
+    return;
+  }
+  if (action.id === "cancel_trip") {
+    handlers.onCancelTrip?.();
+    return;
+  }
+  if (action.id === "plan_return") {
+    handlers.onPlanReturn?.();
     return;
   }
   if (action.tab) {
@@ -225,6 +296,10 @@ export function TripNextStepBlock({
   onOpenOperate,
   onOpenDraft,
   onViewInvoices,
+  onRegisterNote,
+  onDeclareFalseTrip,
+  onCancelTrip,
+  onPlanReturn,
   description,
   operatePrimaryLabel,
   operateCtaLabel,
@@ -239,13 +314,23 @@ export function TripNextStepBlock({
   const { primary, secondaries, phase } = plan;
   const includeWhatMissing = showWhatMissing(readinessStatus, readinessItems);
   const [whatMissingOpen, setWhatMissingOpen] = useState(includeWhatMissing);
-  const bodyDescription = description ?? phaseDescription(phase);
+  const bodyDescription =
+    description ??
+    (primary.id === "declare_false_trip" || primary.id === "cancel_trip"
+      ? copy.descriptionOriginOutcome
+      : primary.id === "plan_return"
+        ? copy.descriptionReturnReplan
+        : phaseDescription(phase));
   const handlers = {
     onNavigateTab,
     onInvoice,
     onOpenOperate,
+    onDeclareFalseTrip,
+    onCancelTrip,
+    onPlanReturn,
     onOpenDraft,
     onViewInvoices,
+    onRegisterNote,
   };
 
   const delayChip = lateDelayLabel?.trim();
@@ -275,7 +360,7 @@ export function TripNextStepBlock({
         data-demoted={primaryDemoted ? "true" : undefined}
         onClick={() => runAction(primary, handlers)}
       >
-        <ActionIcon action={primary} />
+        <ActionIcon action={primary} phase={phase} />
         {ctaText}
       </Button>
     );
@@ -320,7 +405,7 @@ export function TripNextStepBlock({
               data-testid={`trip-next-step-secondary-${action.id}`}
               onClick={() => runAction(action, handlers)}
             >
-              <ActionIcon action={action} />
+              <ActionIcon action={action} phase={phase} />
               {secondaryLabel(
                 action,
                 phase,

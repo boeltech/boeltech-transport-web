@@ -1,6 +1,7 @@
 import { Package, Truck } from "lucide-react";
 
 import {
+  CargoStatus,
   CARGO_STATUS_LABELS,
   StopType,
   TripStatus,
@@ -11,6 +12,7 @@ import {
   type TripStop,
 } from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
+import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { cn } from "@shared/lib/utils/cn";
 import {
@@ -20,8 +22,9 @@ import {
 import { formatStopTimelineLabel } from "../../uiHelpers";
 import { tripDetailCopy } from "../../copy";
 import {
-  getCargoManualActions,
+  getCargoManualActionsForStop,
   isCargoTerminal,
+  resolveCargoActionTransitionHint,
   type CargoManualAction,
 } from "../../utils/cargoStatusActions";
 import {
@@ -51,9 +54,14 @@ const cargoCopy = tripDetailCopy.cargo;
 function getCargoActionsForStopLink(
   link: StopCargoLink,
   tripInProgress: boolean,
+  stop: TripStop,
 ): CargoManualAction[] {
   if (!tripInProgress) return [];
-  const allActions = getCargoManualActions(link.cargo.status, tripInProgress);
+  const allActions = getCargoManualActionsForStop(
+    link.cargo.status,
+    tripInProgress,
+    stop,
+  );
   const actions: CargoManualAction[] = [];
   if (link.movementType === "pickup" && allActions.includes("pickup")) {
     actions.push("pickup");
@@ -80,6 +88,9 @@ export type TripTrackingStopsTimelineProps = {
   onCargoAction?: (cargoId: string, action: CargoManualAction) => void;
   pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
   canMutateCargo?: boolean;
+  /** F3b: GET `return_replan_required` — CTA Planear retorno bajo carga `returned`. */
+  returnReplanRequired?: boolean;
+  onPlanReturn?: () => void;
   getCargoStatusVariant?: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";
@@ -109,6 +120,8 @@ export function TripTrackingStopsTimeline({
   onCargoAction,
   pendingCargoAction = null,
   canMutateCargo = false,
+  returnReplanRequired = false,
+  onPlanReturn,
   getCargoStatusVariant = defaultCargoStatusVariant,
   className,
 }: TripTrackingStopsTimelineProps) {
@@ -186,6 +199,8 @@ export function TripTrackingStopsTimeline({
                 onCargoAction={onCargoAction}
                 pendingCargoAction={pendingCargoAction}
                 canMutateCargo={canMutateCargo}
+                returnReplanRequired={returnReplanRequired}
+                onPlanReturn={onPlanReturn}
                 getCargoStatusVariant={getCargoStatusVariant}
               />
             );
@@ -219,6 +234,8 @@ type TripTrackingStopsTimelineItemProps = {
   onCargoAction?: (cargoId: string, action: CargoManualAction) => void;
   pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
   canMutateCargo: boolean;
+  returnReplanRequired: boolean;
+  onPlanReturn?: () => void;
   getCargoStatusVariant: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";
@@ -238,6 +255,8 @@ function TripTrackingStopsTimelineItem({
   onCargoAction,
   pendingCargoAction,
   canMutateCargo,
+  returnReplanRequired,
+  onPlanReturn,
   getCargoStatusVariant,
 }: TripTrackingStopsTimelineItemProps) {
   const { primary } = formatStopTimelineLabel(row.stop, row.displayOrder);
@@ -379,8 +398,13 @@ function TripTrackingStopsTimelineItem({
                     const actions = getCargoActionsForStopLink(
                       link,
                       tripInProgress,
+                      row.stop,
                     );
                     const terminal = isCargoTerminal(link.cargo.status);
+                    const showPlanReturnCta =
+                      returnReplanRequired &&
+                      link.cargo.status === CargoStatus.RETURNED &&
+                      onPlanReturn != null;
                     const cargoFacts = trackingCopy.format.cargoFacts(
                       link.cargo.weightInKg ?? link.cargo.weight,
                       link.cargo.units,
@@ -420,38 +444,61 @@ function TripTrackingStopsTimelineItem({
                             </p>
                           ) : null}
                         </div>
-                        {!terminal &&
-                        actions.length > 0 &&
-                        onCargoAction != null ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {actions.map((action) => (
-                              <CargoActionInline
-                                key={action}
-                                action={action}
-                                size="sm"
-                                variant="outline"
-                                showTransition={false}
-                                pending={
-                                  pendingCargoAction?.cargoId ===
-                                    link.cargo.id &&
-                                  pendingCargoAction.action === action
-                                }
-                                disabled={!cargoActionsEnabled}
-                                title={
-                                  !cargoActionsEnabled
-                                    ? stopActive
-                                      ? undefined
-                                      : trackingCopy.hint
-                                          .cargoActionRequiresArrival
-                                    : undefined
-                                }
-                                onClick={() =>
-                                  onCargoAction(link.cargo.id, action)
-                                }
-                              />
-                            ))}
-                          </div>
-                        ) : null}
+                        <div className="flex flex-col gap-1.5">
+                          {!terminal &&
+                          actions.length > 0 &&
+                          onCargoAction != null ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {actions.map((action) => {
+                                const hint = resolveCargoActionTransitionHint(
+                                  action,
+                                  row.stop,
+                                );
+                                return (
+                                  <CargoActionInline
+                                    key={action}
+                                    action={action}
+                                    size="sm"
+                                    variant="outline"
+                                    showTransition={
+                                      action === "return" || action === "cancel"
+                                    }
+                                    transitionText={hint}
+                                    pending={
+                                      pendingCargoAction?.cargoId ===
+                                        link.cargo.id &&
+                                      pendingCargoAction.action === action
+                                    }
+                                    disabled={!cargoActionsEnabled}
+                                    title={
+                                      !cargoActionsEnabled
+                                        ? stopActive
+                                          ? undefined
+                                          : trackingCopy.hint
+                                              .cargoActionRequiresArrival
+                                        : undefined
+                                    }
+                                    onClick={() =>
+                                      onCargoAction(link.cargo.id, action)
+                                    }
+                                  />
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                          {showPlanReturnCta ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="default"
+                              className="h-auto min-h-8 justify-start py-1.5 text-xs"
+                              onClick={onPlanReturn}
+                              data-tracking-section="plan-return-cargo"
+                            >
+                              {trackingCopy.action.planReturn}
+                            </Button>
+                          ) : null}
+                        </div>
                       </li>
                     );
                   })}

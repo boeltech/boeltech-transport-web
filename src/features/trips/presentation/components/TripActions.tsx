@@ -14,7 +14,7 @@
  * Ubicación: src/features/trips/presentation/components/TripActions.tsx
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import {
@@ -136,6 +136,11 @@ interface CommonProps {
   menuTriggerClassName?: string;
   /** aria-label / sr-only del trigger ⋯. */
   menuAriaLabel?: string;
+  /**
+   * F3b: cuando el nonce cambia, abre el dialog Cancelar viaje
+   * (mismo confirm del shell desde Qué sigue).
+   */
+  openCancelSignal?: number;
 }
 
 type TripActionsProps = CommonProps & (TripObjectProps | TripIndividualProps);
@@ -167,6 +172,7 @@ export function TripActions(props: TripActionsProps) {
     hasDeliveredCargo = false,
     scheduledDeparture,
     scheduledArrival,
+    openCancelSignal = 0,
     menuTriggerClassName,
     menuAriaLabel = "Abrir menú de acciones",
   } = props;
@@ -204,6 +210,11 @@ export function TripActions(props: TripActionsProps) {
   });
 
   const [cloneSheetOpen, setCloneSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (!openCancelSignal) return;
+    setCancelDialog({ open: true, reason: "" });
+  }, [openCancelSignal]);
 
   // ---------------------------------------------------------------------------
   // MUTATIONS (variant "buttons" y "detailMenu")

@@ -1,4 +1,5 @@
 import {
+  Ban,
   CheckCircle2,
   MapPin,
   Navigation,
@@ -43,6 +44,8 @@ const ACTION_ICONS: Record<TrackingPrimaryActionKind, LucideIcon> = {
   depart_origin: Navigation,
   close: CheckCircle2,
   cargo_blocked: Package,
+  origin_outcome: Ban,
+  plan_return: Navigation,
   idle: MapPin,
   none: MapPin,
 };

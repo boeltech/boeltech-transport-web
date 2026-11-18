@@ -146,6 +146,11 @@ describe("trackingCopy — Finalizar viaje (Capa 1 lean)", () => {
     expect(trackingCopy.section.itinerary).toBe("Paradas");
     expect(trackingCopy.section.bitacora).toBe("Bitácora");
     expect(trackingCopy.section.timeline).toBe("Historial del viaje");
+    expect(trackingCopy.hint.timelineHasEvents).toBe(
+      "Historial del viaje. Se actualiza en vivo.",
+    );
+    expect(trackingCopy.action.refreshBitacoraAria).toBe("Actualizar bitácora");
+    expect(trackingCopy.action.refreshBitacoraTitle).toBe("Actualizar ahora");
   });
 
   it("desglosa km inicial + distancia planificada en el sugerido de cierre", () => {

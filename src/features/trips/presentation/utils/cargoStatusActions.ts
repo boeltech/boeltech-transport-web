@@ -3,11 +3,17 @@
  */
 
 import {
+  canReturnCargoInStopContext,
   canTransitionCargoStatus,
   getAvailableCargoTransitions,
+  resolveCargoReturnStopRole,
   type CargoStatus as CargoStatusRule,
 } from "@boeltech/cfdi-domain";
-import { CargoStatus, type CargoStatusType } from "@features/trips/domain";
+import {
+  CargoStatus,
+  type CargoStatusType,
+  type TripStop,
+} from "@features/trips/domain";
 
 export type CargoManualAction = "pickup" | "deliver" | "return" | "cancel";
 
@@ -17,6 +23,14 @@ const ACTION_TO_STATUS: Record<CargoManualAction, CargoStatusRule> = {
   return: "returned",
   cancel: "cancelled",
 };
+
+function normalizeStopTypes(
+  stopType: TripStop["stopType"],
+): Array<"pickup" | "delivery" | "origin" | "destination" | "waypoint"> {
+  return (Array.isArray(stopType) ? stopType : [stopType]) as Array<
+    "pickup" | "delivery" | "origin" | "destination" | "waypoint"
+  >;
+}
 
 export function cargoActionToStatus(action: CargoManualAction): CargoStatusType {
   return ACTION_TO_STATUS[action] as CargoStatusType;
@@ -51,10 +65,57 @@ export function getCargoManualActions(
   return actions;
 }
 
+/**
+ * Acciones de carga filtradas por contexto de parada (CA-01 / D5).
+ * Oculta Devolver en load_only + pending vía `canReturnCargoInStopContext`.
+ */
+export function getCargoManualActionsForStop(
+  currentStatus: CargoStatusType,
+  tripInProgress: boolean,
+  stop: Pick<TripStop, "stopType">,
+): CargoManualAction[] {
+  const actions = getCargoManualActions(currentStatus, tripInProgress);
+  if (!actions.includes("return")) return actions;
+
+  const stopRole = resolveCargoReturnStopRole({
+    stopType: normalizeStopTypes(stop.stopType),
+  });
+  const allowed = canReturnCargoInStopContext({
+    from: currentStatus as CargoStatusRule,
+    stopRole,
+  });
+  if (!allowed.ok) {
+    return actions.filter((action) => action !== "return");
+  }
+  return actions;
+}
+
 export function isCargoTerminal(status: CargoStatusType): boolean {
   return (
     status === CargoStatus.DELIVERED ||
     status === CargoStatus.RETURNED ||
     status === CargoStatus.CANCELLED
   );
+}
+
+/** Microcopy Cancelar≠Devolver (handoff-prd). */
+export function resolveCargoActionTransitionHint(
+  action: CargoManualAction,
+  stop: Pick<TripStop, "stopType">,
+): string | null {
+  const stopRole = resolveCargoReturnStopRole({
+    stopType: normalizeStopTypes(stop.stopType),
+  });
+  if (action === "cancel") {
+    if (stopRole === "load_only") {
+      return "No se cargó. Luego declara viaje en falso o cancela el viaje.";
+    }
+    if (stopRole === "unload" || stopRole === "both") {
+      return "La carga no se entrega ni regresa en este viaje.";
+    }
+  }
+  if (action === "return") {
+    return "Queda a bordo. Después planea el retorno al origen.";
+  }
+  return null;
 }

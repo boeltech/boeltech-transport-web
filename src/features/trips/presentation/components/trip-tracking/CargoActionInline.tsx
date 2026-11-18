@@ -62,6 +62,8 @@ export type CargoActionInlineProps = {
   size?: "default" | "sm" | "lg" | "icon";
   /** Etiqueta visible; por defecto meta de acción (p. ej. «Marcar recogida»). */
   label?: string;
+  /** Microcopy contextual Cancelar≠Devolver (F3b); sustituye CARGO_TRANSITION_COPY. */
+  transitionText?: string | null;
   className?: string;
 };
 
@@ -75,6 +77,7 @@ export function CargoActionInline({
   variant,
   size = "sm",
   label,
+  transitionText,
   className,
 }: CargoActionInlineProps) {
   const transitionId = useId();
@@ -82,6 +85,8 @@ export function CargoActionInline({
   const Icon = meta.icon;
   const buttonVariant = variant ?? meta.variant;
   const buttonLabel = label ?? meta.label;
+  const resolvedTransition =
+    transitionText?.trim() || CARGO_TRANSITION_COPY[meta.transition];
 
   const showDisabledReason = Boolean(disabled && title && !showTransition);
 
@@ -116,7 +121,7 @@ export function CargoActionInline({
       </Button>
       {showTransition ? (
         <p id={transitionId} className="text-xs text-muted-foreground">
-          {CARGO_TRANSITION_COPY[meta.transition]}
+          {resolvedTransition}
         </p>
       ) : showDisabledReason ? (
         <p

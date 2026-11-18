@@ -5,6 +5,8 @@ import { getStopCargoLinks, resolveStopForMovement } from "./stopCargoCorrelatio
 import {
   canPerformCargoAction,
   getCargoManualActions,
+  getCargoManualActionsForStop,
+  resolveCargoActionTransitionHint,
 } from "./cargoStatusActions";
 
 const stop = {
@@ -263,5 +265,39 @@ describe("cargoStatusActions", () => {
   it("canPerformCargoAction respects matrix", () => {
     expect(canPerformCargoAction(CargoStatus.PENDING, "pickup")).toBe(true);
     expect(canPerformCargoAction(CargoStatus.DELIVERED, "pickup")).toBe(false);
+  });
+
+  it("CA-01: oculta Devolver en parada load_only con pending", () => {
+    const actions = getCargoManualActionsForStop(
+      CargoStatus.PENDING,
+      true,
+      stop,
+    );
+    expect(actions).toContain("cancel");
+    expect(actions).not.toContain("return");
+  });
+
+  it("CA-06: muestra Devolver en descarga con in_transit", () => {
+    const unload = {
+      ...stop,
+      stopType: ["delivery", "destination"] as TripStop["stopType"],
+    };
+    const actions = getCargoManualActionsForStop(
+      CargoStatus.IN_TRANSIT,
+      true,
+      unload,
+    );
+    expect(actions).toContain("return");
+    expect(actions).toContain("cancel");
+  });
+
+  it("microcopy Cancelar≠Devolver según contexto", () => {
+    expect(resolveCargoActionTransitionHint("cancel", stop)).toMatch(/No se cargó/);
+    expect(
+      resolveCargoActionTransitionHint("return", {
+        ...stop,
+        stopType: ["delivery"],
+      }),
+    ).toMatch(/retorno/);
   });
 });

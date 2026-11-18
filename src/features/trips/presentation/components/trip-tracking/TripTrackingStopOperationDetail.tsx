@@ -17,8 +17,9 @@ import { DetailAlertCard } from "@shared/ui/data-display";
 import { formatStopTimelineLabel } from "../../uiHelpers";
 import { tripDetailCopy } from "../../copy";
 import {
-  getCargoManualActions,
+  getCargoManualActionsForStop,
   isCargoTerminal,
+  resolveCargoActionTransitionHint,
   type CargoManualAction,
 } from "../../utils/cargoStatusActions";
 import {
@@ -45,12 +46,17 @@ const cargoCopy = tripDetailCopy.cargo;
 function getCargoActionsForStopLink(
   link: StopCargoLink,
   tripInProgress: boolean,
+  stop: TripStop,
   stopActive: boolean,
 ): CargoManualAction[] {
   void stopActive;
   if (!tripInProgress) return [];
 
-  const allActions = getCargoManualActions(link.cargo.status, tripInProgress);
+  const allActions = getCargoManualActionsForStop(
+    link.cargo.status,
+    tripInProgress,
+    stop,
+  );
   const actions: CargoManualAction[] = [];
 
   if (link.movementType === "pickup" && allActions.includes("pickup")) {
@@ -189,6 +195,7 @@ export function TripTrackingStopOperationDetail({
               const actions = getCargoActionsForStopLink(
                 link,
                 tripInProgress,
+                row.stop,
                 stopActive,
               );
               const terminal = isCargoTerminal(link.cargo.status);
@@ -258,13 +265,20 @@ export function TripTrackingStopOperationDetail({
                           pendingCargoAction?.cargoId === link.cargo.id &&
                           pendingCargoAction.action === action;
                         const disabled = !cargoActionsEnabled;
+                        const hint = resolveCargoActionTransitionHint(
+                          action,
+                          row.stop,
+                        );
                         return (
                           <CargoActionInline
                             key={action}
                             action={action}
                             pending={isPending}
                             disabled={disabled}
-                            showTransition={false}
+                            showTransition={
+                              action === "return" || action === "cancel"
+                            }
+                            transitionText={hint}
                             title={
                               disabled
                                 ? stopActive

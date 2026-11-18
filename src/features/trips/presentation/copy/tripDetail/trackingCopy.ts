@@ -50,15 +50,22 @@ export const trackingCopy = {
      */
     clientCancelledCargo: "El cliente canceló la carga",
     declareFalseTrip: "Declarar viaje en falso",
+    /** F3b: CTA post-Devolver / Qué sigue con return_replan_required. */
+    planReturn: "Planear retorno",
+    /** F3b: cancelar viaje desde Qué sigue (mismo dialog del shell). */
+    cancelTrip: "Cancelar viaje",
     note: "Nota",
     incident: "Incidente",
     /** Cierre operativo v1 (bandera + nota); no «Resolver». */
     closeIncident: "Cerrar incidente",
     refresh: "Actualizar",
+    /** F3d-5: ícono ghost en encabezado Bitácora. */
+    refreshBitacoraAria: "Actualizar bitácora",
+    refreshBitacoraTitle: "Actualizar ahora",
     retry: "Reintentar",
     cancel: "Cancelar",
     now: "Ahora",
-    /** Overflow Operate (PD5 / D5). */
+    /** Overflow Bitácora (F3d-3 / D41). */
     moreActions: "Más acciones",
     /** D35 / Q8 — franja incidente. */
     callOperator: "Llamar al operador",
@@ -429,6 +436,18 @@ export const trackingCopy = {
       "Esta parada es solo consulta. Opera la parada en curso arriba.",
     /** PD12: mid-trip — deep-link a tab Ruta (sin tab nuevo). */
     midTripRouteChanges: "Cambios de ruta → tab Ruta",
+    /** F3b CA-02…05 — banner / título Qué sigue tras cancelar todas en origen. */
+    originNoCargoOutcomeTitle: "Sin mercancía en origen",
+    originNoCargoOutcomeBody:
+      "Elige: cobrar el desplazamiento (viaje en falso) o cancelar el viaje.",
+    /** F3b CA-08 — blocker de cierre con retorno pendiente. */
+    planReturnBlockedClose: "Planea el retorno antes de cerrar",
+    /** F3b CA-10 — multi-carga: no forzar Cambiar destino global. */
+    planReturnMultiCargoHint:
+      "Si quedan entregas de otras cargas, agrega una escala o reasigna. Cambia el destino solo si todas van al mismo punto de retorno.",
+    /** F3b — banner en tab Ruta con intent=plan_return. */
+    planReturnRouteBanner:
+      "Planear retorno: cambia el destino o agrega una escala pendiente. No se crea sola al devolver.",
     objectiveGuide: "La siguiente operación y el botón para registrarla.",
     readOnlyGuide:
       "Este viaje ya no admite operaciones de seguimiento. Consulta paradas, historial y mapa abajo.",
@@ -473,7 +492,8 @@ export const trackingCopy = {
     incidentLabel: "Incidente",
     /** Chip de proyección T5 en eventos incident cuando ya no hay marca abierta. */
     incidentClosedChip: "Cerrado",
-    timelineHasEvents: "Registro de operaciones del viaje.",
+    /** F3d-5 / artboard: descripción del encabezado Bitácora. */
+    timelineHasEvents: "Historial del viaje. Se actualiza en vivo.",
     stopRoleOrigin: "Llegada, cargas y salida de origen",
     stopRoleWaypoint: "Llegada y salida",
     stopRoleDestination: "Llegada y cierre en destino",

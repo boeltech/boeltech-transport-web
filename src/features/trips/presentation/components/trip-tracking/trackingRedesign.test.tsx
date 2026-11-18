@@ -192,6 +192,56 @@ describe("trackingNextAction", () => {
     expect(action.transitionText).toBe(STOP_TRANSITION_COPY.departOrigin);
   });
 
+  it("F3b: origin_no_cargo bloquea salida y ofrece desenlace", () => {
+    const action = resolveTrackingPrimaryAction(
+      TripStatus.IN_PROGRESS,
+      [
+        {
+          ...origin,
+          actualArrival: new Date("2026-01-01T09:00:00Z"),
+          status: "in_progress",
+        },
+        waypoint,
+        destination,
+      ],
+      [],
+      { originNoCargoPendingOutcome: true },
+    );
+    expect(action.kind).toBe("origin_outcome");
+    expect(action.title).toBe(trackingCopy.hint.originNoCargoOutcomeTitle);
+  });
+
+  it("F3b: return_replan bloquea cierre con plan_return", () => {
+    const action = resolveTrackingPrimaryAction(
+      TripStatus.IN_PROGRESS,
+      [
+        {
+          ...origin,
+          actualArrival: new Date("2026-01-01T09:00:00Z"),
+          actualDeparture: new Date("2026-01-01T10:00:00Z"),
+          status: "completed",
+        },
+        {
+          ...waypoint,
+          actualArrival: new Date("2026-01-01T11:00:00Z"),
+          actualDeparture: new Date("2026-01-01T12:00:00Z"),
+          status: "completed",
+        },
+        {
+          ...destination,
+          actualArrival: new Date("2026-01-01T13:00:00Z"),
+          status: "in_progress",
+        },
+      ],
+      [],
+      { returnReplanRequired: true },
+    );
+    expect(action.kind).toBe("plan_return");
+    expect(resolveTrackingPrimaryCtaLabel(action)).toBe(
+      trackingCopy.action.planReturn,
+    );
+  });
+
   it("prioriza llegada a escala tras salida de origen", () => {
     const action = resolveTrackingPrimaryAction(TripStatus.IN_PROGRESS, [
       {
@@ -1403,7 +1453,7 @@ describe("TripTrackingProgressStrip (línea de contexto / F5.1 + F7.1)", () => {
     expect(
       screen.getByRole("group", { name: trackingCopy.section.metrics }),
     ).toBeInTheDocument();
-    expect(screen.getByText("En Ruta")).toBeInTheDocument();
+    expect(screen.getByText("En ruta")).toBeInTheDocument();
     const traffic = screen.getByLabelText(
       `${trackingCopy.label.trafficLightAria}: ${trackingCopy.label.trafficLight.stopped}`,
     );
