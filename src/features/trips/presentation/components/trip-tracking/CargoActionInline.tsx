@@ -25,13 +25,14 @@ const ACTION_META: Record<
   pickup: {
     label: copy.action.pickup,
     icon: Package,
+    // L-D4′: por carga = outline; Qué sigue (hub) overridea a default.
     variant: "outline",
     transition: "pickup",
   },
   deliver: {
     label: copy.action.deliver,
     icon: CheckCircle2,
-    variant: "default",
+    variant: "outline",
     transition: "deliver",
   },
   return: {
@@ -56,9 +57,9 @@ export type CargoActionInlineProps = {
   title?: string;
   /** Microcopy bajo el botón; en detalle lean del hub va en `false`. */
   showTransition?: boolean;
-  /** Override (Operate F3: un solo `default` ATF). */
+  /** Override (hub Qué sigue: un solo `default` ATF; nested usa meta outline). */
   variant?: "default" | "outline" | "destructive";
-  /** Override tamaño; Operate usa `default` en la acción primaria. */
+  /** Override tamaño; hub Qué sigue usa `default` en la primaria de vista. */
   size?: "default" | "sm" | "lg" | "icon";
   /** Etiqueta visible; por defecto meta de acción (p. ej. «Marcar recogida»). */
   label?: string;

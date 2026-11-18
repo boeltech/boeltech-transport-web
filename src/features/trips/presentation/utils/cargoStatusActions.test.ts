@@ -7,6 +7,7 @@ import {
   getCargoManualActions,
   getCargoManualActionsForStop,
   resolveCargoActionTransitionHint,
+  resolveCargoCtaLayout,
 } from "./cargoStatusActions";
 
 const stop = {
@@ -299,5 +300,15 @@ describe("cargoStatusActions", () => {
         stopType: ["delivery"],
       }),
     ).toMatch(/retorno/);
+  });
+
+  it("L-D1′: 1 CTA primaria → side-by-side; con Devolver/Cancelar → stack", () => {
+    expect(resolveCargoCtaLayout(["deliver"])).toBe("side-by-side");
+    expect(resolveCargoCtaLayout(["pickup"])).toBe("side-by-side");
+    expect(resolveCargoCtaLayout(["deliver", "return", "cancel"])).toBe(
+      "stack",
+    );
+    expect(resolveCargoCtaLayout(["pickup", "cancel"])).toBe("stack");
+    expect(resolveCargoCtaLayout([])).toBe("stack");
   });
 });

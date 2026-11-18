@@ -382,6 +382,22 @@ describe("CargoActionInline", () => {
     expect(screen.getByText(CARGO_TRANSITION_COPY.deliver)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Entregar/i })).toBeInTheDocument();
   });
+
+  it("L-D4′: Entregar/Recoger meta = outline (hub overridea a default)", () => {
+    const { rerender } = render(
+      <CargoActionInline action="deliver" onClick={() => undefined} />,
+    );
+    expect(screen.getByRole("button", { name: /Entregar/i }).className).not.toMatch(
+      /bg-primary/,
+    );
+
+    rerender(
+      <CargoActionInline action="pickup" onClick={() => undefined} />,
+    );
+    expect(screen.getByRole("button", { name: /Recoger/i }).className).not.toMatch(
+      /bg-primary/,
+    );
+  });
 });
 
 describe("TripTrackingStopsCargosMasterDetail", () => {

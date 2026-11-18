@@ -13,6 +13,7 @@ import {
 } from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
 import { DetailAlertCard } from "@shared/ui/data-display";
+import { cn } from "@shared/lib/utils/cn";
 
 import { formatStopTimelineLabel } from "../../uiHelpers";
 import { tripDetailCopy } from "../../copy";
@@ -20,6 +21,7 @@ import {
   getCargoManualActionsForStop,
   isCargoTerminal,
   resolveCargoActionTransitionHint,
+  resolveCargoCtaLayout,
   type CargoManualAction,
 } from "../../utils/cargoStatusActions";
 import {
@@ -204,53 +206,73 @@ export function TripTrackingStopOperationDetail({
                 link.cargo.units,
               );
 
+              const showCargoActions = !terminal && actions.length > 0;
+              const sideBySide =
+                showCargoActions &&
+                resolveCargoCtaLayout(actions) === "side-by-side";
+
               return (
                 <li
                   key={`${link.cargo.id}-${link.movement.id ?? link.movementType}`}
-                  className="flex flex-col gap-2 rounded-md border bg-muted/20 px-3 py-2"
+                  className={cn(
+                    sideBySide
+                      ? "flex items-start gap-2"
+                      : "flex flex-col gap-2",
+                    "rounded-md border bg-muted/20 px-3 py-2",
+                  )}
+                  data-cargo-cta-layout={
+                    sideBySide ? "side-by-side" : "stack"
+                  }
                 >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-2">
                       {link.movementType === "pickup" ? (
                         <Package
-                          className="h-3.5 w-3.5 shrink-0 text-info"
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-info"
                           aria-hidden
                         />
                       ) : (
                         <Truck
-                          className="h-3.5 w-3.5 shrink-0 text-warning"
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning"
                           aria-hidden
                         />
                       )}
-                      <span className="truncate text-sm font-medium">
-                        {link.cargo.description}
-                      </span>
-                      <Badge
-                        variant={getCargoStatusVariant(link.cargo.status)}
-                        className="text-xs font-normal"
-                      >
-                        {CARGO_STATUS_LABELS[link.cargo.status] ??
-                          link.cargo.status}
-                      </Badge>
-                      {link.movement.completedAt != null ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] font-normal"
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="line-clamp-2 break-words text-sm font-medium"
+                          title={link.cargo.description}
                         >
-                          {link.movementType === "pickup"
-                            ? cargoCopy.label.pickupCompleted
-                            : cargoCopy.label.deliveryCompleted}
-                        </Badge>
-                      ) : null}
-                      {isCargoHazmat(link.cargo) ? (
-                        <Badge
-                          variant="warning"
-                          tone="soft"
-                          className="text-[10px] font-normal"
-                        >
-                          {trackingCopy.label.hazardous}
-                        </Badge>
-                      ) : null}
+                          {link.cargo.description}
+                        </p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <Badge
+                            variant={getCargoStatusVariant(link.cargo.status)}
+                            className="text-xs font-normal"
+                          >
+                            {CARGO_STATUS_LABELS[link.cargo.status] ??
+                              link.cargo.status}
+                          </Badge>
+                          {link.movement.completedAt != null ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-normal"
+                            >
+                              {link.movementType === "pickup"
+                                ? cargoCopy.label.pickupCompleted
+                                : cargoCopy.label.deliveryCompleted}
+                            </Badge>
+                          ) : null}
+                          {isCargoHazmat(link.cargo) ? (
+                            <Badge
+                              variant="warning"
+                              tone="soft"
+                              className="text-[10px] font-normal"
+                            >
+                              {trackingCopy.label.hazardous}
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                     {cargoFacts ? (
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -258,8 +280,15 @@ export function TripTrackingStopOperationDetail({
                       </p>
                     ) : null}
                   </div>
-                  {!terminal && actions.length > 0 ? (
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {showCargoActions ? (
+                    <div
+                      className={cn(
+                        "flex min-w-0 gap-2",
+                        sideBySide
+                          ? "shrink-0 flex-col"
+                          : "w-full flex-col sm:flex-row sm:flex-wrap",
+                      )}
+                    >
                       {actions.map((action) => {
                         const isPending =
                           pendingCargoAction?.cargoId === link.cargo.id &&

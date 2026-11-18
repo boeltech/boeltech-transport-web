@@ -98,6 +98,22 @@ export function isCargoTerminal(status: CargoStatusType): boolean {
   );
 }
 
+/**
+ * L-D1′ layout de CTAs por carga en nested/workbench.
+ * 1 CTA primaria sola → artboard side-by-side; Devolver/Cancelar o >1 → stack.
+ */
+export function resolveCargoCtaLayout(
+  actions: readonly CargoManualAction[],
+): "side-by-side" | "stack" {
+  if (
+    actions.length === 1 &&
+    (actions[0] === "deliver" || actions[0] === "pickup")
+  ) {
+    return "side-by-side";
+  }
+  return "stack";
+}
+
 /** Microcopy Cancelar≠Devolver (handoff-prd). */
 export function resolveCargoActionTransitionHint(
   action: CargoManualAction,
