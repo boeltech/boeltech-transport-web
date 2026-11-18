@@ -74,6 +74,12 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
     "El vehículo ya está asignado a otro viaje en esa fecha",
   DRIVER_ALREADY_ASSIGNED:
     "El conductor ya está asignado a otro viaje en esa fecha",
+  /** Política B — PATCH/PUT flota con cambio de unidad sin odómetro entrante. */
+  FLEET_INCOMING_ODOMETER_REQUIRED:
+    "Indica el kilometraje (odómetro) de la unidad que asignas.",
+  /** Política B — PATCH /fleet envió start_mileage sin cambio efectivo de unidad. */
+  FLEET_ODOMETER_WITHOUT_VEHICLE_CHANGE:
+    "El kilometraje solo se envía al cambiar la unidad del viaje.",
 
   // ===== VALIDACIÓN GENERAL =====
   VALIDATION_ERROR: "Error de validación en los datos enviados",

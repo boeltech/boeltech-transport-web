@@ -2,7 +2,7 @@
  * Paso 2 del wizard de reserva (ADR-0071): unidad y conductor.
  * Tarifa y km viven en «Completar al confirmar» (PD1).
  */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { UseFormReturn } from "react-hook-form";
 
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
@@ -34,6 +34,8 @@ export function ReserveAsignarStep({
 }: ReserveAsignarStepProps) {
   const { watch, setValue } = form;
   const selectedVehicleId = watch("vehicleId");
+  // Paridad BasicInfoStep: overwrite-on-change al cambiar unidad (política B).
+  const previousVehicleIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (!selectedVehicleId) return;
@@ -45,11 +47,18 @@ export function ReserveAsignarStep({
         ? vehicle.currentMileage
         : undefined;
     setValue("vehicleCurrentMileage", mileage, { shouldDirty: false });
-    if (form.getValues("startMileage") == null && mileage != null) {
-      setValue("startMileage", mileage, {
-        shouldDirty: false,
-        shouldValidate: true,
-      });
+    const vehicleChanged =
+      previousVehicleIdRef.current !== undefined &&
+      previousVehicleIdRef.current !== selectedVehicleId;
+    previousVehicleIdRef.current = selectedVehicleId;
+    const currentStart = form.getValues("startMileage");
+    if (currentStart == null || vehicleChanged) {
+      if (mileage != null) {
+        setValue("startMileage", mileage, {
+          shouldDirty: vehicleChanged,
+          shouldValidate: true,
+        });
+      }
     }
   }, [selectedVehicleId, vehicles, setValue, form]);
 

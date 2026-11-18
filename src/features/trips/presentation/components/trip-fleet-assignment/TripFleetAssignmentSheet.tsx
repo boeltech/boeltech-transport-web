@@ -32,6 +32,8 @@ import {
 } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { mapBackendError } from "@shared/utils/errorMapper";
+import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import {
   Select,
@@ -105,7 +107,7 @@ import {
 import { TripTrailerAssignmentFields } from "../../pages/create/components/TripTrailerAssignmentFields";
 import { tripDetailCopy } from "../../copy";
 import {
-  tripFleetAssignmentSchema,
+  createTripFleetAssignmentSchema,
   type TripFleetAssignmentFormValues,
 } from "./fleetAssignmentValidation";
 import { isFleetAssignmentCpRelevantChange } from "./isFleetAssignmentCpRelevantChange";
@@ -161,6 +163,20 @@ export function TripFleetAssignmentSheet({
     ? ALLOW_EXPIRED_DOCS_ROLES.has(user.role as UserRole)
     : false;
 
+  const originalVehicleId = trip.vehicle?.id ?? trip.vehicleId ?? "";
+  /** Política B: odómetro obligatorio al cambiar unidad si in_progress o ya había km. */
+  const requireIncomingOdometer =
+    trip.status === TripStatus.IN_PROGRESS || trip.mileage.start != null;
+
+  const fleetAssignmentSchema = useMemo(
+    () =>
+      createTripFleetAssignmentSchema({
+        originalVehicleId,
+        requireIncomingOdometer,
+      }),
+    [originalVehicleId, requireIncomingOdometer],
+  );
+
   const defaultValues: TripFleetAssignmentFormValues = useMemo(() => {
     const vehicleRef = trip.vehicle as
       | { satConfigAutotransporteCode?: string | null }
@@ -185,12 +201,13 @@ export function TripFleetAssignmentSheet({
         })) ?? [],
       // ADR-0066: default off (parity with canvas /trips/new). Opt-in only.
       allowExpiredDocs: false,
+      startMileage: undefined,
     };
   }, [trip]);
 
   const form = useForm<TripFleetAssignmentFormValues>({
     resolver: zodResolver(
-      tripFleetAssignmentSchema,
+      fleetAssignmentSchema,
     ) as Resolver<TripFleetAssignmentFormValues>,
     defaultValues,
     // Sheet largo: validar al cambiar (patrón form-validation-ux del repo).
@@ -201,6 +218,7 @@ export function TripFleetAssignmentSheet({
     control,
     handleSubmit,
     setValue,
+    setError,
     getValues,
     trigger,
     register,
@@ -211,6 +229,8 @@ export function TripFleetAssignmentSheet({
   const watchedVehicleId = useWatch({ control, name: "vehicleId" });
   const watchedDriverId = useWatch({ control, name: "driverId" });
   const watchedInternalStaff = useWatch({ control, name: "internalStaff" }) ?? [];
+  const vehicleChanging =
+    Boolean(watchedVehicleId) && watchedVehicleId !== originalVehicleId;
 
   const internalStaffFieldArray = useFieldArray({
     control,
@@ -560,6 +580,10 @@ export function TripFleetAssignmentSheet({
     ) {
       setValue("vehicleId", "", { shouldDirty: true, shouldValidate: true });
       setValue("satConfigAutotransporteCode", "");
+      setValue("startMileage", undefined, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
       toast({
         title: copy.alerts.assignmentClearedTitle,
         description: copy.alerts.assignmentClearedBody,
@@ -765,7 +789,7 @@ export function TripFleetAssignmentSheet({
       setFleetConflicts(null);
       toast({
         title: copy.toasts.error,
-        description: err.message,
+        description: mapBackendError(err).message,
         variant: "error",
       });
     },
@@ -830,12 +854,18 @@ export function TripFleetAssignmentSheet({
   const executeUpdate = (values: TripFleetAssignmentFormValues) => {
     setFleetConflicts(null);
     const internalStaff = getValues("internalStaff") ?? values.internalStaff ?? [];
+    const isVehicleChange =
+      Boolean(values.vehicleId) && values.vehicleId !== originalVehicleId;
     reassignFleetMutation.mutate({
       vehicleId: values.vehicleId,
       driverId: values.driverId,
       trailers: values.trailers,
       internalStaff,
       allowExpiredDocs: values.allowExpiredDocs,
+      // Política B: solo enviar odómetro si cambia la unidad (API 400 si no).
+      ...(isVehicleChange && values.startMileage != null
+        ? { startMileage: values.startMileage }
+        : {}),
     });
   };
 
@@ -853,7 +883,25 @@ export function TripFleetAssignmentSheet({
     const submitted: TripFleetAssignmentFormValues = {
       ...values,
       internalStaff: getValues("internalStaff") ?? values.internalStaff ?? [],
+      startMileage: getValues("startMileage") ?? values.startMileage,
     };
+
+    // Política B — refuerzo (RHF no re-enlaza resolver si cambia el schema en caliente).
+    const isVehicleChange =
+      Boolean(submitted.vehicleId) &&
+      submitted.vehicleId !== originalVehicleId;
+    if (
+      isVehicleChange &&
+      requireIncomingOdometer &&
+      submitted.startMileage == null
+    ) {
+      setError("startMileage", {
+        type: "manual",
+        message: copy.errors.incomingOdometerRequired,
+      });
+      setShowValidationSummary(true);
+      return;
+    }
 
     if (isStamped && isFleetAssignmentCpRelevantChange(trip, submitted)) {
       setPendingSubmitValues(submitted);
@@ -1038,6 +1086,23 @@ export function TripFleetAssignmentSheet({
                                 veh.satConfigAutotransporteCode ?? "",
                               );
                             }
+                            // Política B: precarga odómetro de la entrante (overwrite-on-change).
+                            if (val && val !== originalVehicleId) {
+                              const mileage =
+                                typeof veh?.currentMileage === "number" &&
+                                Number.isFinite(veh.currentMileage)
+                                  ? veh.currentMileage
+                                  : undefined;
+                              setValue("startMileage", mileage, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                            } else {
+                              setValue("startMileage", undefined, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                            }
                           }}
                           disabled={isLoadingVehicles || isFormBusy}
                         >
@@ -1165,6 +1230,60 @@ export function TripFleetAssignmentSheet({
                       )}
                     />
                   </FormFieldShell>
+
+                  {vehicleChanging ? (
+                    <Controller
+                      control={control}
+                      name="startMileage"
+                      render={({ field, fieldState }) => {
+                        const catalogMileage =
+                          typeof selectedVehicle?.currentMileage === "number" &&
+                          Number.isFinite(selectedVehicle.currentMileage)
+                            ? selectedVehicle.currentMileage
+                            : undefined;
+                        return (
+                          <FormFieldShell
+                            fieldId="fleet-start-mileage"
+                            label={copy.labels.startMileage}
+                            required={requireIncomingOdometer}
+                            errorMessage={fieldState.error?.message}
+                            description={
+                              catalogMileage !== undefined
+                                ? copy.hints.startMileageFromCatalog(
+                                    catalogMileage,
+                                  )
+                                : copy.hints.startMileage
+                            }
+                          >
+                            <Input
+                              id="fleet-start-mileage"
+                              type="number"
+                              min={0}
+                              step={1}
+                              placeholder={copy.placeholders.startMileage}
+                              value={field.value ?? ""}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value === ""
+                                    ? undefined
+                                    : Number(e.target.value),
+                                )
+                              }
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
+                              disabled={isFormBusy}
+                              error={Boolean(fieldState.error)}
+                              {...getFieldErrorAriaProps(
+                                "fleet-start-mileage",
+                                fieldState.error?.message,
+                              )}
+                            />
+                          </FormFieldShell>
+                        );
+                      }}
+                    />
+                  ) : null}
 
                   <TripTrailerAssignmentFields
                     form={form}
