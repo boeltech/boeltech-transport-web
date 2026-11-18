@@ -122,6 +122,33 @@ describe("TripActions", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers Repartir flete from Más when revenueSplitMenuItem is provided (D-HF2)", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <TripActions
+          variant="detailMenu"
+          tripId="trip-1"
+          tripCode="TR-001"
+          status={TripStatus.IN_PROGRESS}
+          revenueSplitMenuItem={{
+            label: "Repartir flete entre clientes…",
+            onSelect,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    await openMoreMenu(user);
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: "Repartir flete entre clientes…",
+      }),
+    );
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
   it("warns to declare false trip instead when cancelling after a real arrival", async () => {
     const user = userEvent.setup();
     render(

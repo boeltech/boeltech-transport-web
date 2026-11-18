@@ -72,7 +72,16 @@ import {
   Loader2,
   ChevronDown,
   Copy,
+  Users,
 } from "lucide-react";
+
+/** Ítem terciario fiscal en «Más» (D-HF2/D-HF3 — reparto ADR-0081). */
+export type TripDetailRevenueSplitMenuItem = {
+  label: string;
+  disabled?: boolean;
+  disabledTitle?: string;
+  onSelect: () => void;
+};
 
 function cloneTripDefaultLocals(source: {
   scheduledDeparture?: Date | null;
@@ -141,6 +150,10 @@ interface CommonProps {
    * (mismo confirm del shell desde Qué sigue).
    */
   openCancelSignal?: number;
+  /**
+   * D5 / D-HF2: overflow fiscal (Repartir flete…) en «Más», no hermano de Facturar.
+   */
+  revenueSplitMenuItem?: TripDetailRevenueSplitMenuItem | null;
 }
 
 type TripActionsProps = CommonProps & (TripObjectProps | TripIndividualProps);
@@ -175,6 +188,7 @@ export function TripActions(props: TripActionsProps) {
     openCancelSignal = 0,
     menuTriggerClassName,
     menuAriaLabel = "Abrir menú de acciones",
+    revenueSplitMenuItem = null,
   } = props;
 
   // Extraer valores del trip o de props individuales
@@ -513,22 +527,54 @@ export function TripActions(props: TripActionsProps) {
   // ---------------------------------------------------------------------------
 
   if (variant === "detailMenu") {
-    const hasMenuContent = canCancelTrip || canDeleteTrip || canCloneTrip;
+    const hasRevenueSplitItem = Boolean(revenueSplitMenuItem);
+    const hasMenuContent =
+      canCancelTrip || canDeleteTrip || canCloneTrip || hasRevenueSplitItem;
     if (!hasMenuContent) {
       return null;
     }
+
+    const showOpsSeparator =
+      hasRevenueSplitItem && (canCloneTrip || canCancelTrip || canDeleteTrip);
 
     return (
       <>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1 shrink-0" disabled={isLoading}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 shrink-0"
+              disabled={isLoading}
+              data-testid="trip-detail-more-menu"
+            >
               <MoreHorizontal className="h-4 w-4 shrink-0" />
               <span className="mx-0.5">{tripDetailCopy.shell.action.more}</span>
               <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-64">
+            {revenueSplitMenuItem ? (
+              <DropdownMenuItem
+                disabled={revenueSplitMenuItem.disabled || isLoading}
+                title={
+                  revenueSplitMenuItem.disabled
+                    ? revenueSplitMenuItem.disabledTitle
+                    : undefined
+                }
+                onSelect={() => {
+                  if (revenueSplitMenuItem.disabled) return;
+                  setTimeout(() => revenueSplitMenuItem.onSelect(), 0);
+                }}
+                data-testid="trip-detail-more-revenue-split"
+              >
+                <Users className="mr-2 h-4 w-4" />
+                {revenueSplitMenuItem.label}
+              </DropdownMenuItem>
+            ) : null}
+
+            {showOpsSeparator ? <DropdownMenuSeparator /> : null}
+
             {canCloneTrip ? (
               <DropdownMenuItem
                 onSelect={() => {

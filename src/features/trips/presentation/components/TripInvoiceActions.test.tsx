@@ -107,8 +107,7 @@ describe("TripInvoiceActions false trip (ADR-0079)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("headerMenu: stamped false_trip shows Facturación + ver factura without create", async () => {
-    const user = userEvent.setup();
+  it("headerMenu: stamped false_trip sin Facturar ni overflow (ver factura → tab)", () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
@@ -137,37 +136,17 @@ describe("TripInvoiceActions false trip (ADR-0079)", () => {
       </QueryClientProvider>,
     );
 
-    const menuTrigger = screen.getByRole("button", {
-      name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-    });
-    expect(menuTrigger).toBeInTheDocument();
-
-    await user.click(menuTrigger);
-
     expect(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.viewPrimary,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateFalseTrip,
-      }),
+      screen.queryByTestId("trip-header-facturar"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      screen.queryByTestId("trip-invoice-header-overflow"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
       }),
     ).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.viewPrimary,
-      }),
-    );
-    expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-falso-1", {
-      state: { from: `/trips/${TRIP_ID}` },
-    });
   });
 });
 
@@ -176,8 +155,7 @@ describe("TripInvoiceActions cancelled trip (hard-gate create)", () => {
     mockNavigate.mockReset();
   });
 
-  it("headerMenu: hides all create CTAs even if API canGenerate* is true", async () => {
-    const user = userEvent.setup();
+  it("headerMenu: cancelled hides Facturar/overflow even if API canGenerate* is true", () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
@@ -213,36 +191,15 @@ describe("TripInvoiceActions cancelled trip (hard-gate create)", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-      }),
-    );
-
     expect(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.viewPrimary,
-      }),
-    ).toBeInTheDocument();
+      screen.queryByTestId("trip-header-facturar"),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.viewAccessory("ACC-1"),
-      }),
-    ).toBeInTheDocument();
-
+      screen.queryByTestId("trip-invoice-header-overflow"),
+    ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("menuitem", {
+      screen.queryByRole("button", {
         name: tripFiscalCopy.invoiceActions.generatePrimary,
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateAccessory,
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateFalseTrip,
       }),
     ).not.toBeInTheDocument();
   });
@@ -340,7 +297,7 @@ describe("TripInvoiceActions decision sheet (F3 / D2)", () => {
   });
 });
 
-describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
+describe("TripInvoiceActions headerMenu D5 / D-HF1 (sin Select hermano)", () => {
   beforeEach(() => {
     mockNavigate.mockReset();
   });
@@ -358,8 +315,7 @@ describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
     );
   }
 
-  it("solo accessory: sin CTA primario Facturar; menú tipado navega a accessory", async () => {
-    const user = userEvent.setup();
+  it("solo accessory: sin Facturar ni overflow (accesoria → tab)", () => {
     renderHeader(
       makeTrip({
         status: TripStatus.COMPLETED,
@@ -377,26 +333,11 @@ describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
     );
 
     expect(
-      screen.queryByRole("button", {
-        name: tripFiscalCopy.invoiceActions.generatePrimary,
-      }),
+      screen.queryByTestId("trip-header-facturar"),
     ).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-      }),
-    );
-
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateAccessory,
-      }),
-    );
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/invoices/new?trip_id=${TRIP_ID}&scope=accessory`,
-      { state: { from: `/trips/${TRIP_ID}` } },
-    );
+    expect(
+      screen.queryByTestId("trip-invoice-header-overflow"),
+    ).not.toBeInTheDocument();
   });
 
   it.each([
@@ -404,7 +345,7 @@ describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
     TripStatus.IN_PROGRESS,
     TripStatus.COMPLETED,
   ] as const)(
-    "%s + solo accessory: sin CTA verde Facturar",
+    "%s + solo accessory: sin Facturar ni overflow",
     (status) => {
       renderHeader(
         makeTrip({
@@ -423,19 +364,15 @@ describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
       );
 
       expect(
-        screen.queryByRole("button", {
-          name: tripFiscalCopy.invoiceActions.generatePrimary,
-        }),
+        screen.queryByTestId("trip-header-facturar"),
       ).not.toBeInTheDocument();
       expect(
-        screen.getByRole("button", {
-          name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-        }),
-      ).toBeInTheDocument();
+        screen.queryByTestId("trip-invoice-header-overflow"),
+      ).not.toBeInTheDocument();
     },
   );
 
-  it("freight-family elegible: Facturar outline en header (D5 / F1); no variante default", async () => {
+  it("freight-family elegible: Facturar outline en header; cero overflow", async () => {
     const user = userEvent.setup();
     renderHeader(
       makeTrip({
@@ -455,6 +392,9 @@ describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
     );
     expect(facturar.className).toMatch(/border-input|bg-background/);
     expect(facturar.className).not.toMatch(/bg-primary(?:\/|$|\s)/);
+    expect(
+      screen.queryByTestId("trip-invoice-header-overflow"),
+    ).not.toBeInTheDocument();
 
     await user.click(facturar);
     expect(mockNavigate).toHaveBeenCalledWith(
@@ -463,8 +403,7 @@ describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
     );
   });
 
-  it("0 creates + evidencia: sin CTA verde; Ver factura en menú", async () => {
-    const user = userEvent.setup();
+  it("0 creates + evidencia: sin Facturar ni overflow (ver → tab)", () => {
     renderHeader(
       makeTrip({
         operationalOutcome: "standard",
@@ -481,20 +420,10 @@ describe("TripInvoiceActions headerMenu sin CTA verde (F11a / D24)", () => {
     );
 
     expect(
-      screen.queryByRole("button", {
-        name: tripFiscalCopy.invoiceActions.generatePrimary,
-      }),
+      screen.queryByTestId("trip-header-facturar"),
     ).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-      }),
-    );
     expect(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.viewPrimary,
-      }),
-    ).toBeInTheDocument();
+      screen.queryByTestId("trip-invoice-header-overflow"),
+    ).not.toBeInTheDocument();
   });
 });

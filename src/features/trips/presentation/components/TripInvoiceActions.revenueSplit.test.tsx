@@ -12,6 +12,7 @@ import {
 import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 import { TripInvoiceActions } from "./TripInvoiceActions";
+import { TripActions } from "./TripActions";
 import { TripRevenueSplitSummaryLine } from "./TripRevenueSplitSummaryLine";
 
 const mockNavigate = vi.fn();
@@ -50,6 +51,19 @@ vi.mock("@features/trips/application", async (importOriginal) => {
       isLoading: false,
       isFetched: true,
     }),
+    useCancelTrip: () => ({ mutate: vi.fn(), isPending: false }),
+    useDeleteTrip: () => ({ mutate: vi.fn(), isPending: false }),
+    useCloneTrip: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  };
+});
+
+vi.mock("@shared/hooks", async () => {
+  const actual = await vi.importActual<typeof import("@shared/hooks")>(
+    "@shared/hooks",
+  );
+  return {
+    ...actual,
+    useToast: () => ({ toast: vi.fn() }),
   };
 });
 
@@ -74,17 +88,42 @@ function renderHeaderMenu(trip: Trip) {
   return render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
-        <TripInvoiceActions
-          trip={trip}
-          presentation="headerMenu"
-          onOpenRevenueSplit={mockOpenSheet}
-        />
+        <TripInvoiceActions trip={trip} presentation="headerMenu" />
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
-describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
+function renderHeaderWithMore(
+  trip: Trip,
+  revenueSplitMenuItem: {
+    label: string;
+    disabled?: boolean;
+    onSelect: () => void;
+  },
+) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>
+        <div className="flex gap-2">
+          <TripInvoiceActions trip={trip} presentation="headerMenu" />
+          <TripActions
+            variant="detailMenu"
+            tripId={trip.id}
+            tripCode={trip.tripCode}
+            status={trip.status}
+            revenueSplitMenuItem={revenueSplitMenuItem}
+          />
+        </div>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+describe("TripInvoiceActions revenue split handoff (D-HF1…3)", () => {
   beforeEach(() => {
     mockNavigate.mockReset();
     mockOpenSheet.mockReset();
@@ -92,32 +131,35 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
     mockRevenueSplitData = undefined;
   });
 
-  it("offers primary billing and reparto entry when trip is ready to bill", async () => {
-    const user = userEvent.setup();
+  it("ready to bill: Facturar outline only — cero Select overflow hermano", () => {
     renderHeaderMenu(makeTrip());
 
     expect(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.generatePrimary, "i"),
-      }),
+      screen.getByTestId("trip-header-facturar"),
     ).toBeInTheDocument();
-
-    await user.click(
-      screen.getByTestId("trip-invoice-header-overflow"),
-    );
-
     expect(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.openRevenueSplit,
+      screen.queryByTestId("trip-invoice-header-overflow"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
       }),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
   });
 
-  it("opens revenue split sheet from menu entry", async () => {
+  it("Repartir flete vive en Más, no hermano de Facturar", async () => {
     const user = userEvent.setup();
-    renderHeaderMenu(makeTrip());
+    renderHeaderWithMore(makeTrip(), {
+      label: tripFiscalCopy.invoiceActions.openRevenueSplit,
+      onSelect: mockOpenSheet,
+    });
 
-    await user.click(screen.getByTestId("trip-invoice-header-overflow"));
+    expect(screen.getByTestId("trip-header-facturar")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("trip-invoice-header-overflow"),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("trip-detail-more-menu"));
     await user.click(
       screen.getByRole("menuitem", {
         name: tripFiscalCopy.invoiceActions.openRevenueSplit,
@@ -127,8 +169,7 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
     expect(mockOpenSheet).toHaveBeenCalledTimes(1);
   });
 
-  it("shows split progress only in menu header when split is active", async () => {
-    const user = userEvent.setup();
+  it("split activo: header sin Facturar ni overflow", () => {
     renderHeaderMenu(
       makeTrip({
         invoicing: tripInvoicingFixture({
@@ -141,21 +182,15 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
       }),
     );
 
-    await user.click(screen.getByTestId("trip-invoice-header-overflow"));
-
     expect(
-      screen.getByText(
-        tripFiscalCopy.invoiceActions.splitProgress(1, 2),
-      ),
-    ).toBeInTheDocument();
+      screen.queryByTestId("trip-header-facturar"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("trip-invoice-header-overflow"),
+    ).not.toBeInTheDocument();
   });
 
-  it("sin trips.update/execute no ofrece Repartir y muestra escala a operación", async () => {
-    mockHasPermission.mockImplementation(
-      (module: string, action: string) =>
-        (module === "invoices" && (action === "create" || action === "read")) ||
-        (module === "trips" && action === "read"),
-    );
+  it("borrador de reparto: header sin Facturar", () => {
     mockRevenueSplitData = {
       id: "split-draft",
       tripId: "trip-ready-1",
@@ -167,24 +202,15 @@ describe("TripInvoiceActions revenue split handoff (Capa 3)", () => {
       updatedAt: "2026-08-22T10:00:00.000Z",
       legs: [],
     };
-    const user = userEvent.setup();
+
     renderHeaderMenu(makeTrip());
 
-    await user.click(screen.getByTestId("trip-invoice-header-overflow"));
-
     expect(
-      screen.queryByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.openRevenueSplit,
-      }),
+      screen.queryByTestId("trip-header-facturar"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.continueRevenueSplit,
-      }),
+      screen.queryByTestId("trip-invoice-header-overflow"),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByText(tripFiscalCopy.invoiceActions.patioEscalateHint),
-    ).toBeInTheDocument();
   });
 });
 

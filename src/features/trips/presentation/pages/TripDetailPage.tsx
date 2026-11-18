@@ -86,11 +86,13 @@ import {
 } from "./TripDetailLazyTabs";
 import { TripLinkedInvoiceDraftsSheet } from "../components/TripLinkedInvoiceDraftsSheet";
 import { TripRevenueSplitSheet } from "../components/TripRevenueSplitSheet";
+import { canUpsertTripRevenueSplit } from "../components/trip-fiscal/tripFiscalHelpers";
 import { TripJourneyStrip } from "../components/trip-shell/TripJourneyStrip";
 import { TripShellAlertsStack } from "../components/trip-shell/TripShellAlertsStack";
 import { TripPhaseOperateSheets } from "../components/trip-shell/TripPhaseOperateSheets";
 import { RegisterTrackingNoteSheet } from "../components/trip-tracking/RegisterTrackingNoteSheet";
 import { buildRegisterCollectionPath } from "@features/finance/application";
+import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 import { buildTripJourneyStripModel } from "../helpers/buildTripJourneyStripModel";
 import {
   formatTripLateDelayChip,
@@ -185,6 +187,8 @@ export function TripDetailPage() {
   /** `state.from` al abrir una factura desde este viaje (chevron de vuelta). */
   const tripDetailFromHref = `/trips/${tripId}`;
   const canUpdateTrip = hasPermission("trips", "update");
+  const canExecuteTrip = hasPermission("trips", "execute");
+  const canReadTrip = hasPermission("trips", "read");
   const canReadExpenses = hasPermission("expenses", "read");
   const canCreateExpense = hasPermission("expenses", "create");
   const canUpdateExpense = hasPermission("expenses", "update");
@@ -436,6 +440,60 @@ export function TripDetailPage() {
   const { data: revenueSplitForInvoiceScopes } = useTripRevenueSplit(tripId, {
     enabled: Boolean(tripId) && needsInvoiceScopeSplit,
   });
+
+  /** D-HF2/D-HF3: Repartir flete en «Más» (no hermano de Facturar). */
+  const revenueSplitMenuConfig = useMemo(() => {
+    if (!trip || isLeanTripPortal) return null;
+    if (trip.cfdiEmissionIntent === "sin_cfdi_efectivo") return null;
+    if (trip.operationalOutcome === "false_trip") return null;
+    if (!canReadTrip) return null;
+
+    const hasDraftSplit = revenueSplitForInvoiceScopes?.status === "draft";
+    const upsertEligibility = canUpsertTripRevenueSplit(trip);
+    const isTripCancelled = trip.status === TripStatus.CANCELLED;
+    const canShow =
+      trip.invoicing.hasActiveSplit ||
+      hasDraftSplit ||
+      (!isTripCancelled &&
+        (upsertEligibility.allowed || upsertEligibility.blockReason != null));
+    if (!canShow) return null;
+
+    const canOperatePatio = canUpdateTrip || canExecuteTrip;
+    if (!canOperatePatio && !trip.invoicing.hasActiveSplit) return null;
+
+    const invoiceActionsCopy = tripFiscalCopy.invoiceActions;
+    const label = trip.invoicing.hasActiveSplit
+      ? invoiceActionsCopy.viewRevenueSplitMenu
+      : hasDraftSplit
+        ? invoiceActionsCopy.continueRevenueSplit
+        : invoiceActionsCopy.openRevenueSplit;
+    const disabled =
+      !trip.invoicing.hasActiveSplit &&
+      !hasDraftSplit &&
+      !upsertEligibility.allowed;
+
+    return {
+      label,
+      disabled,
+      disabledTitle: disabled
+        ? (upsertEligibility.blockReason ?? undefined)
+        : undefined,
+    };
+  }, [
+    trip,
+    isLeanTripPortal,
+    canReadTrip,
+    canUpdateTrip,
+    canExecuteTrip,
+    revenueSplitForInvoiceScopes?.status,
+  ]);
+
+  const revenueSplitMenuItem = revenueSplitMenuConfig
+    ? {
+        ...revenueSplitMenuConfig,
+        onSelect: () => setRevenueSplitSheetOpen(true),
+      }
+    : null;
 
   const pendingSplitLegsForInvoice = useMemo(() => {
     if (revenueSplitForInvoiceScopes?.status !== "active") return [];
@@ -1547,7 +1605,6 @@ export function TripDetailPage() {
                   <TripInvoiceActions
                     trip={trip}
                     presentation="headerMenu"
-                    onOpenRevenueSplit={() => setRevenueSplitSheetOpen(true)}
                     scopeSheetOpen={invoiceScopeSheetOpen}
                     onScopeSheetOpenChange={setInvoiceScopeSheetOpen}
                   />
@@ -1566,6 +1623,7 @@ export function TripDetailPage() {
                     (cargo) => cargo.status === CargoStatus.DELIVERED,
                   )}
                   openCancelSignal={openCancelSignal}
+                  revenueSplitMenuItem={revenueSplitMenuItem}
                   onActionComplete={(updated) => {
                     const f = updated?.fiscalActionRequired;
                     if (f) {

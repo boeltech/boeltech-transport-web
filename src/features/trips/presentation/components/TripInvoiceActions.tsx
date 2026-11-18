@@ -7,26 +7,18 @@
  * ADR-0068: servicios adicionales · ADR-0079: viaje en falso · ADR-0081: reparto del flete.
  * F3: primaria Facturar → decision sheet o skip (D2); menú tipado = atajo.
  * F7 / D14: elevación freight-family (inline / menú tipado).
- * F11a / D24: sin CTA verde «Facturar» en headerMenu — solo menú dropdown.
+ * F11a / D24: sin CTA verde «Facturar» en headerMenu.
+ * D5 / D-HF1…7: headerMenu = ≤1 Facturar outline; overflow fiscal → Más / tab.
  */
 
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, FileText, Receipt, Users } from "lucide-react";
+import { FileText, Receipt, Users } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@shared/ui/dropdown-menu";
 import { usePermissions } from "@shared/permissions";
-import { buildInvoiceCreateHref } from "@features/invoicing/application";
 import { TripStatus, type Trip } from "@features/trips/domain";
-import { getTripInvoicingBadgeConfig, toDetailInvoicingBadge } from "@features/trips";
+import { getTripInvoicingBadgeConfig } from "@features/trips";
 import { useTripRevenueSplit } from "@features/trips/application";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 import {
@@ -50,14 +42,6 @@ export interface TripInvoiceActionsProps {
    */
   scopeSheetOpen?: boolean;
   onScopeSheetOpenChange?: (open: boolean) => void;
-}
-
-function legLabel(leg: {
-  clientRfc: string | null;
-  clientLegalName: string | null;
-  clientId: string;
-}): string {
-  return leg.clientLegalName || leg.clientRfc || leg.clientId.slice(0, 8);
 }
 
 export function TripInvoiceActions({
@@ -92,12 +76,6 @@ export function TripInvoiceActions({
   const isSinCfdiEfectivo = trip.cfdiEmissionIntent === "sin_cfdi_efectivo";
   /** Defensa local: viaje cancelado no ofrece CTAs de create (no solo flags API). */
   const isTripCancelled = trip.status === TripStatus.CANCELLED;
-
-  const canShowFalseTripInvoiceAction =
-    !isSinCfdiEfectivo &&
-    !isTripCancelled &&
-    canCreateInvoices &&
-    trip.invoicing.canGenerateFalseTripInvoice;
 
   const upsertEligibility = canUpsertTripRevenueSplit(trip);
 
@@ -150,12 +128,6 @@ export function TripInvoiceActions({
       ? copy.continueRevenueSplit
       : copy.openRevenueSplit;
 
-  const revenueSplitMenuDisabled =
-    !onOpenRevenueSplit ||
-    (!trip.invoicing.hasActiveSplit &&
-      !hasDraftSplit &&
-      !upsertEligibility.allowed);
-
   const canShowPendingAccountantHint =
     !canCreateInvoices &&
     !isSinCfdiEfectivo &&
@@ -172,8 +144,6 @@ export function TripInvoiceActions({
     !isFalseTripOutcome;
 
   const accessoryInvoices = trip.invoicing.accessoryInvoices ?? [];
-  const canViewAccessories =
-    (canReadInvoices || canCreateInvoices) && accessoryInvoices.length > 0;
 
   const eligibleScopes = useMemo(
     () =>
@@ -262,15 +232,6 @@ export function TripInvoiceActions({
     return null;
   }
 
-  const createFalseTripHref = buildInvoiceCreateHref({
-    tripId: trip.id,
-    scope: "false_trip",
-  });
-  const createAccessoryHref = buildInvoiceCreateHref({
-    tripId: trip.id,
-    scope: "accessory",
-  });
-
   const tripInvoicingConfig = getTripInvoicingBadgeConfig({
     status: trip.status,
     invoicing: trip.invoicing,
@@ -289,103 +250,6 @@ export function TripInvoiceActions({
     />
   );
 
-  const revenueSplitMenuItem =
-    canShowRevenueSplitEntry &&
-    (canOperatePatio || trip.invoicing.hasActiveSplit) ? (
-      <>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled={revenueSplitMenuDisabled}
-          title={
-            revenueSplitMenuDisabled
-              ? (upsertEligibility.blockReason ?? undefined)
-              : undefined
-          }
-          onSelect={() => {
-            setTimeout(() => onOpenRevenueSplit?.(), 0);
-          }}
-        >
-          <Users className="mr-2 h-4 w-4" />
-          {revenueSplitMenuLabel}
-        </DropdownMenuItem>
-      </>
-    ) : null;
-
-  const splitMenuItems = canShowSplitMenuGroup ? (
-    <>
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-        {copy.splitMenuGroup}
-      </DropdownMenuLabel>
-      {canViewSplitInvoices
-        ? invoicedSplitLegs.map((leg) => (
-            <DropdownMenuItem
-              key={`view-${leg.id}`}
-              onSelect={() => goToInvoice(`/invoices/${leg.invoiceId}`)}
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              {copy.viewSplitShare(legLabel(leg))}
-            </DropdownMenuItem>
-          ))
-        : null}
-      {canShowSplitShareInvoiceAction
-        ? pendingSplitLegs.map((leg) => {
-            const label = legLabel(leg);
-            const attach =
-              leg.suggestedCartaPorte && !trip.invoicing.cartaPorteAttached;
-            return (
-              <DropdownMenuItem
-                key={`create-${leg.id}`}
-                onSelect={() =>
-                  goToInvoice(
-                    buildInvoiceCreateHref({
-                      tripId: trip.id,
-                      scope: "split_share",
-                      legId: leg.id,
-                      attachCartaPorte: attach,
-                    }),
-                  )
-                }
-              >
-                <Receipt className="mr-2 h-4 w-4" />
-                {copy.generateSplitShare(label)}
-              </DropdownMenuItem>
-            );
-          })
-        : null}
-      {trip.invoicing.hasActiveSplit ? (
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          {copy.collectionByReceiverHint}
-        </DropdownMenuLabel>
-      ) : null}
-    </>
-  ) : null;
-
-  const accessoryMenuItems =
-    canViewAccessories || canShowAccessoryInvoiceAction ? (
-      <>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          {copy.accessoryMenuGroup}
-        </DropdownMenuLabel>
-        {accessoryInvoices.map((inv) => (
-          <DropdownMenuItem
-            key={inv.id}
-            onSelect={() => goToInvoice(`/invoices/${inv.id}`)}
-          >
-            <FileText className="mr-2 h-4 w-4" />
-            {copy.viewAccessory(inv.folio)}
-          </DropdownMenuItem>
-        ))}
-        {canShowAccessoryInvoiceAction ? (
-          <DropdownMenuItem onSelect={() => goToInvoice(createAccessoryHref)}>
-            <Receipt className="mr-2 h-4 w-4" />
-            {copy.generateAccessory}
-          </DropdownMenuItem>
-        ) : null}
-      </>
-    ) : null;
-
   const pendingAccountantBadge = canShowPendingAccountantHint ? (
     <Badge
       variant="warning"
@@ -397,103 +261,23 @@ export function TripInvoiceActions({
   ) : null;
 
   if (presentation === "headerMenu") {
-    // D5 / rediseño F1: Facturar outline en header (no verde; no dropdown como única CTA).
-    // Overflow fiscal (accesorias / split / ver) queda en menú compacto si aplica.
-    const hasOverflowMenu =
-      canShowLinkedInvoiceState ||
-      canShowAccessoryInvoiceAction ||
-      canShowSplitMenuGroup ||
-      canShowRevenueSplitEntry ||
-      (canShowFalseTripInvoiceAction && !showPrimaryFacturar) ||
-      showPatioEscalateHint;
+    // D5 / D-HF1: solo Facturar outline (+ badge contador). Cero Select hermano.
+    // Overflow fiscal (reparto / ver / accesorias / porciones) → Más / tab Facturación.
+    // D19/D28: split activo o borrador → sin Facturar en header.
+    const showHeaderFacturar =
+      showPrimaryFacturar &&
+      !hasDraftSplit &&
+      !trip.invoicing.hasActiveSplit;
 
-    if (
-      !showPrimaryFacturar &&
-      !hasOverflowMenu &&
-      !pendingAccountantBadge
-    ) {
-      return null;
+    if (!showHeaderFacturar && !pendingAccountantBadge) {
+      // Conservar sheet controlado (Qué sigue / next-step Facturar).
+      return scopeSheet;
     }
-
-    const overflowMenu = hasOverflowMenu ? (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={copy.menuLabel}
-            data-testid="trip-invoice-header-overflow"
-          >
-            <Receipt className="h-4 w-4 shrink-0" />
-            <ChevronDown className="ml-1 h-4 w-4 shrink-0 opacity-70" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-72">
-          <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={tripInvoicingConfig.variant}>
-                {toDetailInvoicingBadge(tripInvoicingConfig).label}
-              </Badge>
-              {trip.invoicing.hasActiveSplit ? (
-                <span className="text-xs text-muted-foreground">
-                  {copy.splitProgress(
-                    trip.invoicing.splitLegsInvoiced,
-                    trip.invoicing.splitLegsTotal,
-                  )}
-                </span>
-              ) : trip.invoicing.invoiceFolio ? (
-                <span className="text-xs text-muted-foreground">
-                  Folio {trip.invoicing.invoiceFolio}
-                </span>
-              ) : null}
-            </div>
-          </DropdownMenuLabel>
-
-          {showPatioEscalateHint ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="whitespace-normal text-xs font-normal text-muted-foreground">
-                {copy.patioEscalateHint}
-              </DropdownMenuLabel>
-            </>
-          ) : null}
-
-          {canShowFalseTripInvoiceAction && !showPrimaryFacturar ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => goToInvoice(createFalseTripHref)}>
-                <Receipt className="mr-2 h-4 w-4" />
-                {copy.generateFalseTrip}
-              </DropdownMenuItem>
-            </>
-          ) : null}
-
-          {revenueSplitMenuItem}
-
-          {canViewLinkedInvoice ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() =>
-                  goToInvoice(`/invoices/${trip.invoicing.invoiceId}`)
-                }
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                {copy.viewPrimary}
-              </DropdownMenuItem>
-            </>
-          ) : null}
-
-          {splitMenuItems}
-          {accessoryMenuItems}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ) : null;
 
     return (
       <div className={`flex flex-wrap items-center gap-2 ${className ?? ""}`}>
         {pendingAccountantBadge}
-        {showPrimaryFacturar ? (
+        {showHeaderFacturar ? (
           <Button
             type="button"
             variant="outline"
@@ -505,8 +289,6 @@ export function TripInvoiceActions({
             {copy.generatePrimary}
           </Button>
         ) : null}
-        {/* F1: Facturar outline + overflow (Reparto / ver / patio) cuando aplica — no ocultar el menú tras la primaria. */}
-        {overflowMenu}
         {scopeSheet}
       </div>
     );
