@@ -30,6 +30,7 @@ Lista alineada a `package.json` v0.3+ y [`contributing-public-api.md`](D:\cowork
 - `@boeltech/cfdi-domain/validadores/tracking` — schemas de eventos de seguimiento (API; web prefiere root si reexporta)
 - `@boeltech/cfdi-domain/reglas/address-readiness` — obligatoriedad Domicilio CP31 = XSD (`cp31-domicilio-xsd.ts`); lookup CP solo catálogos
 - `@boeltech/cfdi-domain/reglas/tracking-rules` — reglas de elegibilidad/timeline (opcional si root no basta)
+- `@boeltech/cfdi-domain/reglas/cargo-outcome-gates` — predicados desenlace carga / return replan (también root)
 - `@boeltech/cfdi-domain/entidades/tracking-event` — tipos de evento (opcional si root no basta)
 - `@boeltech/cfdi-domain/serializadores/carta-porte-31` — XML complemento Carta Porte 3.1 (API)
 - `@boeltech/cfdi-domain/serializadores/rep20` — XML complemento recepción de pagos 2.0 (API)
