@@ -14,6 +14,7 @@ import {
 import { TripStopAddressSingleLine } from "../TripStopAddressLines";
 import { tripDetailCopy } from "../../copy";
 import { trackingCopy } from "../../copy/tripDetail/trackingCopy";
+import { formatRouteStopPlaceLabel } from "../../helpers/routeStopPlaceLabel";
 import {
   getStopOperationalVisitLabel,
   getStopOperationalVisitState,
@@ -61,11 +62,9 @@ function visitBadgeLabel(
 
 function stopTitle(row: RouteMasterRow): string {
   if (row.stop) {
-    return (
-      row.stop.locationName?.trim() ||
-      row.stop.city?.trim() ||
-      row.stop.address?.trim() ||
-      copy.format.stopFallbackName(row.stop.sequenceOrder)
+    return formatRouteStopPlaceLabel(
+      row.stop,
+      copy.format.stopFallbackName(row.stop.sequenceOrder),
     );
   }
   return (

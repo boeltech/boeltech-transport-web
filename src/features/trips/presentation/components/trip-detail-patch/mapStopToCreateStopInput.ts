@@ -18,14 +18,16 @@ function parseDistance(value: string): number | undefined {
 }
 
 /**
- * El schema API exige `city` con longitud mínima 2. Algunos viajes viejos traen ciudad vacía
- * aunque tengan nombre de ubicación o dirección; derivamos un valor válido sin inventar CP.
+ * El schema API exige `city` con longitud mínima 2. Algunos viajes viejos traen ciudad vacía;
+ * derivamos un valor válido sin inventar CP.
+ * F9h: nunca `locationName` comercial como city.
  */
 export function resolveStopCityForApi(stop: NonNullable<Trip["stops"]>[number]): string {
   const candidates = [
     stop.city,
-    stop.locationName,
     stop.colonia,
+    stop.satMunicipioCode,
+    stop.satEstadoCode || stop.state,
     stop.street,
     stop.address,
   ];

@@ -90,6 +90,8 @@ import { useToast, useOverlayMutationFeedback } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { usePermissions } from "@shared/permissions";
 
+import { isStopFormFieldValidationError } from "./stopFormFieldValidationError";
+
 import { useActiveClients } from "@features/clients/application/hooks/useClients";
 import { useClientAddress } from "@features/clients/application/hooks/useClientAddresses";
 import { useCreateClientAddress } from "@features/clients/application/hooks/useCreateClientAddress";
@@ -196,8 +198,17 @@ export interface StopFormSheetProps {
   selectionConfirm?: "sheet" | "immediate";
   /** CTA primario (alta: «Usar como origen/destino»). Default: Guardar parada. */
   primaryActionLabel?: string;
-  /** Caja de consecuencias bajo el footer (alta Confirmar). */
-  consequences?: ReactNode;
+  /**
+   * Caja de consecuencias bajo el footer (alta Confirmar).
+   * Si es función, recibe campos vivos del form (nombre/pin) — F9i D-EP-7.
+   */
+  consequences?:
+    | ReactNode
+    | ((live: {
+        locationName: string;
+        latitude: number | null;
+        longitude: number | null;
+      }) => ReactNode);
   /** Si true, el padre ya pintó título/stepper (panel único). */
   hideChromeHeader?: boolean;
 }
@@ -688,11 +699,22 @@ export function StopFormSheet({
         await onSubmit(payload);
         closeDialog();
       } catch (error) {
+        // F9g — validación de campo (p. ej. ETA ≤ salida): inline, sin Alert/toast.
+        if (isStopFormFieldValidationError(error)) {
+          applyStopFieldErrors(error.fieldErrors);
+          return;
+        }
         showOverlayError(getErrorMessage(error));
         throw error;
       }
     },
-    [clearOverlayError, closeDialog, onSubmit, showOverlayError],
+    [
+      applyStopFieldErrors,
+      clearOverlayError,
+      closeDialog,
+      onSubmit,
+      showOverlayError,
+    ],
   );
 
   const submitDialog = handleSubmit(async (values) => {
@@ -1794,7 +1816,13 @@ export function StopFormSheet({
               ) : null}
             </div>
           ) : null}
-          {consequences}
+          {typeof consequences === "function"
+            ? consequences({
+                locationName: displayStop.locationName ?? "",
+                latitude: displayStop.latitude ?? null,
+                longitude: displayStop.longitude ?? null,
+              })
+            : consequences}
           <div className="flex w-full flex-row justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => closeDialog()}>
               {stopForm.action.cancel}

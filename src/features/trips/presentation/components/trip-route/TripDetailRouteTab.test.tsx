@@ -1,4 +1,4 @@
-import { type ReactElement } from "react";
+import { type ReactElement, useState } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -16,6 +16,7 @@ import {
 import type { AddressSearchListItem } from "@shared/ui/address-picker/types";
 import { TooltipProvider } from "@shared/ui/tooltip";
 
+import { DESTINATION_ETA_MUST_BE_AFTER_DEPARTURE } from "../trip-detail-patch";
 import { tripDetailCopy } from "../../copy";
 import { TripDetailRouteTab } from "./TripDetailRouteTab";
 
@@ -25,11 +26,14 @@ const mocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
   replaceMutateAsync: vi.fn(),
   replanMutateAsync: vi.fn(),
+  updateTripMutateAsync: vi.fn(),
   toast: vi.fn(),
   isPending: false,
   corridors: [] as ClientCorridor[],
   nextPickerItems: [] as AddressSearchListItem[],
   nextLocationValues: [] as import("@shared/ui/location").LocationValue[],
+  /** Override ETA on next sheet submit (F9e). */
+  nextEstimatedArrival: undefined as string | undefined,
   defaultPickerItem: {
     id: "11111111-1111-4111-8111-111111111111",
     ownerType: "client" as const,
@@ -73,6 +77,10 @@ vi.mock("@features/trips/application", () => ({
     },
     isPending: mocks.isPending,
   }),
+  useUpdateTrip: () => ({
+    mutateAsync: (...args: unknown[]) => mocks.updateTripMutateAsync(...args),
+    isPending: false,
+  }),
   useClientCorridors: () => ({
     data: mocks.corridors,
     isLoading: false,
@@ -94,6 +102,7 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
     heading,
     initialData,
     onSubmit,
+    onOpenChange,
     isPending,
     initialStep,
     contextLine,
@@ -103,7 +112,13 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
     isPending?: boolean;
     initialStep?: "search" | "confirm";
     contextLine?: string | null;
-    initialData?: { stopCategory?: string; stopType?: string[]; locationName?: string };
+    initialData?: {
+      stopCategory?: string;
+      stopType?: string[];
+      locationName?: string;
+      previousStopLabel?: string;
+    };
+    onOpenChange?: (open: boolean) => void;
     onSubmit: (data: {
       stopCategory: string;
       stopType: string[];
@@ -118,20 +133,33 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
       latitude: number;
       longitude: number;
     }) => Promise<void>;
-  }) =>
-    open ? (
+  }) => {
+    const [fieldError, setFieldError] = useState<string | null>(null);
+    if (!open) return null;
+    return (
       <div
         role="dialog"
         data-testid="stop-form-sheet"
         data-variant="sheet"
         data-step={initialStep ?? "confirm"}
         data-is-pending={isPending ? "true" : "false"}
+        data-location-name={initialData?.locationName ?? ""}
+        data-previous-stop-label={initialData?.previousStopLabel ?? ""}
       >
         <span data-testid="trip-stop-panel-stepper">Buscar Confirmar</span>
         {contextLine ? (
           <span data-testid="trip-stop-panel-context">{contextLine}</span>
         ) : null}
         <span>{heading}</span>
+        {initialData?.locationName ? (
+          <span data-testid="sheet-location-name">{initialData.locationName}</span>
+        ) : null}
+        {fieldError ? (
+          <span data-testid="estimated-arrival-error">{fieldError}</span>
+        ) : null}
+        <button type="button" onClick={() => onOpenChange?.(false)}>
+          dismiss-sheet
+        </button>
         <button
           type="button"
           disabled={Boolean(isPending)}
@@ -140,6 +168,9 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
             const isOrigin = category === "origin";
             const queuedItem = mocks.nextPickerItems.shift();
             const queuedValue = mocks.nextLocationValues.shift();
+            const etaOverride = mocks.nextEstimatedArrival;
+            mocks.nextEstimatedArrival = undefined;
+            setFieldError(null);
             void Promise.resolve(
               onSubmit({
                 ...(initialData as Record<string, unknown>),
@@ -179,6 +210,9 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
                   queuedValue?.longitude ??
                   (isOrigin ? -103.35 : -100.32),
                 sourceAddressId: queuedItem?.id,
+                ...(etaOverride !== undefined
+                  ? { estimatedArrival: etaOverride }
+                  : {}),
                 ...(queuedItem
                   ? {
                       locationName: queuedItem.locationName,
@@ -201,13 +235,26 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
                     }
                   : {}),
               }),
-            ).catch(() => undefined);
+            ).catch((error: unknown) => {
+              const fieldErrors =
+                error &&
+                typeof error === "object" &&
+                "fieldErrors" in error &&
+                error.fieldErrors &&
+                typeof error.fieldErrors === "object"
+                  ? (error.fieldErrors as Record<string, string>)
+                  : null;
+              if (fieldErrors?.estimatedArrival) {
+                setFieldError(fieldErrors.estimatedArrival);
+              }
+            });
           }}
         >
           submit-stop
         </button>
       </div>
-    ) : null,
+    );
+  },
 }));
 
 const pickerItem = mocks.defaultPickerItem;
@@ -335,10 +382,12 @@ describe("TripDetailRouteTab", () => {
     mocks.mutateAsync.mockResolvedValue({});
     mocks.replaceMutateAsync.mockResolvedValue({});
     mocks.replanMutateAsync.mockResolvedValue({});
+    mocks.updateTripMutateAsync.mockResolvedValue({});
     mocks.isPending = false;
     mocks.corridors = [];
     mocks.nextPickerItems = [];
     mocks.nextLocationValues = [];
+    mocks.nextEstimatedArrival = undefined;
   });
 
   it("shows the composer on empty route instead of Agregar parada opening a create sheet", () => {
@@ -1501,6 +1550,280 @@ describe("TripDetailRouteTab", () => {
     ).not.toBeInTheDocument();
   });
 
+  describe("F9e — Destino ETA → trip.scheduledArrival", () => {
+    it("projects destination ETA via updateTrip after replace success", async () => {
+      const user = userEvent.setup();
+      mocks.nextEstimatedArrival = "2026-08-14T18:00";
+      const dest = tripStop({
+        id: "stop-2",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION, StopType.DELIVERY],
+        locationName: "CEDIS Sur",
+        estimatedArrival: new Date("2026-08-14T16:00:00.000Z"),
+      });
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={{
+            ...trip,
+            scheduledArrival: new Date("2026-08-14T12:00:00.000Z"),
+          }}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[tripStop(), dest]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getAllByRole("button", { name: copy.action.editStop })[1]!,
+      );
+      expect(screen.getByTestId("stop-form-sheet")).toHaveTextContent(
+        copy.format.editStopTitle(2),
+      );
+      await user.click(screen.getByRole("button", { name: "submit-stop" }));
+
+      expect(mocks.replaceMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.updateTripMutateAsync).toHaveBeenCalledTimes(1);
+      const updateArg = mocks.updateTripMutateAsync.mock.calls[0]?.[0] as {
+        id: string;
+        data: { scheduledArrival?: string; scheduledDeparture?: string };
+      };
+      expect(updateArg.id).toBe("trip-1");
+      expect(updateArg.data.scheduledArrival).toBeDefined();
+      expect(updateArg.data.scheduledDeparture).toBeDefined();
+      expect(updateArg.data).not.toHaveProperty("stops");
+    });
+
+    it("does not call updateTrip when destination has no ETA", async () => {
+      const user = userEvent.setup();
+      mocks.nextEstimatedArrival = "";
+      const dest = tripStop({
+        id: "stop-2",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION, StopType.DELIVERY],
+        locationName: "CEDIS Sur",
+        estimatedArrival: null,
+      });
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={{
+            ...trip,
+            scheduledArrival: new Date("2026-08-14T18:00:00.000Z"),
+          }}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[tripStop(), dest]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getAllByRole("button", { name: copy.action.editStop })[1]!,
+      );
+      await user.click(screen.getByRole("button", { name: "submit-stop" }));
+
+      expect(mocks.replaceMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.updateTripMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("does not project when saving origin", async () => {
+      const user = userEvent.setup();
+      mocks.nextEstimatedArrival = "2026-08-14T18:00";
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[
+            tripStop(),
+            tripStop({
+              id: "stop-2",
+              sequenceOrder: 2,
+              stopType: [StopType.DESTINATION, StopType.DELIVERY],
+              locationName: "CEDIS Sur",
+            }),
+          ]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getAllByRole("button", { name: copy.action.editStop })[0]!,
+      );
+      await user.click(screen.getByRole("button", { name: "submit-stop" }));
+
+      expect(mocks.replaceMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.updateTripMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("projects destination ETA after mid-trip replan success", async () => {
+      const user = userEvent.setup();
+      mocks.nextEstimatedArrival = "2026-08-14T20:00";
+      const origin = tripStop({
+        id: "stop-origin",
+        status: "completed",
+        actualDeparture: new Date("2026-05-01T10:00:00.000Z"),
+      });
+      const dest = tripStop({
+        id: "stop-dest",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION, StopType.DELIVERY],
+        locationName: "CEDIS Sur",
+        estimatedArrival: new Date("2026-08-14T16:00:00.000Z"),
+      });
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={{
+            ...trip,
+            status: TripStatus.IN_PROGRESS,
+            scheduledArrival: null,
+          }}
+          tripStatus={TripStatus.IN_PROGRESS}
+          orderedStops={[origin, dest]}
+          progress={0}
+          canEditStructural={false}
+          canReplanPendingStops
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /Destino\. CEDIS Sur/ }));
+      await user.click(
+        screen.getByRole("button", { name: copy.action.editStop }),
+      );
+      await user.click(screen.getByRole("button", { name: "submit-stop" }));
+
+      expect(mocks.replanMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.replaceMutateAsync).not.toHaveBeenCalled();
+      expect(mocks.updateTripMutateAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it("toasts schedule error without reverting stops when updateTrip fails", async () => {
+      const user = userEvent.setup();
+      mocks.nextEstimatedArrival = "2026-08-14T18:00";
+      mocks.updateTripMutateAsync.mockRejectedValueOnce(
+        new Error("schedule failed"),
+      );
+      const dest = tripStop({
+        id: "stop-2",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION, StopType.DELIVERY],
+        locationName: "CEDIS Sur",
+      });
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={{ ...trip, scheduledArrival: null }}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[tripStop(), dest]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getAllByRole("button", { name: copy.action.editStop })[1]!,
+      );
+      await user.click(screen.getByRole("button", { name: "submit-stop" }));
+
+      expect(mocks.replaceMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.updateTripMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: tripDetailCopy.operation.toast.scheduleUpdateError,
+        }),
+      );
+    });
+  });
+
+  describe("F9g — Destino ETA ≤ salida bloquea Guardar", () => {
+    it("blocks replace/updateTrip, shows inline ETA error, keeps sheet open, zero toasts", async () => {
+      const user = userEvent.setup();
+      // trip.scheduledDeparture = 2026-08-14T10:00Z → 04:00 CDMX; ETA igual = inválida
+      mocks.nextEstimatedArrival = "2026-08-14T04:00";
+      const dest = tripStop({
+        id: "stop-2",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION, StopType.DELIVERY],
+        locationName: "CEDIS Sur",
+        estimatedArrival: new Date("2026-08-14T16:00:00.000Z"),
+      });
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={{
+            ...trip,
+            scheduledArrival: new Date("2026-08-14T16:00:00.000Z"),
+          }}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[tripStop(), dest]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getAllByRole("button", { name: copy.action.editStop })[1]!,
+      );
+      expect(screen.getByTestId("stop-form-sheet")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "submit-stop" }));
+
+      expect(mocks.replaceMutateAsync).not.toHaveBeenCalled();
+      expect(mocks.replanMutateAsync).not.toHaveBeenCalled();
+      expect(mocks.updateTripMutateAsync).not.toHaveBeenCalled();
+      expect(
+        await screen.findByTestId("estimated-arrival-error"),
+      ).toHaveTextContent(DESTINATION_ETA_MUST_BE_AFTER_DEPARTURE);
+      expect(screen.getByTestId("stop-form-sheet")).toBeInTheDocument();
+      expect(mocks.toast).not.toHaveBeenCalledWith(
+        expect.objectContaining({ title: copy.toast.stopsSaved }),
+      );
+      expect(mocks.toast).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: tripDetailCopy.operation.toast.scheduleUpdateError,
+        }),
+      );
+      expect(mocks.toast).not.toHaveBeenCalled();
+    });
+
+    it("does not block origin even with ETA before departure", async () => {
+      const user = userEvent.setup();
+      mocks.nextEstimatedArrival = "2026-08-14T04:00";
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[
+            tripStop(),
+            tripStop({
+              id: "stop-2",
+              sequenceOrder: 2,
+              stopType: [StopType.DESTINATION, StopType.DELIVERY],
+              locationName: "CEDIS Sur",
+            }),
+          ]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getAllByRole("button", { name: copy.action.editStop })[0]!,
+      );
+      await user.click(screen.getByRole("button", { name: "submit-stop" }));
+
+      expect(mocks.replaceMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mocks.updateTripMutateAsync).not.toHaveBeenCalled();
+      expect(
+        screen.queryByTestId("estimated-arrival-error"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it("opens fiscal confirm dialog on replan when trip has stamped invoice, and executes on confirm", async () => {
     const user = userEvent.setup();
     const stampedTrip = {
@@ -1747,6 +2070,168 @@ describe("TripDetailRouteTab", () => {
       expect(
         screen.queryByRole("button", { name: copy.action.reorderDown }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("F9f — Cambiar destino seed + draft sticky", () => {
+    const bambuDest = () =>
+      tripStop({
+        id: "stop-bambu",
+        sequenceOrder: 2,
+        stopType: [StopType.DESTINATION, StopType.DELIVERY],
+        locationName: "Bambú Guadalajara",
+        city: "Guadalajara",
+        postalCode: "45050",
+        latitude: 20.66,
+        longitude: -103.4,
+        street: "Av Bambú",
+        exteriorNumber: "100",
+      });
+
+    const nissanPick: AddressSearchListItem = {
+      ...pickerItem,
+      id: "33333333-3333-4333-8333-333333333333",
+      locationName: "Nissan Aguascalientes",
+      street: "Carretera Panamericana",
+      exteriorNumber: "500",
+      postalCode: "20305",
+      satStateCode: "AGU",
+      satMunicipalityCode: "001",
+      latitude: 21.88,
+      longitude: -102.29,
+    };
+
+    const destinationPickerName = `${copy.composer.destinationSlot}: ${copy.composer.pickerLabel}`;
+
+    it("seeds Confirm sheet with catalog pick (not persisted destination)", async () => {
+      const user = userEvent.setup();
+      mocks.nextPickerItems = [nissanPick];
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[tripStop(), bambuDest()]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: copy.action.changeDestination }),
+      );
+      await user.click(
+        screen.getByRole("button", { name: destinationPickerName }),
+      );
+
+      const sheet = await screen.findByTestId("stop-form-sheet");
+      expect(sheet).toHaveAttribute("data-step", "confirm");
+      expect(screen.getByTestId("sheet-location-name")).toHaveTextContent(
+        "Nissan Aguascalientes",
+      );
+      expect(sheet).not.toHaveAttribute(
+        "data-location-name",
+        "Bambú Guadalajara",
+      );
+      expect(sheet).toHaveAttribute("data-previous-stop-label", "Bodega Alpha");
+      expect(sheet).toHaveTextContent(copy.panel.chooseDestination);
+    });
+
+    it("clears destination draft on sheet dismiss without Usar (no sticky)", async () => {
+      const user = userEvent.setup();
+      mocks.nextPickerItems = [nissanPick];
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[tripStop(), bambuDest()]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: copy.action.changeDestination }),
+      );
+      await user.click(
+        screen.getByRole("button", { name: destinationPickerName }),
+      );
+      expect(await screen.findByTestId("stop-form-sheet")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "dismiss-sheet" }));
+      expect(screen.queryByTestId("stop-form-sheet")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(copy.unsaved.draftEndpoints),
+      ).not.toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole("button", { name: copy.action.changeDestination }),
+      );
+      expect(
+        screen.queryByText(
+          new RegExp(`${copy.composer.selectedStop}:\\s*Nissan Aguascalientes`),
+        ),
+      ).not.toBeInTheDocument();
+    });
+
+    it("clears destination draft when Canceling change-destination panel", async () => {
+      const user = userEvent.setup();
+      mocks.nextPickerItems = [nissanPick];
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[tripStop(), bambuDest()]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: copy.action.changeDestination }),
+      );
+      // Pick opens sheet; dismiss leaves draft sticky without F9f cleanup —
+      // then re-enter change dest, Cancel before another pick.
+      await user.click(
+        screen.getByRole("button", { name: destinationPickerName }),
+      );
+      await user.click(screen.getByRole("button", { name: "dismiss-sheet" }));
+
+      await user.click(
+        screen.getByRole("button", { name: copy.action.changeDestination }),
+      );
+      // Re-entry clears draft (handleChangeDestination); Cancel also clears.
+      await user.click(screen.getByRole("button", { name: copy.action.cancel }));
+
+      expect(
+        screen.queryByText(copy.unsaved.draftEndpoints),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("stop-form-sheet")).not.toBeInTheDocument();
+    });
+
+    it("keeps editing a persisted stop seeded with that stop (CA6)", async () => {
+      const user = userEvent.setup();
+
+      renderTab(
+        <TripDetailRouteTab
+          trip={trip}
+          tripStatus={TripStatus.DRAFT}
+          orderedStops={[tripStop(), bambuDest()]}
+          progress={0}
+          canEditStructural
+        />,
+      );
+
+      await user.click(
+        screen.getAllByRole("button", { name: copy.action.editStop })[1]!,
+      );
+      const sheet = await screen.findByTestId("stop-form-sheet");
+      expect(sheet).toHaveTextContent(copy.format.editStopTitle(2));
+      expect(screen.getByTestId("sheet-location-name")).toHaveTextContent(
+        "Bambú Guadalajara",
+      );
     });
   });
 });

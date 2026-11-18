@@ -51,4 +51,13 @@ describe("routeCopy — léxico operativo (Capa 1 D3)", () => {
       /Completa el domicilio/,
     );
   });
+
+  it("F9e: hints de programación apuntan a Resumen, no Operación", () => {
+    expect(routeCopy.hint.sheetDescriptionOrigin).toMatch(/Resumen/);
+    expect(routeCopy.hint.sheetDescriptionOrigin).not.toMatch(/Operación/);
+    expect(routeCopy.hint.sheetDescriptionDestination).toMatch(/Resumen/);
+    expect(routeCopy.hint.sheetDescriptionDestination).not.toMatch(/Operación/);
+    expect(routeCopy.hint.sheetOriginDeparture).toMatch(/Resumen/);
+    expect(routeCopy.hint.sheetOriginDeparture).not.toMatch(/Operación/);
+  });
 });

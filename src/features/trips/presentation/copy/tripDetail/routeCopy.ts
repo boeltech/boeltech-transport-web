@@ -39,13 +39,13 @@ export const routeCopy = {
     sheetDescriptionAppend:
       "La nueva parada queda al final del recorrido. No se reordenan ni eliminan paradas existentes.",
     sheetDescriptionOrigin:
-      "Datos del origen. La salida programada del viaje se edita en el tab Operación.",
+      "Datos del origen. La salida programada del viaje se edita en el tab Resumen.",
     sheetDescriptionDestination:
-      "Llegada estimada (sincronizada con Operación) y domicilio del destino.",
+      "Llegada estimada (sincronizada con Resumen) y domicilio del destino.",
     sheetDescriptionWaypoint:
       "Llegada y salida estimadas y domicilio de la escala.",
     sheetOriginDeparture:
-      "En origen no aplica hora de llegada. La salida programada se configura en el tab Operación; al iniciar el viaje, Seguimiento registra la salida real de esta parada.",
+      "En origen no aplica hora de llegada. La salida programada se configura en el tab Resumen; al iniciar el viaje, Seguimiento registra la salida real de esta parada.",
     deliveryParty:
       "Úsalo cuando quien recibe la mercancía en esta parada no sea el mismo que el del domicilio.",
     deliveryName:
@@ -133,6 +133,10 @@ export const routeCopy = {
     consequenceSaveRoute: (from: string, to: string) =>
       `Se guarda la ruta: ${from} → ${to}.`,
     consequenceDistance: (km: string) => `Se calcula la distancia: ${km} km.`,
+    /** Sin preview coherente (p. ej. escala) — D-EP-4. */
+    consequenceDistancePendingSave:
+      "Se calculará la distancia al guardar.",
+    /** Faltan coords en un extremo — D-EP-4. */
     consequenceDistancePending:
       "Se calculará la distancia al tener ambos extremos con mapa.",
     consequenceCartaPorte:

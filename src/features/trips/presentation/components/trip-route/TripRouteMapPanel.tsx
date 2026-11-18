@@ -19,11 +19,14 @@ const copy = tripDetailCopy.route;
 export type TripRouteMapPanelProps = {
   stops: readonly TripStop[];
   className?: string;
+  /** Geometría de ruta planeada/real; sin ella no se muestra leyenda (F9h). */
+  routeGeojson?: Record<string, unknown> | null;
 };
 
 export function TripRouteMapPanel({
   stops,
   className = "h-[400px] w-full rounded-xl",
+  routeGeojson = null,
 }: TripRouteMapPanelProps) {
   const mapboxToken = config.geolocation.mapboxPublicToken;
   const ordered = useMemo(
@@ -34,6 +37,7 @@ export function TripRouteMapPanel({
     () => buildMapStopMarkers(ordered).length > 0,
     [ordered],
   );
+  const showRouteLegend = routeGeojson != null;
 
   return (
     <div
@@ -50,7 +54,7 @@ export function TripRouteMapPanel({
             token={mapboxToken}
             stops={ordered}
             events={[]}
-            routeGeojson={null}
+            routeGeojson={routeGeojson}
             lastKnownPosition={null}
             className={className}
           />
@@ -65,19 +69,21 @@ export function TripRouteMapPanel({
           </p>
         </div>
       )}
-      <div className="flex flex-wrap gap-4 border-t px-3 py-2 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-0.5 w-4 rounded-full bg-primary" aria-hidden />
-          {copy.label.mapLegendActual}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="w-4 border-t-2 border-dashed border-muted-foreground/70"
-            aria-hidden
-          />
-          {copy.label.mapLegendPlanned}
-        </span>
-      </div>
+      {showRouteLegend ? (
+        <div className="flex flex-wrap gap-4 border-t px-3 py-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-0.5 w-4 rounded-full bg-primary" aria-hidden />
+            {copy.label.mapLegendActual}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="w-4 border-t-2 border-dashed border-muted-foreground/70"
+              aria-hidden
+            />
+            {copy.label.mapLegendPlanned}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }

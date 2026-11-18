@@ -1,5 +1,8 @@
 import type { TrackingEvent, TrackingTimelineMapPosition, TripStop } from "@features/trips/domain";
 
+import { formatRouteStopPlaceLabel } from "../../helpers/routeStopPlaceLabel";
+import { formatStopDisplayStreetLine } from "../../uiHelpers";
+
 export type TrackingMapStopMarker = {
   id: string;
   order: number;
@@ -25,13 +28,23 @@ export function buildStopMarkers(stops: readonly TripStop[]): TrackingMapStopMar
   const markers: TrackingMapStopMarker[] = [];
   for (const [index, stop] of stops.entries()) {
     if (stop.latitude == null || stop.longitude == null) continue;
+    const place = formatRouteStopPlaceLabel(stop, `Parada ${index + 1}`);
+    const street = formatStopDisplayStreetLine(stop)?.trim();
+    const city = stop.city?.trim();
+    // Sublabel: calle, o city solo si no repite el Lugar (evita city comercial = label).
+    const sublabel =
+      street ||
+      (city && city !== place ? city : undefined) ||
+      (stop.address?.trim() && stop.address.trim() !== place
+        ? stop.address.trim()
+        : undefined);
     markers.push({
       id: stop.id,
       order: index + 1,
       latitude: stop.latitude,
       longitude: stop.longitude,
-      label: stop.locationName || `Parada ${index + 1}`,
-      sublabel: stop.city || stop.address || undefined,
+      label: place,
+      sublabel,
     });
   }
   return markers;

@@ -1,10 +1,11 @@
 /**
- * F9c — Panel único Buscar→Confirmar del alta de ruta como Sheet overlay (artboard).
- * Dueño del Sheet DS (dim + panel derecho ~480px). En Confirmar, StopFormSheet es
- * cuerpo inline (sin Sheet anidado). Conserva F9b: selectionConfirm=immediate.
+ * F9c/F9d — Panel único Buscar→Confirmar del alta de ruta como Sheet overlay.
+ * Dueño del Sheet DS (dim + panel derecho; ancho canónico LocationSheet).
+ * En Confirmar, StopFormSheet es cuerpo inline (sin Sheet anidado).
+ * Conserva F9b: selectionConfirm=immediate. F9d: seed solo al abrir.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useCallback, useRef, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
 
 import type { LatLng } from "@shared/geolocation/contracts/geoPorts";
@@ -24,6 +25,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@shared/ui/sheet";
+import { estimateRoadDistanceKm } from "@shared/utils/geoUtils";
 
 import { tripDetailCopy } from "../../copy";
 import {
@@ -43,9 +45,9 @@ import { type RouteStopCategory } from "./tripRouteDetailHelpers";
 
 const copy = tripDetailCopy.route;
 
-/** Ancho del artboard Operate-Viaje-Alta-Confirmar (~480px). */
+/** Ancho canónico denso lugar (D-F9d-1 / paridad LocationSheet). */
 const SHEET_CONTENT_CLASS =
-  "flex w-full flex-col gap-0 p-0 sm:max-w-[480px]";
+  "flex w-full flex-col gap-0 p-0 sm:max-w-xl md:max-w-2xl";
 
 export type TripStopSearchConfirmStep = "search" | "confirm";
 
@@ -59,10 +61,18 @@ export type TripStopSearchConfirmSheetProps = Omit<
   proximity?: LatLng | null;
   cityHint?: string | null;
   clientId?: string | null;
-  /** Labels para la caja de consecuencias (origen / destino / km). */
+  /**
+   * Labels del extremo vecino (nunca el stop en edición).
+   * El lado editado sale del draft Confirmar (F9i / D-EP-1).
+   */
   consequenceFromLabel?: string | null;
   consequenceToLabel?: string | null;
-  estimatedDistanceKm?: number | null;
+  /**
+   * Coords del vecino fijo para preview O↔D (origen edit → dest; destino edit → origin).
+   * Escala: omitir → pending «al guardar» (D-EP-4).
+   */
+  consequenceNeighborLatitude?: number | null;
+  consequenceNeighborLongitude?: number | null;
   /**
    * Ctx del header (artboard): `{código viaje} · parada N de M · {rol}`.
    * Si falta, el header solo muestra título + descripción.
@@ -83,7 +93,9 @@ function panelTitle(
   return copy.action.completeAddress;
 }
 
-function useAsLabel(category: RouteStopCategory | undefined): string {
+function primaryActionForCategory(
+  category: RouteStopCategory | undefined,
+): string {
   if (category === "origin") return copy.panel.useAsOrigin;
   if (category === "destination") return copy.panel.useAsDestination;
   if (category === "waypoint") return copy.panel.useAsWaypoint;
@@ -96,10 +108,47 @@ function consequencesTitle(category: RouteStopCategory | undefined): string {
   return copy.panel.consequencesTitleWaypoint;
 }
 
+function formatConsequenceKm(km: number): string {
+  return copy.panel.consequenceDistance(
+    km.toLocaleString("es-MX", { maximumFractionDigits: 0 }),
+  );
+}
+
+/** Preview de distancia del candidato (nunca total persistido stale). */
+function consequenceDistanceCopy(args: {
+  category: RouteStopCategory;
+  draftLat: number | null | undefined;
+  draftLng: number | null | undefined;
+  neighborLat: number | null | undefined;
+  neighborLng: number | null | undefined;
+}): string {
+  if (args.category === "waypoint") {
+    return copy.panel.consequenceDistancePendingSave;
+  }
+  const estimated = estimateRoadDistanceKm(
+    args.draftLat,
+    args.draftLng,
+    args.neighborLat,
+    args.neighborLng,
+  );
+  if (estimated != null && Number.isFinite(estimated)) {
+    return formatConsequenceKm(estimated);
+  }
+  const hasDraftGeo = args.draftLat != null && args.draftLng != null;
+  const hasNeighborGeo = args.neighborLat != null && args.neighborLng != null;
+  if (!hasDraftGeo || !hasNeighborGeo) {
+    return copy.panel.consequenceDistancePending;
+  }
+  return copy.panel.consequenceDistancePendingSave;
+}
+
+/**
+ * Seed desde LocationValue — F9h: no sembrar city desde cityHint comercial.
+ * Preferir locality SAT del slice.
+ */
 function seedFromLocationValue(
   category: RouteStopCategory,
   value: LocationValue,
-  cityHint?: string | null,
 ): StopFormData {
   const item =
     locationValueToAddressSearchListItem(value) ??
@@ -107,13 +156,18 @@ function seedFromLocationValue(
   const slice = item
     ? addressSearchItemToDialogSlice(item)
     : locationValueToDialogSlice(value);
+  const satCity =
+    slice.localityName?.trim() ||
+    value.localityName?.trim() ||
+    slice.cityName?.trim() ||
+    "";
   return {
     ...dialogToStopFormData({
       ...getEmptyStopDialogValues(),
       ...slice,
       stopCategory: category,
       stopType: composerStopTypes(category),
-      cityName: cityHint?.trim() || slice.cityName || "",
+      cityName: satCity,
       locationName:
         value.locationName?.trim() ||
         item?.locationName?.trim() ||
@@ -201,7 +255,8 @@ export function TripStopSearchConfirmSheet({
   clientId = null,
   consequenceFromLabel = null,
   consequenceToLabel = null,
-  estimatedDistanceKm = null,
+  consequenceNeighborLatitude = null,
+  consequenceNeighborLongitude = null,
   contextLine = null,
   ...stopFormProps
 }: TripStopSearchConfirmSheetProps) {
@@ -213,75 +268,96 @@ export function TripStopSearchConfirmSheet({
   const [confirmSeed, setConfirmSeed] = useState<StopFormData | undefined>(
     initialData,
   );
+  /** Key de sesión del form: solo cambia al abrir (no por locationName/CP). */
+  const [formSessionKey, setFormSessionKey] = useState(0);
+  const wasOpenRef = useRef(false);
 
+  // F9d O1: seed solo en transición open false→true. No re-sembrar mientras
+  // el Sheet está abierto aunque initialData sea un objeto nuevo cada render.
   useEffect(() => {
-    if (!open) return;
-    setStep(initialStep);
-    setConfirmSeed(initialData);
+    if (open && !wasOpenRef.current) {
+      setStep(initialStep);
+      setConfirmSeed(initialData);
+      setFormSessionKey((key) => key + 1);
+    }
+    wasOpenRef.current = open;
   }, [open, initialStep, initialData]);
 
   const title = panelTitle(resolvedCategory, heading, mode);
   const panelDescription = description ?? copy.panel.chooseDescription;
 
-  const consequences = useMemo(() => {
-    if (step !== "confirm") return null;
-    const from =
-      consequenceFromLabel?.trim() ||
-      (resolvedCategory === "origin"
-        ? confirmSeed?.locationName?.trim() || copy.composer.originSlot
-        : consequenceFromLabel) ||
-      copy.composer.originSlot;
-    const to =
-      consequenceToLabel?.trim() ||
-      (resolvedCategory === "destination"
-        ? confirmSeed?.locationName?.trim() || copy.composer.destinationSlot
-        : consequenceToLabel) ||
-      copy.composer.destinationSlot;
-    const km =
-      estimatedDistanceKm != null && Number.isFinite(estimatedDistanceKm)
-        ? copy.panel.consequenceDistance(
-            estimatedDistanceKm.toLocaleString("es-MX", {
-              maximumFractionDigits: 0,
-            }),
-          )
-        : copy.panel.consequenceDistancePending;
-    return (
-      <div
-        className="w-full rounded-lg border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground"
-        data-testid="trip-stop-confirm-consequences"
-      >
-        <p className="mb-1.5 font-medium text-foreground">
-          {consequencesTitle(resolvedCategory)}
-        </p>
-        <ul className="list-disc space-y-1 pl-4">
-          <li>{copy.panel.consequenceSaveRoute(from || "—", to || "—")}</li>
-          <li>{km}</li>
-          <li>{copy.panel.consequenceCartaPorte}</li>
-        </ul>
-        <p className="mt-2 text-muted-foreground">{copy.hint.routeSavedVsCartaPorte}</p>
-      </div>
-    );
-  }, [
-    step,
-    consequenceFromLabel,
-    consequenceToLabel,
-    estimatedDistanceKm,
-    resolvedCategory,
-    confirmSeed?.locationName,
-  ]);
+  /** F9i — lado editado = draft/form; vecino = props; km = preview o pending. */
+  const renderConsequences = useCallback(
+    (live: {
+      locationName: string;
+      latitude: number | null;
+      longitude: number | null;
+    }): ReactNode => {
+      if (step !== "confirm") return null;
+      const draftLabel =
+        live.locationName?.trim() ||
+        confirmSeed?.locationName?.trim() ||
+        "";
+      const from =
+        resolvedCategory === "origin"
+          ? draftLabel || copy.composer.originSlot
+          : consequenceFromLabel?.trim() || copy.composer.originSlot;
+      const to =
+        resolvedCategory === "destination"
+          ? draftLabel || copy.composer.destinationSlot
+          : consequenceToLabel?.trim() || copy.composer.destinationSlot;
+      const draftLat = live.latitude ?? confirmSeed?.latitude ?? null;
+      const draftLng = live.longitude ?? confirmSeed?.longitude ?? null;
+      const km = consequenceDistanceCopy({
+        category: resolvedCategory,
+        draftLat,
+        draftLng,
+        neighborLat: consequenceNeighborLatitude,
+        neighborLng: consequenceNeighborLongitude,
+      });
+      return (
+        <div
+          className="w-full rounded-lg border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground"
+          data-testid="trip-stop-confirm-consequences"
+        >
+          <p className="mb-1.5 font-medium text-foreground">
+            {consequencesTitle(resolvedCategory)}
+          </p>
+          <ul className="list-disc space-y-1 pl-4">
+            <li>{copy.panel.consequenceSaveRoute(from || "—", to || "—")}</li>
+            <li>{km}</li>
+            <li>{copy.panel.consequenceCartaPorte}</li>
+          </ul>
+          <p className="mt-2 text-muted-foreground">
+            {copy.hint.routeSavedVsCartaPorte}
+          </p>
+        </div>
+      );
+    },
+    [
+      step,
+      consequenceFromLabel,
+      consequenceToLabel,
+      consequenceNeighborLatitude,
+      consequenceNeighborLongitude,
+      resolvedCategory,
+      confirmSeed?.locationName,
+      confirmSeed?.latitude,
+      confirmSeed?.longitude,
+    ],
+  );
 
   const handleSearchSelect = (value: LocationValue) => {
-    setConfirmSeed(seedFromLocationValue(resolvedCategory, value, cityHint));
+    setConfirmSeed(seedFromLocationValue(resolvedCategory, value));
     setStep("confirm");
   };
 
   const handleCreateRequest = () => {
     setConfirmSeed(
-      seedFromLocationValue(
-        resolvedCategory,
-        { locationName: null, geolocationPending: true },
-        cityHint,
-      ),
+      seedFromLocationValue(resolvedCategory, {
+        locationName: null,
+        geolocationPending: true,
+      }),
     );
     setStep("confirm");
   };
@@ -364,11 +440,7 @@ export function TripStopSearchConfirmSheet({
             </div>
             <StopFormSheet
               {...stopFormProps}
-              key={
-                confirmSeed?.locationName ||
-                confirmSeed?.postalCode ||
-                `${resolvedCategory}-confirm`
-              }
+              key={`stop-form-session-${formSessionKey}`}
               open
               onOpenChange={onOpenChange}
               onSubmit={onSubmit}
@@ -378,8 +450,8 @@ export function TripStopSearchConfirmSheet({
               description={panelDescription}
               variant="inline"
               selectionConfirm="immediate"
-              primaryActionLabel={useAsLabel(resolvedCategory)}
-              consequences={consequences}
+              primaryActionLabel={primaryActionForCategory(resolvedCategory)}
+              consequences={renderConsequences}
               hideChromeHeader
             />
           </div>

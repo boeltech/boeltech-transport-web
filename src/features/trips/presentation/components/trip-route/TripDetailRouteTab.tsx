@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AlertCircle, Navigation } from "lucide-react";
 
 import { Badge } from "@shared/ui/badge";
@@ -8,8 +8,10 @@ import {
   useClientCorridors,
   useReplaceTripStops,
   useReplanTripStops,
+  useUpdateTrip,
 } from "@features/trips/application";
 import {
+  CargoStatus,
   shouldFlagFiscalAttentionAfterTripMutation,
   type ClientCorridor,
   type CreateStopInput,
@@ -42,6 +44,14 @@ import {
   type StopFormData,
 } from "../../pages/create/components/stopDialogAddressMapper";
 import { mapStopToReplaceStopInput } from "../trip-detail-patch/mapStopToCreateStopInput";
+import {
+  buildScheduleUpdateFromDestinationEta,
+  DESTINATION_ETA_MUST_BE_AFTER_DEPARTURE,
+  isDestinationEtaAfterDeparture,
+} from "../trip-detail-patch";
+import { StopFormFieldValidationError } from "../../pages/create/components/stopFormFieldValidationError";
+import { formatRouteStopPlaceLabel } from "../../helpers/routeStopPlaceLabel";
+import { showTripDetailErrorToast } from "../../helpers/toastTripDetailError";
 import { CorridorPicker } from "../corridor/CorridorPicker";
 import { filterCorridorsMatchingCityPair } from "./corridorMatchesCityPair";
 import { resolveRouteSearchProximity } from "./resolveRouteSearchProximity";
@@ -99,6 +109,8 @@ import {
 import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.route;
+const operationCopy = tripDetailCopy.operation;
+const trackingCopy = tripDetailCopy.tracking;
 
 type RemoveWaypointDialog =
   | { kind: "confirm"; stopId: string }
@@ -117,25 +129,41 @@ type CompleteTarget =
       initialStep?: "search" | "confirm";
     };
 
+/**
+ * Prefill desde pick — F9h: no sembrar `cityName` desde `trip.*City` comercial.
+ * Preferir localidad SAT / municipio del slice; nunca locationName como city.
+ */
 function composerPickToStopFormData(
   category: RouteStopCategory,
   pick: ComposerEndpointPick,
-  cityHint?: string,
 ): StopFormData {
   const slice = addressSearchItemToDialogSlice(pick);
+  const satCity =
+    slice.localityName?.trim() ||
+    slice.cityName?.trim() ||
+    "";
   return {
     ...dialogToStopFormData({
       ...getEmptyStopDialogValues(),
       ...slice,
       stopCategory: category,
       stopType: composerStopTypes(category),
-      cityName: cityHint?.trim() || slice.cityName || "",
+      cityName: satCity,
       locationName:
         pick.locationName?.trim() || slice.locationName || "",
     }),
     stopCategory: category,
     stopType: composerStopTypes(category),
   };
+}
+
+/** Hint AmbosCiudad solo si el extremo aún no tiene parada (D-F9h hint). */
+function endpointCityHintForEmptySlot(
+  hasPersistedStop: boolean,
+  tripCityHint: string,
+): string {
+  if (hasPersistedStop) return "";
+  return tripCityHint.trim();
 }
 
 export interface TripDetailRouteTabProps {
@@ -151,6 +179,8 @@ export interface TripDetailRouteTabProps {
    */
   canAppendStops?: boolean;
   cargos?: TripCargo[];
+  /** F3b — banner Planear retorno + hint multi-carga. */
+  returnReplanRequired?: boolean;
   legacyRoute?: {
     originCity?: string | null;
     originState?: string | null;
@@ -167,7 +197,7 @@ function getDisplayOrder(stop: TripStop, ordered: readonly TripStop[]): number {
 }
 
 function stopDisplayLabel(stop: TripStop): string {
-  return stop.locationName?.trim() || stop.city?.trim() || stop.address?.trim() || "";
+  return formatRouteStopPlaceLabel(stop, "") || "";
 }
 
 function panelRoleLabel(category: RouteStopCategory): string {
@@ -239,13 +269,36 @@ export function TripDetailRouteTab({
   canEditStructural,
   canReplanPendingStops = false,
   cargos,
+  returnReplanRequired = false,
   legacyRoute,
   onEditingChange,
 }: TripDetailRouteTabProps) {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const replaceStops = useReplaceTripStops(trip.id);
   const replanStops = useReplanTripStops(trip.id);
+  const updateTrip = useUpdateTrip();
   const showMidTripReplan = canReplanPendingStops && !canEditStructural;
+  const planReturnIntent = searchParams.get("intent") === "plan_return";
+  const showPlanReturnBanner = planReturnIntent || returnReplanRequired;
+  const hasOtherPendingDeliveries = (cargos ?? []).some(
+    (cargo) =>
+      cargo.status === CargoStatus.IN_TRANSIT ||
+      cargo.status === CargoStatus.PENDING,
+  );
+
+  useEffect(() => {
+    if (!planReturnIntent) return;
+    // Consume intent once shown; keep banner via returnReplanRequired.
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("intent");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [planReturnIntent, setSearchParams]);
   const canMutateRoute = canEditStructural || showMidTripReplan;
   const corridorsQuery = useClientCorridors(
     canEditStructural && orderedStops.length === 0
@@ -268,7 +321,28 @@ export function TripDetailRouteTab({
   } | null>(null);
 
   const isRouteMutationPending =
-    replaceStops.isPending || replanStops.isPending;
+    replaceStops.isPending ||
+    replanStops.isPending ||
+    updateTrip.isPending;
+
+  /** F9e — tras éxito de stops Destino+ETA → proyectar `trip.scheduledArrival`. */
+  const projectDestinationEtaIfNeeded = async (data: StopFormData) => {
+    if (data.stopCategory !== "destination") return;
+    const payload = buildScheduleUpdateFromDestinationEta(
+      trip,
+      data.estimatedArrival,
+    );
+    if (!payload) return;
+    try {
+      await updateTrip.mutateAsync({ id: trip.id, data: payload });
+    } catch (error) {
+      showTripDetailErrorToast(
+        toast,
+        error,
+        operationCopy.toast.scheduleUpdateError,
+      );
+    }
+  };
 
   const needsFiscalConfirm = shouldFlagFiscalAttentionAfterTripMutation({
     invoiceStatus: trip.invoicing?.invoiceStatus ?? null,
@@ -343,13 +417,37 @@ export function TripDetailRouteTab({
     masterRows.find((row) => row.id === resolvedViewId) ?? null;
   const selectedLocked = Boolean(selectedRow?.locked);
 
+  // F9f — solo en edit: no usar selectedRow.stop (destino vigente) al create/replace.
   const editingStop =
     completeTarget?.kind === "edit"
       ? orderedStops.find((stop) => stop.id === completeTarget.stopId)
-      : selectedRow?.stop;
-  const previousStop = editingStop
-    ? orderedStops[orderedStops.findIndex((stop) => stop.id === editingStop.id) - 1]
-    : orderedStops[orderedStops.length - 1];
+      : undefined;
+  const previousStop = (() => {
+    if (completeTarget?.kind === "create") {
+      if (completeTarget.category === "destination") {
+        // Origen / última parada antes del destino (no el destino vigente).
+        const beforeDest = orderedStops.filter(
+          (stop) => getRouteStopCategory(stop) !== "destination",
+        );
+        return beforeDest.length > 0
+          ? beforeDest[beforeDest.length - 1]
+          : undefined;
+      }
+      if (completeTarget.category === "origin") {
+        return undefined;
+      }
+      return orderedStops.length > 0
+        ? orderedStops[orderedStops.length - 1]
+        : undefined;
+    }
+    if (editingStop) {
+      const idx = orderedStops.findIndex((stop) => stop.id === editingStop.id);
+      return idx > 0 ? orderedStops[idx - 1] : undefined;
+    }
+    return orderedStops.length > 0
+      ? orderedStops[orderedStops.length - 1]
+      : undefined;
+  })();
 
   const mutableWaypoints = orderedStops.filter(
     (stop) =>
@@ -497,11 +595,21 @@ export function TripDetailRouteTab({
     setChangingDestination(false);
   };
 
+  const clearDestinationDraft = () => {
+    setEndpointDraft((prev) => {
+      if (!prev.destination) return prev;
+      const { destination: _removed, ...rest } = prev;
+      return rest;
+    });
+  };
+
   const handleChangeDestination = (stop: TripStop) => {
     setSelectedId(stop.id);
     setChangingDestination(true);
     setCompleteTarget(null);
     setCaptureError(null);
+    // F9f — al reentrar, no arrastrar pick provisional sticky.
+    clearDestinationDraft();
   };
 
   const handlePick = (
@@ -568,18 +676,19 @@ export function TripDetailRouteTab({
       const targetPick =
         targetCategory === "origin" ? nextDraft.origin : nextDraft.destination;
       if (!targetPick) return;
-      const cityHint =
-        targetCategory === "origin" ? originCityHint : destinationCityHint;
+      const hasPersisted =
+        targetCategory === "origin" ? Boolean(origin) : Boolean(destination);
+      const emptySlotHint = endpointCityHintForEmptySlot(
+        hasPersisted,
+        targetCategory === "origin" ? originCityHint : destinationCityHint,
+      );
       setCompleteTarget({
         kind: "create",
         category: targetCategory,
         locationName: targetPick.locationName?.trim() || undefined,
-        cityName: cityHint || undefined,
-        prefill: composerPickToStopFormData(
-          targetCategory,
-          targetPick,
-          cityHint || undefined,
-        ),
+        // Solo hint UI de slot vacío; no contaminar city del stop.
+        cityName: emptySlotHint || undefined,
+        prefill: composerPickToStopFormData(targetCategory, targetPick),
         initialStep: "confirm",
       });
     };
@@ -728,17 +837,24 @@ export function TripDetailRouteTab({
   };
 
   const openCompleteLabel = (category: RouteStopCategory, locationName: string) => {
-    const cityHint =
+    const hasPersisted =
       category === "origin"
-        ? originCityHint
+        ? Boolean(origin)
         : category === "destination"
-          ? destinationCityHint
-          : "";
+          ? Boolean(destination)
+          : false;
+    const emptySlotHint =
+      category === "origin" || category === "destination"
+        ? endpointCityHintForEmptySlot(
+            hasPersisted,
+            category === "origin" ? originCityHint : destinationCityHint,
+          )
+        : "";
     setCompleteTarget({
       kind: "create",
       category,
       locationName,
-      cityName: cityHint || undefined,
+      cityName: emptySlotHint || undefined,
       initialStep: "confirm",
     });
   };
@@ -748,8 +864,10 @@ export function TripDetailRouteTab({
     const row = masterRows.find((item) => item.id === rowId);
     if (!row || row.stop) return;
     if (row.category !== "origin" && row.category !== "destination") return;
-    const cityHint =
-      row.category === "origin" ? originCityHint : destinationCityHint;
+    const cityHint = endpointCityHintForEmptySlot(
+      false,
+      row.category === "origin" ? originCityHint : destinationCityHint,
+    );
     setSelectedId(rowId);
     setChangingDestination(false);
     setCaptureError(null);
@@ -763,6 +881,22 @@ export function TripDetailRouteTab({
 
   const handleSheetSubmit = async (data: StopFormData) => {
     if (isRouteMutationPending) return;
+
+    // F9g — Destino + ETA ≤ salida: bloquear antes de replace/replan/proyección.
+    const destinationEta = data.estimatedArrival?.trim() ?? "";
+    if (
+      data.stopCategory === "destination" &&
+      destinationEta &&
+      !isDestinationEtaAfterDeparture(
+        destinationEta,
+        trip.scheduledDeparture,
+      )
+    ) {
+      throw new StopFormFieldValidationError({
+        estimatedArrival: DESTINATION_ETA_MUST_BE_AFTER_DEPARTURE,
+      });
+    }
+
     const editingStopId =
       completeTarget?.kind === "edit" ? completeTarget.stopId : null;
     const createTarget = completeTarget;
@@ -835,7 +969,10 @@ export function TripDetailRouteTab({
         pendingPersistRef.current = {
           execute: async () => {
             const ok = await runReplan(pending);
-            if (ok) finishOk();
+            if (ok) {
+              finishOk();
+              await projectDestinationEtaIfNeeded(data);
+            }
             return ok;
           },
           syncKey: stopsSyncKey,
@@ -848,6 +985,7 @@ export function TripDetailRouteTab({
         throw new Error(copy.toast.stopSaveError);
       }
       finishOk();
+      await projectDestinationEtaIfNeeded(data);
       return;
     }
 
@@ -856,37 +994,40 @@ export function TripDetailRouteTab({
       throw new Error(copy.toast.stopSaveError);
     }
     finishOk();
+    await projectDestinationEtaIfNeeded(data);
   };
 
-  const sheetInitialData: StopFormData | undefined = editingStop
-    ? {
-        ...mapTripStopToStopFormData(editingStop),
-        previousStopLatitude: previousStop?.latitude ?? undefined,
-        previousStopLongitude: previousStop?.longitude ?? undefined,
-        previousStopLabel:
-          previousStop?.locationName || previousStop?.city || undefined,
-      }
-    : completeTarget?.kind === "create"
+  // F9f — create (p. ej. Cambiar destino) siembra con prefill del pick, no el stop persistido.
+  // F9h — `completeTarget.cityName` es solo hint UI de slot vacío; no va a city del stop.
+  const sheetInitialData: StopFormData | undefined =
+    completeTarget?.kind === "create"
       ? {
           ...(completeTarget.prefill ?? {
             stopCategory: completeTarget.category,
             stopType: composerStopTypes(completeTarget.category),
             locationName: completeTarget.locationName,
-            cityName: completeTarget.cityName,
           }),
           previousStopLatitude: previousStop?.latitude ?? undefined,
           previousStopLongitude: previousStop?.longitude ?? undefined,
           previousStopLabel:
             previousStop?.locationName || previousStop?.city || undefined,
         }
-      : previousStop
+      : editingStop
         ? {
-            previousStopLatitude: previousStop.latitude ?? undefined,
-            previousStopLongitude: previousStop.longitude ?? undefined,
+            ...mapTripStopToStopFormData(editingStop),
+            previousStopLatitude: previousStop?.latitude ?? undefined,
+            previousStopLongitude: previousStop?.longitude ?? undefined,
             previousStopLabel:
-              previousStop.locationName || previousStop.city || undefined,
+              previousStop?.locationName || previousStop?.city || undefined,
           }
-        : undefined;
+        : previousStop
+          ? {
+              previousStopLatitude: previousStop.latitude ?? undefined,
+              previousStopLongitude: previousStop.longitude ?? undefined,
+              previousStopLabel:
+                previousStop.locationName || previousStop.city || undefined,
+            }
+          : undefined;
 
   const editingCompleteStop =
     completeTarget?.kind === "edit" &&
@@ -915,30 +1056,52 @@ export function TripDetailRouteTab({
     completeTarget?.kind === "create"
       ? (completeTarget.initialStep ?? "confirm")
       : "confirm";
+
+  const panelCategory: RouteStopCategory | undefined =
+    completeTarget?.kind === "create"
+      ? completeTarget.category
+      : editingStop
+        ? getRouteStopCategory(editingStop)
+        : undefined;
+
+  /**
+   * F9i — solo vecinos para «Al usar como…». El lado editado lo arma el Sheet
+   * desde confirmSeed/form; no pasar self-label ni total persistido.
+   */
+  const neighborOriginLabel = origin
+    ? stopDisplayLabel(origin)
+    : endpointDraft.origin
+      ? pickerItemLabel(endpointDraft.origin)
+      : composerOriginLabel || null;
+  const neighborDestinationLabel = destination
+    ? stopDisplayLabel(destination)
+    : endpointDraft.destination
+      ? pickerItemLabel(endpointDraft.destination)
+      : composerDestinationLabel || null;
   const consequenceFromLabel =
-    createCategory === "destination"
-      ? origin
-        ? stopDisplayLabel(origin)
-        : endpointDraft.origin
-          ? pickerItemLabel(endpointDraft.origin)
-          : composerOriginLabel
-      : createCategory === "origin"
-        ? sheetInitialData?.locationName ?? null
-        : origin
-          ? stopDisplayLabel(origin)
-          : null;
+    panelCategory === "origin" ? null : neighborOriginLabel;
   const consequenceToLabel =
-    createCategory === "origin"
-      ? destination
-        ? stopDisplayLabel(destination)
-        : endpointDraft.destination
-          ? pickerItemLabel(endpointDraft.destination)
-          : composerDestinationLabel
-      : createCategory === "destination"
-        ? sheetInitialData?.locationName ?? null
-        : destination
-          ? stopDisplayLabel(destination)
-          : null;
+    panelCategory === "destination" ? null : neighborDestinationLabel;
+  const neighborOriginLat =
+    origin?.latitude ?? endpointDraft.origin?.latitude ?? null;
+  const neighborOriginLng =
+    origin?.longitude ?? endpointDraft.origin?.longitude ?? null;
+  const neighborDestinationLat =
+    destination?.latitude ?? endpointDraft.destination?.latitude ?? null;
+  const neighborDestinationLng =
+    destination?.longitude ?? endpointDraft.destination?.longitude ?? null;
+  const consequenceNeighborLatitude =
+    panelCategory === "origin"
+      ? neighborDestinationLat
+      : panelCategory === "destination"
+        ? neighborOriginLat
+        : null;
+  const consequenceNeighborLongitude =
+    panelCategory === "origin"
+      ? neighborDestinationLng
+      : panelCategory === "destination"
+        ? neighborOriginLng
+        : null;
 
   const corridors = corridorsQuery.data ?? [];
   const matchingCorridors = filterCorridorsMatchingCityPair(
@@ -966,14 +1129,6 @@ export function TripDetailRouteTab({
     originPick: endpointDraft.origin,
     destinationPick: endpointDraft.destination,
   });
-  const plannedKmForConsequences = sumRouteSegmentDistanceKm(ordered);
-
-  const panelCategory: RouteStopCategory | undefined =
-    completeTarget?.kind === "create"
-      ? completeTarget.category
-      : editingStop
-        ? getRouteStopCategory(editingStop)
-        : undefined;
   const panelPosition =
     completeTarget != null
       ? resolvePanelStopPosition({
@@ -1006,7 +1161,17 @@ export function TripDetailRouteTab({
         }
         open
         onOpenChange={(open) => {
-          if (!open) setCompleteTarget(null);
+          if (!open) {
+            const wasCreateDest =
+              completeTarget?.kind === "create" &&
+              completeTarget.category === "destination";
+            const hadPersistedDest = Boolean(destination);
+            setCompleteTarget(null);
+            // F9f — dismiss sin Usar no deja draft sticky si ya hay destino en ruta.
+            if (wasCreateDest && hadPersistedDest) {
+              clearDestinationDraft();
+            }
+          }
         }}
         onSubmit={handleSheetSubmit}
         initialData={sheetInitialData}
@@ -1025,20 +1190,23 @@ export function TripDetailRouteTab({
           completeTarget.kind === "create"
             ? completeTarget.cityName ??
               (completeTarget.category === "origin"
-                ? originCityHint
+                ? endpointCityHintForEmptySlot(
+                    Boolean(origin),
+                    originCityHint,
+                  ) || null
                 : completeTarget.category === "destination"
-                  ? destinationCityHint
+                  ? endpointCityHintForEmptySlot(
+                      Boolean(destination),
+                      destinationCityHint,
+                    ) || null
                   : null)
             : null
         }
         clientId={trip.clientId ?? null}
         consequenceFromLabel={consequenceFromLabel}
         consequenceToLabel={consequenceToLabel}
-        estimatedDistanceKm={
-          plannedKmForConsequences != null && plannedKmForConsequences > 0
-            ? plannedKmForConsequences
-            : null
-        }
+        consequenceNeighborLatitude={consequenceNeighborLatitude}
+        consequenceNeighborLongitude={consequenceNeighborLongitude}
         contextLine={panelContextLine}
       />
     ) : null;
@@ -1077,9 +1245,13 @@ export function TripDetailRouteTab({
         : null;
   const captureHint =
     selectedRow?.category === "origin"
-      ? originCityHint
+      ? endpointCityHintForEmptySlot(Boolean(origin), originCityHint)
       : selectedRow?.category === "destination"
-        ? destinationCityHint
+        ? endpointCityHintForEmptySlot(
+            // Cambiar destino: el stop viejo sigue en memoria → no hint comercial.
+            Boolean(destination),
+            destinationCityHint,
+          )
         : "";
 
   const emptySlotMessage =
@@ -1139,9 +1311,15 @@ export function TripDetailRouteTab({
             }
             cityHint={
               captureCategory === "origin"
-                ? originCityHint || null
+                ? endpointCityHintForEmptySlot(
+                    Boolean(origin),
+                    originCityHint,
+                  ) || null
                 : captureCategory === "destination"
-                  ? destinationCityHint || null
+                  ? endpointCityHintForEmptySlot(
+                      Boolean(destination),
+                      destinationCityHint,
+                    ) || null
                   : captureHint || null
             }
             proximity={captureProximity}
@@ -1168,7 +1346,10 @@ export function TripDetailRouteTab({
               size="sm"
               variant="ghost"
               disabled={isRouteMutationPending}
-              onClick={() => setChangingDestination(false)}
+              onClick={() => {
+                setChangingDestination(false);
+                clearDestinationDraft();
+              }}
             >
               {copy.action.cancel}
             </Button>
@@ -1449,6 +1630,17 @@ export function TripDetailRouteTab({
 
   return (
     <div className="space-y-6">
+      {showPlanReturnBanner ? (
+        <Alert variant="info" data-tracking-section="plan-return-route-banner">
+          <AlertTitle>{trackingCopy.action.planReturn}</AlertTitle>
+          <AlertDescription className="space-y-1">
+            <p>{trackingCopy.hint.planReturnRouteBanner}</p>
+            {hasOtherPendingDeliveries ? (
+              <p>{trackingCopy.hint.planReturnMultiCargoHint}</p>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {routeAlerts}
       {artboardLayout}
       {emptyComposerLayout}

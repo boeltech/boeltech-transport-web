@@ -1,5 +1,5 @@
 import { getOrderedStops, type CreateStopInput, type Trip, type UpdateTripInput } from "@features/trips/domain";
-import { localInputToUtcIso } from "@shared/utils/dateUtils";
+import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
 import { mapStopToReplaceStopInput } from "./mapStopToCreateStopInput";
 import {
@@ -25,6 +25,32 @@ export function buildScheduleUpdateInput(
       ? { scheduledArrival: localInputToUtcIso(scheduledArrival) }
       : {}),
   };
+}
+
+/**
+ * F9e — proyección Destino → `trip.scheduledArrival` (espejo wizard).
+ * ETA vacía → `null` (no update, no borrar arrival). Mismo instante → `null` (skip).
+ * No inventa `scheduledArrival: null`.
+ */
+export function buildScheduleUpdateFromDestinationEta(
+  trip: Trip,
+  estimatedArrival: string | null | undefined,
+): UpdateTripInput | null {
+  const trimmed = estimatedArrival?.trim() ?? "";
+  if (!trimmed) return null;
+
+  const nextIso = localInputToUtcIso(trimmed);
+  if (
+    trip.scheduledArrival != null &&
+    trip.scheduledArrival.getTime() === new Date(nextIso).getTime()
+  ) {
+    return null;
+  }
+
+  return buildScheduleUpdateInput(trip, {
+    scheduledDeparture: utcIsoToLocalInput(trip.scheduledDeparture.toISOString()),
+    scheduledArrival: trimmed,
+  });
 }
 
 /**

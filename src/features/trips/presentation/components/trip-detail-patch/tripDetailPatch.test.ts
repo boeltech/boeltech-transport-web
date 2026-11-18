@@ -5,10 +5,16 @@ import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture"
 import { validateUpdateTripApiPayload } from "../../pages/create/validateTripApiPayload";
 import {
   buildScheduleDestinationEtaReplaceStops,
+  buildScheduleUpdateFromDestinationEta,
   buildScheduleUpdateInput,
 } from "./tripSchedulePatch";
+import {
+  DESTINATION_ETA_MUST_BE_AFTER_DEPARTURE,
+  isDestinationEtaAfterDeparture,
+} from "./destinationEtaVsDeparture";
 import { resolveStopAddressForApi } from "./mapStopToCreateStopInput";
 import { mapTripToScheduleFormValues } from "./tripStopOperationalFields";
+import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils";
 
 const baseTrip = {
   id: "trip-1",
@@ -200,6 +206,60 @@ describe("tripDetailPatch", () => {
     expect(stops?.[1]).not.toHaveProperty("addressId");
     expect(stops?.[1]?.estimatedArrival).toContain("2026-05-14");
     expect(stops?.[1]?.sourceAddressId).toBeUndefined();
+  });
+
+  it("F9e: destination ETA builds schedule update with scheduledArrival", () => {
+    const etaLocal = "2026-05-14T18:30";
+    const payload = buildScheduleUpdateFromDestinationEta(baseTrip, etaLocal);
+    expect(payload).not.toBeNull();
+    expect(payload?.scheduledDeparture).toContain("2026-05-14");
+    expect(payload?.scheduledArrival).toBeDefined();
+    expect(payload).not.toHaveProperty("stops");
+    expect(validateUpdateTripApiPayload(payload!)).toEqual({ ok: true });
+  });
+
+  it("F9e: empty destination ETA returns null (does not clear arrival)", () => {
+    expect(buildScheduleUpdateFromDestinationEta(baseTrip, "")).toBeNull();
+    expect(buildScheduleUpdateFromDestinationEta(baseTrip, "   ")).toBeNull();
+    expect(buildScheduleUpdateFromDestinationEta(baseTrip, undefined)).toBeNull();
+    expect(buildScheduleUpdateFromDestinationEta(baseTrip, null)).toBeNull();
+  });
+
+  it("F9e: same instant as trip.scheduledArrival skips update", () => {
+    const sameLocal = utcIsoToLocalInput(
+      baseTrip.scheduledArrival!.toISOString(),
+    );
+    expect(buildScheduleUpdateFromDestinationEta(baseTrip, sameLocal)).toBeNull();
+  });
+});
+
+describe("isDestinationEtaAfterDeparture (F9g)", () => {
+  const departure = new Date("2026-05-14T12:00:00.000Z");
+
+  it("fails when ETA is before departure", () => {
+    const beforeLocal = utcIsoToLocalInput("2026-05-14T11:00:00.000Z");
+    expect(isDestinationEtaAfterDeparture(beforeLocal, departure)).toBe(false);
+  });
+
+  it("fails when ETA equals departure", () => {
+    const sameLocal = utcIsoToLocalInput(departure.toISOString());
+    expect(isDestinationEtaAfterDeparture(sameLocal, departure)).toBe(false);
+  });
+
+  it("passes when ETA is after departure", () => {
+    const afterLocal = utcIsoToLocalInput("2026-05-14T13:00:00.000Z");
+    expect(isDestinationEtaAfterDeparture(afterLocal, departure)).toBe(true);
+  });
+
+  it("round-trips local input through the same converter used by projection", () => {
+    const afterLocal = "2026-05-14T18:30";
+    expect(
+      new Date(localInputToUtcIso(afterLocal)).getTime(),
+    ).toBeGreaterThan(departure.getTime());
+    expect(isDestinationEtaAfterDeparture(afterLocal, departure)).toBe(true);
+    expect(DESTINATION_ETA_MUST_BE_AFTER_DEPARTURE).toContain(
+      "posterior a la de salida",
+    );
   });
 });
 

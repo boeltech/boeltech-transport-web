@@ -18,6 +18,7 @@ function baseStop(over: Partial<WizardStopRow> = {}): WizardStopRow {
     postalCode: "",
     satLocalityCode: "",
     satNeighborhoodCode: "",
+    localityName: "",
     cityName: "",
     neighborhoodName: "",
     street: "",
@@ -39,7 +40,7 @@ function baseStop(over: Partial<WizardStopRow> = {}): WizardStopRow {
 }
 
 describe("buildTripEndpointSummary", () => {
-  it("uses catalog label when sourceAddressId is set", () => {
+  it("uses catalog address label but never locationName as city (F9h)", () => {
     const id = "6cc9d220-c5a4-4671-9f52-68f0af3b32a8";
     const r = buildTripEndpointSummary(
       baseStop({
@@ -50,7 +51,41 @@ describe("buildTripEndpointSummary", () => {
       }),
     );
     expect(r.address).toBe("CEDIS Norte");
-    expect(r.city).toBe("CEDIS Norte");
+    expect(r.city).toBe("Ubicación");
+  });
+
+  it("prefers localityName over locationName for city (F9h)", () => {
+    const id = "6cc9d220-c5a4-4671-9f52-68f0af3b32a8";
+    const r = buildTripEndpointSummary(
+      baseStop({
+        sourceAddressId: id,
+        locationName: "Vórtice",
+        localityName: "Aguascalientes",
+        satMunicipalityCode: "001",
+      }),
+    );
+    expect(r.city).toBe("Aguascalientes");
+    expect(r.city).not.toBe("Vórtice");
+  });
+
+  it("does not seed city from commercial locationName on replace path (F9h)", () => {
+    const out = mapWizardStopsToCreateInput([
+      baseStop({
+        sequenceOrder: 1,
+        stopType: ["destination", "delivery"],
+        locationName: "Vórtice",
+        // Simula cityHint contaminado omitido: sin cityName ni locality → municipio SAT
+        satMunicipalityCode: "001",
+        satStateCode: "AGU",
+        postalCode: "20305",
+        street: "Carretera Panamericana",
+        exteriorNumber: "500",
+      }),
+    ]);
+    expect(out![0].locationName).toBe("Vórtice");
+    expect(out![0].city).toBe("001");
+    expect(out![0].city).not.toBe("Vórtice");
+    expect(out![0].city).not.toMatch(/Nissan/i);
   });
 
   it("does not treat bare addressId snapshot as catalog", () => {

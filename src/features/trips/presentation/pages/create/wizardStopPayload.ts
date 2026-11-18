@@ -35,14 +35,15 @@ export function buildTripEndpointSummary(stop: WizardStopRow): {
   if (stopHasCatalogSnapshot(stop)) {
     const rawLabel = stop.locationName?.trim() || "Domicilio en catálogo";
     const label = rawLabel.length >= 5 ? rawLabel : `Ubicación ${rawLabel}`;
+    // F9h: nunca locationName comercial como city; preferir locality SAT / municipio.
     return {
       address: label,
       city:
         stop.cityName?.trim() ||
-        stop.locationName?.trim() ||
+        stop.localityName?.trim() ||
         stop.satMunicipalityCode?.trim() ||
         stop.satStateCode?.trim() ||
-        label,
+        "Ubicación",
       state: stop.satStateCode?.trim() || "",
     };
   }
@@ -84,7 +85,7 @@ export function buildTripEndpointSummary(stop: WizardStopRow): {
     address: resolvedAddress,
     city:
       stop.cityName?.trim() ||
-      stop.locationName?.trim() ||
+      stop.localityName?.trim() ||
       stop.satMunicipalityCode?.trim() ||
       (stop.satStateCode?.trim() ? `Estado ${stop.satStateCode.trim()}` : "") ||
       "Ubicación",

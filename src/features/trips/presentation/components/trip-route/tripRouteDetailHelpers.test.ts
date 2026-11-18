@@ -118,7 +118,7 @@ describe("tripRouteDetailHelpers", () => {
     expect(grouped.waypoints.map((item) => item.id)).toEqual(["s1"]);
   });
 
-  it("builds distance segments with short labels for the Distancias card", () => {
+  it("builds distance segments with Lugar labels (locationName → city)", () => {
     const origin = stop({
       id: "o",
       sequenceOrder: 1,
@@ -135,22 +135,23 @@ describe("tripRouteDetailHelpers", () => {
     const dest = stop({
       id: "d",
       sequenceOrder: 3,
-      city: "Torreón",
-      locationName: "CEDIS Torreón",
+      city: "Nissan Aguascalientes",
+      locationName: "Vórtice",
       distanceFromPreviousKm: 266,
     });
-    expect(routeStopShortLabel(origin)).toBe("Monterrey");
+    expect(routeStopShortLabel(origin)).toBe("CEDIS Monterrey");
+    expect(routeStopShortLabel(dest)).toBe("Vórtice");
     expect(buildRouteDistanceSegments([origin, mid, dest])).toEqual([
       {
         id: "o->m",
-        fromLabel: "Monterrey",
-        toLabel: "Saltillo",
+        fromLabel: "CEDIS Monterrey",
+        toLabel: "Bodega Saltillo",
         km: 86,
       },
       {
         id: "m->d",
-        fromLabel: "Saltillo",
-        toLabel: "Torreón",
+        fromLabel: "Bodega Saltillo",
+        toLabel: "Vórtice",
         km: 266,
       },
     ]);

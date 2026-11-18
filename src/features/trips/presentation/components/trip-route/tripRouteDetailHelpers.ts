@@ -13,6 +13,7 @@ import {
 } from "@features/trips/domain";
 import { formatDateTime } from "@shared/utils/dateUtils";
 
+import { formatRouteStopPlaceLabel } from "../../helpers/routeStopPlaceLabel";
 import { progressCopy } from "../../copy/tripDetail/progressCopy";
 import { routeCopy } from "../../copy/tripDetail/routeCopy";
 
@@ -78,13 +79,11 @@ export function sumRouteSegmentDistanceKm(stops: readonly TripStop[]): number | 
   );
 }
 
-/** Etiqueta corta para tramos de la card Distancias (ciudad o nombre). */
+/** Etiqueta corta para tramos Distancias — misma regla Lugar (F9h). */
 export function routeStopShortLabel(stop: TripStop): string {
-  return (
-    stop.city?.trim() ||
-    stop.locationName?.trim() ||
-    stop.address?.trim() ||
-    copy.format.stopFallbackName(stop.sequenceOrder)
+  return formatRouteStopPlaceLabel(
+    stop,
+    copy.format.stopFallbackName(stop.sequenceOrder),
   );
 }
 
