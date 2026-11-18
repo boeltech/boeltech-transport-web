@@ -795,6 +795,9 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
     requiresFiscalAttentionAt: api.requires_fiscal_attention_at ?? null,
     fiscalAttention: mapApiTripFiscalAttention(api.fiscal_attention),
     fiscalActionRequired: mapApiFiscalActionRequired(api.fiscal_action_required),
+    originNoCargoPendingOutcome:
+      api.origin_no_cargo_pending_outcome ?? false,
+    returnReplanRequired: api.return_replan_required ?? false,
 
     // Carta Porte 3.1
     totalDistRec: api.total_dist_rec,
@@ -912,7 +915,9 @@ export function mapApiTripListItem(api: ApiTripListItemResponse): TripListItem {
     falseTripDeclaredAt: toDateOrNull(api.false_trip_declared_at),
     falseTripDeclaredBy: api.false_trip_declared_by ?? null,
     cargoDescription: api.cargo_description,
-    baseRate: toNumberOrDefault(api.base_rate),
+    ...(api.base_rate === undefined || api.base_rate === null
+      ? {}
+      : { baseRate: toNumberOrDefault(api.base_rate) }),
     totalCost: toNumberOrDefault(api.total_cost),
     totalRevenue: toNumberOrDefault(api.total_revenue),
     estimatedProfit: toNumberOrDefault(api.estimated_profit),

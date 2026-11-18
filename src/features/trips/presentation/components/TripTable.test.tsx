@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -8,6 +8,21 @@ import { TripStatus, type TripListItem } from "@features/trips/domain";
 import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import { tripsListCopy } from "../copy/listCopy";
 import { TripTable } from "./TripTable";
+
+const { mockHasPermission } = vi.hoisted(() => ({
+  mockHasPermission: vi.fn((module: string, action: string) => {
+    if (module === "finance" && action === "read") return true;
+    return true;
+  }),
+}));
+
+vi.mock("@shared/permissions", () => ({
+  usePermissions: () => ({ hasPermission: mockHasPermission }),
+}));
+
+vi.mock("@features/catalogs", () => ({
+  useCatalogOptions: () => ({ data: [] }),
+}));
 
 function renderWithProviders(ui: ReactNode) {
   const queryClient = new QueryClient({
@@ -20,9 +35,7 @@ function renderWithProviders(ui: ReactNode) {
   );
 }
 
-function listTrip(
-  overrides: Partial<TripListItem> = {},
-): TripListItem {
+function listTrip(overrides: Partial<TripListItem> = {}): TripListItem {
   return {
     id: "t1",
     tripCode: "T-100",
@@ -41,15 +54,17 @@ function listTrip(
     scheduledArrival: null,
     status: TripStatus.SCHEDULED,
     operationalOutcome: "standard",
+    cfdiEmissionIntent: "emitir_cfdi",
     falseTripDeclaredAt: null,
     falseTripDeclaredBy: null,
     cargoDescription: null,
-    baseRate: 0,
+    baseRate: 18500,
     totalCost: 0,
     totalRevenue: 0,
     estimatedProfit: 0,
-    cargoCount: 0,
-    clientCount: 0,
+    cargoCount: 2,
+    clientCount: 1,
+    routeType: "long_haul",
     invoicing: tripInvoicingFixture({ canGenerateInvoice: true }),
     requiresFiscalAttention: false,
     createdAt: new Date("2026-05-01T00:00:00.000Z"),
@@ -60,6 +75,14 @@ function listTrip(
 const primaryTo = (trip: TripListItem) => `/trips/${trip.id}`;
 
 describe("TripTable", () => {
+  beforeEach(() => {
+    mockHasPermission.mockReset();
+    mockHasPermission.mockImplementation((module: string, action: string) => {
+      if (module === "finance" && action === "read") return true;
+      return true;
+    });
+  });
+
   it("retorna null cuando no hay filas (empty del shell)", () => {
     const { container } = renderWithProviders(
       <TripTable
@@ -73,10 +96,10 @@ describe("TripTable", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("muestra la columna Cliente con el nombre del list DTO", () => {
+  it("Admin con finance.read: 7 columnas de datos + acciones e Ingreso con baseRate", () => {
     renderWithProviders(
       <TripTable
-        trips={[listTrip()]}
+        trips={[listTrip({ baseRate: 18500 })]}
         isLoading={false}
         primaryTo={primaryTo}
         onView={vi.fn()}
@@ -84,12 +107,62 @@ describe("TripTable", () => {
     );
 
     expect(
-      screen.getByRole("columnheader", { name: tripsListCopy.columns.client }),
+      screen.getByRole("columnheader", { name: tripsListCopy.columns.code }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: tripsListCopy.columns.route }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: tripsListCopy.columns.fleet }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", {
+        name: tripsListCopy.columns.departure,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: tripsListCopy.columns.status }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: tripsListCopy.columns.invoice }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: tripsListCopy.columns.income }),
+    ).toBeInTheDocument();
+
+    // Sin columna Cliente propia
+    expect(
+      screen.queryByRole("columnheader", { name: tripsListCopy.columns.client }),
+    ).not.toBeInTheDocument();
+
     expect(screen.getByText("Transportes del Norte SA")).toBeInTheDocument();
+    expect(screen.getByText(/\$18,?500\.00/)).toBeInTheDocument();
   });
 
-  it("link primario en Código y conductor apilado bajo Unidad (T4)", () => {
+  it("Despachador sin finance.read: 6 columnas y monto ausente del DOM", () => {
+    mockHasPermission.mockImplementation((module: string, action: string) => {
+      if (module === "finance" && action === "read") return false;
+      return true;
+    });
+
+    const { container } = renderWithProviders(
+      <TripTable
+        trips={[listTrip({ baseRate: 18500 })]}
+        isLoading={false}
+        primaryTo={primaryTo}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("columnheader", { name: tripsListCopy.columns.income }),
+    ).not.toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/\$/);
+    expect(container.textContent).not.toContain("18,500");
+    expect(container.textContent).not.toContain("18500");
+  });
+
+  it("link primario en Viaje y cliente bajo el código; flota apilada", () => {
     renderWithProviders(
       <TripTable
         trips={[listTrip()]}
@@ -103,17 +176,20 @@ describe("TripTable", () => {
     expect(link).toHaveAttribute("href", "/trips/t1");
     expect(screen.getByText("U-12")).toBeInTheDocument();
     expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("columnheader", {
-        name: tripsListCopy.columns.driver,
-      }),
-    ).not.toBeInTheDocument();
   });
 
-  it("muestra Sin cliente cuando no hay cliente", () => {
+  it("muestra Sin cliente y · +N cuando hay multi-cliente", () => {
     renderWithProviders(
       <TripTable
-        trips={[listTrip({ client: null })]}
+        trips={[
+          listTrip({ client: null, clientCount: 0 }),
+          listTrip({
+            id: "t2",
+            tripCode: "T-200",
+            clientCount: 3,
+            client: { id: "c1", legalName: "Abarrotes del Centro" },
+          }),
+        ]}
         isLoading={false}
         primaryTo={primaryTo}
         onView={vi.fn()}
@@ -121,9 +197,11 @@ describe("TripTable", () => {
     );
 
     expect(screen.getByText(tripsListCopy.columns.noClient)).toBeInTheDocument();
+    expect(screen.getByText(/Abarrotes del Centro/)).toBeInTheDocument();
+    expect(screen.getByText(/· \+2/)).toBeInTheDocument();
   });
 
-  it("oculta columna Cliente cuando hideClientColumn (portal cliente)", () => {
+  it("oculta cliente bajo el código cuando hideClientColumn (portal cliente)", () => {
     renderWithProviders(
       <TripTable
         trips={[listTrip()]}
@@ -135,19 +213,24 @@ describe("TripTable", () => {
     );
 
     expect(
-      screen.queryByRole("columnheader", {
-        name: tripsListCopy.columns.client,
-      }),
-    ).not.toBeInTheDocument();
-    expect(
       screen.queryByText("Transportes del Norte SA"),
     ).not.toBeInTheDocument();
   });
 
-  it("usa el badge Atención fiscal en lugar de Fiscal", () => {
+  it("Atención fiscal manda en Facturación", () => {
     renderWithProviders(
       <TripTable
-        trips={[listTrip({ requiresFiscalAttention: true })]}
+        trips={[
+          listTrip({
+            requiresFiscalAttention: true,
+            invoicing: tripInvoicingFixture({
+              hasActiveInvoice: true,
+              invoiceStatus: "stamped",
+              invoiceFolio: "F-1198",
+              invoiceId: "inv-1",
+            }),
+          }),
+        ]}
         isLoading={false}
         primaryTo={primaryTo}
         onView={vi.fn()}
@@ -160,7 +243,64 @@ describe("TripTable", () => {
     expect(screen.queryByText("Fiscal")).not.toBeInTheDocument();
   });
 
-  it("muestra día civil México en Salida para salida vespertina (no día UTC)", () => {
+  it("estado sin ícono; Reserva muestra Falta unidad", () => {
+    renderWithProviders(
+      <TripTable
+        trips={[
+          listTrip({
+            status: TripStatus.DRAFT,
+            vehicle: { id: "", unitNumber: "", licensePlate: "" },
+            driver: { id: "", fullName: "" },
+            cargoCount: 0,
+          }),
+        ]}
+        isLoading={false}
+        primaryTo={primaryTo}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Reserva")).toBeInTheDocument();
+    expect(
+      screen.getByText(tripsListCopy.statusSecondary.missingVehicle),
+    ).toBeInTheDocument();
+  });
+
+  it("Listo para facturar cuando canGenerateInvoice", () => {
+    renderWithProviders(
+      <TripTable
+        trips={[
+          listTrip({
+            invoicing: tripInvoicingFixture({ canGenerateInvoice: true }),
+          }),
+        ]}
+        isLoading={false}
+        primaryTo={primaryTo}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Listo para facturar")).toBeInTheDocument();
+  });
+
+  it("Pendiente como texto cuando aún no es facturable", () => {
+    renderWithProviders(
+      <TripTable
+        trips={[
+          listTrip({
+            invoicing: tripInvoicingFixture({ canGenerateInvoice: false }),
+          }),
+        ]}
+        isLoading={false}
+        primaryTo={primaryTo}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Pendiente")).toBeInTheDocument();
+  });
+
+  it("muestra día civil México en Salida (sin año) para salida vespertina", () => {
     // 09/09/2026 20:00 America/Mexico_City = 2026-09-10T02:00:00.000Z
     renderWithProviders(
       <TripTable
@@ -175,8 +315,21 @@ describe("TripTable", () => {
       />,
     );
 
-    expect(screen.getByText(/09 sep 2026/i)).toBeInTheDocument();
-    expect(screen.getByText(/0?8:00\s*p\.?\s*m\.?/i)).toBeInTheDocument();
-    expect(screen.queryByText(/10 sep 2026/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/9 sep, 20:00/i)).toBeInTheDocument();
+    expect(screen.queryByText(/10 sep/i)).not.toBeInTheDocument();
+  });
+
+  it("ruta opción B: ciudades visibles y meta Foráneo · N cargas", () => {
+    renderWithProviders(
+      <TripTable
+        trips={[listTrip({ cargoCount: 2, routeType: "long_haul" })]}
+        isLoading={false}
+        primaryTo={primaryTo}
+        onView={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Guadalajara → Monterrey/)).toBeInTheDocument();
+    expect(screen.getByText(/Foráneo · 2 cargas/)).toBeInTheDocument();
   });
 });

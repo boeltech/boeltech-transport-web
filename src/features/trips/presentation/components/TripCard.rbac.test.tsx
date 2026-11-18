@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 
 import { TripStatus, type TripListItem } from "@features/trips/domain";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import { tripsListCopy } from "../copy/listCopy";
 import { TripCard } from "./TripCard";
 
@@ -16,6 +17,10 @@ vi.mock("@shared/permissions", () => ({
     hasPermission: (module: string, action: string) =>
       mockHasPermission(module, action),
   }),
+}));
+
+vi.mock("@features/catalogs", () => ({
+  useCatalogOptions: () => ({ data: [] }),
 }));
 
 vi.mock("@shared/hooks", () => ({
@@ -33,7 +38,7 @@ function listTrip(
   return {
     tripCode: "T-001",
     client: { id: "c1", legalName: "Cliente" },
-    vehicle: { id: "v1", plateNumber: "ABC-123" },
+    vehicle: { id: "v1", unitNumber: "U-1", licensePlate: "ABC-123" },
     driver: { id: "d1", fullName: "Conductor" },
     originCity: "A",
     originState: null,
@@ -41,6 +46,10 @@ function listTrip(
     destinationState: null,
     scheduledDeparture: new Date("2026-05-17T10:00:00.000Z"),
     scheduledArrival: null,
+    operationalOutcome: "standard",
+    cfdiEmissionIntent: "emitir_cfdi",
+    falseTripDeclaredAt: null,
+    falseTripDeclaredBy: null,
     cargoDescription: null,
     baseRate: 0,
     totalCost: 0,
@@ -48,14 +57,7 @@ function listTrip(
     estimatedProfit: 0,
     cargoCount: 0,
     clientCount: 0,
-    invoicing: {
-      invoiceId: null,
-      invoiceFolio: null,
-      invoiceStatus: null,
-      invoiceUuid: null,
-      invoiceable: false,
-      invoiceableReason: null,
-    },
+    invoicing: tripInvoicingFixture(),
     requiresFiscalAttention: false,
     createdAt: new Date("2026-05-01T00:00:00.000Z"),
     ...overrides,

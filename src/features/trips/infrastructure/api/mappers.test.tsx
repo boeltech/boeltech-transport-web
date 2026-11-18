@@ -46,6 +46,20 @@ function baseListItem(
   };
 }
 
+describe("mapApiTripListItem base_rate (F11)", () => {
+  it("omite baseRate cuando el API no envía base_rate", () => {
+    const raw = { ...baseListItem(undefined) };
+    delete (raw as { base_rate?: unknown }).base_rate;
+    const item = mapApiTripListItem(raw);
+    expect(item.baseRate).toBeUndefined();
+  });
+
+  it("mapea baseRate cuando viene en el payload", () => {
+    const item = mapApiTripListItem(baseListItem(undefined));
+    expect(item.baseRate).toBe(1000);
+  });
+});
+
 describe("mapApiTripListItem invoicing (ADR-0068)", () => {
   it("maps primary + accessory flags and accessory_invoices", () => {
     const item = mapApiTripListItem(

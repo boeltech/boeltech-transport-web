@@ -508,6 +508,10 @@ export interface ApiTripResponse {
   requires_fiscal_attention_at?: string | null;
   fiscal_attention?: ApiTripFiscalAttentionDetail | null;
   fiscal_action_required?: ApiTripFiscalActionRequiredResponse | null;
+  /** Desenlace origen (domain 0.53+): todas cancelled → falso o cancelar viaje. */
+  origin_no_cargo_pending_outcome?: boolean;
+  /** Desenlace retorno (domain 0.53+): returned sin replan posterior. */
+  return_replan_required?: boolean;
 
   // Carta Porte 3.1 — distancia registrada / id complemento (cuando aplique)
   total_dist_rec: number | null;
@@ -614,7 +618,8 @@ export interface ApiTripListItemResponse {
   false_trip_declared_at?: string | null;
   false_trip_declared_by?: string | null;
   cargo_description: string | null;
-  base_rate: string | number;
+  /** F11: omitido si el caller no tiene `finance.read`. */
+  base_rate?: string | number | null;
   total_cost: string | number;
   total_revenue: string | number;
   estimated_profit: string | number;

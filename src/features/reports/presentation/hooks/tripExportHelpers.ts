@@ -35,7 +35,7 @@ export function mapTripListItemToCsvRow(trip: TripListItem): Array<string | numb
     TRIP_STATUS_LABELS[trip.status],
     formatTripExportDateTime(trip.scheduledDeparture),
     formatTripExportDateTime(trip.scheduledArrival),
-    trip.baseRate,
+    trip.baseRate ?? "",
     trip.vehicle.unitNumber,
     trip.driver.fullName,
   ];

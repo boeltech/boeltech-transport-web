@@ -43,18 +43,53 @@ export const tripsListCopy = {
   },
 
   columns: {
-    code: "Código",
+    /** F11: código + cliente apilados. */
+    code: "Viaje",
     client: "Cliente",
     route: "Ruta",
-    /** T4: unidad + conductor apilados (antes columnas separadas). */
-    fleet: "Unidad",
+    /** F11: unidad + operador apilados. */
+    fleet: "Unidad y operador",
     vehicle: "Unidad",
     driver: "Conductor",
-    departure: "Salida",
+    departure: "Salida y llegada",
     status: "Estado",
-    invoice: "Factura",
+    invoice: "Facturación",
+    income: "Ingreso",
     emptyCell: "—",
     noClient: "Sin cliente",
+    /** `clientCount > 1` → «· +N» (N = extras). */
+    moreClients: (extra: number) => `· +${extra}`,
+  },
+
+  routeType: {
+    local: "Local",
+    long_haul: "Foráneo",
+    transfer: "Traslado",
+  },
+
+  routeMeta: {
+    noCargos: "sin cargas",
+    oneCargo: "1 carga",
+    nCargos: (n: number) => `${n} cargas`,
+  },
+
+  schedule: {
+    arrivalEmpty: "Llegada —",
+    arrivalSameDay: (time: string) => `Llegada ${time}`,
+    arrivalOtherDay: (dateTime: string) => `Llegada ${dateTime}`,
+  },
+
+  statusSecondary: {
+    falseTrip: "Viaje en falso",
+    missingVehicle: "Falta unidad",
+    missingDriver: "Falta conductor",
+    missingRoute: "Falta ruta",
+    missingCargos: "Falta cargas",
+  },
+
+  invoicingSecondary: {
+    portions: (invoiced: number, total: number) =>
+      `${invoiced} de ${total} porciones`,
   },
 
   filter: {
@@ -106,10 +141,13 @@ export const tripsListCopy = {
     draft: "Borrador",
     stamped: "Facturado",
     cancellationPending: "Cancelación en proceso",
-    cancelled: "Cancelado",
+    /** F11 / D-F11-2: vocabulario del detalle. */
+    cancelled: "Factura cancelada",
+    /** Remapeado en UI de lista/detalle a «Listo para facturar». */
     available: "Disponible",
-    /** ADR-0081: prorrateo con algunas porciones ya facturadas. */
+    /** ADR-0081: remapeado a «Facturación en curso». */
     partial: "Parcial",
+    /** Remapeado a «Pendiente». */
     unavailable: "No disponible",
     /** ADR-0096 / D3′: viaje Sin factura — no implica factura pendiente. */
     sinCfdi: "Sin factura",
@@ -125,7 +163,8 @@ export const tripsListCopy = {
   },
 
   badge: {
-    overdue: (hours: number) => `${hours}h de retraso`,
+    /** Preferir `formatTripLateDelayChip` (D33) en listado F11. */
+    overdue: (hours: number) => `${hours} h de retraso`,
     overdueShort: "Con retraso",
     fiscalAttention: "Atención fiscal",
   },

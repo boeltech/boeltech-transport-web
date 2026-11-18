@@ -3,7 +3,7 @@
  * Clean Architecture - Presentation Layer
  *
  * Tarjeta de listado: EntityListCard + menú ⋯ vía TripActions (usable sin hover — D4/D5).
- * Solo cancel/delete en fila; asignar/iniciar/timbrar viven en el detalle.
+ * F11: hereda copy de facturación/estado + regla Ingreso (`finance.read`).
  */
 
 import { memo } from "react";
@@ -15,6 +15,8 @@ import {
   EntityListCard,
   entityListCardMenuTriggerClassName,
 } from "@shared/ui/listing";
+import { usePermissions } from "@shared/permissions";
+import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { TripListItem } from "@features/trips/domain";
 import { TripListRouteLabel } from "./TripListRouteLabel";
 import { TripActions } from "./TripActions";
@@ -25,12 +27,17 @@ import {
   Eye,
   Navigation,
   Receipt,
+  Clock,
 } from "lucide-react";
 import { TripStatusBadge } from "../config/tripStatusConfig";
 import { tripsListCopy } from "../copy/listCopy";
-import { formatDateTime } from "@shared/utils/dateUtils";
-import { getTripInvoicingBadgeConfig } from "../uiHelpers";
-import { TripOverdueBadge } from "./TripOverdueBadge";
+import {
+  formatTripListClientSecondary,
+  formatTripListDeparture,
+  getTripListInvoicingAppearance,
+  resolveTripListStatusSecondary,
+  tripListIncomeValue,
+} from "../helpers/tripListDisplay";
 
 interface TripCardProps {
   trip: TripListItem;
@@ -54,11 +61,11 @@ export const TripCard = memo(function TripCard({
   className,
   hideClient = false,
 }: TripCardProps) {
-  const invoicingConfig = getTripInvoicingBadgeConfig({
-    status: trip.status,
-    invoicing: trip.invoicing,
-    cfdiEmissionIntent: trip.cfdiEmissionIntent,
-  });
+  const { hasPermission } = usePermissions();
+  const showIncome = hasPermission("finance", "read");
+  const income = showIncome ? tripListIncomeValue(trip.baseRate) : null;
+  const invoicing = getTripListInvoicingAppearance(trip);
+  const statusSecondary = resolveTripListStatusSecondary(trip);
 
   const handleCardClick = () => {
     onView?.(trip.id);
@@ -94,12 +101,12 @@ export const TripCard = memo(function TripCard({
               <Navigation className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h3 className="truncate text-lg font-semibold leading-none">
+              <h3 className="truncate font-mono text-lg font-semibold leading-none">
                 {trip.tripCode}
               </h3>
               {!hideClient ? (
                 <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {trip.client?.legalName ?? tripsListCopy.columns.noClient}
+                  {formatTripListClientSecondary(trip)}
                 </p>
               ) : null}
             </div>
@@ -129,15 +136,15 @@ export const TripCard = memo(function TripCard({
           <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
             <Calendar className="h-4 w-4 shrink-0" />
             <span className="truncate">
-              {formatDateTime(trip.scheduledDeparture.toISOString())}
+              {formatTripListDeparture(trip.scheduledDeparture)}
             </span>
           </div>
-          {trip.vehicle ? (
+          {trip.vehicle?.unitNumber ? (
             <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
               <Truck className="h-4 w-4 shrink-0" />
               <span className="min-w-0 truncate">
                 <span className="text-foreground">
-                  {trip.vehicle.unitNumber || tripsListCopy.columns.emptyCell}
+                  {trip.vehicle.unitNumber}
                 </span>
                 {trip.vehicle.licensePlate ? (
                   <span
@@ -150,7 +157,7 @@ export const TripCard = memo(function TripCard({
               </span>
             </div>
           ) : null}
-          {trip.driver ? (
+          {trip.driver?.fullName ? (
             <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
               <User className="h-4 w-4 shrink-0" />
               <span className="truncate">{trip.driver.fullName}</span>
@@ -158,18 +165,54 @@ export const TripCard = memo(function TripCard({
           ) : null}
           <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
             <Receipt className="h-4 w-4 shrink-0" />
-            <Badge variant={invoicingConfig.variant} className="text-xs font-normal">
-              {invoicingConfig.label}
-            </Badge>
+            {invoicing.mode === "empty" ? (
+              <span>{tripsListCopy.columns.emptyCell}</span>
+            ) : invoicing.mode === "quiet" ? (
+              <span className="text-xs">{invoicing.label}</span>
+            ) : (
+              <Badge
+                variant={invoicing.variant}
+                tone={invoicing.tone ?? "soft"}
+                className="text-xs font-normal"
+              >
+                {invoicing.label}
+              </Badge>
+            )}
           </div>
+          {showIncome ? (
+            <div className="col-span-2 flex min-w-0 items-center justify-between gap-2 border-t pt-2 text-sm">
+              <span className="text-muted-foreground">
+                {tripsListCopy.columns.income}
+              </span>
+              <span className="font-mono tabular-nums">
+                {income != null
+                  ? formatMxCurrency(income)
+                  : tripsListCopy.columns.emptyCell}
+              </span>
+            </div>
+          ) : null}
         </div>
       </CardContent>
 
       <CardFooter className="border-t pt-3">
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <TripStatusBadge status={trip.status} size="sm" showIcon={true} />
-            <TripOverdueBadge trip={trip} />
+            <TripStatusBadge status={trip.status} size="sm" showIcon={false} />
+            {statusSecondary ? (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 text-xs",
+                  statusSecondary.tone === "late"
+                    ? "text-destructive"
+                    : "text-muted-foreground",
+                )}
+              >
+                {statusSecondary.tone === "late" ? (
+                  <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                ) : null}
+                {statusSecondary.text}
+              </span>
+            ) : null}
             {trip.requiresFiscalAttention ? (
               <Badge variant="destructive" tone="soft" className="text-xs">
                 {tripsListCopy.badge.fiscalAttention}

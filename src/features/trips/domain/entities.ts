@@ -710,6 +710,16 @@ export interface Trip {
   readonly notes: string | null;
   readonly cancellationReason: string | null;
   readonly invoicing: TripInvoicing;
+  /**
+   * Desenlace origen: todas las cargas canceladas tras llegada al origen;
+   * falta declarar falso o cancelar viaje (GET aditivo API / domain 0.53+).
+   */
+  readonly originNoCargoPendingOutcome: boolean;
+  /**
+   * Tras Devolver: falta replan de retorno antes de cerrar
+   * (GET aditivo API / domain 0.53+).
+   */
+  readonly returnReplanRequired: boolean;
   /** Marca operativa: el viaje requiere acción fiscal (SAT / facturación). */
   readonly requiresFiscalAttention: boolean;
   /** Q5 — instante de la bandera; null si apagada o el API no lo envía. */
@@ -804,7 +814,11 @@ export interface TripListItem {
   readonly falseTripDeclaredAt: Date | null;
   readonly falseTripDeclaredBy: string | null;
   readonly cargoDescription: string | null;
-  readonly baseRate: number;
+  /**
+   * Tarifa base del listado (F11). Ausente si el API omite `base_rate`
+   * (sin `finance.read`). No usar `totalRevenue` para la columna Ingreso.
+   */
+  readonly baseRate?: number;
   readonly totalCost: number;
   readonly totalRevenue: number;
   readonly estimatedProfit: number;

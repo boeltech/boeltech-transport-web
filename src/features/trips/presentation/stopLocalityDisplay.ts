@@ -153,3 +153,52 @@ export function formatTripListRouteLabel(
   if (!origin && !destination) return "—";
   return `${origin || "Origen"} → ${destination || "Destino"}`;
 }
+
+/** Ciudad o ubicación sin estado (F11 opción B). */
+export function resolveTripSummaryEndpointCityOnly(
+  city: string | null | undefined,
+  state: string | null | undefined,
+  municipalityOptions: readonly CatalogCodeOption[],
+  stateOptions: readonly CatalogCodeOption[],
+): string | null {
+  const full = resolveTripSummaryEndpointLabel(
+    city,
+    state,
+    municipalityOptions,
+    stateOptions,
+  );
+  if (!full) return null;
+  // Quitar «, Estado» final si el resolver lo añadió.
+  const storedCity = city?.trim();
+  if (storedCity && !/^\d{1,3}$/.test(storedCity)) {
+    return storedCity;
+  }
+  const comma = full.indexOf(",");
+  return comma > 0 ? full.slice(0, comma).trim() : full;
+}
+
+/** Ruta opción B: solo ciudad; tooltip = `formatTripListRouteLabel`. */
+export function formatTripListRouteCitiesOnly(
+  trip: TripListRouteSummary,
+  catalogs: {
+    originMunicipalityOptions: readonly CatalogCodeOption[];
+    destinationMunicipalityOptions: readonly CatalogCodeOption[];
+    stateOptions: readonly CatalogCodeOption[];
+  },
+): string {
+  const origin = resolveTripSummaryEndpointCityOnly(
+    trip.originCity,
+    trip.originState,
+    catalogs.originMunicipalityOptions,
+    catalogs.stateOptions,
+  );
+  const destination = resolveTripSummaryEndpointCityOnly(
+    trip.destinationCity,
+    trip.destinationState,
+    catalogs.destinationMunicipalityOptions,
+    catalogs.stateOptions,
+  );
+
+  if (!origin && !destination) return "—";
+  return `${origin || "Origen"} → ${destination || "Destino"}`;
+}

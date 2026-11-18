@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   composeStopLocalityLine,
+  formatTripListRouteCitiesOnly,
   formatTripListRouteLabel,
   resolveCatalogNameByCode,
 } from "./stopLocalityDisplay";
@@ -66,6 +67,41 @@ describe("formatTripListRouteLabel", () => {
         },
       ),
     ).toBe("Guadalajara, Jalisco → Zapopan, Jalisco");
+  });
+});
+
+describe("formatTripListRouteCitiesOnly (F11 opción B)", () => {
+  it("muestra solo ciudad; el label completo queda para tooltip", () => {
+    const catalogs = {
+      originMunicipalityOptions: [] as { code: string; name: string }[],
+      destinationMunicipalityOptions: [] as { code: string; name: string }[],
+      stateOptions: [
+        { code: "NLE", name: "Nuevo León" },
+        { code: "COA", name: "Coahuila de Zaragoza" },
+      ],
+    };
+    expect(
+      formatTripListRouteCitiesOnly(
+        {
+          originCity: "Monterrey",
+          originState: "NLE",
+          destinationCity: "Saltillo",
+          destinationState: "COA",
+        },
+        catalogs,
+      ),
+    ).toBe("Monterrey → Saltillo");
+    expect(
+      formatTripListRouteLabel(
+        {
+          originCity: "Monterrey",
+          originState: "NLE",
+          destinationCity: "Saltillo",
+          destinationState: "COA",
+        },
+        catalogs,
+      ),
+    ).toBe("Monterrey, Nuevo León → Saltillo, Coahuila de Zaragoza");
   });
 });
 

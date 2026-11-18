@@ -3,7 +3,7 @@
  * Clean Architecture - Feature Layer (Config)
  *
  * Configuración de UI para los estados de viajes.
- * Usa el sistema centralizado de status config.
+ * F11 / D-F11-1: sentence case + colores firmados (cambio global L5).
  *
  * Ubicación: src/features/trips/presentation/config/tripStatusConfig.ts
  */
@@ -33,10 +33,11 @@ export const TRIP_STATUS_CONFIG: Record<TripStatusType, StatusConfig> = {
     description: "Viaje programado y listo para iniciar",
   }),
 
-  [TripStatus.IN_PROGRESS]: createStatusConfig("purple", {
-    label: "En Ruta",
+  [TripStatus.IN_PROGRESS]: createStatusConfig("info", {
+    label: "En ruta",
     icon: Truck,
     description: "Viaje actualmente en ruta",
+    tone: "solid",
   }),
 
   [TripStatus.COMPLETED]: createStatusConfig("success", {
@@ -45,11 +46,17 @@ export const TRIP_STATUS_CONFIG: Record<TripStatusType, StatusConfig> = {
     description: "Viaje finalizado exitosamente",
   }),
 
-  [TripStatus.CANCELLED]: createStatusConfig("danger", {
-    label: "Cancelado",
-    icon: XCircle,
-    description: "Viaje cancelado",
-  }),
+  /** Outline / neutral (D-F11-1): sin relleno soft. */
+  [TripStatus.CANCELLED]: {
+    ...createStatusConfig("neutral", {
+      label: "Cancelado",
+      icon: XCircle,
+      description: "Viaje cancelado",
+    }),
+    bgColor: "bg-transparent",
+    textColor: "text-muted-foreground",
+    borderColor: "border-border",
+  },
 };
 
 // ============================================================================
