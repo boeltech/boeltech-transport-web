@@ -8,6 +8,7 @@ import type { LatLng } from "@shared/geolocation/contracts/geoPorts";
 import { cn } from "@shared/lib/utils/cn";
 import { Label } from "@shared/ui/label";
 
+import { isCityOnlyLocationValue } from "./isMapboxCityCandidate";
 import { LOCATION_FIELD_COPY } from "./locationFieldCopy";
 import { LocationCard } from "./LocationCard";
 import type { LocationFieldProps, LocationValue } from "./LocationField.types";
@@ -82,6 +83,12 @@ export function LocationField({
   };
 
   const handlePickerSelect = (next: LocationValue) => {
+    // F8c: solo-ciudad aplica de inmediato (sin Confirmar domicilio).
+    if (isCityOnlyLocationValue(next)) {
+      onChange(next);
+      setPickerOpen(false);
+      return;
+    }
     // Mapbox / create drafts: ADR-0092 Sheet — unless the caller owns confirm
     // (alta de ruta panel único Buscar→Confirmar).
     if (!next.sourceAddressId?.trim() && selectionConfirm === "sheet") {

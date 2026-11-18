@@ -11,6 +11,16 @@ const mapboxCandidate = {
   label: "Av Industria 120, 66600 Apodaca, N.L.",
   position: { latitude: 25.78, longitude: -100.18 },
   rawPlaceId: "place.1",
+  featureTypes: ["address"],
+};
+
+const mapboxCityCandidate = {
+  label: "Torreón, Coahuila, Mexico",
+  position: { latitude: 25.54, longitude: -103.44 },
+  rawPlaceId: "place.city",
+  featureTypes: ["place"],
+  place: "Torreón",
+  region: "Coahuila",
 };
 
 vi.mock("./useLocationSearch", () => ({
@@ -21,6 +31,12 @@ vi.mock("./useLocationSearch", () => ({
         source: "mapbox" as const,
         label: mapboxCandidate.label,
         mapbox: mapboxCandidate,
+      },
+      {
+        id: "mapbox:place.city",
+        source: "mapbox" as const,
+        label: mapboxCityCandidate.label,
+        mapbox: mapboxCityCandidate,
       },
       {
         id: "__location_create__",
@@ -161,6 +177,24 @@ describe("LocationField H1 (ADR-0092)", () => {
       expect(screen.getByTestId("location-sheet-open")).toBeInTheDocument();
     });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Solo ciudad Mapbox hit applies city-only without opening Sheet", async () => {
+    const user = userEvent.setup();
+    const { onChange } = renderField(null);
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByText(mapboxCityCandidate.label));
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          locationName: "Torreón, Coahuila",
+          localityName: "Torreón",
+        }),
+      );
+    });
+    expect(screen.queryByTestId("location-sheet-open")).not.toBeInTheDocument();
   });
 
   it("selectionConfirm=immediate delivers Mapbox draft to onChange without Sheet", async () => {

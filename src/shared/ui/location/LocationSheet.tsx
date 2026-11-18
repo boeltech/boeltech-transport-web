@@ -570,27 +570,56 @@ export function LocationSheet({
           ) : null}
         </div>
 
-        <SheetFooter className="shrink-0 gap-2 border-t px-6 py-4 sm:justify-end">
+        <SheetFooter className="shrink-0 flex-col gap-3 border-t px-6 py-4 sm:flex-col sm:space-x-0">
           {requirements === "tripStop" && !canSaveByRequirements ? (
-            <p className="mr-auto text-xs text-muted-foreground sm:max-w-[14rem]">
-              {LOCATION_FIELD_COPY.tripStopUseHint}
-            </p>
+            <div className="w-full space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {LOCATION_FIELD_COPY.tripStopUseHint}
+              </p>
+              <div className="space-y-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto px-0 text-muted-foreground"
+                  disabled={disabled || !locationName.trim()}
+                  onClick={() => {
+                    const city =
+                      locationName.split(",")[0]?.trim() ||
+                      locationName.trim();
+                    if (!city) return;
+                    onSave({
+                      locationName: city,
+                      localityName: city,
+                    });
+                    onOpenChange(false);
+                  }}
+                >
+                  {LOCATION_FIELD_COPY.useAsCityOnly}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  {LOCATION_FIELD_COPY.useAsCityOnlyHint}
+                </p>
+              </div>
+            </div>
           ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={disabled}
-          >
-            {LOCATION_FIELD_COPY.cancel}
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={saveDisabled}
-          >
-            {LOCATION_FIELD_COPY.save}
-          </Button>
+          <div className="flex w-full flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={disabled}
+            >
+              {LOCATION_FIELD_COPY.cancel}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={saveDisabled}
+            >
+              {LOCATION_FIELD_COPY.save}
+            </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>

@@ -3,6 +3,7 @@ import { MapPin, Plus, Warehouse } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
 import { Badge } from "@shared/ui/badge";
 
+import { isMapboxCityCandidate } from "./isMapboxCityCandidate";
 import { LOCATION_FIELD_COPY } from "./locationFieldCopy";
 import type { LocationSearchResult } from "./LocationField.types";
 
@@ -29,6 +30,15 @@ export function LocationSearchResultRow({
   selected = false,
   className,
 }: LocationSearchResultRowProps) {
+  const cityOnly =
+    result.source === "mapbox" && isMapboxCityCandidate(result.mapbox);
+  const badgeLabel = cityOnly
+    ? LOCATION_FIELD_COPY.cityOnlyBadge
+    : sourceBadgeLabel(result.source);
+  const description = cityOnly
+    ? LOCATION_FIELD_COPY.cityOnlyDescription
+    : result.description;
+
   return (
     <div
       className={cn(
@@ -42,12 +52,12 @@ export function LocationSearchResultRow({
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{result.label}</span>
           <Badge variant="neutral" tone="soft" className="shrink-0">
-            {sourceBadgeLabel(result.source)}
+            {badgeLabel}
           </Badge>
         </div>
-        {result.description ? (
+        {description ? (
           <p className="truncate text-xs text-muted-foreground">
-            {result.description}
+            {description}
           </p>
         ) : null}
       </div>

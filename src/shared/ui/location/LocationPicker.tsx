@@ -29,6 +29,10 @@ import type {
 import { LOCATION_FIELD_COPY } from "./locationFieldCopy";
 import { LocationSearchResultRow } from "./LocationSearchResult";
 import {
+  cityOnlyLocationValueFromMapbox,
+  isMapboxCityCandidate,
+} from "./isMapboxCityCandidate";
+import {
   LOCATION_CREATE_SENTINEL_ID,
   locationValueFromInternal,
   locationValueFromMapbox,
@@ -187,6 +191,12 @@ export function LocationPicker({
     }
     if (result.source === "mapbox" && result.mapbox) {
       const candidate = result.mapbox;
+      // F8c D-F8c-2: hit ciudad → city-only inmediato (LocationField no abre Sheet).
+      if (isMapboxCityCandidate(candidate)) {
+        onSelect(cityOnlyLocationValueFromMapbox(candidate));
+        setOpen(false);
+        return;
+      }
       void (async () => {
         setIsResolving(true);
         try {

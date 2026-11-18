@@ -49,6 +49,13 @@ export type { LocationSatAddressFields } from "./locationValueToSatAddressFields
 
 export { LOCATION_FIELD_COPY } from "./locationFieldCopy";
 
+export {
+  cityLabelFromMapboxCandidate,
+  cityOnlyLocationValueFromMapbox,
+  isCityOnlyLocationValue,
+  isMapboxCityCandidate,
+} from "./isMapboxCityCandidate";
+
 export type {
   AmbiguityField,
   GeocodingAccuracy,

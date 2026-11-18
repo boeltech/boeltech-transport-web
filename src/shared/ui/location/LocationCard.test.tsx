@@ -113,4 +113,23 @@ describe("LocationCard", () => {
       screen.getByText("Boulevard Bernardo Quintana Arrioja 12 · CP 76022"),
     ).toBeInTheDocument();
   });
+
+  it("shows Solo ciudad badge for city-only values", () => {
+    render(
+      <LocationCard
+        value={{ locationName: "Monterrey, N.L." }}
+        onChangeRequest={() => undefined}
+      />,
+    );
+    expect(screen.getByTestId("location-card")).toHaveAttribute(
+      "data-city-only",
+      "true",
+    );
+    expect(
+      screen.getByText(LOCATION_FIELD_COPY.cityOnlyBadge),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(LOCATION_FIELD_COPY.cityOnlyDescription),
+    ).toBeInTheDocument();
+  });
 });

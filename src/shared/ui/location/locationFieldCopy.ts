@@ -72,4 +72,10 @@ export const LOCATION_FIELD_COPY = {
   coordinatesLabel: "Coordenadas",
   neighborhoodLabel: "Colonia",
   changeSearchPlaceholder: "Buscar otra ubicación…",
+  /** F8c — listbox / card solo-ciudad (D-F8c-2…4). */
+  cityOnlyBadge: "Solo ciudad",
+  cityOnlyDescription: "Ciudad · eliges el lugar exacto en Ruta",
+  useAsCityOnly: "Usar solo como ciudad",
+  useAsCityOnlyHint:
+    "No se guarda como parada. Eliges el lugar exacto en Ruta.",
 } as const;

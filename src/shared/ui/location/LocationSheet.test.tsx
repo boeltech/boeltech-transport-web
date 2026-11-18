@@ -430,6 +430,49 @@ describe("LocationSheet H3", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers Usar solo como ciudad when tripStop is not put-ready", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const onOpenChange = vi.fn();
+    vi.mocked(resolveMapboxToSat).mockResolvedValue({
+      resolved: {},
+      confidence: "low",
+      ambiguities: [],
+      mapboxLabel: "",
+    });
+
+    render(
+      <LocationSheet
+        open
+        onOpenChange={onOpenChange}
+        context="tripStop"
+        value={{
+          locationName: "Monterrey, N.L.",
+          postalCode: "64000",
+        }}
+        onSave={onSave}
+        showMap
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: LOCATION_FIELD_COPY.save }),
+      ).toBeDisabled();
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: LOCATION_FIELD_COPY.useAsCityOnly }),
+    );
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locationName: "Monterrey",
+        localityName: "Monterrey",
+      }),
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
   it("disables Usar for tripStop when coords+CP lack satStateCode", async () => {
     vi.mocked(resolveMapboxToSat).mockResolvedValue({
       resolved: {},

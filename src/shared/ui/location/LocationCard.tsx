@@ -2,8 +2,10 @@ import { isCartaPorteListBadgeReady } from "@boeltech/cfdi-domain";
 import { MapPin } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
+import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 
+import { isCityOnlyLocationValue } from "./isMapboxCityCandidate";
 import { LOCATION_FIELD_COPY } from "./locationFieldCopy";
 import { formatLocationAddressSummary } from "./locationSearchCompositor";
 import type {
@@ -50,9 +52,13 @@ export function LocationCard({
     value.locationName?.trim() ||
     formatLocationAddressSummary(value) ||
     LOCATION_FIELD_COPY.searchPlaceholder;
-  const summary = formatLocationAddressSummary(value);
+  const cityOnly = isCityOnlyLocationValue(value);
+  const summary = cityOnly
+    ? LOCATION_FIELD_COPY.cityOnlyDescription
+    : formatLocationAddressSummary(value);
   const showSummary = Boolean(summary) && summary !== title;
-  const showDetails = variant === "detailed" || variant === "operational";
+  const showDetails =
+    !cityOnly && (variant === "detailed" || variant === "operational");
   const isCompact = variant === "compact";
   const isHero = variant === "default" || variant === "operational";
 
@@ -60,6 +66,7 @@ export function LocationCard({
     <div
       data-testid="location-card"
       data-variant={variant}
+      data-city-only={cityOnly ? "true" : undefined}
       className={cn(
         "border border-border bg-card text-card-foreground shadow-sm",
         isHero ? "rounded-xl p-4" : "rounded-lg",
@@ -93,13 +100,20 @@ export function LocationCard({
                   {summary}
                 </p>
               ) : null}
+              {cityOnly ? (
+                <Badge variant="neutral" tone="soft" className="mt-1 font-normal">
+                  {LOCATION_FIELD_COPY.cityOnlyBadge}
+                </Badge>
+              ) : null}
             </div>
-            <LocationStatus
-              geocodingAccuracy={value.geocodingAccuracy}
-              isCartaPorteReady={resolveReadiness(value)}
-              showCartaPorte={showCartaPorteStatus}
-              context={context}
-            />
+            {!cityOnly ? (
+              <LocationStatus
+                geocodingAccuracy={value.geocodingAccuracy}
+                isCartaPorteReady={resolveReadiness(value)}
+                showCartaPorte={showCartaPorteStatus}
+                context={context}
+              />
+            ) : null}
           </div>
 
           {showDetails ? (
@@ -151,7 +165,7 @@ export function LocationCard({
                   {LOCATION_FIELD_COPY.change}
                 </Button>
               ) : null}
-              {onEditRequest ? (
+              {onEditRequest && !cityOnly ? (
                 <Button
                   type="button"
                   variant="ghost"
