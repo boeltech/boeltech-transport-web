@@ -80,6 +80,10 @@ import { fetchRegulatoryFlagsForSatProductCp } from "@shared/cfdi";
 
 import { V1_CARGO_PLACEHOLDER_CLIENT_SENTINEL } from "@features/trips/domain/v1CargoPlaceholderClient";
 import {
+  computeCargoDeliveryCoverage,
+  formatDeliveryRemainderLine,
+} from "../../../utils/cargoDeliveryCoverage";
+import {
   tripCargoSchema,
   type CargoMovementFormValues,
   type TripCargoFormValues,
@@ -315,6 +319,9 @@ function CargoMovementSheetSession({
   const [deliveryStopError, setDeliveryStopError] = useState<string | null>(
     null,
   );
+  const [deliveryCoverageError, setDeliveryCoverageError] = useState<
+    string | null
+  >(null);
 
   const setSubmitting = useCallback(
     (next: boolean) => {
@@ -414,6 +421,7 @@ function CargoMovementSheetSession({
   const hazardousMaterial = useWatch({ control, name: "hazardousMaterial" });
   const sectorRequirements = useWatch({ control, name: "sectorRequirements" });
   const weightInKgWatch = useWatch({ control, name: "weightInKg" });
+  const unitsWatch = useWatch({ control, name: "units" });
   const sectorValues = useWatch({
     control,
     name: [
@@ -640,11 +648,84 @@ function CargoMovementSheetSession({
     if (field === "stopIndex" && typeof value === "number" && value >= 0) {
       setDeliveryStopError(null);
     }
+    if (field === "weight" || field === "units") {
+      setDeliveryCoverageError(null);
+    }
   };
 
   const handleRemoveDelivery = (index: number) => {
     setDeliveryAssignments((prev) => prev.filter((_, i) => i !== index));
+    setDeliveryCoverageError(null);
   };
+
+  const explicitDeliveries = useMemo(
+    () => deliveryAssignments.filter((assignment) => assignment.stopIndex >= 0),
+    [deliveryAssignments],
+  );
+
+  const deliveryCoverage = useMemo(() => {
+    const cargoWeightKg =
+      typeof weightInKgWatch === "number" && weightInKgWatch > 0
+        ? weightInKgWatch
+        : null;
+    const cargoUnits =
+      typeof unitsWatch === "number" && unitsWatch > 0 ? unitsWatch : null;
+    return computeCargoDeliveryCoverage({
+      cargoWeightKg,
+      cargoUnits,
+      deliveries: explicitDeliveries,
+    });
+  }, [explicitDeliveries, unitsWatch, weightInKgWatch]);
+
+  const underAllocatedRemainderLine =
+    deliveryCoverage.status === "under"
+      ? formatDeliveryRemainderLine(
+          deliveryCoverage.pendingWeight,
+          deliveryCoverage.pendingUnits,
+        )
+      : "";
+
+  const overAllocatedRemainderLine =
+    deliveryCoverage.status === "over"
+      ? formatDeliveryRemainderLine(
+          deliveryCoverage.excessWeight,
+          deliveryCoverage.excessUnits,
+        )
+      : "";
+
+  useEffect(() => {
+    if (deliveryCoverage.status !== "over") {
+      setDeliveryCoverageError(null);
+    }
+  }, [deliveryCoverage.status]);
+
+  const resolveOverAllocationMessage = useCallback((): string | null => {
+    if (deliveryCoverage.status !== "over") return null;
+    const messages: string[] = [];
+    if (
+      deliveryCoverage.excessWeight != null &&
+      deliveryCoverage.cargoWeight != null
+    ) {
+      messages.push(
+        sheet.validation.deliveryWeightExceeded(
+          deliveryCoverage.allocatedWeight,
+          deliveryCoverage.cargoWeight,
+        ),
+      );
+    }
+    if (
+      deliveryCoverage.excessUnits != null &&
+      deliveryCoverage.cargoUnits != null
+    ) {
+      messages.push(
+        sheet.validation.deliveryUnitsExceeded(
+          deliveryCoverage.allocatedUnits,
+          deliveryCoverage.cargoUnits,
+        ),
+      );
+    }
+    return messages[0] ?? sheet.alert.overAllocatedTitle;
+  }, [deliveryCoverage]);
 
   const handleHazmatChange = useCallback(
     (checked: boolean) => {
@@ -738,7 +819,14 @@ function CargoMovementSheetSession({
         setShowSummary(true);
         return;
       }
+      const overMessage = resolveOverAllocationMessage();
+      if (overMessage) {
+        setDeliveryCoverageError(overMessage);
+        setShowSummary(true);
+        return;
+      }
       setDeliveryStopError(null);
+      setDeliveryCoverageError(null);
       clearOverlayError();
       setSubmitting(true);
       try {
@@ -774,6 +862,7 @@ function CargoMovementSheetSession({
       onSubmit,
       pickupStopIndex,
       reset,
+      resolveOverAllocationMessage,
       setSubmitting,
       showOverlayError,
     ],
@@ -810,10 +899,15 @@ function CargoMovementSheetSession({
     const zodMessages = collectFormErrorMessages(
       formState.errors as Record<string, { message?: string } | undefined>,
     );
-    if (!deliveryStopError) return zodMessages;
-    if (zodMessages.includes(deliveryStopError)) return zodMessages;
-    return [...zodMessages, deliveryStopError];
-  }, [deliveryStopError, formState.errors]);
+    const extras = [deliveryStopError, deliveryCoverageError].filter(
+      (message): message is string => Boolean(message),
+    );
+    const merged = [...zodMessages];
+    for (const message of extras) {
+      if (!merged.includes(message)) merged.push(message);
+    }
+    return merged;
+  }, [deliveryCoverageError, deliveryStopError, formState.errors]);
   const isSummaryVisible = showSummary && summaryMessages.length > 0;
 
   const hazmatErrorMessage = formState.errors.hazardousMaterial?.message;
@@ -1037,6 +1131,28 @@ function CargoMovementSheetSession({
                   </Button>
                 ) : null}
               </div>
+
+              {deliveryCoverage.status === "under" &&
+              underAllocatedRemainderLine ? (
+                <Alert variant="warning">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>{sheet.alert.underAllocatedTitle}</AlertTitle>
+                  <AlertDescription>
+                    {sheet.alert.underAllocatedBody(underAllocatedRemainderLine)}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              {deliveryCoverage.status === "over" &&
+              overAllocatedRemainderLine ? (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>{sheet.alert.overAllocatedTitle}</AlertTitle>
+                  <AlertDescription>
+                    {sheet.alert.overAllocatedBody(overAllocatedRemainderLine)}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
 
               {deliveryAssignments.length === 0 ? (
                 <div className="rounded-lg border border-dashed py-3 text-center text-xs text-muted-foreground">

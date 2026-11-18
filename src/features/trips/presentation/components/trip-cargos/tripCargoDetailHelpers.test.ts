@@ -19,7 +19,9 @@ import {
   resolveCargoRemoveErrorToast,
   resolveCargoStatusLabel,
   resolveMissingDeliveryAlert,
+  resolveUnderAllocatedAlert,
   shouldWarnFiscalAttentionOnCargoAppend,
+  summarizeUnderAllocatedDeliveries,
 } from "./tripCargoDetailHelpers";
 import { tripDetailCopy } from "../../copy";
 
@@ -314,5 +316,87 @@ describe("resolveMissingDeliveryAlert (F4/F5)", () => {
     });
     expect(copy.alert.noDeliveryBodySingleUnload(1)).toMatch(/sistema/i);
     expect(copy.alert.noDeliveryBodySingleUnload(1)).not.toMatch(/asígn/i);
+  });
+});
+
+describe("summarizeUnderAllocatedDeliveries (F7)", () => {
+  const baseCargo = {
+    id: "cargo-1",
+    status: "pending",
+    weight: 21_000,
+    weightInKg: 21_000,
+    units: 21,
+    movements: [
+      {
+        id: "mov-p",
+        stopIndex: 0,
+        movementType: "pickup",
+        weight: null,
+        units: null,
+        completedAt: null,
+        notes: null,
+      },
+      {
+        id: "mov-d",
+        stopIndex: 1,
+        movementType: "delivery",
+        weight: 10_000,
+        units: 10,
+        completedAt: null,
+        notes: null,
+      },
+    ],
+  } as TripCargo;
+
+  it("CA1: reports remainder for partial explicit deliveries", () => {
+    const summary = summarizeUnderAllocatedDeliveries([baseCargo]);
+    expect(summary).toMatchObject({
+      cargoIds: ["cargo-1"],
+      pendingWeight: 11_000,
+      pendingUnits: 11,
+    });
+    expect(summary?.remainderLine).toBe("11,000 kg / 11 uds");
+    expect(
+      resolveUnderAllocatedAlert({
+        summary: summary!,
+        canEditStructural: true,
+      }),
+    ).toEqual({
+      title: copy.alert.underAllocatedTitle,
+      body: copy.alert.underAllocatedBody(1, "11,000 kg / 11 uds"),
+      showEditAction: true,
+    });
+  });
+
+  it("CA2: clears when deliveries cover the total", () => {
+    const complete = {
+      ...baseCargo,
+      movements: [
+        baseCargo.movements[0],
+        {
+          ...baseCargo.movements[1],
+          weight: 10_000,
+          units: 10,
+        },
+        {
+          id: "mov-d2",
+          stopIndex: 2,
+          movementType: "delivery",
+          weight: 11_000,
+          units: 11,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    } as TripCargo;
+    expect(summarizeUnderAllocatedDeliveries([complete])).toBeNull();
+  });
+
+  it("CA4 / F5a: 0 deliveries does not flag under-allocation", () => {
+    const noDelivery = {
+      ...baseCargo,
+      movements: [baseCargo.movements[0]],
+    } as TripCargo;
+    expect(summarizeUnderAllocatedDeliveries([noDelivery])).toBeNull();
   });
 });

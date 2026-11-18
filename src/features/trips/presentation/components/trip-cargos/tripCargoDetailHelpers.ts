@@ -10,6 +10,10 @@ import {
 } from "@features/trips/domain";
 
 import { cargoCopy } from "../../copy/tripDetail/cargoCopy";
+import {
+  computeCargoDeliveryCoverage,
+  formatDeliveryRemainderLine,
+} from "../../utils/cargoDeliveryCoverage";
 import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
 import { hasStopType } from "../trip-route/tripRouteDetailHelpers";
 
@@ -175,6 +179,89 @@ export function resolveMissingDeliveryAlert(args: {
     showEditAction: false,
     showAddCargoAction: canAppendCargo,
     showGoToRouteAction: hasGoToRoute,
+  };
+}
+
+export type UnderAllocatedDeliveriesSummary = {
+  cargoIds: string[];
+  pendingWeight: number | null;
+  pendingUnits: number | null;
+  remainderLine: string;
+};
+
+/**
+ * Soft warning F7: ≥1 delivery explícito y suma peso/uds &lt; total.
+ * 0 deliveries (F5a) no entra — `computeCargoDeliveryCoverage` → `n/a`.
+ */
+export function summarizeUnderAllocatedDeliveries(
+  cargos: readonly TripCargo[],
+): UnderAllocatedDeliveriesSummary | null {
+  let pendingWeightSum = 0;
+  let pendingUnitsSum = 0;
+  let hasWeight = false;
+  let hasUnits = false;
+  const cargoIds: string[] = [];
+
+  for (const cargo of cargos) {
+    if (isCargoPlanningGapMuted(cargo.status)) continue;
+    const deliveries = (cargo.movements ?? []).filter(
+      (movement) => movement.movementType === "delivery",
+    );
+    const weightKg = getCargoWeightKg(cargo);
+    const coverage = computeCargoDeliveryCoverage({
+      cargoWeightKg: weightKg > 0 ? weightKg : null,
+      cargoUnits: cargo.units,
+      deliveries,
+    });
+    if (coverage.status !== "under") continue;
+
+    cargoIds.push(cargo.id);
+    if (coverage.pendingWeight != null) {
+      pendingWeightSum += coverage.pendingWeight;
+      hasWeight = true;
+    }
+    if (coverage.pendingUnits != null) {
+      pendingUnitsSum += coverage.pendingUnits;
+      hasUnits = true;
+    }
+  }
+
+  if (cargoIds.length === 0) return null;
+
+  const pendingWeight = hasWeight ? pendingWeightSum : null;
+  const pendingUnits = hasUnits ? pendingUnitsSum : null;
+  const remainderLine = formatDeliveryRemainderLine(
+    pendingWeight,
+    pendingUnits,
+  );
+  if (!remainderLine) return null;
+
+  return {
+    cargoIds,
+    pendingWeight,
+    pendingUnits,
+    remainderLine,
+  };
+}
+
+export type UnderAllocatedAlertModel = {
+  title: string;
+  body: string;
+  showEditAction: boolean;
+};
+
+export function resolveUnderAllocatedAlert(args: {
+  summary: UnderAllocatedDeliveriesSummary;
+  canEditStructural: boolean;
+}): UnderAllocatedAlertModel {
+  const { summary, canEditStructural } = args;
+  return {
+    title: cargoCopy.alert.underAllocatedTitle,
+    body: cargoCopy.alert.underAllocatedBody(
+      summary.cargoIds.length,
+      summary.remainderLine,
+    ),
+    showEditAction: canEditStructural && summary.cargoIds.length > 0,
   };
 }
 

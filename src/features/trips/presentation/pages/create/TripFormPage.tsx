@@ -453,6 +453,8 @@ export function TripFormPage() {
     isValid: boolean;
     message?: string;
     warning?: string;
+    /** Título del toast soft (cobertura vs entrega implícita). */
+    warningTitle?: string;
   } => {
     const currentStops = form.getValues("stops");
     const currentCargos = form.getValues("cargos");
@@ -531,6 +533,8 @@ export function TripFormPage() {
 
     const cargosWithoutDeliveries: string[] = [];
     const errors: string[] = [];
+    /** F7 / D-F7-5: under-allocation es soft (warning), no hard. */
+    const softWarnings: string[] = [];
 
     for (const cargoRow of currentCargos) {
       const movements = cargoRow.movements || [];
@@ -541,52 +545,64 @@ export function TripFormPage() {
         continue;
       }
 
-      // Validar concordancia de peso
-      if (cargoRow.weight != null && cargoRow.weight > 0) {
+      const cargoWeight =
+        cargoRow.weightInKg != null && cargoRow.weightInKg > 0
+          ? cargoRow.weightInKg
+          : cargoRow.weight != null && cargoRow.weight > 0
+            ? cargoRow.weight
+            : null;
+
+      if (cargoWeight != null) {
         const totalDeliveryWeight = deliveries.reduce(
           (sum, d) => sum + (d.weight || 0),
           0,
         );
 
-        if (totalDeliveryWeight > cargoRow.weight) {
+        if (totalDeliveryWeight > cargoWeight) {
           errors.push(
             cargo.validation.weightExceeded(
               cargoRow.description,
               totalDeliveryWeight,
-              cargoRow.weight,
+              cargoWeight,
             ),
           );
-        } else if (totalDeliveryWeight < cargoRow.weight) {
-          const pendingWeight = cargoRow.weight - totalDeliveryWeight;
-          errors.push(
+        } else if (totalDeliveryWeight < cargoWeight) {
+          softWarnings.push(
             cargo.validation.weightPending(
               cargoRow.description,
-              pendingWeight,
+              cargoWeight - totalDeliveryWeight,
               totalDeliveryWeight,
-              cargoRow.weight,
+              cargoWeight,
             ),
           );
         }
       }
 
-      // Validar concordancia de unidades
-      // if (cargo.units != null && cargo.units > 0) {
-      //   const totalDeliveryUnits = deliveries.reduce(
-      //     (sum, d) => sum + (d.units || 0),
-      //     0,
-      //   );
+      if (cargoRow.units != null && cargoRow.units > 0) {
+        const totalDeliveryUnits = deliveries.reduce(
+          (sum, d) => sum + (d.units || 0),
+          0,
+        );
 
-      //   if (totalDeliveryUnits > cargo.units) {
-      //     errors.push(
-      //       `"${cargo.description}": las unidades de entregas (${totalDeliveryUnits}) exceden las unidades de la carga (${cargo.units})`,
-      //     );
-      //   } else if (totalDeliveryUnits < cargo.units) {
-      //     const pendingUnits = cargo.units - totalDeliveryUnits;
-      //     errors.push(
-      //       `"${cargo.description}": faltan ${pendingUnits} unidades por asignar a puntos de entrega (${totalDeliveryUnits}/${cargo.units})`,
-      //     );
-      //   }
-      // }
+        if (totalDeliveryUnits > cargoRow.units) {
+          errors.push(
+            cargo.validation.unitsExceeded(
+              cargoRow.description,
+              totalDeliveryUnits,
+              cargoRow.units,
+            ),
+          );
+        } else if (totalDeliveryUnits < cargoRow.units) {
+          softWarnings.push(
+            cargo.validation.unitsPending(
+              cargoRow.description,
+              cargoRow.units - totalDeliveryUnits,
+              totalDeliveryUnits,
+              cargoRow.units,
+            ),
+          );
+        }
+      }
     }
 
     if (errors.length > 0) {
@@ -596,15 +612,23 @@ export function TripFormPage() {
       };
     }
 
+    const coverageWarning =
+      softWarnings.length > 0 ? softWarnings.join(". ") : undefined;
+
     if (cargosWithoutDeliveries.length > 0) {
       if (deliveryStopCount === 1) {
         const cargoNames = cargosWithoutDeliveries.join(", ");
+        const implicit =
+          cargosWithoutDeliveries.length === 1
+            ? cargo.validation.implicitDeliverySingle(cargoNames)
+            : cargo.validation.implicitDeliveryMultiple(cargoNames);
+        const warning = [coverageWarning, implicit].filter(Boolean).join(". ");
         return {
           isValid: true,
-          warning:
-            cargosWithoutDeliveries.length === 1
-              ? cargo.validation.implicitDeliverySingle(cargoNames)
-              : cargo.validation.implicitDeliveryMultiple(cargoNames),
+          warning,
+          warningTitle: coverageWarning
+            ? cargo.toast.underAllocatedTitle
+            : shell.toast.implicitDeliveryTitle,
         };
       }
 
@@ -621,7 +645,13 @@ export function TripFormPage() {
       };
     }
 
-    return { isValid: true };
+    return {
+      isValid: true,
+      warning: coverageWarning,
+      warningTitle: coverageWarning
+        ? cargo.toast.underAllocatedTitle
+        : undefined,
+    };
   }, [form]);
 
   // ============================================
@@ -772,7 +802,9 @@ export function TripFormPage() {
         );
       } else if (cargoValidation.warning) {
         toast({
-          title: shell.toast.implicitDeliveryTitle,
+          title:
+            cargoValidation.warningTitle ??
+            shell.toast.implicitDeliveryTitle,
           description: cargoValidation.warning,
           variant: "warning",
         });

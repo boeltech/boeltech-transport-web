@@ -443,6 +443,11 @@ describe("CargoMovementSheet", () => {
       ...validCargo,
       satUnitCode: "XPB",
       satUnitName: longUnitName,
+      // Sin qty en delivery: el test muta peso/uds de la mercancía; F7 bloquea exceso.
+      movements: [
+        { stopIndex: 0, movementType: "pickup" },
+        { stopIndex: 1, movementType: "delivery" },
+      ],
     };
     const onSubmit = vi.fn().mockResolvedValue(undefined);
 
@@ -732,6 +737,89 @@ describe("CargoMovementSheet", () => {
     expect(hazmat).toBeEnabled();
     expect(hazmat).not.toBeChecked();
     expect(screen.queryByText(sheet.hint.hazmatRequired)).not.toBeInTheDocument();
+  });
+
+  it("F7: soft-warns under-allocated deliveries but still allows Guardar", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const onOpenChange = vi.fn();
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={onOpenChange}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={validCargo}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(
+      screen.getByText(sheet.alert.underAllocatedTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(sheet.alert.underAllocatedBody("500 kg / 5 uds")),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: sheet.action.save }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it("F7: blocks Guardar when deliveries exceed cargo totals", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          movements: [
+            { stopIndex: 0, movementType: "pickup" },
+            {
+              stopIndex: 1,
+              movementType: "delivery",
+              weight: 1500,
+              units: 5,
+            },
+          ],
+        }}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(
+      screen.getByText(sheet.alert.overAllocatedTitle),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: sheet.action.save }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          sheet.validation.deliveryWeightExceeded(1500, 1000),
+        ),
+      ).toBeInTheDocument();
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("aplica la marca del GET aunque StrictMode cancele la primera hidratación", async () => {

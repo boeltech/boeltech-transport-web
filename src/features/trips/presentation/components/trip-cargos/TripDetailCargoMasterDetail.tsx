@@ -52,6 +52,8 @@ import {
   isCargoPlanningGapMuted,
   resolveCargoStatusLabel,
   resolveMissingDeliveryAlert,
+  resolveUnderAllocatedAlert,
+  summarizeUnderAllocatedDeliveries,
 } from "./tripCargoDetailHelpers";
 import { sumCargoUnits } from "./tripCargoSummaryHelpers";
 import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
@@ -562,6 +564,16 @@ export function TripDetailCargoMasterDetail({
         })
       : null;
 
+  const underAllocatedSummary = summarizeUnderAllocatedDeliveries(cargos);
+  const underAllocatedAlert =
+    underAllocatedSummary != null
+      ? resolveUnderAllocatedAlert({
+          summary: underAllocatedSummary,
+          canEditStructural,
+        })
+      : null;
+  const underAllocatedFocusCargoId = underAllocatedSummary?.cargoIds[0] ?? null;
+
   const handleSelect = (cargoId: string) => {
     setSelectedId(cargoId);
     if (isMobile) {
@@ -699,6 +711,27 @@ export function TripDetailCargoMasterDetail({
                   </Button>
                 ) : null}
               </div>
+            ) : null
+          }
+        />
+      ) : null}
+
+      {underAllocatedAlert ? (
+        <DetailAlertCard
+          severity="warning"
+          icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
+          title={underAllocatedAlert.title}
+          items={[{ text: underAllocatedAlert.body }]}
+          action={
+            underAllocatedAlert.showEditAction && underAllocatedFocusCargoId ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => focusAndEditCargo(underAllocatedFocusCargoId)}
+              >
+                {copy.action.fixFirstCargo}
+              </Button>
             ) : null
           }
         />

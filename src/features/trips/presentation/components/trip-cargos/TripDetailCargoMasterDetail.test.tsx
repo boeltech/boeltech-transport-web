@@ -293,3 +293,72 @@ describe("TripDetailCargoMasterDetail — Falta entrega alert (F4/F5)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("TripDetailCargoMasterDetail — under-allocated deliveries (F7)", () => {
+  const partialCargo = {
+    ...cargo,
+    weight: 21_000,
+    weightInKg: 21_000,
+    units: 21,
+    movements: [
+      ...cargo.movements!,
+      {
+        id: "mov-2",
+        stopId: "st-2",
+        stopIndex: 1,
+        movementType: "delivery",
+        weight: 10_000,
+        units: 10,
+        completedAt: null,
+        notes: null,
+      },
+    ],
+  } as TripCargo;
+
+  it("shows soft alert with remainder and Corregir carga", () => {
+    const onEditCargo = vi.fn();
+    render(
+      <TripDetailCargoMasterDetail
+        cargos={[partialCargo]}
+        orderedStops={orderedStops}
+        canEditStructural
+        canDeleteCargo
+        onAddCargo={vi.fn()}
+        onEditCargo={onEditCargo}
+        onRemoveCargo={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(copy.alert.underAllocatedTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((content) =>
+        content.includes("Faltan 11,000 kg / 11 uds"),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: copy.action.fixFirstCargo }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show under-allocation alert when there are 0 deliveries (F5a)", () => {
+    render(
+      <TripDetailCargoMasterDetail
+        cargos={[cargo]}
+        orderedStops={orderedStops}
+        canEditStructural
+        canDeleteCargo
+        canAppendCargo
+        onAddCargo={vi.fn()}
+        onEditCargo={vi.fn()}
+        onRemoveCargo={vi.fn()}
+        onGoToRoute={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByText(copy.alert.underAllocatedTitle),
+    ).not.toBeInTheDocument();
+  });
+});

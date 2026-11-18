@@ -13,6 +13,10 @@ const MATERIAL_PELIGROSO_SIEMPRE =
   'Esta clave siempre declara material peligroso: MaterialPeligroso="Sí". Hace falta la clave y el embalaje.';
 
 export const cargoCopy = {
+  toast: {
+    /** Soft warning F7 al avanzar el paso Cargas con remanente. */
+    underAllocatedTitle: "Entregas parciales sin cubrir el total",
+  },
   validation: {
     requireCargo:
       "Registre al menos una mercancía en un punto de carga para continuar.",
@@ -27,13 +31,28 @@ export const cargoCopy = {
       cargoWeight: number,
     ) =>
       `«${description}»: el peso asignado a entregas (${deliveryWeight} kg) supera el peso de la mercancía (${cargoWeight} kg)`,
+    /** Soft (D-F7-5): no bloquea avanzar en el wizard. */
     weightPending: (
       description: string,
       pendingWeight: number,
       deliveryWeight: number,
       cargoWeight: number,
     ) =>
-      `«${description}»: faltan ${pendingWeight} kg por asignar a puntos de entrega (${deliveryWeight}/${cargoWeight} kg)`,
+      `«${description}»: faltan ${pendingWeight.toLocaleString("es-MX")} kg por asignar a puntos de entrega (${deliveryWeight.toLocaleString("es-MX")}/${cargoWeight.toLocaleString("es-MX")} kg)`,
+    unitsExceeded: (
+      description: string,
+      deliveryUnits: number,
+      cargoUnits: number,
+    ) =>
+      `«${description}»: las unidades de entregas (${deliveryUnits.toLocaleString("es-MX")}) superan las de la mercancía (${cargoUnits.toLocaleString("es-MX")})`,
+    /** Soft (D-F7-5): no bloquea avanzar en el wizard. */
+    unitsPending: (
+      description: string,
+      pendingUnits: number,
+      deliveryUnits: number,
+      cargoUnits: number,
+    ) =>
+      `«${description}»: faltan ${pendingUnits.toLocaleString("es-MX")} uds por asignar a puntos de entrega (${deliveryUnits.toLocaleString("es-MX")}/${cargoUnits.toLocaleString("es-MX")})`,
     implicitDeliverySingle: (cargoName: string) =>
       `La mercancía «${cargoName}» no tiene punto de entrega asignado. Se entregará en la única parada de descarga del viaje.`,
     implicitDeliveryMultiple: (cargoNames: string) =>
@@ -236,7 +255,7 @@ export const cargoCopy = {
       requirementsOptional:
         "Estos datos no son obligatorios para el producto elegido.",
       deliveries:
-        "Indique en qué paradas se descarga esta mercancía. Si la entrega es parcial, capture el peso o la cantidad de cada punto.",
+        "Indique en qué paradas se descarga esta mercancía. Si la entrega es parcial, capture el peso o la cantidad de cada punto y asigne el remanente a otra descarga.",
       deliveriesReadOnly:
         "Las entregas de esta mercancía no se pueden cambiar aquí. Defínalas al dar de alta la carga.",
       /**
@@ -245,7 +264,18 @@ export const cargoCopy = {
        */
       deliveriesSingleUnload:
         "Solo hay una descarga (destino): la entrega se registra ahí al guardar. Para más entregas, agrega otra descarga en Ruta.",
+      /** F7: hint dinámico con remanente explícito (D-F7-4). */
+      deliveriesRemainder: (remainderLine: string) =>
+        `Quedan ${remainderLine} sin asignar a una entrega. Puede guardar y completar después.`,
       pendingFields: "Datos pendientes:",
+    },
+    alert: {
+      underAllocatedTitle: "Falta asignar el resto de la mercancía",
+      underAllocatedBody: (remainderLine: string) =>
+        `Faltan ${remainderLine} por asignar a una entrega. Puede guardar y completar después.`,
+      overAllocatedTitle: "Las entregas superan el total de la mercancía",
+      overAllocatedBody: (remainderLine: string) =>
+        `Sobran ${remainderLine} respecto al total. Ajuste peso o cantidad antes de guardar.`,
     },
     state: {
       noDeliveries:
@@ -266,6 +296,13 @@ export const cargoCopy = {
     validation: {
       missingRequiredTitle: "Faltan datos para guardar la mercancía",
       deliveryStopRequired: "Selecciona la parada de cada entrega agregada",
+      deliveryWeightExceeded: (
+        deliveryWeight: number,
+        cargoWeight: number,
+      ) =>
+        `El peso de las entregas (${deliveryWeight.toLocaleString("es-MX")} kg) supera el de la mercancía (${cargoWeight.toLocaleString("es-MX")} kg)`,
+      deliveryUnitsExceeded: (deliveryUnits: number, cargoUnits: number) =>
+        `Las unidades de las entregas (${deliveryUnits.toLocaleString("es-MX")}) superan las de la mercancía (${cargoUnits.toLocaleString("es-MX")})`,
     },
     toast: {
       hazmatRequiredTitle: "No se puede desmarcar",

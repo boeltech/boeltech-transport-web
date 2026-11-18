@@ -107,6 +107,15 @@ export const cargoCopy = {
         : `${count} cargas no coinciden con una parada de la ruta.`,
     /** @deprecated Preferir títulos específicos; se mantiene por compat. */
     reviewTitle: "Falta entrega planificada",
+    /**
+     * F7 / QC-ENT-1: hay ≥1 delivery y la suma no cubre el total.
+     * Soft — no apaga el chip Cargas ni bloquea Guardar.
+     */
+    underAllocatedTitle: "Falta asignar el resto de la mercancía",
+    underAllocatedBody: (count: number, remainderLine: string) =>
+      count === 1
+        ? `Faltan ${remainderLine} por asignar a una entrega. Puede guardar y completar después.`
+        : `${count} cargas tienen entregas parciales: faltan ${remainderLine} por asignar. Puede guardar y completar después.`,
   },
   action: {
     addCargo: "Agregar carga",
