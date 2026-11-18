@@ -51,6 +51,18 @@ export interface NavItem {
    * (p. ej. hub Pagos a operadores cubre /finance/compensation).
    */
   activePathPrefixes?: string[];
+  /**
+   * Código de complemento (`gps_tracking`, …). El filtro combina permiso ∧ estado
+   * de `useEntitlement` (DC3 / T5).
+   */
+  entitlement?: string;
+  /**
+   * Vista bloqueada (no contratado): se mueve al grupo «Complementos» al final.
+   * Solo visible con `not_contracted` + permiso del módulo.
+   */
+  lockedPreview?: boolean;
+  /** aria-label explícito (p. ej. ítem locked: «Monitoreo GPS, no contratado»). */
+  ariaLabel?: string;
 }
 
 // ============================================

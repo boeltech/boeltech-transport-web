@@ -398,6 +398,7 @@ describe("smoke platform admin workflow (Ops)", () => {
       effectiveModuleCodes: ["gps_tracking"],
       profitabilityLevel: "L1",
       catalog: [],
+  availableModules: [],
       commercialSummary: {
         planMonthlyPriceCents: MOTRIZ_CARGO_CENTS,
         modulesTotalCents: MODULES_CENTS,

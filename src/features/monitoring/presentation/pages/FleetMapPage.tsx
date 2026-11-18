@@ -13,7 +13,6 @@ import {
 import type { FleetVehiclePosition } from "../../domain";
 import { FleetMapView } from "../components/FleetMapView";
 import { FleetPanel } from "../components/FleetPanel";
-import { GpsModuleNotActivatedState } from "../components/GpsModuleNotActivatedState";
 import { monitoringCopy } from "../copy/monitoringCopy";
 import { isModuleNotEntitledError } from "../utils/isModuleNotEntitledError";
 
@@ -49,9 +48,9 @@ export function FleetMapPage() {
     (summary?.totalLinked === 0 || positions.length === 0);
 
   const disabled = query.isError && isDisabledError(query.error);
+  /** Fallback si unknown dejó pasar y la API respondió MODULE_NOT_ENTITLED. */
   const notEntitled =
-    entitlement.showNotActivated ||
-    (query.isError && isModuleNotEntitledError(query.error));
+    query.isError && isModuleNotEntitledError(query.error);
 
   const handleSelect = (position: FleetVehiclePosition) => {
     setFocusVehicleId(position.vehicleId);
@@ -105,12 +104,8 @@ export function FleetMapPage() {
         </div>
       </div>
 
-      {notEntitled ? (
-        <GpsModuleNotActivatedState variant="map" />
-      ) : null}
-
       {/* Overlay states */}
-      {!notEntitled && query.isError ? (
+      {query.isError ? (
         <div className="absolute inset-x-0 top-14 z-30 flex justify-center px-4">
           <Alert
             variant="destructive"
@@ -118,10 +113,14 @@ export function FleetMapPage() {
           >
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>
-              {disabled ? copy.errorDisabled : copy.errorTitle}
+              {notEntitled
+                ? copy.errorNotEntitled
+                : disabled
+                  ? copy.errorDisabled
+                  : copy.errorTitle}
             </AlertTitle>
             <AlertDescription className="mt-2 flex flex-wrap items-center gap-3">
-              {!disabled ? (
+              {!disabled && !notEntitled ? (
                 <Button
                   type="button"
                   size="sm"

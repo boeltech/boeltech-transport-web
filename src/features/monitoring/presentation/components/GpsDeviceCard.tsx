@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowRight,
   ArrowUpRight,
   History,
   MoreHorizontal,
@@ -11,9 +12,11 @@ import { config } from "@shared/config";
 import { isApiError } from "@shared/api/interceptors/error-handler";
 import { usePermissions } from "@shared/permissions";
 import { cn } from "@shared/lib/utils/cn";
+import { AddonTeaserRow } from "@shared/ui/addon-teaser";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
 import { DetailSection, InfoRow } from "@shared/ui/data-display";
+import { EntitlementBadge } from "@shared/ui/entitlement-badge";
 import { Skeleton } from "@shared/ui/skeleton";
 import {
   DropdownMenu,
@@ -80,11 +83,17 @@ export function GpsDeviceCard({
   const copy = monitoringCopy.device;
   const { hasPermission } = usePermissions();
   const canExecute = hasPermission("gps_tracking", "execute");
+  const canReadGps = hasPermission("gps_tracking", "read");
   const mapboxToken = config.geolocation.mapboxPublicToken;
   const entitlement = useGpsTrackingEntitlement();
+  /** T6/X11: query solo si active|unknown; teaser si not_contracted; hide si unavailable. */
+  const gpsActive = entitlement.canUseModule;
+  const hideSection = entitlement.state === "unavailable";
+  const showTeaser = entitlement.state === "not_contracted";
+  const showLoading = entitlement.state === "loading";
 
   const query = useGpsDevice(vehicleId, {
-    enabled: entitlement.canUseModule,
+    enabled: gpsActive,
   });
   const [linkOpen, setLinkOpen] = useState(false);
   const [unlinkOpen, setUnlinkOpen] = useState(false);
@@ -95,8 +104,60 @@ export function GpsDeviceCard({
     isApiError(query.error) &&
     query.error.code === "GPS_TRACKING_DISABLED";
   const notEntitled =
-    entitlement.showNotActivated ||
-    (query.isError && isModuleNotEntitledError(query.error));
+    query.isError && isModuleNotEntitledError(query.error);
+
+  if (hideSection) {
+    return null;
+  }
+
+  if (showLoading) {
+    return (
+      <DetailSection
+        icon={<Radio className="h-4 w-4" />}
+        title={copy.title}
+        description={undefined}
+      >
+        <Card data-testid="gps-device-card-loading">
+          <CardContent className="space-y-3 pt-6">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </CardContent>
+        </Card>
+      </DetailSection>
+    );
+  }
+
+  if (showTeaser) {
+    return (
+      <DetailSection
+        icon={<Radio className="h-4 w-4" />}
+        title={copy.teaserTitle}
+        description={undefined}
+      >
+        <AddonTeaserRow
+          data-testid="gps-device-teaser"
+          icon={<Radio className="h-4 w-4" />}
+          title={copy.teaserTitle}
+          badge={
+            <EntitlementBadge variant="kind">{copy.teaserBadge}</EntitlementBadge>
+          }
+          description={copy.teaserBody}
+          action={
+            canReadGps ? (
+              <Link
+                to={FLEET_MAP_PATH}
+                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                data-testid="gps-device-teaser-cta"
+              >
+                {copy.teaserCta}
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+            ) : undefined
+          }
+        />
+      </DetailSection>
+    );
+  }
 
   return (
     <DetailSection
@@ -137,7 +198,7 @@ export function GpsDeviceCard({
           {notEntitled ? (
             <p
               className="text-sm text-muted-foreground"
-              data-testid="gps-module-not-activated"
+              data-testid="gps-module-not-entitled"
             >
               {copy.notEntitledMessage}
             </p>

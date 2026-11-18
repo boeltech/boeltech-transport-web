@@ -3,6 +3,7 @@ import type {
   BillingArrears,
   BillingAutoChargeOutcome,
   BillingLastAutoCharge,
+  BillingAvailableModule,
   BillingCapacity,
   BillingCapacityDimension,
   BillingCapacityStatus,
@@ -94,6 +95,13 @@ export interface ApiBillingUsage {
   }>;
 }
 
+export interface ApiBillingAvailableModule {
+  code: string;
+  name: string;
+  kind: string;
+  maturity: string;
+}
+
 export interface ApiBillingEntitlements {
   direct_entitlements: Array<{
     module_code: string;
@@ -117,6 +125,8 @@ export interface ApiBillingEntitlements {
     price_ga_cents: number | null;
     maturity: string;
   }>;
+  /** Aditivo F1 — opcional para no romper backends sin el campo. */
+  available_modules?: ApiBillingAvailableModule[];
   commercial_summary: {
     plan_monthly_price_cents: number;
     modules_total_cents: number;
@@ -164,6 +174,8 @@ export interface ApiBillingAccess {
   trial_ends_at: string | null;
   plan_name: string | null;
   effective_module_codes: string[];
+  /** Aditivo F1 — opcional para no romper backends sin el campo. */
+  unavailable_module_codes?: string[];
 }
 
 export const mapBillingAccess = (raw: ApiBillingAccess): BillingAccess => ({
@@ -172,6 +184,16 @@ export const mapBillingAccess = (raw: ApiBillingAccess): BillingAccess => ({
   trialEndsAt: raw.trial_ends_at,
   planName: raw.plan_name,
   effectiveModuleCodes: raw.effective_module_codes,
+  unavailableModuleCodes: raw.unavailable_module_codes ?? [],
+});
+
+export const mapBillingAvailableModule = (
+  raw: ApiBillingAvailableModule,
+): BillingAvailableModule => ({
+  code: raw.code,
+  name: raw.name,
+  kind: raw.kind,
+  maturity: raw.maturity,
 });
 
 const DEFAULT_STAMPS_PER_MOTRIZ = 30;
@@ -320,6 +342,7 @@ export const mapBillingEntitlements = (
     priceGaCents: item.price_ga_cents,
     maturity: item.maturity,
   })),
+  availableModules: (raw.available_modules ?? []).map(mapBillingAvailableModule),
   commercialSummary: {
     planMonthlyPriceCents: raw.commercial_summary.plan_monthly_price_cents,
     modulesTotalCents: raw.commercial_summary.modules_total_cents,

@@ -15,4 +15,3 @@ export { TripGpsOverlayCard } from "./TripGpsOverlayCard";
 export { TripGpsMiniMap } from "./TripGpsMiniMap";
 export { AlertListItem } from "./AlertListItem";
 export { AlertSettingsCard } from "./AlertSettingsCard";
-export { GpsModuleNotActivatedState } from "./GpsModuleNotActivatedState";

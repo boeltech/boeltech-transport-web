@@ -29,7 +29,21 @@ describe("billing mappers", () => {
       trialEndsAt: null,
       planName: "Operación Arranque",
       effectiveModuleCodes: ["gps_tracking"],
+      unavailableModuleCodes: [],
     });
+  });
+
+  it("mapBillingAccess maps additive unavailable_module_codes", () => {
+    const access = mapBillingAccess({
+      subscription_status: "active",
+      is_operational: true,
+      trial_ends_at: null,
+      plan_name: "Operación Arranque",
+      effective_module_codes: ["gps_tracking"],
+      unavailable_module_codes: ["gps_tracking"],
+    });
+
+    expect(access.unavailableModuleCodes).toEqual(["gps_tracking"]);
   });
 
   it("mapBillingSubscription converts snake_case API payload", () => {
@@ -243,6 +257,44 @@ describe("billing mappers", () => {
     expect(entitlements.directEntitlements[0]?.priceLockedCents).toBe(14900);
     expect(entitlements.commercialSummary.estimatedTotalCents).toBe(104168);
     expect(entitlements.catalog[0]?.maturity).toBe("beta");
+    expect(entitlements.availableModules).toEqual([]);
+  });
+
+  it("mapBillingEntitlements maps additive available_modules", () => {
+    const entitlements = mapBillingEntitlements({
+      direct_entitlements: [],
+      effective_module_codes: ["internal_staff_compensation"],
+      profitability_level: "L0",
+      catalog: [],
+      available_modules: [
+        {
+          code: "gps_tracking",
+          name: "Monitoreo GPS",
+          kind: "addon",
+          maturity: "ga",
+        },
+      ],
+      commercial_summary: {
+        plan_monthly_price_cents: 0,
+        modules_total_cents: 0,
+        overage_total_cents: 0,
+        subtotal_cents: 0,
+        iva_cents: 0,
+        estimated_total_cents: 0,
+        currency: "MXN",
+        period_key: "2026-11",
+        billing_cycle: "monthly",
+      },
+    });
+
+    expect(entitlements.availableModules).toEqual([
+      {
+        code: "gps_tracking",
+        name: "Monitoreo GPS",
+        kind: "addon",
+        maturity: "ga",
+      },
+    ]);
   });
 
   it("mapBillingArrears maps open July charge (S2) snake_case payload", () => {

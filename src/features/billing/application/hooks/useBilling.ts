@@ -23,6 +23,8 @@ export const useBillingAccess = (options?: BillingQueryOptions) => {
     queryKey: billingQueryKeys.access(),
     queryFn: () => billingApi.getAccess(),
     staleTime: 60_000,
+    /** T8: ~90 s peor caso v1; refrescar al enfocar ventana tras alta en Ops. */
+    refetchOnWindowFocus: true,
     enabled,
   });
 };

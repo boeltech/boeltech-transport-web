@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { usePendingApprovalsCount } from "@features/approvals";
+import { useEntitlement } from "@features/billing";
 import { useSettlementsNavBadges } from "@features/settlements/application";
 import { useGpsAlertsSummary } from "@features/monitoring/application";
 import { usePermissions } from "@shared/permissions";
@@ -47,8 +48,14 @@ export function useNavigationWithBadges() {
   const { data: pendingCount } = usePendingApprovalsCount();
   const { data: settlementsBadges } = useSettlementsNavBadges();
   const { hasPermission } = usePermissions();
+  const gpsEntitlement = useEntitlement("gps_tracking");
   const canReadGps = hasPermission("gps_tracking", "read");
-  const { data: gpsSummary } = useGpsAlertsSummary({ enabled: canReadGps });
+  /** T6 / DC5: badge solo con permiso ∧ active — cero requests GPS sin contrato. */
+  const gpsQueriesEnabled =
+    canReadGps && gpsEntitlement.state === "active";
+  const { data: gpsSummary } = useGpsAlertsSummary({
+    enabled: gpsQueriesEnabled,
+  });
 
   const navigation = useMemo(
     () =>

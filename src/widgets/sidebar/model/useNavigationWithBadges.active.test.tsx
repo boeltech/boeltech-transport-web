@@ -36,6 +36,17 @@ vi.mock("@features/monitoring/application", () => ({
   useGpsAlertsSummary: () => ({ data: { unreadCount: 0, windowDays: 7 } }),
 }));
 
+vi.mock("@features/billing", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@features/billing")>()),
+  useEntitlement: () => ({
+    state: "active",
+    isLoading: false,
+    isFetching: false,
+    isSuccess: true,
+    isError: false,
+  }),
+}));
+
 function renderNavigation(initialEntry: string) {
   return renderHook(() => useNavigationWithBadges(), {
     wrapper: ({ children }: { children: ReactNode }) => (

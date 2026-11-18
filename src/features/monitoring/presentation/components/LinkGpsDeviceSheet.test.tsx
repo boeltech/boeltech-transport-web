@@ -104,7 +104,7 @@ describe("LinkGpsDeviceSheet — F4.3 copy", () => {
     });
   });
 
-  it("maps MODULE_NOT_ENTITLED to Contacta a Boeltech (no paywall)", async () => {
+  it("maps MODULE_NOT_ENTITLED to complemento no contratado (no paywall)", async () => {
     mockLink.mockRejectedValue(
       new ApiError("forbidden", 403, "MODULE_NOT_ENTITLED"),
     );
@@ -129,9 +129,11 @@ describe("LinkGpsDeviceSheet — F4.3 copy", () => {
         }),
       );
     });
-    expect(monitoringCopy.linkSheet.errorNotEntitled).toMatch(/Contacta a Boeltech/i);
+    expect(monitoringCopy.linkSheet.errorNotEntitled).toMatch(
+      /complemento.*no está contratado/i,
+    );
     expect(monitoringCopy.linkSheet.errorNotEntitled).not.toMatch(
-      /comprar|precio|upgrade/i,
+      /comprar|precio|upgrade|API/i,
     );
   });
 });

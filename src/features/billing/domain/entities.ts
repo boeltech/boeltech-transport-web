@@ -107,6 +107,14 @@ export interface BillingCatalogItem {
   maturity: string;
 }
 
+/** Vendible disponible (GET /billing/entitlements · available_modules). UI lista = F4. */
+export interface BillingAvailableModule {
+  code: string;
+  name: string;
+  kind: string;
+  maturity: string;
+}
+
 export interface BillingCommercialSummary {
   planMonthlyPriceCents: number;
   modulesTotalCents: number;
@@ -124,8 +132,18 @@ export interface BillingEntitlements {
   effectiveModuleCodes: string[];
   profitabilityLevel: ProfitabilityLevel;
   catalog: BillingCatalogItem[];
+  /** Aditivo F1; ausente en backends viejos → []. */
+  availableModules: BillingAvailableModule[];
   commercialSummary: BillingCommercialSummary;
 }
+
+/** Estado de contrato de un complemento (DC2 / useEntitlement). */
+export type EntitlementState =
+  | "loading"
+  | "active"
+  | "not_contracted"
+  | "unavailable"
+  | "unknown";
 
 /** Último intento auto-cargo (GET /billing/arrears). Null si no hubo intento. */
 export type BillingAutoChargeOutcome =
@@ -170,6 +188,8 @@ export interface BillingAccess {
   trialEndsAt: string | null;
   planName: string | null;
   effectiveModuleCodes: string[];
+  /** Aditivo F1 (kill-switch); ausente en backends viejos → []. */
+  unavailableModuleCodes: string[];
 }
 
 /**

@@ -92,6 +92,7 @@ function entitlements(
         maturity: "ga",
       },
     ],
+    availableModules: [],
     commercialSummary: {
       planMonthlyPriceCents: 446600,
       modulesTotalCents: 25800,

@@ -27,6 +27,7 @@ import { RouteErrorBoundary } from "@/pages/errors/components/ErrorBoundary";
 import {
   PrivateRoute,
   ModuleRoute,
+  EntitlementRoute,
   AnyModuleRoute,
   PermissionRoute,
   RoleRoute,
@@ -34,6 +35,8 @@ import {
   AdminRoute,
   PlatformRoute,
 } from "./guards";
+import { GpsAddonPresentationPage } from "@features/monitoring/presentation/pages/GpsAddonPresentationPage";
+import { GpsAddonUnavailablePage } from "@features/monitoring/presentation/pages/GpsAddonUnavailablePage";
 
 // ============================================
 // Layouts
@@ -787,37 +790,49 @@ export const router = createBrowserRouter([
 
           // ========================================
           // Módulo: Monitoreo GPS (mapa de flota)
+          // ModuleRoute (RBAC) → EntitlementRoute (contrato DC4/DC7)
           // ========================================
           {
             element: <ModuleRoute module="gps_tracking" />,
             children: [
               {
-                path: "/monitoring/fleet",
-                // Full-bleed under AppLayout chrome (LayoutShell reads handle.flush)
-                handle: { flush: true },
-                element: withSuspense(FleetMapPage),
-              },
-              {
-                path: "/monitoring/fleet/history/:vehicleId",
-                handle: { flush: true },
-                element: withSuspense(FleetHistoryPage),
-              },
-              {
-                path: "/monitoring/alerts",
-                element: withSuspense(AlertsListPage),
-              },
-              {
                 element: (
-                  <PermissionRoute
-                    module="gps_tracking"
-                    action="admin"
-                    redirectTo="/monitoring/alerts"
+                  <EntitlementRoute
+                    code="gps_tracking"
+                    notContracted={<GpsAddonPresentationPage />}
+                    unavailable={<GpsAddonUnavailablePage />}
                   />
                 ),
                 children: [
                   {
-                    path: "/monitoring/settings",
-                    element: withSuspense(AlertSettingsPage),
+                    path: "/monitoring/fleet",
+                    // Full-bleed under AppLayout chrome (LayoutShell reads handle.flush)
+                    handle: { flush: true },
+                    element: withSuspense(FleetMapPage),
+                  },
+                  {
+                    path: "/monitoring/fleet/history/:vehicleId",
+                    handle: { flush: true },
+                    element: withSuspense(FleetHistoryPage),
+                  },
+                  {
+                    path: "/monitoring/alerts",
+                    element: withSuspense(AlertsListPage),
+                  },
+                  {
+                    element: (
+                      <PermissionRoute
+                        module="gps_tracking"
+                        action="admin"
+                        redirectTo="/monitoring/alerts"
+                      />
+                    ),
+                    children: [
+                      {
+                        path: "/monitoring/settings",
+                        element: withSuspense(AlertSettingsPage),
+                      },
+                    ],
                   },
                 ],
               },

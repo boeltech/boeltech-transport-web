@@ -10,6 +10,7 @@ export { RoleRoute } from "./RoleRoute";
 export { DenyRolesRoute } from "./DenyRolesRoute";
 export { AdminRoute } from "./AdminRoute";
 export { ModuleRoute } from "./ModuleRoute";
+export { EntitlementRoute } from "./EntitlementRoute";
 export { AnyModuleRoute } from "./AnyModuleRoute";
 export { PlatformRoute } from "./PlatformRoute";
 export { SubscriptionRequiredGate } from "./SubscriptionRequiredGate";

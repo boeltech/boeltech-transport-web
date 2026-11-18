@@ -66,8 +66,7 @@ export function AlertsListPage() {
 
   const markRead = useMarkAlertRead();
   const notEntitled =
-    entitlement.showNotActivated ||
-    (query.isError && isModuleNotEntitledError(query.error));
+    query.isError && isModuleNotEntitledError(query.error);
 
   const items = useMemo(() => query.data?.items ?? [], [query.data?.items]);
   const pagination = query.data?.pagination;
@@ -106,10 +105,10 @@ export function AlertsListPage() {
         isLoading={false}
         emptyState={{
           icon: <Radio className="h-8 w-8" />,
-          title: monitoringCopy.moduleGate.title,
+          title: copy.errorTitle,
           description: (
-            <span data-testid="gps-module-not-activated">
-              {monitoringCopy.moduleGate.description}
+            <span data-testid="gps-alerts-not-entitled">
+              {copy.errorNotEntitled}
             </span>
           ),
         }}

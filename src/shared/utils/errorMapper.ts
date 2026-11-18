@@ -123,7 +123,7 @@ export const BACKEND_ERROR_MESSAGES: Record<string, string> = {
 
   // ===== PLAN / BILLING SaaS =====
   MODULE_NOT_ENTITLED:
-    "Este módulo no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+    "Este complemento no está contratado en tu cuenta.",
   SUBSCRIPTION_REQUIRED:
     "Tu empresa no tiene una suscripción activa. Contacta a Boeltech para activar o reactivar el plan.",
   SUBSCRIPTION_INACTIVE:

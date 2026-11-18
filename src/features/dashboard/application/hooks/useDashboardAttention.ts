@@ -24,6 +24,7 @@ import {
   SETTLEMENTS_LIST_PATH,
   useSettlementsNavBadges,
 } from "@features/settlements/application";
+import { useEntitlement } from "@features/billing";
 import { useGpsAlertsSummary } from "@features/monitoring/application";
 import { ALERTS_LIST_PATH } from "@features/monitoring/domain";
 import { useDocumentExpirySummary } from "@features/fleet-documents/application";
@@ -92,6 +93,9 @@ export function useDashboardAttention(options: { showFinance: boolean }) {
   const canReadGps = hasPermission("gps_tracking", "read");
   const canReadDocs =
     hasPermission("vehicles", "read") || hasPermission("drivers", "read");
+  const gpsEntitlement = useEntitlement("gps_tracking");
+  /** T6 / DC5: query GPS solo con permiso ∧ active; sin fila error si no active. */
+  const gpsActive = canReadGps && gpsEntitlement.state === "active";
 
   const approvals = useApprovalsPendingCountsByType({
     queue: "mine",
@@ -109,7 +113,7 @@ export function useDashboardAttention(options: { showFinance: boolean }) {
   });
   const financeSummary = useFinanceSummary({ enabled: canReadFinance });
   const settlementsBadges = useSettlementsNavBadges();
-  const gps = useGpsAlertsSummary({ enabled: canReadGps });
+  const gps = useGpsAlertsSummary({ enabled: gpsActive });
   const docs = useDocumentExpirySummary({ enabled: canReadDocs });
 
   const rows = useMemo((): AttentionRowView[] => {
@@ -433,7 +437,7 @@ export function useDashboardAttention(options: { showFinance: boolean }) {
           break;
         }
         case "gps_unread": {
-          if (!canReadGps) break;
+          if (!gpsActive) break;
           if (gps.isError) {
             out.push({
               kind: "error",
@@ -513,13 +517,13 @@ export function useDashboardAttention(options: { showFinance: boolean }) {
     canReadApprovals,
     canReadDocs,
     canReadFinance,
-    canReadGps,
     canReadInvoices,
     canReadSettlements,
     canReadTrips,
     docs,
     financeSummary,
     gps,
+    gpsActive,
     invoiceable,
     opsDay.data?.overdueBreakdown,
     repExceptions,
@@ -534,7 +538,7 @@ export function useDashboardAttention(options: { showFinance: boolean }) {
     (canReadFinance &&
       (repExceptions.isLoading || financeSummary.isLoading)) ||
     (canReadSettlements && settlementsBadges.isLoading) ||
-    (canReadGps && gps.isLoading) ||
+    (gpsActive && gps.isLoading) ||
     (canReadDocs && docs.isLoading);
 
   const snapshot = useMemo((): DashboardAttentionSnapshot => {

@@ -148,6 +148,7 @@ const MobileNavItem = memo(function MobileNavItem({
       to={item.path}
       onClick={onClick}
       aria-current={isActive ? "page" : undefined}
+      aria-label={item.ariaLabel}
       className={navItemClassName({
         isActive,
         disabled: item.disabled,

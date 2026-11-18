@@ -208,7 +208,9 @@ const NavItemLink = memo(function NavItemLink({
     <Link
       to={item.path}
       aria-current={isActive ? "page" : undefined}
-      aria-label={isCollapsed ? item.label : undefined}
+      aria-label={
+        item.ariaLabel ?? (isCollapsed ? item.label : undefined)
+      }
       className={navItemClassName({
         isActive,
         isCollapsed,

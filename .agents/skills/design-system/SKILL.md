@@ -675,6 +675,18 @@ export const TripStatusBadge = createStatusBadgeComponent(TRIP_STATUS_CONFIG);
 
 Config por feature en `presentation/config/xxxStatusConfig.ts`. `tone: "solid"` solo para estados activos / de atención. Alias aceptados en config: `danger` → `destructive`, `orange` → `warning`, `purple` → `info` solid.
 
+### Complementos — EntitlementBadge / teaser / nav bloqueada
+
+SoT: `design/tlamx/platforms/web/design.md` § Complementos. Demo: `/design-system` → Botones & badges.
+
+| Pieza | Dónde | Cuándo |
+|---|---|---|
+| `EntitlementBadge` | `@shared/ui/entitlement-badge` | Activo / Disponible / No disponible / Versión anticipada / etiqueta «Complemento» (`kind`). Sentence-case, soft (o outline). No chips ad-hoc con `Badge` para estos estados. |
+| `AddonTeaserRow` | `@shared/ui/addon-teaser` | Fila teaser en ficha con contexto (p. ej. unidad). No en alertas / Inicio / resumen de viaje. |
+| Entrada `lockedPreview` | `widgets/sidebar` (`entitlement` + `lockedPreview`) | Grupo «Complementos» al final; candado + `ariaLabel` «…, no contratado». Contrato de nav — no reimplementar chrome. |
+
+Estado de producto: `useEntitlement(code)`. Conform: adoptar estas piezas; no inventar variantes de color.
+
 ### StatCard (KPIs)
 
 ```tsx

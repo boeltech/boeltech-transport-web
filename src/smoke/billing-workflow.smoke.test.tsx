@@ -160,6 +160,7 @@ const MOCK_ENTITLEMENTS_WITHOUT: BillingEntitlements = {
   effectiveModuleCodes: [],
   profitabilityLevel: "L0",
   catalog: [],
+  availableModules: [],
   commercialSummary: EMPTY_COMMERCIAL_SUMMARY,
 };
 
@@ -190,6 +191,7 @@ const MOCK_ENTITLEMENTS_WITH: BillingEntitlements = {
       maturity: "beta",
     },
   ],
+  availableModules: [],
   commercialSummary: {
     planMonthlyPriceCents: 74900,
     modulesTotalCents: 14900,

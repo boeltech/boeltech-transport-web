@@ -5,6 +5,7 @@ export type {
   BillingCapacityStatus,
   BillingUsage,
   BillingEntitlements,
+  BillingAvailableModule,
   BillingArrears,
   BillingArrearsInvoice,
   BillingAutoChargeOutcome,
@@ -20,6 +21,7 @@ export type {
   BillingSaasPaymentMethod,
   BillingSaasInvoiceOrigin,
   BillingSaasInvoiceListParams,
+  EntitlementState,
 } from "./entities";
 export {
   billingQueryKeys,

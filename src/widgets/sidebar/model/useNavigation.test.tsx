@@ -258,4 +258,68 @@ describe("filterNavigation", () => {
     const billing = filtered.find((g) => g.id === "billing");
     expect(billing?.items.map((i) => i.id)).not.toContain("finance-dispatch");
   });
+
+  it("DC3: not_contracted mueve preview a Complementos y oculta Monitoreo", () => {
+    const hasPermission = createPermissionChecker("admin");
+    const filtered = filterNavigation(
+      navigationConfig,
+      hasPermission,
+      ROLES.ADMIN,
+      (code) => (code === "gps_tracking" ? "not_contracted" : "unknown"),
+    );
+
+    expect(filtered.find((g) => g.id === "monitoring")).toBeUndefined();
+    const complementos = filtered.find((g) => g.id === "complementos");
+    expect(complementos?.title).toBe(navigationCopy.group.complementos);
+    expect(complementos?.items.map((i) => i.id)).toEqual([
+      "gps-tracking-locked",
+    ]);
+    expect(filtered.at(-1)?.id).toBe("complementos");
+  });
+
+  it("DC3: active muestra Monitoreo y oculta preview", () => {
+    const hasPermission = createPermissionChecker("admin");
+    const filtered = filterNavigation(
+      navigationConfig,
+      hasPermission,
+      ROLES.ADMIN,
+      () => "active",
+    );
+
+    const monitoring = filtered.find((g) => g.id === "monitoring");
+    expect(monitoring?.items.map((i) => i.id)).toEqual([
+      "fleet-map",
+      "gps-alerts",
+      "gps-alert-settings",
+    ]);
+    expect(filtered.find((g) => g.id === "complementos")).toBeUndefined();
+  });
+
+  it("DC3: unavailable oculta Monitoreo y Complementos", () => {
+    const hasPermission = createPermissionChecker("admin");
+    const filtered = filterNavigation(
+      navigationConfig,
+      hasPermission,
+      ROLES.ADMIN,
+      () => "unavailable",
+    );
+
+    expect(filtered.find((g) => g.id === "monitoring")).toBeUndefined();
+    expect(filtered.find((g) => g.id === "complementos")).toBeUndefined();
+  });
+
+  it("DC3: loading/unknown deja Monitoreo por RBAC y oculta preview", () => {
+    const hasPermission = createPermissionChecker("dispatcher");
+    const filteredUnknown = filterNavigation(
+      navigationConfig,
+      hasPermission,
+      ROLES.DISPATCHER,
+    );
+    const monitoring = filteredUnknown.find((g) => g.id === "monitoring");
+    expect(monitoring?.items.map((i) => i.id)).toEqual([
+      "fleet-map",
+      "gps-alerts",
+    ]);
+    expect(filteredUnknown.find((g) => g.id === "complementos")).toBeUndefined();
+  });
 });

@@ -78,12 +78,20 @@ describe("navigationConfig", () => {
       "fleet-map",
       "gps-alerts",
       "gps-alert-settings",
+      "gps-tracking-locked",
     ]);
     expect(monitoring?.items[0]?.path).toBe("/monitoring/fleet");
     expect(monitoring?.items[1]?.path).toBe("/monitoring/alerts");
     expect(monitoring?.items[2]?.path).toBe("/monitoring/settings");
     expect(monitoring?.items[2]?.action).toBe("admin");
     expect(monitoring?.items[0]?.module).toBe("gps_tracking");
+    expect(monitoring?.items[0]?.entitlement).toBe("gps_tracking");
+    expect(monitoring?.items[3]?.lockedPreview).toBe(true);
+    expect(monitoring?.items[3]?.ariaLabel).toBe(
+      navigationCopy.item.gpsTrackingLockedAria,
+    );
+    expect(navigationCopy.group.complementos).toBe("Complementos");
+    expect(navigationCopy.item.gpsTrackingLocked).toBe("Monitoreo GPS");
   });
 
   it("does not advertise screens that are not built", () => {

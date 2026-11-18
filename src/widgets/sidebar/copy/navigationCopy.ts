@@ -6,6 +6,8 @@ export const navigationCopy = {
   group: {
     operations: "Operación",
     monitoring: "Monitoreo",
+    /** Grupo al final cuando hay complemento no contratado (DC3 / F2). */
+    complementos: "Complementos",
     fleet: "Flota",
     commercial: "Comercial",
     billing: "Facturación",
@@ -23,6 +25,9 @@ export const navigationCopy = {
     fleetMap: "Mapa de flota",
     gpsAlerts: "Alertas",
     gpsAlertSettings: "Configuración",
+    /** Preview locked (not_contracted) → grupo Complementos. */
+    gpsTrackingLocked: "Monitoreo GPS",
+    gpsTrackingLockedAria: "Monitoreo GPS, no contratado",
     branches: "Sucursales",
     vehicles: "Vehículos",
     trailers: "Remolques",

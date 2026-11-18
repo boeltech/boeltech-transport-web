@@ -3,11 +3,54 @@
  */
 
 export const monitoringCopy = {
-  /** Gate operativo por entitlement — sin CTA de compra / precios (piloto). */
-  moduleGate: {
-    title: "Módulo no activado",
-    description:
-      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+  /** Página de presentación (DC4 · X8) — ancla GPS-Admin / GPS-Equipo. */
+  presentation: {
+    badgeType: "Complemento",
+    badgeNotIncluded: "No incluido en tu plan",
+    title: "Monitoreo GPS",
+    lead: "Ve dónde está cada unidad, revisa su recorrido y recibe alertas cuando algo sale de lo normal, sin salir de tlamx.",
+    ctaRequest: "Solicitar activación",
+    ctaSecondary: "Ver mis complementos",
+    mailtoHint:
+      "Se abre tu correo con un mensaje para billing@boeltech.com con el nombre de tu empresa y tu usuario. Boeltech te contacta para cotizar según tu flota.",
+    askAdminTitle: "Pide a un administrador que lo active",
+    askAdminBody:
+      "Solo un administrador de tu empresa puede solicitar complementos a Boeltech. Compártele esta pantalla.",
+    includesTitle: "Qué incluye",
+    includes: {
+      fleetMap: {
+        title: "Mapa de flota",
+        body: "Todas tus unidades en un mapa, con su estado: en movimiento, detenida o sin señal.",
+      },
+      history: {
+        title: "Historial de recorrido",
+        body: "Por dónde pasó cada unidad y cuándo, para aclarar retrasos con tu cliente.",
+      },
+      alerts: {
+        title: "Alertas GPS",
+        body: "Exceso de velocidad, parada prolongada y pérdida de señal, con umbrales por empresa.",
+      },
+    },
+    howTitle: "Cómo se activa",
+    how: {
+      step1: {
+        title: "Solicitas la activación",
+        body: "Desde esta pantalla. Solo un administrador puede hacerlo.",
+      },
+      step2: {
+        title: "Boeltech te da e instala el dispositivo",
+        body: "Cotizamos según tu flota, te entregamos el GPS y lo instalamos. Un equipo tuyo solo se vincula si es compatible con nuestro servidor (sujeto a revisión de compatibilidad).",
+      },
+      step3: {
+        title: "Vinculas cada unidad",
+        body: "En la ficha de la unidad, con el IMEI del dispositivo.",
+      },
+    },
+  },
+  /** Kill-switch (DC7 · X9) — sin API/entorno. */
+  unavailable: {
+    title: "Monitoreo GPS no está disponible por ahora",
+    body: "Tu información y la configuración de tus unidades se conservan. Si lo necesitas con urgencia, escribe a soporte.",
   },
   fleet: {
     title: "Mapa de flota",
@@ -22,9 +65,9 @@ export const monitoringCopy = {
     emptyCta: "Ir a Vehículos",
     errorTitle: "No se pudo conectar al servicio de rastreo",
     errorDisabled:
-      "El monitoreo GPS está desactivado en este entorno. Actívalo en la API o contacta a soporte.",
+      "Monitoreo GPS no está disponible por ahora. Tu información y la configuración de tus unidades se conservan.",
     errorNotEntitled:
-      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+      "El complemento Monitoreo GPS no está contratado.",
     retry: "Reintentar",
     loadingAria: "Cargando posiciones de flota",
     summary: (online: number, total: number) =>
@@ -106,10 +149,10 @@ export const monitoringCopy = {
     errorTitle: "No se pudo cargar el historial",
     errorTraccar:
       "El servicio de rastreo no respondió. Reintenta en unos segundos.",
-    errorDisabled: "El monitoreo GPS está desactivado en este entorno.",
+    errorDisabled: "Monitoreo GPS no está disponible por ahora.",
     errorNotLinked: "Esta unidad no tiene dispositivo GPS vinculado.",
     errorNotEntitled:
-      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+      "El complemento Monitoreo GPS no está contratado.",
     retry: "Reintentar",
     loadingAria: "Cargando historial de ruta",
     mapUnavailable:
@@ -176,9 +219,14 @@ export const monitoringCopy = {
     linkedBy: (date: string, name: string | null) =>
       name ? `${date} por ${name}` : date,
     disabledMessage:
-      "El monitoreo GPS no está disponible en este entorno.",
+      "Monitoreo GPS no está disponible por ahora.",
     notEntitledMessage:
-      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+      "El complemento Monitoreo GPS no está contratado.",
+    teaserTitle: "Monitoreo GPS",
+    teaserBadge: "Complemento",
+    teaserBody:
+      "Ve dónde está esta unidad y su recorrido. No está incluido en tu plan.",
+    teaserCta: "Conocer Monitoreo GPS",
     loadError: "No se pudo cargar el estado del GPS.",
     retry: "Reintentar",
   },
@@ -200,9 +248,9 @@ export const monitoringCopy = {
     errorImeiAssigned: "Este IMEI ya está asignado a otra unidad",
     errorNotInTraccar:
       "Este IMEI no está registrado en el servicio de rastreo",
-    errorDisabled: "El monitoreo GPS está desactivado",
+    errorDisabled: "Monitoreo GPS no está disponible por ahora",
     errorNotEntitled:
-      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+      "El complemento Monitoreo GPS no está contratado",
   },
   unlinkDialog: {
     title: "Desvincular dispositivo",
@@ -244,7 +292,7 @@ export const monitoringCopy = {
       "No hay alertas registradas con los filtros actuales.",
     errorTitle: "No se pudieron cargar las alertas",
     errorNotEntitled:
-      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+      "El complemento Monitoreo GPS no está contratado",
     retry: "Reintentar",
     viewOnMap: "Ver en mapa",
     settingsLink: "Configuración de alertas",
@@ -276,7 +324,7 @@ export const monitoringCopy = {
     errorGeneric: "No se pudo guardar la configuración",
     loadError: "No se pudo cargar la configuración de alertas",
     errorNotEntitled:
-      "El monitoreo GPS no está activo en tu cuenta. Contacta a Boeltech para activarlo.",
+      "El complemento Monitoreo GPS no está contratado",
     retry: "Reintentar",
     unconfigured: "Sin configurar",
     unconfiguredHint:

@@ -12,8 +12,13 @@
 
 import { useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
+import {
+  useEntitlement,
+  type EntitlementState,
+} from "@features/billing";
 import { usePermissions } from "@/shared/permissions";
 import { isClientPortalRole, isDriverPortalRole } from "@shared/constants/roles";
+import { navigationCopy } from "../copy/navigationCopy";
 import {
   clientPortalNavigationConfig,
   driverPortalNavigationConfig,
@@ -22,6 +27,11 @@ import {
 import type { NavGroup, NavItem } from "./types";
 import type { UserRole } from "@shared/constants/roles";
 import type { Module, Action } from "@shared/permissions/domain/entities";
+
+export type { EntitlementState };
+
+/** Resuelve estado de contrato para ítems con `entitlement`. */
+export type GetEntitlementState = (code: string) => EntitlementState;
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -152,45 +162,97 @@ export function findActiveNavItem(
 }
 
 /**
- * Filtra los items de navegación según permisos
+ * Visibilidad por permiso (RBAC / roles).
+ */
+function passesPermissionFilter(
+  item: NavItem,
+  hasPermission: (module: Module, action: Action) => boolean,
+  userRole: UserRole | null,
+): boolean {
+  if (item.roles && item.roles.length > 0) {
+    if (!userRole) return false;
+    return item.roles.includes(userRole);
+  }
+
+  const action = item.action || "read";
+
+  if (item.anyModules && item.anyModules.length > 0) {
+    return item.anyModules.some((module) => hasPermission(module, action));
+  }
+
+  if (!item.module) return true;
+
+  return hasPermission(item.module, action);
+}
+
+/**
+ * DC3 / T5 — ítems con `entitlement`:
+ * - operativo (`!lockedPreview`): visible si active | loading | unknown
+ * - preview (`lockedPreview`): solo not_contracted → grupo Complementos
+ * - unavailable: oculta ambos
+ */
+function passesEntitlementFilter(
+  item: NavItem,
+  getEntitlementState?: GetEntitlementState,
+): boolean {
+  if (!item.entitlement) return true;
+
+  const state = getEntitlementState?.(item.entitlement) ?? "unknown";
+
+  if (item.lockedPreview) {
+    return state === "not_contracted";
+  }
+
+  if (state === "not_contracted" || state === "unavailable") {
+    return false;
+  }
+
+  // active | loading | unknown
+  return true;
+}
+
+/**
+ * Filtra los items de navegación según permisos (+ entitlement opcional).
+ * Los `lockedPreview` visibles se excluyen del grupo origen (van a Complementos).
  */
 function filterNavItems(
   items: NavItem[],
   hasPermission: (module: Module, action: Action) => boolean,
   userRole: UserRole | null,
+  getEntitlementState?: GetEntitlementState,
+  options?: { collectLocked?: NavItem[] },
 ): NavItem[] {
-  return items.filter((item) => {
-    if (item.roles && item.roles.length > 0) {
-      if (!userRole) return false;
-      return item.roles.includes(userRole);
+  const out: NavItem[] = [];
+
+  for (const item of items) {
+    if (!passesPermissionFilter(item, hasPermission, userRole)) continue;
+    if (!passesEntitlementFilter(item, getEntitlementState)) continue;
+
+    if (item.lockedPreview) {
+      options?.collectLocked?.push(item);
+      continue;
     }
 
-    const action = item.action || "read";
+    out.push(item);
+  }
 
-    // OR de módulos (p. ej. documentos flota: vehicles.read | drivers.read)
-    if (item.anyModules && item.anyModules.length > 0) {
-      return item.anyModules.some((module) => hasPermission(module, action));
-    }
-
-    // Si no requiere módulo, mostrar siempre
-    if (!item.module) return true;
-
-    return hasPermission(item.module, action);
-  });
+  return out;
 }
 
 /**
- * Filtra los grupos de navegación según permisos
+ * Filtra los grupos de navegación según permisos y estado de complementos (T5).
+ * Ítems `lockedPreview` + `not_contracted` → grupo «Complementos» al final.
  */
 export function filterNavigation(
   config: NavGroup[],
   hasPermission: (module: Module, action: Action) => boolean,
   userRole: UserRole | null,
+  getEntitlementState?: GetEntitlementState,
 ): NavGroup[] {
   const filtered: NavGroup[] = [];
+  const lockedItems: NavItem[] = [];
 
   for (const group of config) {
-    // Si el grupo requiere un módulo, verificar acceso
     if (group.module) {
       const action = group.action || "read";
       if (!hasPermission(group.module, action)) {
@@ -198,10 +260,14 @@ export function filterNavigation(
       }
     }
 
-    // Filtrar items dentro del grupo
-    const filteredItems = filterNavItems(group.items, hasPermission, userRole);
+    const filteredItems = filterNavItems(
+      group.items,
+      hasPermission,
+      userRole,
+      getEntitlementState,
+      { collectLocked: lockedItems },
+    );
 
-    // Si no hay items visibles, no mostrar el grupo
     if (filteredItems.length === 0) {
       continue;
     }
@@ -209,6 +275,14 @@ export function filterNavigation(
     filtered.push({
       ...group,
       items: filteredItems,
+    });
+  }
+
+  if (lockedItems.length > 0) {
+    filtered.push({
+      id: "complementos",
+      title: navigationCopy.group.complementos,
+      items: lockedItems,
     });
   }
 
@@ -255,13 +329,21 @@ function findNavItemByPath(
 export function useNavigation(): UseNavigationReturn {
   const location = useLocation();
   const { hasPermission, role, isLoading } = usePermissions();
+  const gpsEntitlement = useEntitlement("gps_tracking");
 
   const currentPath = location.pathname;
   const currentSearch = location.search;
 
+  const getEntitlementState = useCallback<GetEntitlementState>(
+    (code) => {
+      if (code === "gps_tracking") return gpsEntitlement.state;
+      return "unknown";
+    },
+    [gpsEntitlement.state],
+  );
+
   /**
-   * Navegación filtrada según permisos del usuario
-   * Solo se recalcula cuando cambian los permisos o el rol
+   * Navegación filtrada según permisos + estado de complementos (DC3).
    */
   const navigation = useMemo<NavGroup[]>(() => {
     const config = isClientPortalRole(role)
@@ -269,8 +351,8 @@ export function useNavigation(): UseNavigationReturn {
       : isDriverPortalRole(role)
         ? driverPortalNavigationConfig
         : navigationConfig;
-    return filterNavigation(config, hasPermission, role);
-  }, [hasPermission, role]);
+    return filterNavigation(config, hasPermission, role, getEntitlementState);
+  }, [getEntitlementState, hasPermission, role]);
 
   /**
    * Todos los items accesibles en formato plano

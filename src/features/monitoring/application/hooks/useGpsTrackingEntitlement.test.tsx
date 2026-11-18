@@ -2,17 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useGpsTrackingEntitlement } from "./useGpsTrackingEntitlement";
 
-const mockUseHasBillingModule = vi.fn();
+const mockUseEntitlement = vi.fn();
 
 vi.mock("@features/billing", () => ({
-  useHasBillingModule: (...args: unknown[]) =>
-    mockUseHasBillingModule(...args),
+  useEntitlement: (...args: unknown[]) => mockUseEntitlement(...args),
 }));
 
 describe("useGpsTrackingEntitlement", () => {
-  it("gates when access succeeded without gps_tracking", () => {
-    mockUseHasBillingModule.mockReturnValue({
-      hasModule: false,
+  it("gates when not_contracted", () => {
+    mockUseEntitlement.mockReturnValue({
+      state: "not_contracted",
       isSuccess: true,
       isLoading: false,
       isFetching: false,
@@ -20,14 +19,15 @@ describe("useGpsTrackingEntitlement", () => {
     });
 
     const { result } = renderHook(() => useGpsTrackingEntitlement());
-    expect(mockUseHasBillingModule).toHaveBeenCalledWith("gps_tracking");
+    expect(mockUseEntitlement).toHaveBeenCalledWith("gps_tracking");
     expect(result.current.showNotActivated).toBe(true);
     expect(result.current.canUseModule).toBe(false);
+    expect(result.current.hasModule).toBe(false);
   });
 
-  it("holds GPS queries while access is still loading", () => {
-    mockUseHasBillingModule.mockReturnValue({
-      hasModule: false,
+  it("holds GPS queries while loading", () => {
+    mockUseEntitlement.mockReturnValue({
+      state: "loading",
       isSuccess: false,
       isLoading: true,
       isFetching: true,
@@ -39,9 +39,9 @@ describe("useGpsTrackingEntitlement", () => {
     expect(result.current.canUseModule).toBe(false);
   });
 
-  it("does not treat access error as not entitled", () => {
-    mockUseHasBillingModule.mockReturnValue({
-      hasModule: false,
+  it("does not treat unknown (access error) as not entitled", () => {
+    mockUseEntitlement.mockReturnValue({
+      state: "unknown",
       isSuccess: false,
       isLoading: false,
       isFetching: false,
@@ -53,9 +53,9 @@ describe("useGpsTrackingEntitlement", () => {
     expect(result.current.canUseModule).toBe(true);
   });
 
-  it("allows module when entitled", () => {
-    mockUseHasBillingModule.mockReturnValue({
-      hasModule: true,
+  it("allows module when active", () => {
+    mockUseEntitlement.mockReturnValue({
+      state: "active",
       isSuccess: true,
       isLoading: false,
       isFetching: false,
@@ -65,5 +65,20 @@ describe("useGpsTrackingEntitlement", () => {
     const { result } = renderHook(() => useGpsTrackingEntitlement());
     expect(result.current.showNotActivated).toBe(false);
     expect(result.current.canUseModule).toBe(true);
+    expect(result.current.hasModule).toBe(true);
+  });
+
+  it("blocks queries when unavailable", () => {
+    mockUseEntitlement.mockReturnValue({
+      state: "unavailable",
+      isSuccess: true,
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+    });
+
+    const { result } = renderHook(() => useGpsTrackingEntitlement());
+    expect(result.current.showNotActivated).toBe(false);
+    expect(result.current.canUseModule).toBe(false);
   });
 });

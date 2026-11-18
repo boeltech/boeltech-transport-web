@@ -1,22 +1,24 @@
-import { useHasBillingModule } from "@features/billing";
+import { useEntitlement } from "@features/billing";
 
 const GPS_MODULE = "gps_tracking";
 
 /**
- * Entitlement gate for Monitoreo GPS (piloto: sin paywall de venta).
- * Solo muestra “módulo no activado” cuando /billing/access responde OK
- * y `gps_tracking` no está en effectiveModuleCodes. Error/idle ≠ no entitled.
+ * Conveniencia GPS sobre `useEntitlement("gps_tracking")`.
+ * Conserva `showNotActivated` / `canUseModule` para no romper F3 (páginas).
+ *
+ * - `showNotActivated` = `not_contracted` (UI presentación = F3)
+ * - `canUseModule` = `active` | `unknown` (unknown deja pasar a la API)
+ * - `unavailable` / `loading` / `not_contracted` → no consultar módulo
  */
 export function useGpsTrackingEntitlement() {
-  const access = useHasBillingModule(GPS_MODULE);
-  const showNotActivated = access.isSuccess && !access.hasModule;
-  /** Evita 403 ruidosos mientras access carga; si access falla, deja pasar al API. */
+  const entitlement = useEntitlement(GPS_MODULE);
+  const showNotActivated = entitlement.state === "not_contracted";
   const canUseModule =
-    !showNotActivated &&
-    !(access.isLoading || (access.isFetching && !access.isSuccess));
+    entitlement.state === "active" || entitlement.state === "unknown";
 
   return {
-    ...access,
+    ...entitlement,
+    hasModule: entitlement.state === "active",
     showNotActivated,
     canUseModule,
   };

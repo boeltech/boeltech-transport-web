@@ -96,7 +96,7 @@ const SECTIONS: readonly SectionConfig[] = [
     key: "components",
     label: "Botones & badges",
     icon: Layers,
-    description: "Button y Badge con todas sus variantes",
+    description: "Button, Badge, EntitlementBadge (Complementos)",
     group: "Components",
   },
   {

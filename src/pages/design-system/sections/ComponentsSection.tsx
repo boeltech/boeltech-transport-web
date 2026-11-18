@@ -4,12 +4,15 @@
  * Showcase de los componentes base del DS post-Fase 0:
  *   - Button (todas las variantes y tamaños, con/sin iconos, loading)
  *   - Badge (variantes semánticas en solid y soft)
+ *   - EntitlementBadge + AddonTeaserRow (Complementos · evolve-ds F5)
  *   - Tabs (soft/segmented — nav local canónica)
  */
 
-import { Plus, Trash2, Save, Download } from "lucide-react";
+import { ArrowRight, Lock, Plus, Radio, Trash2, Save, Download } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
+import { AddonTeaserRow } from "@shared/ui/addon-teaser";
+import { EntitlementBadge } from "@shared/ui/entitlement-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
 
@@ -108,6 +111,80 @@ export function ComponentsSection() {
             necesitas un estado nuevo, agrega un token semántico primero en{" "}
             <code className="font-mono text-xs">index.css</code>.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* EntitlementBadge — Complementos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>EntitlementBadge — estado de complemento</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            Sentence-case, tono soft. Fuente de verdad de copy canónico en el
+            primitivo; no armar chips ad-hoc con{" "}
+            <code className="font-mono text-xs">Badge</code> para Activo /
+            Disponible / No disponible / Versión anticipada.
+          </p>
+          <Row label="Estados">
+            <EntitlementBadge variant="active" />
+            <EntitlementBadge variant="available" />
+            <EntitlementBadge variant="unavailable" />
+            <EntitlementBadge variant="early_access" />
+          </Row>
+          <Row label="Etiqueta de tipo (no es estado)">
+            <EntitlementBadge variant="kind" />
+            <span className="text-sm text-muted-foreground">
+              Acompaña el nombre en presentación y teaser.
+            </span>
+          </Row>
+
+          <div className="space-y-2 border-t pt-4">
+            <p className="text-sm font-medium">AddonTeaserRow</p>
+            <p className="text-sm text-muted-foreground">
+              Solo ficha de unidad (u otra superficie con contexto). No en
+              badge de alertas, Inicio ni resumen de viaje.
+            </p>
+            <AddonTeaserRow
+              icon={<Radio className="h-4 w-4" />}
+              title="Monitoreo GPS"
+              badge={<EntitlementBadge variant="kind" />}
+              description="Ve dónde está esta unidad y su recorrido. No está incluido en tu plan."
+              action={
+                <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-foreground">
+                  Conocer Monitoreo GPS
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                </span>
+              }
+            />
+          </div>
+
+          <div className="space-y-2 border-t pt-4">
+            <p className="text-sm font-medium">
+              Entrada bloqueada del sidebar (contrato)
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Nav item con{" "}
+              <code className="font-mono text-xs">
+                entitlement + lockedPreview
+              </code>
+              ; grupo «Complementos» al final. No reimplementar el chrome: vive
+              en <code className="font-mono text-xs">widgets/sidebar</code>.
+            </p>
+            <div
+              className="w-56 rounded-lg border border-sidebar-border bg-sidebar p-2 text-sidebar-foreground"
+              aria-hidden
+            >
+              <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-sidebar-foreground/60">
+                Complementos
+              </p>
+              <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm">
+                <Radio className="h-4 w-4 shrink-0 opacity-80" />
+                <span className="flex-1 truncate">Monitoreo GPS</span>
+                <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

@@ -59,14 +59,12 @@ vi.mock("@features/billing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@features/billing")>();
   return {
     ...actual,
-    useHasBillingModule: () => ({
-      hasModule: true,
+    useEntitlement: () => ({
+      state: "active",
       isSuccess: true,
       isLoading: false,
       isFetching: false,
       isError: false,
-      isPending: false,
-      data: { effectiveModuleCodes: ["gps_tracking"] },
     }),
   };
 });

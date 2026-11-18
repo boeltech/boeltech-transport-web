@@ -63,6 +63,16 @@ vi.mock("@features/monitoring/application", () => ({
     isLoading: false,
     isError: false,
   }),
+  useGpsTrackingEntitlement: () => ({
+    state: "not_contracted",
+    showNotActivated: true,
+    canUseModule: false,
+    hasModule: false,
+    isSuccess: true,
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+  }),
 }));
 
 const mockHasPermission = vi.fn(

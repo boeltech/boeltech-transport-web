@@ -413,22 +413,29 @@ export const billingCopy = {
       "El cobro con tarjeta no está disponible en este momento. Contacta a Boeltech o usa transferencia.",
   },
   modules: {
-    title: "Extras contratados",
+    title: "Complementos",
     description:
       "Lo que contrataste además de los módulos de operación de tu plan.",
-    loading: "Cargando extras…",
+    loading: "Cargando complementos…",
     empty: {
-      title: "Sin extras contratados",
-      description: (planName: string) =>
-        planName
-          ? `Tu plan ${planName} incluye los módulos de operación. Aquí aparecerán los que contrates después.`
-          : "Tu plan incluye los módulos de operación. Aquí aparecerán los que contrates después.",
+      title: "Sin complementos contratados",
+      description:
+        "Tu plan incluye los módulos de operación. Estos se contratan aparte.",
     },
     eaBadge: "Versión anticipada",
+    activeBadge: "Activo",
+    availableBadge: "Disponible",
+    priceFrozenCaption: "Precio congelado",
     pricePerMonth: (amount: string) => `${amount}/mes`,
     includesMembers: (count: number) =>
       count === 1 ? "Incluye 1 módulo" : `Incluye ${count} módulos`,
-    activatedAt: (date: string) => `Activo desde ${date}`,
+    activatedAt: (date: string) => `Desde el ${date}`,
+    requestActivation: "Solicitar activación",
+    requestByAdmin: "Lo solicita un administrador",
+    availableBlurb:
+      "Mapa de flota, historial de recorrido y alertas.",
+    learnMore: "Conocer más",
+    openFleetMap: "Abrir mapa de flota",
     level: {
       label: "Análisis de rentabilidad",
       profitabilityLink: "Ver rentabilidad de tus viajes",

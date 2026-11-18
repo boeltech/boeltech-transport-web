@@ -14,7 +14,6 @@ import {
   useReverseGeocode,
 } from "../../application";
 import { FLEET_MAP_PATH } from "../../domain";
-import { GpsModuleNotActivatedState } from "../components/GpsModuleNotActivatedState";
 import { HistoryPeriodToolbar } from "../components/HistoryPeriodToolbar";
 import { HistoryPointDetailCard } from "../components/HistoryPointDetailCard";
 import { HistoryPointsTable } from "../components/HistoryPointsTable";
@@ -130,8 +129,7 @@ export function FleetHistoryPage() {
     isApiError(historyQuery.error) &&
     historyQuery.error.code === "GPS_TRACCAR_UNAVAILABLE";
   const notEntitled =
-    entitlement.showNotActivated ||
-    (historyQuery.isError && isModuleNotEntitledError(historyQuery.error));
+    historyQuery.isError && isModuleNotEntitledError(historyQuery.error);
 
   const isEmpty =
     !historyQuery.isLoading &&
@@ -251,7 +249,14 @@ export function FleetHistoryPage() {
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 py-3">
           {notEntitled ? (
-            <GpsModuleNotActivatedState variant="page" className="py-8" />
+            <Alert
+              variant="destructive"
+              className="border-destructive/40 bg-background/95"
+              data-testid="gps-history-not-entitled"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>{copy.errorNotEntitled}</AlertTitle>
+            </Alert>
           ) : historyQuery.isLoading ? (
             <div className="space-y-2" aria-label={copy.loadingAria}>
               <Skeleton className="h-24 w-full rounded-xl bg-white/10" />

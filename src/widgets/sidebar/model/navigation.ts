@@ -49,6 +49,7 @@ import {
   HandCoins,
   BanknoteArrowUp,
   FileSpreadsheet,
+  Lock,
 } from "lucide-react";
 import { FLEET_DOCUMENTS_PATH } from "@features/fleet-documents/domain";
 import {
@@ -60,6 +61,9 @@ import { navigationCopy } from "../copy/navigationCopy";
 import type { NavGroup } from "./types";
 
 const copy = navigationCopy;
+
+/** Complemento GPS — código de entitlement (lockstep API). */
+const GPS_ENTITLEMENT = "gps_tracking";
 
 /**
  * Configuración completa de la navegación
@@ -107,6 +111,7 @@ export const navigationConfig: NavGroup[] = [
         path: FLEET_MAP_PATH,
         icon: MapPin,
         module: "gps_tracking",
+        entitlement: GPS_ENTITLEMENT,
       },
       {
         id: "gps-alerts",
@@ -114,6 +119,7 @@ export const navigationConfig: NavGroup[] = [
         path: ALERTS_LIST_PATH,
         icon: Bell,
         module: "gps_tracking",
+        entitlement: GPS_ENTITLEMENT,
       },
       {
         id: "gps-alert-settings",
@@ -122,6 +128,21 @@ export const navigationConfig: NavGroup[] = [
         icon: Settings2,
         module: "gps_tracking",
         action: "admin",
+        entitlement: GPS_ENTITLEMENT,
+      },
+      /**
+       * Preview no contratado (DC3): filterNavigation lo mueve a «Complementos».
+       * Path = mapa de flota; presentación real = F3.
+       */
+      {
+        id: "gps-tracking-locked",
+        label: copy.item.gpsTrackingLocked,
+        path: FLEET_MAP_PATH,
+        icon: Lock,
+        module: "gps_tracking",
+        entitlement: GPS_ENTITLEMENT,
+        lockedPreview: true,
+        ariaLabel: copy.item.gpsTrackingLockedAria,
       },
     ],
   },

@@ -227,6 +227,7 @@ const MOCK_ENTITLEMENTS: BillingEntitlements = {
   effectiveModuleCodes: [],
   profitabilityLevel: "L0",
   catalog: [],
+  availableModules: [],
   commercialSummary: {
     planMonthlyPriceCents: 74900,
     modulesTotalCents: 0,

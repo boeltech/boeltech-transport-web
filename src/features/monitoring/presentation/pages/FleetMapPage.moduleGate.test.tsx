@@ -3,11 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "@/test/createTestQueryClient";
-import { monitoringCopy } from "../copy/monitoringCopy";
 import { FleetMapPage } from "./FleetMapPage";
 
 const mockGetFleet = vi.fn();
-const mockUseHasBillingModule = vi.fn();
+const mockUseEntitlement = vi.fn();
 
 vi.mock("@features/monitoring/infrastructure", () => ({
   monitoringApi: {
@@ -19,8 +18,7 @@ vi.mock("@features/billing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@features/billing")>();
   return {
     ...actual,
-    useHasBillingModule: (...args: unknown[]) =>
-      mockUseHasBillingModule(...args),
+    useEntitlement: (...args: unknown[]) => mockUseEntitlement(...args),
   };
 });
 
@@ -31,17 +29,13 @@ vi.mock("@shared/config", () => ({
   },
 }));
 
-function entitledAccess(hasModule: boolean) {
+function entitlementState(state: "active" | "not_contracted") {
   return {
-    hasModule,
+    state,
     isSuccess: true,
     isLoading: false,
     isFetching: false,
     isError: false,
-    isPending: false,
-    data: {
-      effectiveModuleCodes: hasModule ? ["gps_tracking"] : [],
-    },
   };
 }
 
@@ -56,32 +50,24 @@ function renderPage() {
   );
 }
 
-describe("FleetMapPage — module gate (F4.2)", () => {
+describe("FleetMapPage — entitlement gates (F3)", () => {
   beforeEach(() => {
     mockGetFleet.mockReset();
-    mockUseHasBillingModule.mockReset();
+    mockUseEntitlement.mockReset();
   });
 
-  it("shows module-not-activated empty without paywall CTA", () => {
-    mockUseHasBillingModule.mockReturnValue(entitledAccess(false));
+  it("does not fetch fleet when not_contracted (EntitlementRoute owns UI)", () => {
+    mockUseEntitlement.mockReturnValue(entitlementState("not_contracted"));
 
     renderPage();
 
-    expect(mockUseHasBillingModule).toHaveBeenCalledWith("gps_tracking");
-    expect(screen.getByTestId("gps-module-not-activated")).toBeInTheDocument();
-    expect(
-      screen.getByText(monitoringCopy.moduleGate.title),
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId("fleet-map-empty")).not.toBeInTheDocument();
+    expect(mockUseEntitlement).toHaveBeenCalledWith("gps_tracking");
     expect(mockGetFleet).not.toHaveBeenCalled();
-
-    const blob =
-      screen.getByTestId("gps-module-not-activated").textContent ?? "";
-    expect(blob).not.toMatch(/comprar|upgrade|precio|\$/i);
+    expect(screen.getByTestId("fleet-map-page")).toBeInTheDocument();
   });
 
   it("loads fleet when module is entitled", async () => {
-    mockUseHasBillingModule.mockReturnValue(entitledAccess(true));
+    mockUseEntitlement.mockReturnValue(entitlementState("active"));
     mockGetFleet.mockResolvedValue({
       positions: [],
       summary: { totalLinked: 0, online: 0, stale: 0, offline: 0 },

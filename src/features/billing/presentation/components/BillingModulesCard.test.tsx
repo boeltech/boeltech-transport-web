@@ -12,11 +12,27 @@ vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({ hasPermission: mockHasPermission }),
 }));
 
+vi.mock("@features/auth", () => ({
+  useAuth: () => ({
+    user: {
+      email: "ana@norte.mx",
+      getFullName: () => "Ana López",
+      getTenantName: () => "Transportes del Norte SA",
+    },
+  }),
+}));
+
+vi.mock("@features/settings", () => ({
+  useCompanySettings: () => ({
+    data: { rfc: "TNO010101ABC" },
+  }),
+}));
+
 const ENTITLEMENTS: BillingEntitlements = {
   directEntitlements: [
     {
       moduleCode: "gps_tracking",
-      moduleName: "Rastreo GPS en tiempo real",
+      moduleName: "Monitoreo GPS",
       kind: "addon",
       status: "active",
       activatedAt: "2026-07-01T12:00:00.000Z",
@@ -28,6 +44,7 @@ const ENTITLEMENTS: BillingEntitlements = {
   effectiveModuleCodes: ["gps_tracking"],
   profitabilityLevel: "L0",
   catalog: [],
+  availableModules: [],
   commercialSummary: {
     planMonthlyPriceCents: 74900,
     modulesTotalCents: 5900,
@@ -39,6 +56,13 @@ const ENTITLEMENTS: BillingEntitlements = {
     periodKey: "2026-07",
     billingCycle: "monthly",
   },
+};
+
+const AVAILABLE_GPS = {
+  code: "gps_tracking",
+  name: "Monitoreo GPS",
+  kind: "addon",
+  maturity: "ga",
 };
 
 function renderCard(props: Partial<Parameters<typeof BillingModulesCard>[0]> = {}) {
@@ -58,7 +82,17 @@ function renderCard(props: Partial<Parameters<typeof BillingModulesCard>[0]> = {
 describe("BillingModulesCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockHasPermission.mockReturnValue(true);
+    mockHasPermission.mockImplementation((resource: string, action: string) => {
+      if (resource === "invoices" && action === "read") return true;
+      if (resource === "billing" && action === "update") return true;
+      return false;
+    });
+  });
+
+  it("usa el título Complementos (DC1)", () => {
+    renderCard();
+    expect(screen.getByText(billingCopy.modules.title)).toBeInTheDocument();
+    expect(screen.queryByText("Extras contratados")).not.toBeInTheDocument();
   });
 
   it("muestra la etiqueta humana del nivel sin código Lx", () => {
@@ -72,7 +106,6 @@ describe("BillingModulesCard", () => {
     expect(
       screen.getByText(PROFITABILITY_LEVEL_COPY.L0.includes),
     ).toBeInTheDocument();
-    // D7: sin "qué falta" en esta superficie (detalle en Finance)
     expect(
       screen.queryByText(PROFITABILITY_LEVEL_COPY.L0.pending as string),
     ).not.toBeInTheDocument();
@@ -118,16 +151,22 @@ describe("BillingModulesCard", () => {
     expect(screen.queryByText("Nivel L9")).not.toBeInTheDocument();
   });
 
-  it("muestra un solo badge por módulo y el precio mensual", () => {
+  it("muestra activo con precio congelado, badge EA y mapa de flota", () => {
     renderCard();
 
+    expect(screen.getByText(billingCopy.modules.activeBadge)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.modules.eaBadge)).toBeInTheDocument();
     expect(screen.getByText("$59.00/mes")).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.modules.priceFrozenCaption),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: billingCopy.modules.openFleetMap }),
+    ).toHaveAttribute("href", "/monitoring/fleet");
     expect(screen.queryByText("Add-on")).not.toBeInTheDocument();
-    expect(screen.queryByText("Activo")).not.toBeInTheDocument();
   });
 
-  it("explica el estado vacío con el nombre del plan", () => {
+  it("explica el estado vacío sin disponibles", () => {
     renderCard({
       entitlements: { ...ENTITLEMENTS, directEntitlements: [] },
     });
@@ -136,9 +175,66 @@ describe("BillingModulesCard", () => {
       screen.getByText(billingCopy.modules.empty.title),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        billingCopy.modules.empty.description("Operación Esencial"),
-      ),
+      screen.getByText(billingCopy.modules.empty.description),
     ).toBeInTheDocument();
+  });
+
+  it("admin ve disponible con mailto y Conocer más (sin precio)", () => {
+    renderCard({
+      entitlements: {
+        ...ENTITLEMENTS,
+        directEntitlements: [],
+        availableModules: [AVAILABLE_GPS],
+      },
+    });
+
+    expect(
+      screen.getByText(billingCopy.modules.availableBadge),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.modules.availableBlurb),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: billingCopy.modules.learnMore }),
+    ).toHaveAttribute("href", "/monitoring/fleet");
+
+    const cta = screen.getByTestId("billing-module-request-gps_tracking");
+    expect(cta).toHaveTextContent(billingCopy.modules.requestActivation);
+    expect(cta.getAttribute("href")).toMatch(/^mailto:billing@boeltech\.com\?/);
+    expect(decodeURIComponent(cta.getAttribute("href") ?? "")).not.toMatch(
+      /precio|\$/i,
+    );
+    expect(screen.queryByText(/\/mes$/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(billingCopy.modules.priceFrozenCaption),
+    ).not.toBeInTheDocument();
+  });
+
+  it("contador ve disponible sin mailto ni enlace a monitoreo", () => {
+    mockHasPermission.mockImplementation((resource: string, action: string) => {
+      if (resource === "invoices" && action === "read") return true;
+      return false;
+    });
+
+    renderCard({
+      entitlements: {
+        ...ENTITLEMENTS,
+        directEntitlements: [],
+        availableModules: [AVAILABLE_GPS],
+      },
+    });
+
+    expect(
+      screen.getByText(billingCopy.modules.requestByAdmin),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("billing-module-request-gps_tracking"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: billingCopy.modules.learnMore }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: billingCopy.modules.openFleetMap }),
+    ).not.toBeInTheDocument();
   });
 });

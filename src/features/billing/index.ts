@@ -9,6 +9,11 @@ export {
   useHasBillingModule,
 } from "./application/hooks/useBilling";
 export {
+  useEntitlement,
+  deriveEntitlementState,
+  type UseEntitlementResult,
+} from "./application/hooks/useEntitlement";
+export {
   usePaymentMethods,
   useCreateSetupIntent,
   useConfirmSetupIntent,
@@ -24,6 +29,7 @@ export {
   type BillingCapacityStatus,
   type BillingUsage,
   type BillingEntitlements,
+  type BillingAvailableModule,
   type BillingArrears,
   type BillingArrearsInvoice,
   type BillingAccess,
@@ -32,6 +38,7 @@ export {
   type SaasInvoicePayResult,
   type BillingSaasInvoice,
   type BillingSaasLastPayment,
+  type EntitlementState,
 } from "./domain/index";
 /** Stripe.js helpers (WS-C) — reutilizables por platform charge (WS-D). */
 export {
@@ -40,6 +47,12 @@ export {
   SAAS_STRIPE_NOT_CONFIGURED,
 } from "./infrastructure/stripeClient";
 export { confirmCardPaymentIfRequired } from "./presentation/utils/confirmCardPayment";
+/** Mailto v1 solicitud activación GPS (PRD §X3) — F3 presentación + F4 Complementos. */
+export {
+  buildGpsActivationMailto,
+  GPS_ACTIVATION_BILLING_EMAIL,
+  type GpsActivationMailtoParams,
+} from "./presentation/utils/buildGpsActivationMailto";
 /** SoT v5 — cargo Q×P / bolsa (reutilizable por platform). */
 export {
   computeBolsaStamps,

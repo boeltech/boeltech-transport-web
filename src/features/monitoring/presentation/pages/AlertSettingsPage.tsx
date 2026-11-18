@@ -15,7 +15,6 @@ import type {
   GpsAlertTypeCode,
 } from "../../domain";
 import { AlertSettingsCard } from "../components/AlertSettingsCard";
-import { GpsModuleNotActivatedState } from "../components/GpsModuleNotActivatedState";
 import { monitoringCopy } from "../copy/monitoringCopy";
 import { isModuleNotEntitledError } from "../utils/isModuleNotEntitledError";
 
@@ -45,8 +44,7 @@ export function AlertSettingsPage() {
     onError: (err) => error(err.message || copy.errorGeneric),
   });
   const notEntitled =
-    entitlement.showNotActivated ||
-    (query.isError && isModuleNotEntitledError(query.error));
+    query.isError && isModuleNotEntitledError(query.error);
 
   const settings = useMemo(
     () => query.data?.settings ?? [],
@@ -100,7 +98,11 @@ export function AlertSettingsPage() {
         )
       }
     >
-      {notEntitled ? <GpsModuleNotActivatedState variant="page" /> : null}
+      {notEntitled ? (
+        <Alert variant="destructive" data-testid="gps-settings-not-entitled">
+          <AlertTitle>{copy.errorNotEntitled}</AlertTitle>
+        </Alert>
+      ) : null}
 
       {!notEntitled && query.isLoading ? (
         <div className="space-y-3">
