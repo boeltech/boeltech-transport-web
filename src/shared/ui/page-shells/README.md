@@ -148,48 +148,43 @@ Tests: `ListPageShell.test.tsx`.
 
 ---
 
-## `DetailPageShell` — patrón Detail header
+## `DetailPageShell` — patrón Detail header (NL2–NL4)
 
-El shell define slots (`icon`, `title`, `subtitle`, `statusBadge`, `actions`, `alerts`) y el
-peso del layout: en `xl+` info `min-w-[55%]` / acciones `max-w-[40%]`; debajo de `xl` el
-título va a ancho completo y las acciones debajo. Cada feature compone los slots.
-Canónico: `InvoiceDetailPage` + `InvoiceDetailHeaderSubtitle` + `InvoiceActions` (`variant="buttons"`).
+Union `header`: **staff** (`crumbs`) · **portal** (`variant: "portal"`, `backHref`).
+(`LegacyDetailHeader` retirado en F3.)
+
+Staff (Operate): migas `Breadcrumbs` encima del h1; **sin** flecha ← ni ícono de entidad.
+Portal: flecha «← Volver». `avatar?` solo imagen real 48 px.
 
 ```
-[←] [icon 48]  IDENTIDAD (h1) + chips de estado/tipo     │  CTAs (≤40 %)
-                Contexto L1 (sm, muted)                   │  1 primaria + Más
-                Contexto L2 opcional (xs, muted)          │
+[migas]  Módulo › Actual
+         IDENTIDAD (h1) + chips de estado/tipo            │  CTAs (≤40 %)
+         Contexto L1 (sm, muted)                          │  1 primaria + outline + Más
 ──────────────────────────────────────────────────────────
-Alerts (warning dominio → info relación → info utilidad)
+Alerts → stats → tabs (label string + count?/signal?) → metadata
 ```
 
 | Slot | Qué poner | Evitar |
 |------|-----------|--------|
-| `icon` | Icono de entidad `h-6 w-6`, fondo `primary` (`muted` si cancelado) | — |
-| `title` | Ancla (folio/código, `shrink-0`) + `*StatusBadge size="sm" showIcon` + badge de tipo `tone="soft"` en un mismo cluster. Máx. ~3 chips | Chips solo en `statusBadge` con el título huérfano |
-| `subtitle` | L1 `text-sm text-muted-foreground truncate` (quién: cliente · RFC); L2 opcional `text-xs`; contenedor `space-y-0.5`. Sin UUID ni IDs técnicos | Chips de estado |
-| `statusBadge` | Omitir si los chips ya van en `title` | Duplicar la señal |
-| `actions` | Primaria contextual + overflow «Más» (`*Actions variant="buttons"`). `<2xl`: 1 primaria + Más; `2xl+`: + hasta 2 outline | Más de una `variant="default"` |
-| `alerts` | Orden: warning de dominio → info de relación → info de utilidad. Copy = el porqué; la CTA fuerte vive en el header | Botón outline en el banner con el mismo label que el header (usar link textual) |
+| `crumbs` | `resolveDetailCrumbs` (staff) | Flecha + ícono Lucide de entidad |
+| `avatar` | Logo/foto real 48 px | Ícono genérico en recuadro |
+| `title` | Ancla (folio/código) + chips de estado. Máx. ~3 chips | — |
+| `subtitle` | L1 muted (quién · contexto); sin UUID | Chips de estado |
+| `actions` | 1 primaria + outline + «Más»; destructivas en Más (NL8) | Destructivas visibles |
+| `tabs.items` | `label: string` + `count?` / `signal?` | Badge manual en el label |
+
+Ancla: `VehicleDetailPage`. Réplica F3: Cliente, Viaje, Factura, …
 
 ```tsx
 header={{
-  backHref,
-  icon: <EntityIcon className="h-6 w-6" />,
+  crumbs: resolveDetailCrumbs({ from, fromLabel, module, current }),
   title: (
     <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
-      <span className="shrink-0">{entityCode}</span>
+      <span className="shrink-0 font-mono tabular-nums">{entityCode}</span>
       <EntityStatusBadge status={status} size="sm" showIcon />
     </span>
   ),
-  subtitle: (
-    <div className="space-y-0.5">
-      <p className="truncate text-sm text-muted-foreground">{primaryContext}</p>
-      {secondaryContext ? (
-        <p className="truncate text-xs text-muted-foreground">{secondaryContext}</p>
-      ) : null}
-    </div>
-  ),
+  subtitle: <EntityDetailHeaderSubtitle … />,
   actions: <EntityActions variant="buttons" />,
 }}
 ```

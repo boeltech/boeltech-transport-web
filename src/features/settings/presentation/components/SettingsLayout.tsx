@@ -3,12 +3,12 @@
  *
  * Layout principal del módulo de configuración (solo tenant/empresa).
  * Tabs horizontales canónicas (RouteTabsNav) + área de contenido.
+ * Migas NL3 via `Breadcrumbs` (sin engrane); raíz `/settings` sin sección = sin migas.
  */
 
 import { memo, type ReactNode } from "react";
-import { Link } from "react-router-dom";
-import { Settings, ChevronRight } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
+import { Breadcrumbs } from "@shared/ui/breadcrumbs";
 import { SettingsNavTabs } from "./SettingsNavTabs";
 
 const DEFAULT_TITLE = "Configuración";
@@ -16,7 +16,7 @@ const DEFAULT_DESCRIPTION = "Administra la configuración de tu empresa";
 
 export interface SettingsLayoutProps {
   children: ReactNode;
-  /** Título de la sección actual (para breadcrumb) */
+  /** Título de la sección actual (para breadcrumb). Sin valor = raíz, sin migas. */
   sectionTitle?: string;
   /** Título de la página. Por defecto, "Configuración". */
   title?: ReactNode;
@@ -46,24 +46,14 @@ export const SettingsLayout = memo(function SettingsLayout({
   return (
     <div className={cn("space-y-6", className)}>
       <div className="space-y-4">
-        <nav
-          className="flex items-center gap-2 text-sm text-muted-foreground"
-          aria-label="Configuración"
-        >
-          <Link
-            to="/settings"
-            className="flex items-center gap-1.5 hover:text-foreground"
-          >
-            <Settings className="h-4 w-4" aria-hidden />
-            <span>Configuración</span>
-          </Link>
-          {sectionTitle && (
-            <>
-              <ChevronRight className="h-4 w-4" aria-hidden />
-              <span className="text-foreground">{sectionTitle}</span>
-            </>
-          )}
-        </nav>
+        {sectionTitle ? (
+          <Breadcrumbs
+            crumbs={[
+              { label: "Configuración", to: "/settings" },
+              { label: sectionTitle },
+            ]}
+          />
+        ) : null}
 
         <div className="flex items-start gap-4">
           {headerSlot ? <div className="shrink-0 pt-0.5">{headerSlot}</div> : null}

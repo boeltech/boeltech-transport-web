@@ -210,14 +210,19 @@ describe("DriverActions status change (D1/D2/D11)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("Eliminar en header es outline, no sólida primaria junto a Editar (D7)", () => {
+  it("Eliminar vive en Más, no como outline primaria junto a Editar (NL8)", async () => {
+    const user = userEvent.setup();
     renderButtons();
 
     const edit = screen.getByRole("button", { name: /^editar$/i });
-    const del = screen.getByRole("button", { name: /^eliminar$/i });
-
     expect(edit.className).toMatch(/bg-primary|default/);
-    expect(del.className).not.toMatch(/bg-destructive(?!\/)/);
-    expect(del.className).toMatch(/border|outline|text-destructive/);
+    expect(
+      screen.queryByRole("button", { name: /^eliminar$/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Más acciones/i }));
+    expect(
+      screen.getByRole("menuitem", { name: /^eliminar$/i }),
+    ).toBeInTheDocument();
   });
 });

@@ -21,9 +21,15 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { DetailPageShell } from "@shared/ui/page-shells";
+import type { DetailPageShellHeader } from "@shared/ui/page-shells";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +40,6 @@ import {
   AlertCircle,
   Receipt,
   Wallet,
-  Loader2,
   AlertTriangle,
   ChevronDown,
 } from "lucide-react";
@@ -176,14 +181,19 @@ function hasStopType(
 // MAIN COMPONENT
 // ============================================================================
 
+const TRIPS_LIST_PATH = "/trips";
+const TRIPS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[TRIPS_LIST_PATH] ?? "Viajes";
+
 export function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const incoming = useIncomingWayfinding();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = parseTripDetailTab(searchParams.get("tab"));
   /** Origen real (bandeja de aprobaciones, factura…) o el listado de viajes. */
   const backHref = resolveTripBackHref(
-    location.state?.from as string | undefined,
+    incoming?.from ?? (location.state?.from as string | undefined),
   );
   const backLabel = resolveTripWayfindingBackLabel(backHref);
   const navigate = useNavigate();
@@ -195,6 +205,36 @@ export function TripDetailPage() {
   const tripId = id || "";
   /** `state.from` al abrir una factura desde este viaje (chevron de vuelta). */
   const tripDetailFromHref = `/trips/${tripId}`;
+
+  const tripNavHeader = (
+    title: DetailPageShellHeader["title"],
+    currentLabel: string,
+    extras: {
+      subtitle?: DetailPageShellHeader["subtitle"];
+      statusBadge?: DetailPageShellHeader["statusBadge"];
+      actions?: DetailPageShellHeader["actions"];
+    } = {},
+  ): DetailPageShellHeader => {
+    if (isLeanTripPortal) {
+      return {
+        variant: "portal",
+        backHref,
+        backLabel,
+        title,
+        ...extras,
+      };
+    }
+    return {
+      crumbs: resolveDetailCrumbs({
+        from: incoming?.from,
+        fromLabel: incoming?.fromLabel,
+        module: { listPath: TRIPS_LIST_PATH, label: TRIPS_MODULE_LABEL },
+        current: { label: currentLabel, mono: true },
+      }),
+      title,
+      ...extras,
+    };
+  };
   const canUpdateTrip = hasPermission("trips", "update");
   const canExecuteTrip = hasPermission("trips", "execute");
   const canReadTrip = hasPermission("trips", "read");
@@ -1100,11 +1140,7 @@ export function TripDetailPage() {
     return (
       <DetailPageShell
         isLoading
-        header={{
-          backHref: isLeanTripPortal ? backHref : undefined,
-          backLabel: isLeanTripPortal ? backLabel : undefined,
-          title: shell.title.fallback,
-        }}
+        header={tripNavHeader(shell.title.fallback, shell.title.fallback)}
       />
     );
   }
@@ -1125,11 +1161,7 @@ export function TripDetailPage() {
           backHref: "/trips",
           backLabel: accessDenied.backLabel,
         }}
-        header={{
-          backHref: isLeanTripPortal ? backHref : undefined,
-          backLabel: isLeanTripPortal ? backLabel : undefined,
-          title: shell.title.fallback,
-        }}
+        header={tripNavHeader(shell.title.fallback, shell.title.fallback)}
       />
     );
   }
@@ -1146,11 +1178,7 @@ export function TripDetailPage() {
           backHref: "/trips",
           backLabel: shell.state.backToList,
         }}
-        header={{
-          backHref: isLeanTripPortal ? backHref : undefined,
-          backLabel: isLeanTripPortal ? backLabel : undefined,
-          title: shell.title.fallback,
-        }}
+        header={tripNavHeader(shell.title.fallback, shell.title.fallback)}
       />
     );
   }
@@ -1163,11 +1191,7 @@ export function TripDetailPage() {
     return (
       <DetailPageShell
         isLoading={false}
-        header={{
-          backHref: isLeanTripPortal ? backHref : undefined,
-          backLabel: isLeanTripPortal ? backLabel : undefined,
-          title: shell.title.fallback,
-        }}
+        header={tripNavHeader(shell.title.fallback, shell.title.fallback)}
       >
         <DetailAlertCard
           severity="critical"
@@ -1204,11 +1228,7 @@ export function TripDetailPage() {
           backHref: "/trips",
           backLabel: shell.state.backToList,
         }}
-        header={{
-          backHref: isLeanTripPortal ? backHref : undefined,
-          backLabel: isLeanTripPortal ? backLabel : undefined,
-          title: shell.title.fallback,
-        }}
+        header={tripNavHeader(shell.title.fallback, shell.title.fallback)}
       />
     );
   }
@@ -1502,35 +1522,21 @@ export function TripDetailPage() {
     <>
       <DetailPageShell
       isLoading={false}
-      header={{
-        // RP-1: crumbs sustituyen flecha + ícono de camión (staff).
-        backHref: isLeanTripPortal ? backHref : undefined,
-        backLabel: isLeanTripPortal ? backLabel : undefined,
-        breadcrumb: !isLeanTripPortal ? (
-          <nav aria-label="Ruta de navegación" className="flex items-center gap-1.5">
-            <Link to="/trips" className="hover:text-foreground hover:underline">
-              Viajes
-            </Link>
-            <span aria-hidden>/</span>
-            <span className="font-mono tabular-nums text-foreground">
-              {trip.tripCode}
-            </span>
-          </nav>
-        ) : undefined,
-        title: (
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="block max-w-full truncate" tabIndex={0}>
-                  {routeTitleCities}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-sm text-xs">
-                {routeTitleTooltip}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ),
+      header={tripNavHeader(
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="block max-w-full truncate" tabIndex={0}>
+                {routeTitleCities}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-sm text-xs">
+              {routeTitleTooltip}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>,
+        trip.tripCode,
+        {
         statusBadge: (
           <span className="inline-flex flex-wrap items-center gap-1.5">
             <TripStatusBadge
@@ -1567,7 +1573,10 @@ export function TripDetailPage() {
                 <span aria-hidden>·</span>
                 <Link
                   to={`/clients/${trip.client.id}`}
-                  state={{ from: tripDetailFromHref }}
+                  state={{
+                    from: tripDetailFromHref,
+                    fromLabel: trip.tripCode,
+                  }}
                   className="truncate text-primary hover:underline"
                 >
                   {trip.client.legalName}
@@ -1625,7 +1634,10 @@ export function TripDetailPage() {
                     }
                     state={
                       trip.invoicing.invoiceId
-                        ? { from: tripDetailFromHref }
+                        ? {
+                            from: tripDetailFromHref,
+                            fromLabel: trip.tripCode,
+                          }
                         : undefined
                     }
                   >
@@ -1694,7 +1706,8 @@ export function TripDetailPage() {
             )}
           </div>
         ),
-      }}
+        },
+      )}
       alerts={composedAboveTabs}
       tabs={{
         defaultValue: "overview",
@@ -1740,16 +1753,8 @@ export function TripDetailPage() {
           },
           {
             value: "route",
-            label: (
-              <span className="inline-flex items-center gap-1">
-                {shell.format.routeTab()}
-                {orderedStops.length > 0 ? (
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {orderedStops.length}
-                  </Badge>
-                ) : null}
-              </span>
-            ),
+            label: shell.format.routeTab(),
+            count: orderedStops.length > 0 ? orderedStops.length : undefined,
             forceMount: true,
             content: (
               <TripDetailRouteTab
@@ -1773,27 +1778,15 @@ export function TripDetailPage() {
           },
           {
             value: "tracking",
-            label: (
-              <span className="inline-flex items-center gap-1">
-                {shell.tab.tracking}
-                {resolvedDisplayStatus === TripStatus.IN_PROGRESS ? (
-                  <span
-                    className="ml-1 inline-flex h-2 w-2 shrink-0 rounded-full bg-success"
-                    role="status"
-                    title={shell.tab.trackingLive}
-                    aria-label={shell.tab.trackingLive}
-                  />
-                ) : null}
-                {hasOpenTrackingIncident ? (
-                  <span
-                    className="ml-1 inline-flex h-2 w-2 shrink-0 rounded-full bg-destructive"
-                    role="status"
-                    title={shell.tab.trackingIncident}
-                    aria-label={shell.tab.trackingIncidentAria}
-                  />
-                ) : null}
-              </span>
-            ),
+            label: shell.tab.tracking,
+            signal: hasOpenTrackingIncident
+              ? "blocked"
+              : resolvedDisplayStatus === TripStatus.IN_PROGRESS
+                ? "live"
+                : undefined,
+            signalLabel: hasOpenTrackingIncident
+              ? shell.tab.trackingIncidentAria
+              : shell.tab.trackingLive,
             content: (
               <Suspense fallback={<TripDetailTabFallback />}>
                 <TripTrackingTabLazy
@@ -1833,19 +1826,9 @@ export function TripDetailPage() {
           },
           {
             value: "cargo",
-            label: (
-              <span className="inline-flex items-center gap-1">
-                {shell.tab.cargo}
-                {isLoadingCargos ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : null}
-                {!isLoadingCargos && cargoCount > 0 ? (
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {cargoCount}
-                  </Badge>
-                ) : null}
-              </span>
-            ),
+            label: shell.tab.cargo,
+            count:
+              !isLoadingCargos && cargoCount > 0 ? cargoCount : undefined,
             content: (
               <Suspense fallback={<TripDetailTabFallback />}>
                 <TripDetailCargoTabLazy
@@ -1873,25 +1856,14 @@ export function TripDetailPage() {
             ? [
                 {
                   value: "costs" as const,
-                  label: (
-                    <span className="inline-flex items-center gap-1">
-                      {shell.tab.costs}
-                      {pendingExpenses > 0 ? (
-                        <Badge variant="secondary" className="ml-1 text-xs">
-                          {pendingExpenses}
-                        </Badge>
-                      ) : null}
-                      {expenses.some(
-                        (e) => e.approval?.flowStatus === "returned",
-                      ) ? (
-                        <span
-                          className="ml-1 inline-flex h-2 w-2 shrink-0 rounded-full bg-warning"
-                          role="status"
-                          aria-label={shell.tab.costsReturnedAria}
-                        />
-                      ) : null}
-                    </span>
-                  ),
+                  label: shell.tab.costs,
+                  count: pendingExpenses > 0 ? pendingExpenses : undefined,
+                  signal: expenses.some(
+                    (e) => e.approval?.flowStatus === "returned",
+                  )
+                    ? ("attention" as const)
+                    : undefined,
+                  signalLabel: shell.tab.costsReturnedAria,
                   content: (
                     <Suspense fallback={<TripDetailTabFallback />}>
                       <TripDetailCostsTabLazy
@@ -1942,23 +1914,18 @@ export function TripDetailPage() {
             ? [
                 {
                   value: "billing" as const,
-                  label: (
-                    <span className="inline-flex items-center gap-1">
-                      {trip.cfdiEmissionIntent === "sin_cfdi_efectivo"
-                        ? shell.tab.billingSinCfdi
-                        : shell.tab.billing}
-                      {trip.requiresFiscalAttention ||
-                      Boolean(postCancelFiscal) ||
-                      trip.settlementException?.status === "in_progress" ||
-                      linkedDraftInvoiceIds.length > 0 ? (
-                        <span
-                          className="ml-1 inline-flex h-2 w-2 shrink-0 rounded-full bg-warning"
-                          role="status"
-                          aria-label={shell.tab.billingDotAria}
-                        />
-                      ) : null}
-                    </span>
-                  ),
+                  label:
+                    trip.cfdiEmissionIntent === "sin_cfdi_efectivo"
+                      ? shell.tab.billingSinCfdi
+                      : shell.tab.billing,
+                  signal:
+                    trip.requiresFiscalAttention ||
+                    Boolean(postCancelFiscal) ||
+                    trip.settlementException?.status === "in_progress" ||
+                    linkedDraftInvoiceIds.length > 0
+                      ? ("attention" as const)
+                      : undefined,
+                  signalLabel: shell.tab.billingDotAria,
                   content: (
                     <Suspense fallback={<TripDetailTabFallback />}>
                       <TripDetailBillingTabLazy

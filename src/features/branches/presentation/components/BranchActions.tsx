@@ -34,11 +34,6 @@ import {
   DialogTitle,
 } from "@shared/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@shared/ui/tooltip";
 import { cn } from "@shared/lib/utils/cn";
 import { usePermissions } from "@shared/permissions";
 import { useToast } from "@shared/hooks";
@@ -322,35 +317,7 @@ export function BranchActions({
     return null;
   }
 
-  const deleteButton = showMainDeleteDisabled ? (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {branchesCopy.actions.delete}
-          </Button>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>{branchesCopy.actions.mainDeleteDisabled}</TooltipContent>
-    </Tooltip>
-  ) : canDeleteInDetail ? (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={isLoading}
-      onClick={openDeleteDialog}
-      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-    >
-      <Trash2 className="mr-2 h-4 w-4" />
-      {branchesCopy.actions.delete}
-    </Button>
-  ) : null;
+  const showDeleteInMore = showMainDeleteDisabled || canDeleteInDetail;
 
   return (
     <>
@@ -377,7 +344,37 @@ export function BranchActions({
             {branchesCopy.actions.restore}
           </Button>
         ) : null}
-        {deleteButton}
+        {showDeleteInMore ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+                aria-label={branchesCopy.actions.moreAria}
+              >
+                <MoreHorizontal className="mr-2 h-4 w-4" />
+                {branchesCopy.actions.more}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {showMainDeleteDisabled ? (
+                <DropdownMenuItem disabled title={branchesCopy.actions.mainDeleteDisabled}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {branchesCopy.actions.delete}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={openDeleteDialog}
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {branchesCopy.actions.delete}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
       {deleteDialog}
       {restoreDialog}

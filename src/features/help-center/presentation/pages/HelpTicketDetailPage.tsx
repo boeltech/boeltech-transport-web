@@ -5,6 +5,11 @@ import config from "@shared/config/env";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
 import { useToast } from "@shared/hooks";
 import { getRoleLabel, isValidRole } from "@shared/constants/roles";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
@@ -15,6 +20,9 @@ import { HelpTicketsPausedView } from "../components/HelpTicketsPausedView";
 import { TicketStatusBadge } from "../components/TicketStatusBadge";
 
 const copy = helpCenterCopy.ticketDetail;
+const TICKETS_LIST_PATH = "/ayuda/tickets";
+const TICKETS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[TICKETS_LIST_PATH] ?? "Tickets";
 
 function roleLabelAtCreate(role: string): string {
   return isValidRole(role) ? getRoleLabel(role) : role;
@@ -46,6 +54,7 @@ export function HelpTicketDetailPage() {
 function HelpTicketDetailPageContent() {
   const { id } = useParams<{ id: string }>();
   const { error: toastError } = useToast();
+  const incoming = useIncomingWayfinding();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const {
     data: ticket,
@@ -54,6 +63,13 @@ function HelpTicketDetailPageContent() {
     error,
     refetch,
   } = useHelpTicket(id!);
+
+  const crumbs = resolveDetailCrumbs({
+    from: incoming?.from,
+    fromLabel: incoming?.fromLabel,
+    module: { listPath: TICKETS_LIST_PATH, label: TICKETS_MODULE_LABEL },
+    current: { label: copy.title },
+  });
 
   const queryState = resolveDetailQueryErrorState({
     missingId: !id,
@@ -92,9 +108,7 @@ function HelpTicketDetailPageContent() {
       <DetailPageShell
         isLoading={false}
         header={{
-          backHref: "/ayuda/tickets",
-          backLabel: copy.backLabel,
-          icon: <TicketPlus className="h-6 w-6" />,
+          crumbs,
           title: copy.backLabel,
         }}
         alerts={
@@ -134,9 +148,7 @@ function HelpTicketDetailPageContent() {
         backLabel: copy.notFoundAction,
       }}
       header={{
-        backHref: "/ayuda/tickets",
-        backLabel: copy.backLabel,
-        icon: <TicketPlus className="h-6 w-6" />,
+        crumbs,
         title: copy.title,
         subtitle: ticket ? formatDate(ticket.createdAt) : undefined,
         statusBadge: ticket ? (

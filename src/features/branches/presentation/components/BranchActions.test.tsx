@@ -122,19 +122,24 @@ describe("BranchActions lifecycle (D1/D2/D7/D11)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("header: Editar primary; Eliminar outline (D7)", () => {
+  it("header: Editar primary; Eliminar en Más (NL8)", async () => {
+    const user = userEvent.setup();
     renderActions({ isActive: true, isMain: false });
 
     const edit = screen.getByRole("button", {
       name: branchesCopy.actions.edit,
     });
-    const del = screen.getByRole("button", {
-      name: branchesCopy.actions.delete,
-    });
-
     expect(edit.className).toMatch(/bg-primary|default/);
-    expect(del.className).not.toMatch(/bg-destructive(?!\/)/);
-    expect(del.className).toMatch(/border|outline|text-destructive/);
+    expect(
+      screen.queryByRole("button", { name: branchesCopy.actions.delete }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: branchesCopy.actions.moreAria }),
+    );
+    expect(
+      screen.getByRole("menuitem", { name: branchesCopy.actions.delete }),
+    ).toBeInTheDocument();
   });
 
   it("shows restore button only for inactive branches (D2)", () => {
@@ -151,12 +156,16 @@ describe("BranchActions lifecycle (D1/D2/D7/D11)", () => {
     ).toBeNull();
   });
 
-  it("disables delete for main branch with tooltip trigger", () => {
+  it("disables delete for main branch inside Más (NL8)", async () => {
+    const user = userEvent.setup();
     renderActions({ isMain: true, isActive: true });
 
+    await user.click(
+      screen.getByRole("button", { name: branchesCopy.actions.moreAria }),
+    );
     expect(
-      screen.getByRole("button", { name: branchesCopy.actions.delete }),
-    ).toBeDisabled();
+      screen.getByRole("menuitem", { name: branchesCopy.actions.delete }),
+    ).toHaveAttribute("aria-disabled", "true");
   });
 
   it("confirms delete and calls mutate for secondary branch", async () => {
@@ -164,7 +173,10 @@ describe("BranchActions lifecycle (D1/D2/D7/D11)", () => {
 
     const user = userEvent.setup();
     await user.click(
-      screen.getByRole("button", { name: branchesCopy.actions.delete }),
+      screen.getByRole("button", { name: branchesCopy.actions.moreAria }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: branchesCopy.actions.delete }),
     );
 
     const dialog = await screen.findByRole("dialog");
@@ -198,7 +210,10 @@ describe("BranchActions lifecycle (D1/D2/D7/D11)", () => {
     renderActions({ isMain: false, isActive: true });
 
     await user.click(
-      screen.getByRole("button", { name: branchesCopy.actions.delete }),
+      screen.getByRole("button", { name: branchesCopy.actions.moreAria }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: branchesCopy.actions.delete }),
     );
     const dialog = await screen.findByRole("dialog");
     await user.click(

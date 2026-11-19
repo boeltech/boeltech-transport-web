@@ -1,6 +1,11 @@
 import { Link, useParams } from "react-router-dom";
-import { useUserDetailWayfinding } from "../utils/userWayfinding";
-import { AlertCircle, Clock, KeyRound, Shield, User, UserRound } from "lucide-react";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+  useMasterActionFrom,
+} from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
+import { AlertCircle, Clock, KeyRound, Shield, UserRound } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
@@ -19,19 +24,37 @@ import { UserStatusBadge } from "../config/userStatusConfig";
 import { USER_STATUS_LABELS, UserStatus, type UserStatusType } from "../../domain";
 import { usersCopy } from "../copy/usersCopy";
 import { formatDateTime } from "@shared/utils/dateUtils";
+import { USERS_LIST_PATH } from "../utils/userWayfinding";
 
 /** Sin max-w propio: mismo techo que el listado (`LayoutShell` max-w-7xl). */
 const DETAIL_SHELL_CLASS = "w-full p-4 sm:p-6";
+const USERS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[USERS_LIST_PATH] ?? "Usuarios";
+
+function useUserDetailCrumbs(currentLabel: string) {
+  const incoming = useIncomingWayfinding();
+  return resolveDetailCrumbs({
+    from: incoming?.from,
+    fromLabel: incoming?.fromLabel,
+    module: { listPath: USERS_LIST_PATH, label: USERS_MODULE_LABEL },
+    current: { label: currentLabel },
+  });
+}
 
 export function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const userId = id ?? "";
-  const { backHref, backLabel, fromState } = useUserDetailWayfinding();
+  const fromState = useMasterActionFrom(USERS_LIST_PATH);
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canReadEmployees = hasPermission("employees", "read");
 
   const { data: user, isLoading, isError } = useUser(userId);
+  const crumbs = useUserDetailCrumbs(
+    user
+      ? `${user.firstName} ${user.lastName}`.trim() || "Usuario"
+      : "Usuario",
+  );
 
   const orphanGuard = usePolicyOrphanConfirmation();
   const statusMutation = useUpdateUserStatus({
@@ -69,10 +92,7 @@ export function UserDetailPage() {
         className={DETAIL_SHELL_CLASS}
         isLoading
         header={{
-          backHref,
-          backLabel,
-          icon: <User className="h-6 w-6" />,
-          iconShape: "circle",
+          crumbs,
           title: "Usuario",
         }}
       />
@@ -93,10 +113,7 @@ export function UserDetailPage() {
           backLabel: "Volver al listado",
         }}
         header={{
-          backHref,
-          backLabel,
-          icon: <User className="h-6 w-6" />,
-          iconShape: "circle",
+          crumbs,
           title: "Usuario",
         }}
       />
@@ -104,7 +121,6 @@ export function UserDetailPage() {
   }
 
   const fullName = `${user.firstName} ${user.lastName}`.trim();
-  const isInactive = user.status !== UserStatus.ACTIVE;
   const roleLabel = ROLE_LABELS[user.role] ?? user.role;
 
   const userStats: StatCardProps[] = [
@@ -138,11 +154,7 @@ export function UserDetailPage() {
       className={DETAIL_SHELL_CLASS}
       isLoading={false}
       header={{
-        backHref,
-        backLabel,
-        icon: <User className="h-6 w-6" />,
-        iconVariant: isInactive ? "muted" : "primary",
-        iconShape: "circle",
+        crumbs,
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
             <span className="shrink-0">{fullName}</span>
@@ -153,9 +165,7 @@ export function UserDetailPage() {
           </span>
         ),
         subtitle: (
-          <div className="space-y-0.5">
-            <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-          </div>
+          <p className="truncate text-sm text-muted-foreground">{user.email}</p>
         ),
         actions: (
           <UserActions
@@ -199,7 +209,7 @@ export function UserDetailPage() {
                   <Button type="button" size="sm" variant="outline" asChild>
                     <Link
                       to={`/employees/${user.employeeId}`}
-                      state={{ from: `/users/${user.id}` }}
+                      state={{ from: `/users/${user.id}`, fromLabel: fullName }}
                     >
                       {usersCopy.detail.viewEmployee}
                     </Link>

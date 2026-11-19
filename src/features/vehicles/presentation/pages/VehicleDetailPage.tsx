@@ -3,10 +3,15 @@
  * Clean Architecture - Presentation Layer (Pages)
  *
  * Detalle de vehículo: capacidades, ficha operativa y documentación.
+ * Ancla NL (F2): migas vía resolveDetailCrumbs; sin flecha/ícono; tab «Datos».
  */
 
 import { Link, useParams } from "react-router-dom";
-import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
 import { cn } from "@shared/lib/utils/cn";
 import { useTabParam } from "@shared/hooks";
 import { DetailPageShell } from "@shared/ui/page-shells";
@@ -22,7 +27,6 @@ import {
 } from "lucide-react";
 import { useVehicle } from "../../application";
 import {
-  VehicleStatus,
   VEHICLE_TYPE_LABELS,
   assessVehicleTypeConfigCoherence,
   type Vehicle,
@@ -47,6 +51,9 @@ import {
 import { usePermissions } from "@shared/permissions";
 
 const copy = vehiclesCopy.detail;
+const VEHICLES_LIST_PATH = "/vehicles";
+const VEHICLES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[VEHICLES_LIST_PATH] ?? "Vehículos";
 
 /** Tabs enlazables por `?tab=` (deep-link de alertas de documentación). */
 const VEHICLE_DETAIL_TABS = ["unit", "documents"] as const;
@@ -144,13 +151,22 @@ function buildDocumentAlerts(vehicle: Vehicle) {
   };
 }
 
+function useVehicleDetailCrumbs(currentLabel: string) {
+  const incoming = useIncomingWayfinding();
+  return resolveDetailCrumbs({
+    from: incoming?.from,
+    fromLabel: incoming?.fromLabel,
+    module: {
+      listPath: VEHICLES_LIST_PATH,
+      label: VEHICLES_MODULE_LABEL,
+    },
+    current: { label: currentLabel, mono: true },
+  });
+}
+
 export function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
   const vehicleId = id || "";
-  const { backHref, backLabel } = useMasterDetailWayfinding(
-    "/vehicles",
-    copy.state.backToList,
-  );
   const { activeTab, setActiveTab } = useTabParam(VEHICLE_DETAIL_TABS, "unit");
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission("vehicles", "update");
@@ -161,14 +177,16 @@ export function VehicleDetailPage() {
     refetch: refetchVehicle,
   } = useVehicle(vehicleId);
 
+  const crumbs = useVehicleDetailCrumbs(
+    vehicle?.unitNumber ?? copy.title.fallback,
+  );
+
   if (isLoading) {
     return (
       <DetailPageShell
         isLoading
         header={{
-          backHref,
-          backLabel,
-          icon: <Truck className="h-6 w-6" />,
+          crumbs,
           title: copy.title.fallback,
         }}
       />
@@ -188,9 +206,7 @@ export function VehicleDetailPage() {
           backLabel: copy.state.backToList,
         }}
         header={{
-          backHref,
-          backLabel,
-          icon: <Truck className="h-6 w-6" />,
+          crumbs,
           title: copy.title.fallback,
         }}
       />
@@ -281,16 +297,12 @@ export function VehicleDetailPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref,
-        backLabel,
-        icon: <Truck className="h-6 w-6" />,
-        iconVariant:
-          !vehicle.isActive || vehicle.status === VehicleStatus.OUT_OF_SERVICE
-            ? "muted"
-            : "primary",
+        crumbs,
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="shrink-0">{vehicle.unitNumber}</span>
+            <span className="shrink-0 font-mono tabular-nums">
+              {vehicle.unitNumber}
+            </span>
             {isDeactivated ? (
               <VehicleLifecycleBadge status="deactivated" showIcon size="sm" />
             ) : (
@@ -364,14 +376,8 @@ export function VehicleDetailPage() {
           },
           {
             value: "documents",
-            label: (
-              <span className="inline-flex items-center">
-                {copy.tab.documents}
-                {hasDocumentAlerts ? (
-                  <AlertTriangle className="ml-1.5 h-3.5 w-3.5 text-warning" />
-                ) : null}
-              </span>
-            ),
+            label: copy.tab.documents,
+            signal: hasDocumentAlerts ? "attention" : undefined,
             content: <VehicleDetailDocumentsTab vehicle={vehicle} />,
           },
         ],

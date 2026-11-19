@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { VehicleDetailPage } from "./VehicleDetailPage";
 import { EditVehiclePage } from "./EditVehiclePage";
@@ -196,7 +197,8 @@ describe("VehicleDetailPage — unidad dada de baja (D4)", () => {
     );
   });
 
-  it("una unidad activa conserva estado, alertas de documentos con CTA y «Dar de baja»", () => {
+  it("una unidad activa conserva estado, alertas de documentos con CTA y «Dar de baja» en Más", async () => {
+    const user = userEvent.setup();
     mockUseVehicle.mockReturnValue({
       data: buildVehicle(),
       isLoading: false,
@@ -220,7 +222,15 @@ describe("VehicleDetailPage — unidad dada de baja (D4)", () => {
       screen.getByRole("link", { name: vehiclesCopy.detail.alert.goToEdit }),
     ).toHaveAttribute("href", "/vehicles/v-1/edit");
     expect(
-      screen.getByRole("button", { name: vehiclesCopy.deactivate.action }),
+      screen.queryByRole("button", { name: vehiclesCopy.deactivate.action }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", {
+        name: vehiclesCopy.detail.actions.moreAria,
+      }),
+    );
+    expect(
+      screen.getByRole("menuitem", { name: vehiclesCopy.deactivate.action }),
     ).toBeInTheDocument();
   });
 

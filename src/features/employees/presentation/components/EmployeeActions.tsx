@@ -2,7 +2,7 @@
  * EmployeeActions
  *
  * - dropdown (lista): ver / editar — sin Dar de baja (D1).
- * - buttons (detalle): Editar primary; Dar de baja outline (D6).
+ * - buttons (detalle): Editar primary; Dar de baja en «Más» (NL8).
  * Errores de baja: Alert inline en Dialog (D10). Copy sin prometer reactivación (D12).
  */
 
@@ -283,20 +283,32 @@ export function EmployeeActions({
         ) : null}
 
         {canTerminateInDetail ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openTerminateDialog}
-            disabled={terminateMutation.isPending}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            {terminateMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <UserX className="mr-2 h-4 w-4" />
-            )}
-            {actionsCopy.terminate}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={terminateMutation.isPending}
+                aria-label={actionsCopy.moreAria}
+              >
+                {terminateMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <MoreHorizontal className="mr-2 h-4 w-4" />
+                )}
+                {actionsCopy.more}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                onClick={openTerminateDialog}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                <UserX className="mr-2 h-4 w-4" />
+                {actionsCopy.terminate}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
       </div>
 

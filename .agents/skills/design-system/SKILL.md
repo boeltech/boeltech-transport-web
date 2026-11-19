@@ -30,7 +30,7 @@ principio, actualizar este bloque en el mismo cambio.
 |---|-----------|------------------|
 | P1 | Paridad de negocio, no de cromo | Estados de dominio vía `StatusBadge` + config; no inventar estados ni copiar UI a Android |
 | P2 | Una primaria; la marca actúa, el ámbar avisa | Una sola `Button` sólida (`--primary`, teal) por vista; ámbar solo señal (riel, warning). Excepción: CTA ámbar en `/welcome` (D-M2) |
-| P3 | Densidad según el contexto | Operate = alta densidad; tablas → contrato **Tablas** (T1–T10 + `share` / `summaryRow` / `moneyEditable`) + `EntityListTable` (SoT `platforms/web/design.md` §7); workbenches, KPIs |
+| P3 | Densidad según el contexto | Operate = alta densidad; tablas → contrato **Tablas** (T1–T10 + `share` / `summaryRow` / `moneyEditable`) + `EntityListTable` (SoT `platforms/web/design.md` §7); detalle → §8 **Encabezado y navegación local** (NL1–NL8); workbenches, KPIs |
 | P4 | Primero el job, después el componente | Elegir el page shell por job (tabla de taxonomía abajo) |
 | P5 | Rol antes que valor | Solo tokens semánticos; nunca colores Tailwind crudos |
 | P6 | Ninguna pantalla sin sus estados | Empty vía shell · `LoadingPageState` · error → `DetailAlertCard` + Reintentar |
@@ -361,7 +361,7 @@ gráficas del dashboard y módulo de finanzas.
 | Shell | Cuándo usar | Ejemplo real |
 |---|---|---|
 | `ListPageShell` | CRUD / registry: búsqueda, filtros, paginación | `VehicleListPage`, `SettlementsRegistryPage`, **`/notifications`** (Ola 2 #3 inbox) |
-| `DetailPageShell` | Detalle de entidad con tabs y KPIs; header canónico = patrón **Detail header** en `src/shared/ui/page-shells/README.md` | `InvoiceDetailPage`, `ClientDetailPage` |
+| `DetailPageShell` | Detalle de entidad con tabs y KPIs; migas + encabezado local = SoT §8 (NL1–NL8); header canónico = patrón **Detail header** en `src/shared/ui/page-shells/README.md` | `InvoiceDetailPage`, `ClientDetailPage` · ancla Conform: Unidad |
 | `FormPageShell` | Edición simple (un formulario, sin pasos) | `EditVehiclePage`, `EmployeeFormPage` |
 | `WizardPageShell` | Creación/edición por pasos con validación incremental | `TripFormPage` |
 | `HubPageShell` | Landing de módulo: orientar + readiness? + nav + guía + lanzar (ADR-0091) | `/finance/compensation`, **`/finance/analysis`** (Ola 3 #5) |
@@ -486,6 +486,31 @@ embebidas compactas aún no migradas (ola F5 / barrido); Platform; Marketing.
 
 Implementación: `@shared/ui/table` (`EntityListTable` post-F2) · README
 `src/shared/ui/table/README.md` · demo `/design-system`.
+
+### Encabezado y navegación local (SoT §8 — NL1–NL8)
+
+Texto canónico: `design/tlamx/platforms/web/design.md` §8. Resumen vinculante:
+
+- Detalle staff: migas (`Breadcrumbs`) arriba; **sin** flecha ← ni ícono de entidad;
+  avatar solo imagen real 48 px (NL2–NL4).
+- Migas: 12 px muted, chevron, máx. 3, mono en códigos, truncado 40 ch + tooltip;
+  actual sin link + `aria-current` (NL3). Contextual: `resolveDetailCrumbs` /
+  `location.state.from` + `fromLabel?` (Q1 TEC) — no query param.
+- Tabs de sección: soft/segmented (`@shared/ui/tabs` / `RouteTabsNav`); **sin** íconos;
+  `count` pastilla mono 11 px; `signal` punto 6 px + `aria-label`; `trackFit="hug"`
+  (NL1, NL5, NL6).
+- Primer tab: «Resumen» u «Datos» — nunca el nombre de la entidad (NL7).
+- Acciones: 1 primaria + outline + «Más»; destructivas dentro de «Más» (NL8).
+- Portales sin sidebar: excepción «← Volver» (NL4).
+- Control segmentado de toolbar (Tabla/Tarjetas, tema, periodo) ≠ tabs de sección.
+
+**Regla de revisión:** detalle Operate staff **nuevo** sin migas canónicas / con
+flecha+ícono de entidad **no pasa revisión**. Tabs de sección **nuevos** con
+subrayado, íconos o conteo en texto **no pasan revisión**. Migraciones → pedido
+`2026-11-19-ds-navegacion-local` (F2 ancla Unidad · F3 réplica).
+
+Implementación (post-F1/F2): `@shared/ui/breadcrumbs` · tabs `count`/`signal` ·
+`DetailPageShell` staff con `crumbs` · demo `/design-system` → Navegación.
 
 ### Listado — empty, filtros y cards (padrón canónico)
 
@@ -883,6 +908,18 @@ usar `entityListCardMenuTriggerClassName` (touch no ve el menú).
 
 ❌ Card-en-card de tabla: `EntityListTable` + envoltorio card del shell duplicados (T1).
 
+❌ Flecha ← + ícono de entidad en detalle staff — usar migas (NL4 / SoT §8).
+
+❌ Tabs de sección con subrayado / primary filled / íconos Lucide (NL1, NL5).
+
+❌ Conteo en texto («· 4», «(4)») en tabs — usar pastilla `count` (NL6).
+
+❌ Destructivas (Dar de baja, Desactivar, Eliminar) junto a la primaria — dentro de «Más» (NL8).
+
+❌ Migas con «/», engrane u otros íconos; más de 3 eslabones (NL3).
+
+❌ Primer tab = nombre de la entidad («Unidad», «Cliente») — «Datos» / «Resumen» (NL7).
+
 ---
 
 ## Patio Marketing (`/welcome`) — superficie vitrina
@@ -941,6 +978,7 @@ README: `src/shared/ui/location/README.md` · Guía: `docs/direcciones/patron-lo
 | Overlays + toast | `src/shared/ui/toast/README.md` |
 | Listados (filtros, cards) | `src/shared/ui/listing/README.md` |
 | Tablas Operate (T1–T10, kinds + `share` / `summaryRow` / `moneyEditable`) | SoT `platforms/web/design.md` §7 · `@shared/ui/table` |
+| Encabezado y navegación local (NL1–NL8) | SoT `platforms/web/design.md` §8 · `@shared/ui/breadcrumbs` · tabs `count`/`signal` |
 | Location / direcciones | `src/shared/ui/location/README.md` · `src/shared/ui/address-input/README.md` |
 | Inbox notificaciones (usuario) | `D:\cowork\boeltech\erp-transport\docs\notificaciones\inbox-usuario.md` |
 | Charts (ADR-0045) | `D:\cowork\boeltech\erp-transport\design\adr\0045-charts-library-y-patron-chartcard.md` |

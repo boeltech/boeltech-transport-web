@@ -36,15 +36,24 @@ export const SettingsNavTabs = memo(function SettingsNavTabs({
       : settingsNavItems;
 
     return filterSettingsNavItemsByPermission(source, hasPermission).map(
-      (item) => ({
-        id: item.id,
-        to: item.path,
-        label: item.label,
-        icon: item.icon,
-        badge: item.badge,
-        disabled: item.disabled,
-        title: item.description,
-      }),
+      (item) => {
+        const parsed =
+          item.badge != null && item.badge !== ""
+            ? Number(item.badge)
+            : undefined;
+        const count =
+          typeof parsed === "number" && Number.isFinite(parsed)
+            ? parsed
+            : undefined;
+        return {
+          id: item.id,
+          to: item.path,
+          label: item.label,
+          count,
+          disabled: item.disabled,
+          title: item.description,
+        };
+      },
     );
   }, [hasPermission, pathname]);
 

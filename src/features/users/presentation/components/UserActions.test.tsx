@@ -62,14 +62,19 @@ describe("UserActions (D1/D6)", () => {
     ).toBeInTheDocument();
   });
 
-  it("header: Editar primary; Activar/Desactivar outline (D6)", () => {
+  it("header: Editar primary; Desactivar en Más (NL8)", async () => {
+    const user = userEvent.setup();
     renderActions({ variant: "buttons" });
 
     const edit = screen.getByRole("button", { name: /Editar/ });
-    const status = screen.getByRole("button", { name: /Desactivar usuario/ });
-
     expect(edit.className).toMatch(/bg-primary|default/);
-    expect(status.className).toMatch(/border|outline/);
-    expect(status.className).not.toMatch(/bg-primary(?!\/)/);
+    expect(
+      screen.queryByRole("button", { name: /Desactivar usuario/ }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Más acciones/i }));
+    expect(
+      screen.getByRole("menuitem", { name: /Desactivar usuario/ }),
+    ).toBeInTheDocument();
   });
 });

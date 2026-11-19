@@ -131,23 +131,4 @@ export function PageHeaderSimple({
   );
 }
 
-/**
- * PageHeader con breadcrumb integrado
- */
-export interface PageHeaderWithBreadcrumbProps extends PageHeaderProps {
-  breadcrumb?: ReactNode;
-}
-
-export function PageHeaderWithBreadcrumb({
-  breadcrumb,
-  ...props
-}: PageHeaderWithBreadcrumbProps) {
-  return (
-    <div className="space-y-2">
-      {breadcrumb && <div className="text-sm">{breadcrumb}</div>}
-      <PageHeader {...props} />
-    </div>
-  );
-}
-
 export default PageHeader;

@@ -170,7 +170,8 @@ export const branchesCopy = {
       backLabel: "Volver a sucursales",
     },
     tabs: {
-      summary: "Resumen",
+      /** NL7 — catálogo: primer tab = «Datos». */
+      summary: "Datos",
       team: "Equipo y flota",
       performance: "Desempeño",
       history: "Historial",
@@ -466,6 +467,8 @@ export const branchesCopy = {
     deleting: "Eliminando...",
     restore: "Restaurar",
     restoring: "Restaurando...",
+    more: "Más",
+    moreAria: "Más acciones",
     cancel: "Cancelar",
     deleteTitle: "¿Eliminar sucursal?",
     deleteDescription: (name: string) =>

@@ -388,19 +388,31 @@ export function DriverActions(props: DriverActionsProps) {
           </DropdownMenu>
         )}
 
-        {/* Eliminar: outline, no primaria sólida (D7) */}
-        {canDeleteDriver && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDeleteDialog({ open: true })}
-            disabled={isLoading}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </Button>
-        )}
+        {/* NL8: destructiva Eliminar en «Más» */}
+        {canDeleteDriver ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+                aria-label="Más acciones"
+              >
+                <MoreHorizontal className="mr-2 h-4 w-4" />
+                Más
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                onClick={() => setDeleteDialog({ open: true })}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
       <AlertDialog

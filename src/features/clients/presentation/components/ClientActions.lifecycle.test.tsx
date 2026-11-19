@@ -125,24 +125,31 @@ describe("ClientActions lifecycle (D1/D7/D11)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("header: Editar primary; Desactivar outline; Eliminar no sólida primaria (D7)", () => {
+  it("header: Editar primary; Desactivar/Eliminar en Más (NL8)", async () => {
+    const user = userEvent.setup();
     renderButtons();
 
     const edit = screen.getByRole("button", { name: /^editar$/i });
-    const deactivate = screen.getByRole("button", { name: /^desactivar$/i });
-    const del = screen.getByRole("button", { name: /^eliminar$/i });
-
     expect(edit.className).toMatch(/bg-primary|default/);
-    expect(deactivate.className).toMatch(/border|outline/);
-    expect(del.className).not.toMatch(/bg-destructive(?!\/)/);
-    expect(del.className).toMatch(/border|outline|text-destructive/);
+    expect(
+      screen.queryByRole("button", { name: /^desactivar$/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: actionsCopy.moreAria }));
+    expect(
+      screen.getByRole("menuitem", { name: /^desactivar$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /^eliminar$/i }),
+    ).toBeInTheDocument();
   });
 
   it("muestra Alert inline en Dialog cuando falla desactivar (D11)", async () => {
     const user = userEvent.setup();
     renderButtons();
 
-    await user.click(screen.getByRole("button", { name: /^desactivar$/i }));
+    await user.click(screen.getByRole("button", { name: actionsCopy.moreAria }));
+    await user.click(screen.getByRole("menuitem", { name: /^desactivar$/i }));
     await user.click(
       screen.getByRole("button", { name: actionsCopy.deactivate }),
     );
@@ -161,7 +168,8 @@ describe("ClientActions lifecycle (D1/D7/D11)", () => {
     const user = userEvent.setup();
     renderButtons();
 
-    await user.click(screen.getByRole("button", { name: /^eliminar$/i }));
+    await user.click(screen.getByRole("button", { name: actionsCopy.moreAria }));
+    await user.click(screen.getByRole("menuitem", { name: /^eliminar$/i }));
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent(actionsCopy.deleteTitle);
 

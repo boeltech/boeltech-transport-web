@@ -6,7 +6,7 @@ import { driversCopy } from "./driversCopy";
 
 describe("driversCopy.detail product handoff (Capa 1 → 3, P11–P17)", () => {
   it("tab Perfil (no Conductor) y trio documental en stats (P12/P14)", () => {
-    expect(driversCopy.detail.tab.driver).toBe("Perfil");
+    expect(driversCopy.detail.tab.driver).toBe("Datos");
     expect(driversCopy.detail.stat.federalLicense.title).toMatch(/federal/i);
     expect(driversCopy.detail.stat.stateLicense.title).toMatch(/estatal/i);
     expect(driversCopy.detail.stat.medical.title).toMatch(/médico/i);

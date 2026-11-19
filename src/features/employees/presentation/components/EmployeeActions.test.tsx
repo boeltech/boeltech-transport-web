@@ -101,25 +101,29 @@ describe("EmployeeActions (D1/D6/D10/D12)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("header: Editar primary; Dar de baja outline (D6)", () => {
+  it("header: Editar primary; Dar de baja en Más (NL8)", async () => {
+    const user = userEvent.setup();
     renderActions({ variant: "buttons" });
 
     const edit = screen.getByRole("button", { name: actionsCopy.edit });
-    const terminate = screen.getByRole("button", {
-      name: actionsCopy.terminate,
-    });
-
     expect(edit.className).toMatch(/bg-primary|default/);
-    expect(terminate.className).not.toMatch(/bg-destructive(?!\/)/);
-    expect(terminate.className).toMatch(/border|outline|text-destructive/);
+    expect(
+      screen.queryByRole("button", { name: actionsCopy.terminate }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: actionsCopy.moreAria }));
+    expect(
+      screen.getByRole("menuitem", { name: actionsCopy.terminate }),
+    ).toBeInTheDocument();
   });
 
   it("dialog de baja no promete reactivación (D12)", async () => {
     const user = userEvent.setup();
     renderActions({ variant: "buttons" });
 
+    await user.click(screen.getByRole("button", { name: actionsCopy.moreAria }));
     await user.click(
-      screen.getByRole("button", { name: actionsCopy.terminate }),
+      screen.getByRole("menuitem", { name: actionsCopy.terminate }),
     );
 
     expect(screen.getByText(actionsCopy.terminateTitle)).toBeInTheDocument();
@@ -134,8 +138,9 @@ describe("EmployeeActions (D1/D6/D10/D12)", () => {
     mockMutateAsync.mockRejectedValueOnce(new Error("Viajes activos"));
     renderActions({ variant: "buttons" });
 
+    await user.click(screen.getByRole("button", { name: actionsCopy.moreAria }));
     await user.click(
-      screen.getByRole("button", { name: actionsCopy.terminate }),
+      screen.getByRole("menuitem", { name: actionsCopy.terminate }),
     );
 
     const dialog = screen.getByRole("dialog");

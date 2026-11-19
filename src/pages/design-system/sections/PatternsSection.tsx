@@ -36,7 +36,7 @@ const SHELLS: readonly ShellSpec[] = [
   {
     name: "DetailPageShell",
     description:
-      "Header (back, icono, título, status, acciones) + alerts + pre-stats + stats + tabs + content + metadata footer",
+      "Header (staff crumbs | portal back | legacy) + alerts + pre-stats + stats + tabs (count/signal) + content + metadata footer",
     whenToUse:
       "Detalle de entidad. Combina con Sheet contextual + master-detail para sub-recursos (skill detail-sheet-master-detail).",
     example: "features/clients/presentation/pages/ClientDetailPage.tsx",

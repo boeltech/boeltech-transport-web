@@ -1,15 +1,15 @@
 import { useMemo } from "react";
 import { usePermissions } from "@shared/permissions";
 import { DetailPageShell } from "@shared/ui/page-shells/DetailPageShell";
-import {
-  getReportsCatalogItemsByGroup,
-  REPORTS_HUB_PAGE_ICON,
-} from "../config/reportsHubCatalog";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
+import { getReportsCatalogItemsByGroup } from "../config/reportsHubCatalog";
 import { ReportsCatalogSection } from "../components/ReportsCatalogSection";
 import { ReportsExportsSection } from "../components/ReportsExportsSection";
 import { reportsCopy } from "../copy/reportsCopy";
 
-const PageIcon = REPORTS_HUB_PAGE_ICON;
+const REPORTS_LIST_PATH = "/reports";
+const REPORTS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[REPORTS_LIST_PATH] ?? "Reportes";
 
 export function ReportsPage() {
   const { hasPermission } = usePermissions();
@@ -34,7 +34,7 @@ export function ReportsPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        icon: <PageIcon className="h-5 w-5" />,
+        crumbs: [{ label: REPORTS_MODULE_LABEL }],
         title: reportsCopy.page.title,
         subtitle: reportsCopy.page.description,
       }}

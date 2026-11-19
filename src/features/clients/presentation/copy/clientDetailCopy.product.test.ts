@@ -7,10 +7,9 @@ import { CLIENT_CONTACT_ROLE_LABELS } from "../../domain";
 import { clientDetailCopy } from "./clientDetailCopy";
 
 describe("clientDetailCopy product handoff (Capa 1 → 3)", () => {
-  it("tab Datos (no Cliente) y cue de edición (D2/D6)", () => {
+  it("tab Datos (no Cliente); sin texto de ayuda en chrome de identidad (NL SoT §8)", () => {
     expect(clientDetailCopy.tabs.client).toBe("Datos");
-    expect(clientDetailCopy.header.editCue).toMatch(/Editar/i);
-    expect(clientDetailCopy.header.editCue).toMatch(/Contactos y direcciones/i);
+    expect(clientDetailCopy.header).not.toHaveProperty("editCue");
   });
 
   it("superficie sin CFDI ni persona moral/física (D5); ADR-0096 labels viven en cfdiReceptorProfileCopy", () => {

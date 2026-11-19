@@ -54,7 +54,9 @@ export function TripInvoiceActions({
 }: TripInvoiceActionsProps) {
   const navigate = useNavigate();
   const goToInvoice = (href: string) =>
-    navigate(href, { state: { from: `/trips/${trip.id}` } });
+    navigate(href, {
+      state: { from: `/trips/${trip.id}`, fromLabel: trip.tripCode },
+    });
   const { hasPermission } = usePermissions();
 
   const [internalSheetOpen, setInternalSheetOpen] = useState(false);

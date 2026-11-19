@@ -38,6 +38,7 @@ export type {
   DetailPageShellTabItem,
   DetailPageShellTabs,
 } from "./DetailPageShell";
+export { formatDetailContext } from "./formatDetailContext";
 
 export { FormPageShell } from "./FormPageShell";
 export type { FormPageShellHeader, FormPageShellProps } from "./FormPageShell";

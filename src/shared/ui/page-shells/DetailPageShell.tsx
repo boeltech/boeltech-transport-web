@@ -3,25 +3,31 @@
  * Shared UI - Page Shells
  *
  * Esqueleto estándar para páginas de detalle del ERP.
- * Reemplaza el patrón duplicado en VehicleDetailPage, DriverDetailPage,
- * EmployeeDetailPage, ClientDetailPage, TripDetailPage.
  *
  * Estructura:
  *   1. Loading skeleton (variant="detail")
  *   2. Not-found state
- *   3. Header (back + icon + title + subtitle + statusBadge + actions)
- *   4. Alerts (slot opcional)
- *   5. preStats (slot opcional, p. ej. resumen fiscal encima de KPIs)
- *   6. Stats grid (opcional, lista de StatCard)
- *   7. Tabs (opcional) o children libre
- *   8. Metadata footer (opcional)
+ *   3. Header (staff crumbs | portal back) + title + actions
+ *   4. Alerts → preStats → stats → tabs/children → metadata
+ *
+ * NL2–NL4 / NL6: staff = migas sin flecha/ícono; portal = ← Volver;
+ * tabs con count/signal (label string).
  */
 
 import { memo, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@shared/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
+import { Breadcrumbs, type Crumb } from "@shared/ui/breadcrumbs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  TabCount,
+  TabSignalDot,
+  type TabSignal,
+} from "@shared/ui/tabs";
 import {
   LoadingPageState,
   NotFoundState,
@@ -39,28 +45,7 @@ import { cn } from "@shared/lib/utils/cn";
 // TYPES
 // ============================================================================
 
-export interface DetailPageShellHeader {
-  /**
-   * Ruta a la que regresa el botón back. Se omite en raíces de módulo
-   * (p. ej. /finance), donde no hay pantalla padre a la que volver.
-   */
-  backHref?: string;
-  /** Aria-label del botón back. */
-  backLabel?: string;
-  /**
-   * Migas encima del título (p. ej. «Viajes / código»).
-   * Sustituye al back+ícono cuando el detalle usa navegación por crumbs.
-   */
-  breadcrumb?: ReactNode;
-  /**
-   * Icono de la entidad (envuelto en un círculo de fondo).
-   * Opcional: omitir en pantallas con breadcrumb (p. ej. detalle de viaje).
-   */
-  icon?: ReactNode;
-  /** Variante del fondo del icono. Por defecto "primary". */
-  iconVariant?: "primary" | "muted";
-  /** Forma del fondo del icono. Por defecto "rounded". */
-  iconShape?: "rounded" | "circle";
+type DetailHeaderBase = {
   /** Título principal (h1). */
   title: ReactNode;
   /** Subtítulo opcional debajo del título. */
@@ -69,14 +54,34 @@ export interface DetailPageShellHeader {
   statusBadge?: ReactNode;
   /** Slot de acciones (ej. <VehicleActions />). */
   actions?: ReactNode;
-}
+  /** Solo imagen real (logo/foto), 48 px. Nunca ícono genérico. */
+  avatar?: { src: string; alt: string };
+};
+
+export type DetailPageShellHeader =
+  | (DetailHeaderBase & {
+      variant?: "staff";
+      crumbs: readonly Crumb[];
+    })
+  | (DetailHeaderBase & {
+      variant: "portal";
+      backHref: string;
+      backLabel?: string;
+    });
 
 export interface DetailPageShellTabItem {
   value: string;
-  label: ReactNode;
+  /** Etiqueta del tab (string). Contadores → `count`; puntos → `signal`. */
+  label: string;
   content: ReactNode;
   /** Mantiene el panel montado al cambiar de tab (p. ej. mapas Mapbox). */
   forceMount?: boolean;
+  /** Pastilla mono 11 px. 0/undefined = sin pastilla. */
+  count?: number;
+  /** Punto 6 px (attention / blocked / live). */
+  signal?: TabSignal;
+  /** aria-label del punto; default por signal. */
+  signalLabel?: string;
 }
 
 export interface DetailPageShellTabs {
@@ -122,21 +127,36 @@ export interface DetailPageShellProps {
 // HELPERS
 // ============================================================================
 
-const iconBgVariants: Record<
-  NonNullable<DetailPageShellHeader["iconVariant"]>,
-  string
-> = {
-  primary: "bg-primary/10 text-primary",
-  muted: "bg-muted text-muted-foreground",
-};
+function hasCrumbs(
+  header: DetailPageShellHeader,
+): header is DetailHeaderBase & { crumbs: readonly Crumb[] } {
+  return (
+    "crumbs" in header &&
+    Array.isArray((header as { crumbs?: unknown }).crumbs)
+  );
+}
 
-const iconShapeVariants: Record<
-  NonNullable<DetailPageShellHeader["iconShape"]>,
-  string
-> = {
-  rounded: "rounded-lg",
-  circle: "rounded-full",
-};
+function isPortalHeader(
+  header: DetailPageShellHeader,
+): header is DetailHeaderBase & {
+  variant: "portal";
+  backHref: string;
+  backLabel?: string;
+} {
+  return "variant" in header && header.variant === "portal";
+}
+
+function TabLabel({ item }: { item: DetailPageShellTabItem }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span>{item.label}</span>
+      {item.signal ? (
+        <TabSignalDot signal={item.signal} label={item.signalLabel} />
+      ) : null}
+      {item.count != null ? <TabCount count={item.count} /> : null}
+    </span>
+  );
+}
 
 // ============================================================================
 // COMPONENT
@@ -156,7 +176,9 @@ export const DetailPageShell = memo(function DetailPageShell({
   className,
 }: DetailPageShellProps) {
   const navigate = useNavigate();
-  const backHref = header.backHref;
+  const portal = isPortalHeader(header);
+  const staff = hasCrumbs(header);
+  const avatar = header.avatar;
 
   if (isLoading) {
     return <LoadingPageState variant="detail" className={className} />;
@@ -164,7 +186,6 @@ export const DetailPageShell = memo(function DetailPageShell({
 
   if (notFound) {
     if (!notFoundConfig) {
-      // Defensivo: si no hay config, mostramos un fallback genérico.
       return (
         <NotFoundState
           icon={<span aria-hidden>?</span>}
@@ -181,38 +202,28 @@ export const DetailPageShell = memo(function DetailPageShell({
        * Header
        * ================================================================== */}
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between xl:gap-4">
-        {/*
-          Peso del header (xl+): info ≥55 %, CTAs ≤40 %.
-          Hasta xl: título a ancho completo. Sin flex-wrap en icono+texto.
-        */}
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 xl:min-w-[55%]">
-          {header.breadcrumb ? (
-            <div className="text-sm text-muted-foreground">
-              {header.breadcrumb}
-            </div>
-          ) : null}
+          {staff ? <Breadcrumbs crumbs={header.crumbs} /> : null}
           <div className="flex min-w-0 items-start gap-3">
-            {backHref ? (
+            {portal ? (
               <Button
                 variant="ghost"
                 size="icon"
                 className="shrink-0"
-                onClick={() => navigate(backHref)}
+                onClick={() => navigate(header.backHref)}
                 aria-label={header.backLabel ?? "Volver"}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             ) : null}
-            {header.icon ? (
-              <div
-                className={cn(
-                  "flex h-12 w-12 shrink-0 items-center justify-center",
-                  iconShapeVariants[header.iconShape ?? "rounded"],
-                  iconBgVariants[header.iconVariant ?? "primary"],
-                )}
-              >
-                {header.icon}
-              </div>
+            {avatar?.src ? (
+              <img
+                src={avatar.src}
+                alt={avatar.alt}
+                className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                width={48}
+                height={48}
+              />
             ) : null}
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -239,16 +250,10 @@ export const DetailPageShell = memo(function DetailPageShell({
         ) : null}
       </div>
 
-      {/* ====================================================================
-       * Alerts
-       * ================================================================== */}
       {alerts}
 
       {preStats ? <div className="space-y-4">{preStats}</div> : null}
 
-      {/* ====================================================================
-       * Stats
-       * ================================================================== */}
       {stats && stats.length > 0 ? (
         <div
           className={cn(
@@ -265,9 +270,6 @@ export const DetailPageShell = memo(function DetailPageShell({
         </div>
       ) : null}
 
-      {/* ====================================================================
-       * Tabs o children
-       * ================================================================== */}
       {tabs ? (
         <Tabs
           defaultValue={tabs.defaultValue}
@@ -277,7 +279,7 @@ export const DetailPageShell = memo(function DetailPageShell({
           <TabsList>
             {tabs.items.map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value}>
-                {tab.label}
+                <TabLabel item={tab} />
               </TabsTrigger>
             ))}
           </TabsList>
@@ -296,9 +298,6 @@ export const DetailPageShell = memo(function DetailPageShell({
 
       {children}
 
-      {/* ====================================================================
-       * Metadata footer
-       * ================================================================== */}
       {metadata ? <MetadataFooter {...metadata} /> : null}
     </div>
   );

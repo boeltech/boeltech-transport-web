@@ -84,7 +84,8 @@ export const employeesCopy = {
       },
     },
     tab: {
-      personal: "Personal",
+      /** NL7 — catálogo: primer tab = «Datos». */
+      personal: "Datos",
       contact: "Contacto",
       employment: "Laboral",
       compensation: "Compensación",
@@ -94,6 +95,8 @@ export const employeesCopy = {
       edit: "Editar",
       terminate: "Dar de baja",
       terminating: "Dando de baja…",
+      more: "Más",
+      moreAria: "Más acciones",
       cancel: "Cancelar",
       terminateTitle: "¿Dar de baja a este empleado?",
       terminateDescription: (name: string) =>

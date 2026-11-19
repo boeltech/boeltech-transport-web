@@ -38,8 +38,6 @@ export const clientDetailCopy = {
     copyRfcAria: "Copiar RFC",
     rfcCopied: "RFC copiado",
     copyFailed: "No se pudo copiar",
-    editCue:
-      "Datos generales → Editar. Contactos y direcciones se gestionan en estas pestañas.",
   },
   alerts: {
     missingBillingCp: {
@@ -322,6 +320,8 @@ export const clientDetailCopy = {
     activate: "Activar",
     deactivate: "Desactivar",
     delete: "Eliminar",
+    more: "Más",
+    moreAria: "Más acciones",
     cancel: "Cancelar",
     activateTitle: "¿Activar cliente?",
     activateDescription: (name: string) =>

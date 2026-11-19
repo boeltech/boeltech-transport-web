@@ -31,6 +31,7 @@ import {
   Truck,
   AlignLeft,
   Table2,
+  Compass,
 } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
@@ -51,6 +52,7 @@ import { LongFormCanonicalSection } from "./sections/LongFormCanonicalSection";
 import { AppShellSection } from "./sections/AppShellSection";
 import { MapsEmbedsSection } from "./sections/MapsEmbedsSection";
 import { TablesSection } from "./sections/TablesSection";
+import { NavigationSection } from "./sections/NavigationSection";
 
 type SectionKey =
   | "colors"
@@ -61,13 +63,13 @@ type SectionKey =
   | "feedback"
   | "status"
   | "charts"
+  | "navigation"
   | "app-shell"
   | "patterns"
   | "tables"
   | "padron"
   | "long-form"
   | "maps-embeds";
-
 interface SectionConfig {
   key: SectionKey;
   label: string;
@@ -132,6 +134,14 @@ const SECTIONS: readonly SectionConfig[] = [
     label: "Charts",
     icon: BarChart3,
     description: "Paleta alineada a la marca para visualizaciones",
+    group: "Components",
+  },
+  {
+    key: "navigation",
+    label: "Navegación",
+    icon: Compass,
+    description:
+      "Migas, tabs de sección (count/signal) y control segmentado de toolbar",
     group: "Components",
   },
   {
@@ -286,6 +296,7 @@ export function DesignSystemPage() {
         {activeSection === "feedback" && <FeedbackSection />}
         {activeSection === "status" && <StatusSection />}
         {activeSection === "charts" && <ChartPaletteSection />}
+        {activeSection === "navigation" && <NavigationSection />}
         {activeSection === "app-shell" && <AppShellSection />}
         {activeSection === "patterns" && <PatternsSection />}
         {activeSection === "tables" && <TablesSection />}

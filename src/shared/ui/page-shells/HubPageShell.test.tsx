@@ -67,6 +67,27 @@ describe("HubPageShell", () => {
     );
   });
 
+  it("nav acepta count y signal (NL6 tipado)", () => {
+    renderHub({
+      activeNavId: "a",
+      nav: [
+        {
+          id: "a",
+          label: "Esquemas",
+          href: "/hub/a",
+          count: 3,
+          signal: "attention",
+        },
+      ],
+    });
+
+    const nav = screen.getByRole("tablist", { name: "Secciones del módulo" });
+    expect(within(nav).getByText("3")).toBeInTheDocument();
+    expect(
+      within(nav).getByRole("img", { name: /atención/i }),
+    ).toBeInTheDocument();
+  });
+
   it("renders guide steps and toggles open state", async () => {
     const user = userEvent.setup();
     renderHub({

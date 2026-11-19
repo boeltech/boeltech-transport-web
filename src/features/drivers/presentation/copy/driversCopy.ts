@@ -46,7 +46,8 @@ export const driversCopy = {
       },
     },
     tab: {
-      driver: "Perfil",
+      /** NL7 — catálogo: primer tab = «Datos». */
+      driver: "Datos",
       documents: "Documentación",
       trips: "Viajes",
     },

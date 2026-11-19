@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Loader2,
-  Mail,
   Plus,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@shared/ui/alert";
@@ -29,11 +28,15 @@ import { usePermissions } from "@shared/permissions";
 import { isClientPortalRole } from "@shared/constants/roles";
 import { useBillingSchemes } from "@features/settings/application/hooks/useBillingSchemes";
 import { canAccessBillingDispatchRuns } from "../../application/financeHubAccess";
-import { useIncomingFrom } from "@shared/utils/listQueueFrom";
 import {
-  resolveDispatchRunBackHref,
-  resolveDispatchRunBackLabel,
-} from "../utils/dispatchWayfinding";
+  useIncomingFrom,
+  useIncomingWayfinding,
+} from "@shared/utils/listQueueFrom";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
+import { resolveDispatchRunBackHref } from "../utils/dispatchWayfinding";
 import {
   useBillingDispatchRun,
   useConfirmSendBillingDispatchRun,
@@ -103,6 +106,9 @@ import {
 
 const copy = dispatchRunsCopy.detail;
 const EMPTY_RECIPIENT_GROUPS: RecipientsByClient[] = [];
+const DISPATCH_LIST_PATH = "/finance/dispatch";
+const DISPATCH_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[DISPATCH_LIST_PATH] ?? "Envíos";
 
 function PendingStampRows({
   items,
@@ -268,8 +274,8 @@ export function DispatchRunDetailPage() {
   });
   const canExecute = hasPermission("invoices", "execute");
   const incomingFrom = useIncomingFrom();
+  const incoming = useIncomingWayfinding();
   const backHref = resolveDispatchRunBackHref(incomingFrom);
-  const backLabel = resolveDispatchRunBackLabel(incomingFrom);
 
   const { data: run, isLoading, isError, refetch } = useBillingDispatchRun(
     canAccess ? id : undefined,
@@ -494,14 +500,19 @@ export function DispatchRunDetailPage() {
     return <Navigate to="/forbidden" replace />;
   }
 
+  const dispatchCrumbs = resolveDetailCrumbs({
+    from: incoming?.from ?? incomingFrom,
+    fromLabel: incoming?.fromLabel,
+    module: { listPath: DISPATCH_LIST_PATH, label: DISPATCH_MODULE_LABEL },
+    current: { label: copy.titleFallback },
+  });
+
   if (isLoading) {
     return (
       <DetailPageShell
         isLoading
         header={{
-          backHref,
-          backLabel,
-          icon: <Mail className="h-6 w-6" />,
+          crumbs: dispatchCrumbs,
           title: copy.titleFallback,
         }}
       />
@@ -513,9 +524,7 @@ export function DispatchRunDetailPage() {
       <DetailPageShell
         isLoading={false}
         header={{
-          backHref,
-          backLabel,
-          icon: <Mail className="h-6 w-6" />,
+          crumbs: dispatchCrumbs,
           title: copy.titleFallback,
         }}
         alerts={
@@ -586,10 +595,7 @@ export function DispatchRunDetailPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref,
-        backLabel,
-        icon: <Mail className="h-6 w-6" />,
-        iconVariant: "primary",
+        crumbs: dispatchCrumbs,
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
             <span>{copy.titleFallback}</span>

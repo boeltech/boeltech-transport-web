@@ -67,8 +67,14 @@ function renderActions(vehicle: VehicleListItem) {
   );
 }
 
-const deactivateButton = () =>
-  screen.getByRole("button", { name: vehiclesCopy.deactivate.action });
+async function openDeactivate(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByRole("button", { name: vehiclesCopy.detail.actions.moreAria }),
+  );
+  await user.click(
+    screen.getByRole("menuitem", { name: vehiclesCopy.deactivate.action }),
+  );
+}
 
 describe("VehicleActions billing policy (F1)", () => {
   beforeEach(() => {
@@ -82,7 +88,7 @@ describe("VehicleActions billing policy (F1)", () => {
     const user = userEvent.setup();
     renderActions(buildVehicle());
 
-    await user.click(deactivateButton());
+    await openDeactivate(user);
 
     expect(
       screen.getByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
@@ -96,7 +102,7 @@ describe("VehicleActions billing policy (F1)", () => {
     const user = userEvent.setup();
     renderActions(buildVehicle({ type: "pickup" }));
 
-    await user.click(deactivateButton());
+    await openDeactivate(user);
 
     expect(
       screen.getByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
@@ -107,7 +113,7 @@ describe("VehicleActions billing policy (F1)", () => {
     const user = userEvent.setup();
     renderActions(buildVehicle({ type: "utility" }));
 
-    await user.click(deactivateButton());
+    await openDeactivate(user);
 
     expect(
       screen.queryByText(vehiclesCopy.billingPolicy.remove, { exact: false }),
@@ -153,7 +159,7 @@ describe("VehicleActions billing policy (F1)", () => {
     const user = userEvent.setup();
     renderActions(buildVehicle());
 
-    await user.click(deactivateButton());
+    await openDeactivate(user);
 
     expect(
       screen.getByRole("link", { name: "Ver suscripción" }),

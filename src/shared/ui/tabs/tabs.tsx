@@ -24,6 +24,67 @@ export const tabsTriggerActiveClassName =
 export const tabsTriggerInactiveClassName =
   "text-muted-foreground hover:bg-background/40 hover:text-foreground";
 
+/** Señal de tab de sección (NL6): punto 6 px. */
+export type TabSignal = "attention" | "blocked" | "live";
+
+const TAB_SIGNAL_DEFAULT_LABEL: Record<TabSignal, string> = {
+  attention: "Requiere atención",
+  blocked: "Bloqueado",
+  live: "En vivo",
+};
+
+const TAB_SIGNAL_DOT_CLASS: Record<TabSignal, string> = {
+  attention: "bg-warning",
+  blocked: "bg-destructive",
+  live: "bg-success",
+};
+
+export type TabCountProps = {
+  count: number;
+  className?: string;
+};
+
+/** Pastilla mono 11 px tras la etiqueta. No renderizar si count ≤ 0. */
+export function TabCount({ count, className }: TabCountProps) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={cn(
+        "inline-flex min-w-[18px] items-center justify-center rounded-full border border-border bg-card px-1.5 font-mono text-[11px] leading-4 text-foreground",
+        className,
+      )}
+    >
+      {count}
+    </span>
+  );
+}
+
+export type TabSignalDotProps = {
+  signal: TabSignal;
+  /** aria-label; default según signal. */
+  label?: string;
+  className?: string;
+};
+
+/** Punto 6 px: attention=warning · blocked=destructive · live=success. */
+export function TabSignalDot({
+  signal,
+  label,
+  className,
+}: TabSignalDotProps) {
+  return (
+    <span
+      className={cn(
+        "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+        TAB_SIGNAL_DOT_CLASS[signal],
+        className,
+      )}
+      aria-label={label ?? TAB_SIGNAL_DEFAULT_LABEL[signal]}
+      role="img"
+    />
+  );
+}
+
 const Tabs = TabsPrimitive.Root;
 
 const TabsList = React.forwardRef<

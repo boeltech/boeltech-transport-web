@@ -46,8 +46,13 @@ export const vehiclesCopy = {
       },
     },
     tab: {
-      unit: "Unidad",
+      /** NL7 — catálogo: primer tab = «Datos» (no el nombre de la entidad). */
+      unit: "Datos",
       documents: "Documentos",
+    },
+    actions: {
+      more: "Más",
+      moreAria: "Más acciones",
     },
     alert: {
       /** Alta progresiva: falta folio/número o vigencia → la unidad no se asigna (ADR-0066 hard). */

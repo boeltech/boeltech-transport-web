@@ -7,7 +7,12 @@
 
 import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+  useMasterActionFrom,
+} from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
 import type { InfiniteData } from "@tanstack/react-query";
 import { cn } from "@shared/lib/utils/cn";
 import { useTabParam } from "@shared/hooks";
@@ -21,7 +26,6 @@ import { Button } from "@shared/ui/button";
 import type { MappedPaginatedResult } from "@shared/api";
 import {
   User,
-  AlertTriangle,
   AlertCircle,
   CreditCard,
   IdCard,
@@ -60,6 +64,9 @@ import {
 import { usePermissions } from "@shared/permissions";
 
 const copy = driversCopy.detail;
+const DRIVERS_LIST_PATH = "/drivers";
+const DRIVERS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[DRIVERS_LIST_PATH] ?? "Conductores";
 
 /** Tabs enlazables por `?tab=` (deep-link de alertas de licencia y examen médico). */
 const DRIVER_DETAIL_TABS = ["driver", "documents", "trips"] as const;
@@ -69,13 +76,20 @@ function isEmployeeRfcMissing(rfc: string | null | undefined): boolean {
   return !rfc?.trim();
 }
 
+function useDriverDetailCrumbs(currentLabel: string) {
+  const incoming = useIncomingWayfinding();
+  return resolveDetailCrumbs({
+    from: incoming?.from,
+    fromLabel: incoming?.fromLabel,
+    module: { listPath: DRIVERS_LIST_PATH, label: DRIVERS_MODULE_LABEL },
+    current: { label: currentLabel },
+  });
+}
+
 export function DriverDetailPage() {
   const { id } = useParams<{ id: string }>();
   const driverId = id || "";
-  const { backHref, backLabel, fromState } = useMasterDetailWayfinding(
-    "/drivers",
-    copy.state.backToList,
-  );
+  const fromState = useMasterActionFrom(DRIVERS_LIST_PATH);
   const { activeTab, setActiveTab } = useTabParam(DRIVER_DETAIL_TABS, "driver");
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission("drivers", "update");
@@ -87,6 +101,11 @@ export function DriverDetailPage() {
     refetch: refetchDriver,
   } = useDriver(driverId);
 
+  const crumbs = useDriverDetailCrumbs(
+    driver?.employee
+      ? formatDriverName(driver.employee)
+      : copy.title.fallback,
+  );
   const { data: tripsInfiniteData } = useDriverTripsInfinite(driverId, {
     limit: 10,
   });
@@ -103,10 +122,7 @@ export function DriverDetailPage() {
       <DetailPageShell
         isLoading
         header={{
-          backHref,
-          backLabel,
-          icon: <User className="h-6 w-6" />,
-          iconShape: "circle",
+          crumbs,
           title: copy.title.fallback,
         }}
       />
@@ -138,10 +154,7 @@ export function DriverDetailPage() {
           backLabel: copy.state.backToList,
         }}
         header={{
-          backHref,
-          backLabel,
-          icon: <User className="h-6 w-6" />,
-          iconShape: "circle",
+          crumbs,
           title: copy.title.fallback,
         }}
       />
@@ -308,19 +321,11 @@ export function DriverDetailPage() {
     "notApplicable",
   );
 
-  const tripsTabLabel =
-    typeof tripsTotal === "number"
-      ? copy.format.tripsTab(tripsTotal)
-      : copy.tab.trips;
-
   return (
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref,
-        backLabel,
-        icon: <User className="h-6 w-6" />,
-        iconShape: "circle",
+        crumbs,
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
             <span className="shrink-0">{fullName}</span>
@@ -452,19 +457,14 @@ export function DriverDetailPage() {
           },
           {
             value: "documents",
-            label: (
-              <span className="inline-flex items-center">
-                {copy.tab.documents}
-                {hasDocumentAlerts ? (
-                  <AlertTriangle className="ml-1.5 h-3.5 w-3.5 text-warning" />
-                ) : null}
-              </span>
-            ),
+            label: copy.tab.documents,
+            signal: hasDocumentAlerts ? "attention" : undefined,
             content: <DriverDetailDocumentsTab driver={driver} />,
           },
           {
             value: "trips",
-            label: tripsTabLabel,
+            label: copy.tab.trips,
+            count: typeof tripsTotal === "number" ? tripsTotal : undefined,
             content: <DriverDetailTripsTab driverId={driver.id} />,
           },
         ],

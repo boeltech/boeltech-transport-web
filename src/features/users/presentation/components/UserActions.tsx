@@ -2,7 +2,7 @@
  * UserActions
  *
  * - dropdown (lista): ver / editar / Activar|Desactivar (D1 — excepción acceso admin).
- * - buttons (detalle): Editar primary; Activar/Desactivar outline (D6).
+ * - buttons (detalle): Editar primary; Desactivar en «Más» (NL8); Activar outline.
  */
 
 import { useMemo, useState } from "react";
@@ -100,6 +100,7 @@ export function UserActions({
   );
 
   if (variant === "buttons") {
+    const isDeactivate = nextStatus === UserStatus.INACTIVE;
     return (
       <>
         <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
@@ -116,7 +117,7 @@ export function UserActions({
               Editar
             </Button>
           ) : null}
-          {canUpdateStatus ? (
+          {canUpdateStatus && !isDeactivate ? (
             <Button
               variant="outline"
               size="sm"
@@ -125,16 +126,33 @@ export function UserActions({
                 setConfirmStatusOpen(true);
               }}
             >
-              <StatusIcon
-                className={cn(
-                  "mr-2 h-4 w-4",
-                  nextStatus === UserStatus.ACTIVE
-                    ? "text-success"
-                    : "text-destructive",
-                )}
-              />
+              <StatusIcon className="mr-2 h-4 w-4 text-success" />
               {statusActionLabel}
             </Button>
+          ) : null}
+          {canUpdateStatus && isDeactivate ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Más acciones"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="mr-2 h-4 w-4" />
+                  Más
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                  onClick={() => setConfirmStatusOpen(true)}
+                >
+                  <StatusIcon className="mr-2 h-4 w-4" />
+                  {statusActionLabel}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : null}
         </div>
         {statusConfirmDialog}

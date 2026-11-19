@@ -13,11 +13,12 @@ import { useCallback, useMemo, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { GENERIC_RECEIVER_TAX_REGIME } from "@boeltech/cfdi-domain";
 import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
   useMasterActionFrom,
-  useMasterDetailWayfinding,
 } from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
 import {
-  Building2,
   AlertCircle,
   AlertTriangle,
   Route,
@@ -31,7 +32,6 @@ import { DetailAlertCard, type StatCardProps } from "@shared/ui/data-display";
 import { creditExposureCopy } from "@shared/ui/data-display/creditExposureCopy";
 import { Button } from "@shared/ui/button";
 import { Badge } from "@shared/ui/badge";
-import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
@@ -93,6 +93,19 @@ const CLIENT_DETAIL_TABS = [
 
 const copy = clientDetailCopy;
 const genericCopy = clientGenericRfcCopy.detail;
+const CLIENTS_LIST_PATH = "/clients";
+const CLIENTS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[CLIENTS_LIST_PATH] ?? "Clientes";
+
+function useClientDetailCrumbs(currentLabel: string) {
+  const incoming = useIncomingWayfinding();
+  return resolveDetailCrumbs({
+    from: incoming?.from,
+    fromLabel: incoming?.fromLabel,
+    module: { listPath: CLIENTS_LIST_PATH, label: CLIENTS_MODULE_LABEL },
+    current: { label: currentLabel },
+  });
+}
 
 // ============================================================================
 // HELPERS
@@ -163,10 +176,6 @@ function buildClientStats(
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const clientId = id ?? "";
-  const { backHref, backLabel } = useMasterDetailWayfinding(
-    "/clients",
-    copy.state.backToList,
-  );
   const { hasPermission } = usePermissions();
   const canUpdate = hasPermission("clients", "update");
 
@@ -177,6 +186,9 @@ export function ClientDetailPage() {
   } = useClient(clientId || undefined);
 
   const clientUnavailable = !client;
+  const crumbs = useClientDetailCrumbs(
+    client ? getClientDisplayName(client) : copy.title.fallback,
+  );
 
   const { label: taxRegimeLabel } = useRegimenFiscalLabel(client?.taxRegime, {
     format: "name",
@@ -400,9 +412,7 @@ export function ClientDetailPage() {
         <DetailPageShell
           isLoading
           header={{
-            backHref,
-            backLabel,
-            icon: <Building2 className="h-6 w-6" />,
+            crumbs,
             title: copy.title.fallback,
           }}
         />
@@ -427,9 +437,7 @@ export function ClientDetailPage() {
             backLabel: copy.state.backToList,
           }}
           header={{
-            backHref,
-            backLabel,
-            icon: <Building2 className="h-6 w-6" />,
+            crumbs,
             title: copy.title.fallback,
           }}
         />
@@ -442,7 +450,6 @@ export function ClientDetailPage() {
 
   const typeConfig = getClientTypeConfig(client.type);
   const paymentConfig = getPaymentTermsConfig(client.paymentTerms);
-  const TypeIcon = typeConfig.icon;
   const PaymentIcon = paymentConfig.icon;
   const rfc = (client.taxId ?? "").trim().toUpperCase();
   const isComercialOnly = client.cfdiReceptorProfile === "comercial_only";
@@ -452,11 +459,7 @@ export function ClientDetailPage() {
       <DetailPageShell
         isLoading={false}
         header={{
-          backHref,
-          backLabel,
-          icon: <TypeIcon className={cn("h-6 w-6", typeConfig.color)} />,
-          iconVariant: client.isActive ? "primary" : "muted",
-          iconShape: client.type === "individual" ? "circle" : "rounded",
+          crumbs,
           title: (
             <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
               <span className="shrink-0">{getClientDisplayName(client)}</span>

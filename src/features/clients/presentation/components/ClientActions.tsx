@@ -4,7 +4,7 @@
  *
  * Menú de acciones para cliente: editar, activar/desactivar, eliminar.
  * - dropdown (lista): ver / editar / eliminar — sin Activar/Desactivar (D1).
- * - buttons (detalle): Editar primaria; Activar/Desactivar outline; Eliminar outline (D7).
+ * - buttons (detalle): Editar primaria; Activar/Desactivar/Eliminar en «Más» (NL8).
  * Errores de lifecycle/delete: Alert inline en Dialog (D11).
  *
  * Ubicación: src/features/clients/presentation/components/ClientActions.tsx
@@ -388,8 +388,11 @@ export function ClientActions({
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Buttons variant (detalle — D7)
+  // RENDER: Buttons variant (detalle — NL8)
   // ══════════════════════════════════════════════════════════════════════════
+  const showLifecycle = canEdit;
+  const showMoreMenu = showLifecycle || canDelete;
+
   if (!canEdit && !canDelete && !showView) {
     return null;
   }
@@ -417,41 +420,46 @@ export function ClientActions({
           </Button>
         ) : null}
 
-        {canEdit && client.isActive ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openDeactivateDialog}
-            disabled={isLoading}
-          >
-            <PowerOff className="mr-2 h-4 w-4" />
-            {actionsCopy.deactivate}
-          </Button>
-        ) : null}
-
-        {canEdit && !client.isActive ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openActivateDialog}
-            disabled={isLoading}
-          >
-            <Power className="mr-2 h-4 w-4" />
-            {actionsCopy.activate}
-          </Button>
-        ) : null}
-
-        {canDelete ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openDeleteDialog}
-            disabled={isLoading}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {actionsCopy.delete}
-          </Button>
+        {showMoreMenu ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+                aria-label={actionsCopy.moreAria}
+              >
+                <MoreHorizontal className="mr-2 h-4 w-4" />
+                {actionsCopy.more}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {showLifecycle && client.isActive ? (
+                <DropdownMenuItem onClick={openDeactivateDialog}>
+                  <PowerOff className="mr-2 h-4 w-4" />
+                  {actionsCopy.deactivate}
+                </DropdownMenuItem>
+              ) : null}
+              {showLifecycle && !client.isActive ? (
+                <DropdownMenuItem onClick={openActivateDialog}>
+                  <Power className="mr-2 h-4 w-4" />
+                  {actionsCopy.activate}
+                </DropdownMenuItem>
+              ) : null}
+              {canDelete ? (
+                <>
+                  {showLifecycle ? <DropdownMenuSeparator /> : null}
+                  <DropdownMenuItem
+                    onClick={openDeleteDialog}
+                    className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {actionsCopy.delete}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
       </div>
 

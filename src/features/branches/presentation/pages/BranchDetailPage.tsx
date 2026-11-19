@@ -1,6 +1,11 @@
 import { useMemo, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+  useMasterActionFrom,
+} from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
 import {
   AlertTriangle,
   Building2,
@@ -48,6 +53,19 @@ import { branchesCopy } from "../copy/branchesCopy";
 import { formatBranchFullAddress } from "../utils/branchAddressFormatters";
 
 const copy = branchesCopy.detail;
+const BRANCHES_LIST_PATH = "/branches";
+const BRANCHES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[BRANCHES_LIST_PATH] ?? "Sucursales";
+
+function useBranchDetailCrumbs(currentLabel: string) {
+  const incoming = useIncomingWayfinding();
+  return resolveDetailCrumbs({
+    from: incoming?.from,
+    fromLabel: incoming?.fromLabel,
+    module: { listPath: BRANCHES_LIST_PATH, label: BRANCHES_MODULE_LABEL },
+    current: { label: currentLabel },
+  });
+}
 
 /** Tabs enlazables por `?tab=`. */
 const BRANCH_DETAIL_TABS = [
@@ -138,10 +156,7 @@ function BranchAddressBlock({
 export function BranchDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { backHref, backLabel, fromState } = useMasterDetailWayfinding(
-    "/branches",
-    copy.header.backLabel,
-  );
+  const fromState = useMasterActionFrom(BRANCHES_LIST_PATH);
   const { activeTab, setActiveTab } = useTabParam(
     BRANCH_DETAIL_TABS,
     "summary",
@@ -152,6 +167,7 @@ export function BranchDetailPage() {
   const showFinance = canAccessFinanceSummaryRoute(user?.role);
 
   const { data: branch, isLoading, isError } = useBranch(id ?? "");
+  const crumbs = useBranchDetailCrumbs(branch?.name ?? copy.title);
 
   const { data: kpisData, isLoading: kpisLoading } = useBranchKpis({
     branchIds: branch ? [branch.id] : [],
@@ -279,13 +295,7 @@ export function BranchDetailPage() {
         backLabel: copy.notFound.backLabel,
       }}
       header={{
-        backHref,
-        backLabel,
-        icon: <Building2 className="h-6 w-6" />,
-        iconVariant:
-          branch && (!branch.isActive || branch.status === BranchStatus.INACTIVE)
-            ? "muted"
-            : "primary",
+        crumbs,
         title: branch ? (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
             <span className="shrink-0">{branch.name}</span>

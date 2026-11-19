@@ -382,11 +382,14 @@ export function VehicleActions(props: VehicleActionsProps) {
   const targetLabel = statusDialog.targetStatus
     ? VEHICLE_STATUS_LABELS[statusDialog.targetStatus]
     : "";
+  const showStatusMenu = canUpdate && availableTransitions.length > 0;
+  /** NL8: destructivas (Dar de baja) viven en «Más». */
+  const showMoreMenu = canDeactivateVehicle;
 
   return (
     <>
       <div className="flex max-w-full flex-nowrap items-center justify-end gap-2">
-        {/* Primaria del header = Editar (D7) */}
+        {/* Primaria del header = Editar (D7 / NL8) */}
         {canUpdate && (
           <Button
             variant="default"
@@ -401,7 +404,7 @@ export function VehicleActions(props: VehicleActionsProps) {
           </Button>
         )}
 
-        {canUpdate && availableTransitions.length > 0 && (
+        {showStatusMenu ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" disabled={isLoading}>
@@ -433,21 +436,32 @@ export function VehicleActions(props: VehicleActionsProps) {
               })}
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
+        ) : null}
 
-        {/* Dar de baja: outline, no primaria sólida (D7) */}
-        {canDeactivateVehicle && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDeactivateOpen(true)}
-            disabled={isLoading}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Archive className="mr-2 h-4 w-4" />
-            {vehiclesCopy.deactivate.action}
-          </Button>
-        )}
+        {showMoreMenu ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+                aria-label={vehiclesCopy.detail.actions.moreAria}
+              >
+                <MoreHorizontal className="mr-2 h-4 w-4" />
+                {vehiclesCopy.detail.actions.more}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                onClick={() => setDeactivateOpen(true)}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                <Archive className="mr-2 h-4 w-4" />
+                {vehiclesCopy.deactivate.action}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
       <VehicleDeactivateDialog

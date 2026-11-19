@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { SettingsLayout } from "./SettingsLayout";
 
 describe("SettingsLayout", () => {
-  it("enlaza Configuración al hub /settings", () => {
+  it("con sectionTitle: Breadcrumbs Configuración › sección (sin engrane)", () => {
     render(
       <MemoryRouter>
         <SettingsLayout sectionTitle="Catálogos" hideNav>
@@ -15,9 +15,24 @@ describe("SettingsLayout", () => {
 
     const crumb = screen.getByRole("link", { name: /configuración/i });
     expect(crumb).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("navigation", { name: "Migas" })).toHaveTextContent(
+      "Catálogos",
+    );
+    expect(document.querySelector("svg.lucide-settings")).toBeNull();
+  });
+
+  it("raíz sin sectionTitle: sin migas", () => {
+    render(
+      <MemoryRouter>
+        <SettingsLayout hideNav title="Configuración">
+          contenido
+        </SettingsLayout>
+      </MemoryRouter>,
+    );
+
     expect(
-      screen.getByRole("navigation", { name: "Configuración" }),
-    ).toHaveTextContent("Catálogos");
+      screen.queryByRole("navigation", { name: "Migas" }),
+    ).not.toBeInTheDocument();
   });
 
   it("usa region (no main anidado) y tipografía DS en el h1", () => {

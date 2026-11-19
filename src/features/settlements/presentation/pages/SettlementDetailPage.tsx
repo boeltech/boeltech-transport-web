@@ -14,6 +14,10 @@ import {
   Send,
 } from "lucide-react";
 import { DetailPageShell } from "@shared/ui/page-shells";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@shared/ui/card";
 import {
@@ -103,12 +107,16 @@ import { missingDataGapsFromItems } from "../utils/missingDataGapsFromItems";
 
 const copy = settlementsCopy;
 const missingDataGateCopy = settlementsCopy.createPage.missingDataGate;
+const SETTLEMENTS_LIST_PATH = "/finance/operator-payments";
+const SETTLEMENTS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[SETTLEMENTS_LIST_PATH] ?? "Pagos";
 
 export function SettlementDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const fromState = location.state?.from as string | undefined;
+  const fromLabel = (location.state as { fromLabel?: string } | null)?.fromLabel;
   const backHref = resolveSettlementBackHref(fromState);
   const backLabel = resolveSettlementWayfindingBackLabel(backHref);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
@@ -320,6 +328,19 @@ export function SettlementDetailPage() {
     selfApproveUi?.kind === "act" && selfApproveUi.selfConfirm;
   const showOwnBlockedNotice = selfApproveUi?.kind === "own_blocked";
 
+  const settlementCrumbs = resolveDetailCrumbs({
+    from: fromState,
+    fromLabel,
+    module: {
+      listPath: SETTLEMENTS_LIST_PATH,
+      label: SETTLEMENTS_MODULE_LABEL,
+    },
+    current: {
+      label: settlement?.settlementNumber ?? dCopy.fallbacks.paymentTitle,
+      mono: true,
+    },
+  });
+
   return (
     <>
       <DetailPageShell
@@ -333,9 +354,7 @@ export function SettlementDetailPage() {
           backLabel,
         }}
         header={{
-          backHref,
-          backLabel,
-          icon: <Banknote className="h-6 w-6" />,
+          crumbs: settlementCrumbs,
           title: settlement ? (
             <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
               <span className="shrink-0">{settlement.settlementNumber}</span>

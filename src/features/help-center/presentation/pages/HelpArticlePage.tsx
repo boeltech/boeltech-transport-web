@@ -7,6 +7,11 @@ import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -22,11 +27,15 @@ import { ArticleFeedback } from "../components/ArticleFeedback";
 import { CreateTicketSheet } from "../components/CreateTicketSheet";
 
 const copy = helpCenterCopy.detail;
+const AYUDA_LIST_PATH = "/ayuda";
+const AYUDA_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[AYUDA_LIST_PATH] ?? "Ayuda";
 
 export function HelpArticlePage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const { user } = useAuth();
+  const incoming = useIncomingWayfinding();
   const ticketsEnabled = config.help.ticketsEnabled;
   const [ticketSheetOpen, setTicketSheetOpen] = useState(false);
   const [showProblem, setShowProblem] = useState(false);
@@ -69,14 +78,19 @@ export function HelpArticlePage() {
     ? (helpCenterCopy.groups[article.group] ?? article.group)
     : "";
 
+  const crumbs = resolveDetailCrumbs({
+    from: incoming?.from,
+    fromLabel: incoming?.fromLabel,
+    module: { listPath: AYUDA_LIST_PATH, label: AYUDA_MODULE_LABEL },
+    current: { label: article?.title ?? copy.backLabel },
+  });
+
   if (!isLoading && isLoadError) {
     return (
       <DetailPageShell
         isLoading={false}
         header={{
-          backHref: "/ayuda",
-          backLabel: copy.backLabel,
-          icon: <BookOpen className="h-6 w-6" />,
+          crumbs,
           title: copy.backLabel,
         }}
         alerts={
@@ -116,9 +130,7 @@ export function HelpArticlePage() {
         backLabel: copy.notFoundAction,
       }}
       header={{
-        backHref: "/ayuda",
-        backLabel: copy.backLabel,
-        icon: <BookOpen className="h-6 w-6" />,
+        crumbs,
         title: article?.title ?? "",
         subtitle: article?.phrase,
       }}

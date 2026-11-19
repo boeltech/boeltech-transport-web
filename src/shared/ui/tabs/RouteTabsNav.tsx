@@ -8,16 +8,17 @@
 
 import { memo, useEffect, useRef, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
-import { Badge } from "@shared/ui/badge";
 import { ScrollArea } from "@shared/ui/scroll-area";
 import {
+  TabCount,
+  TabSignalDot,
   tabsListClassName,
   tabsTriggerActiveClassName,
   tabsTriggerClassName,
   tabsTriggerInactiveClassName,
+  type TabSignal,
 } from "./tabs";
 
 export type RouteTabsNavItem = {
@@ -26,8 +27,12 @@ export type RouteTabsNavItem = {
   label: string;
   /** NavLink `end` — match exacto de path. */
   end?: boolean;
-  icon?: LucideIcon;
-  badge?: string;
+  /** Pastilla mono; 0/undefined = sin pastilla (NL6). */
+  count?: number;
+  /** Punto 6 px de señal (NL6). */
+  signal?: TabSignal;
+  /** aria-label del punto; default por signal. */
+  signalLabel?: string;
   disabled?: boolean;
   /** Tooltip / title nativo. */
   title?: string;
@@ -99,7 +104,6 @@ type RouteTabProps = {
 };
 
 const RouteTab = memo(function RouteTab({ item, isActive }: RouteTabProps) {
-  const Icon = item.icon;
   const linkRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
@@ -113,17 +117,12 @@ const RouteTab = memo(function RouteTab({ item, isActive }: RouteTabProps) {
 
   const content: ReactNode = (
     <>
-      {Icon ? (
-        <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
-      ) : null}
       <span>{item.label}</span>
-      {item.badge ? (
-        <Badge
-          variant={isActive ? "secondary" : "outline"}
-          className="px-1.5 py-0 text-[10px] font-medium"
-        >
-          {item.badge}
-        </Badge>
+      {item.signal ? (
+        <TabSignalDot signal={item.signal} label={item.signalLabel} />
+      ) : null}
+      {item.count != null && item.count > 0 ? (
+        <TabCount count={item.count} />
       ) : null}
     </>
   );

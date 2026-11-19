@@ -1,3 +1,4 @@
+import { formatDetailContext } from "@shared/ui/page-shells/formatDetailContext";
 import { vehiclesCopy } from "../copy/vehiclesCopy";
 
 const copy = vehiclesCopy.detail;
@@ -10,6 +11,7 @@ interface Props {
   year: number;
 }
 
+/** P2 VIS V4: identidad en una sola línea muted con «·». */
 export function VehicleDetailHeaderSubtitle({
   typeLabel,
   licensePlate,
@@ -17,14 +19,15 @@ export function VehicleDetailHeaderSubtitle({
   model,
   year,
 }: Props) {
+  const line = formatDetailContext([
+    typeLabel,
+    licensePlate,
+    copy.format.vehicleLine(brand, model, year),
+  ]);
+
   return (
-    <div className="space-y-0.5">
-      <p className="truncate text-sm text-muted-foreground">
-        {copy.format.headerSubtitle(typeLabel, licensePlate)}
-      </p>
-      <p className="truncate text-xs text-muted-foreground">
-        {copy.format.vehicleLine(brand, model, year)}
-      </p>
-    </div>
+    <p className="truncate text-sm text-muted-foreground" title={line}>
+      {line}
+    </p>
   );
 }

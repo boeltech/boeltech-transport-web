@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { render, screen } from "@testing-library/react";
-import { User } from "lucide-react";
 
 import { RouteTabsNav } from "./RouteTabsNav";
 
@@ -21,7 +20,6 @@ describe("RouteTabsNav", () => {
                     to: "/account",
                     end: true,
                     label: "Datos",
-                    icon: User,
                   },
                   {
                     id: "security",
@@ -120,5 +118,71 @@ describe("RouteTabsNav", () => {
     expect(
       screen.getByRole("link", { name: /Seguridad/i }),
     ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("count 0 no pinta pastilla; signal expone aria-label", () => {
+    render(
+      <MemoryRouter initialEntries={["/trips/t1"]}>
+        <Routes>
+          <Route
+            path="*"
+            element={
+              <RouteTabsNav
+                aria-label="Secciones"
+                items={[
+                  {
+                    id: "summary",
+                    to: "/trips/t1",
+                    end: true,
+                    label: "Resumen",
+                    count: 0,
+                  },
+                  {
+                    id: "cargo",
+                    to: "/trips/t1/cargo",
+                    label: "Cargas",
+                    count: 4,
+                    signal: "attention",
+                    signalLabel: "Cargas con incidencia",
+                  },
+                ]}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const summary = screen.getByRole("link", { name: /^Resumen$/i });
+    expect(summary.textContent).toBe("Resumen");
+    expect(summary.querySelector(".font-mono")).toBeNull();
+
+    expect(screen.getByText("4")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Cargas con incidencia" }),
+    ).toBeInTheDocument();
+  });
+
+  it("no acepta ni renderiza icon (contrato NL5)", () => {
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <Routes>
+          <Route
+            path="*"
+            element={
+              <RouteTabsNav
+                aria-label="Mi cuenta"
+                items={[
+                  { id: "data", to: "/account", end: true, label: "Datos" },
+                ]}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const link = screen.getByRole("link", { name: /Datos/i });
+    expect(link.querySelector("svg")).toBeNull();
   });
 });

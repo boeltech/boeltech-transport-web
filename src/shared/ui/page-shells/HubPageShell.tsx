@@ -26,7 +26,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@shared/ui/collapsible";
-import { Tabs, TabsList, TabsTrigger } from "@shared/ui/tabs";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabCount,
+  TabSignalDot,
+  type TabSignal,
+} from "@shared/ui/tabs";
 import { cn } from "@shared/lib/utils/cn";
 
 // ============================================================================
@@ -37,7 +44,14 @@ export interface HubNavItem {
   id: string;
   label: string;
   href: string;
+  /** @deprecated Preferir `count` / `signal` (NL6). */
   badge?: ReactNode;
+  /** Pastilla mono 11 px. 0/undefined = sin pastilla. */
+  count?: number;
+  /** Punto 6 px (attention / blocked / live). */
+  signal?: TabSignal;
+  /** aria-label del punto; default por signal. */
+  signalLabel?: string;
   /** `location.state` al navegar (p. ej. preservar `from` de Reportes). */
   state?: { from?: string };
 }
@@ -416,6 +430,13 @@ export const HubPageShell = memo(function HubPageShell({
                   className="inline-flex items-center gap-1.5"
                 >
                   {item.label}
+                  {item.signal ? (
+                    <TabSignalDot
+                      signal={item.signal}
+                      label={item.signalLabel}
+                    />
+                  ) : null}
+                  {item.count != null ? <TabCount count={item.count} /> : null}
                   {item.badge}
                 </NavLink>
               </TabsTrigger>

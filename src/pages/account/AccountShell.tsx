@@ -4,7 +4,7 @@
  */
 
 import { Outlet } from "react-router-dom";
-import { Shield, User } from "lucide-react";
+import { User } from "lucide-react";
 import { useAuth } from "@features/auth";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { RouteTabsNav } from "@shared/ui/tabs";
@@ -16,14 +16,12 @@ const ACCOUNT_TABS = [
     to: "/account",
     end: true,
     label: accountCopy.tabs.data,
-    icon: User,
   },
   {
     id: "security",
     to: "/account/security",
     end: false,
     label: accountCopy.tabs.security,
-    icon: Shield,
   },
 ] as const;
 

@@ -5,7 +5,12 @@ import {
   type ReactElement,
 } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMasterDetailWayfinding } from "@shared/utils/masterWayfinding";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+  useMasterActionFrom,
+} from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
 import {
   User,
   AlertTriangle,
@@ -47,6 +52,19 @@ import { buildEmployeeDriverRoleAlert } from "../helpers/employeeDriverRoleAlert
 import { employeesCopy } from "../copy";
 
 const copy = employeesCopy.detail;
+const EMPLOYEES_LIST_PATH = "/employees";
+const EMPLOYEES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[EMPLOYEES_LIST_PATH] ?? "Empleados";
+
+function useEmployeeDetailCrumbs(currentLabel: string) {
+  const incoming = useIncomingWayfinding();
+  return resolveDetailCrumbs({
+    from: incoming?.from,
+    fromLabel: incoming?.fromLabel,
+    module: { listPath: EMPLOYEES_LIST_PATH, label: EMPLOYEES_MODULE_LABEL },
+    current: { label: currentLabel },
+  });
+}
 
 /** Tabs enlazables por `?tab=`. */
 const EMPLOYEE_DETAIL_TABS = [
@@ -59,10 +77,7 @@ const EMPLOYEE_DETAIL_TABS = [
 export function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const employeeId = id ?? "";
-  const { backHref, backLabel, fromState } = useMasterDetailWayfinding(
-    "/employees",
-    copy.state.backToList,
-  );
+  const fromState = useMasterActionFrom(EMPLOYEES_LIST_PATH);
   const { activeTab, setActiveTab } = useTabParam(
     EMPLOYEE_DETAIL_TABS,
     "personal",
@@ -77,6 +92,9 @@ export function EmployeeDetailPage() {
     refetch,
   } = useEmployee(employeeId, !!employeeId);
   const employee = result?.data;
+  const crumbs = useEmployeeDetailCrumbs(
+    employee?.fullName ?? copy.title.fallback,
+  );
 
   const refetchEmployee = () => {
     void refetch();
@@ -246,9 +264,7 @@ export function EmployeeDetailPage() {
       <DetailPageShell
         isLoading
         header={{
-          backHref,
-          backLabel,
-          icon: <User className="h-6 w-6" />,
+          crumbs,
           title: copy.title.fallback,
         }}
       />
@@ -268,9 +284,7 @@ export function EmployeeDetailPage() {
           backLabel: copy.state.backToList,
         }}
         header={{
-          backHref,
-          backLabel,
-          icon: <User className="h-6 w-6" />,
+          crumbs,
           title: copy.title.fallback,
         }}
       />
@@ -283,10 +297,7 @@ export function EmployeeDetailPage() {
     <DetailPageShell
       isLoading={false}
       header={{
-        backHref,
-        backLabel,
-        icon: <User className="h-6 w-6" />,
-        iconVariant: isTerminated ? "muted" : "primary",
+        crumbs,
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
             <span className="shrink-0">{employee.fullName}</span>
