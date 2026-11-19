@@ -315,7 +315,7 @@ describe("TripDetailCargoMasterDetail — under-allocated deliveries (F7)", () =
     ],
   } as TripCargo;
 
-  it("shows soft alert with remainder and Corregir carga", () => {
+  it("shows soft alert with remainder and Corregir carga (draft/scheduled F7)", () => {
     const onEditCargo = vi.fn();
     render(
       <TripDetailCargoMasterDetail
@@ -334,12 +334,53 @@ describe("TripDetailCargoMasterDetail — under-allocated deliveries (F7)", () =
     ).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes("Faltan 11,000 kg / 11 uds"),
+        content.includes("Puede guardar y completar después"),
       ),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: copy.action.fixFirstCargo }),
     ).toBeInTheDocument();
+  });
+
+  it("F7c mid-trip: under-allocation visible without Corregir; mid-trip body", () => {
+    render(
+      <TripDetailCargoMasterDetail
+        cargos={[partialCargo]}
+        orderedStops={orderedStops}
+        canEditStructural={false}
+        canAppendCargo
+        showAppendOnlyBanner
+        canDeleteCargo={false}
+        onAddCargo={vi.fn()}
+        onEditCargo={vi.fn()}
+        onRemoveCargo={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(copy.alert.underAllocatedTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((content) =>
+        content.includes(
+          "En ruta no se puede corregir la mercancía existente; solo puedes agregar cargas nuevas",
+        ),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((content) =>
+        content.includes("Faltan 11,000 kg / 11 uds"),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText((content) =>
+        content.includes("Puede guardar y completar después"),
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.action.fixFirstCargo }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(copy.hint.appendOnlyBanner)).toBeInTheDocument();
   });
 
   it("does not show under-allocation alert when there are 0 deliveries (F5a)", () => {

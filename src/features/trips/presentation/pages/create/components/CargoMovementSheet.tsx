@@ -80,6 +80,7 @@ import { fetchRegulatoryFlagsForSatProductCp } from "@shared/cfdi";
 
 import { V1_CARGO_PLACEHOLDER_CLIENT_SENTINEL } from "@features/trips/domain/v1CargoPlaceholderClient";
 import {
+  applySingleDeliveryQtyInherit,
   computeCargoDeliveryCoverage,
   formatDeliveryRemainderLine,
 } from "../../../utils/cargoDeliveryCoverage";
@@ -279,7 +280,11 @@ function initialDeliveryAssignments(
   initialValues: TripCargoFormValues | null | undefined,
 ): CargoMovementFormValues[] {
   if (!initialValues) return [];
-  return (initialValues.movements ?? []).filter((m) => m.movementType === "delivery");
+  // Herencia D-F7-8 no se escribe en el estado: cobertura + buildResult.
+  // Prefill en inputs rompería edición de totales de mercancía con delivery vacío.
+  return (initialValues.movements ?? []).filter(
+    (m) => m.movementType === "delivery",
+  );
 }
 
 function CargoMovementSheetSession({
@@ -670,10 +675,16 @@ function CargoMovementSheetSession({
         : null;
     const cargoUnits =
       typeof unitsWatch === "number" && unitsWatch > 0 ? unitsWatch : null;
-    return computeCargoDeliveryCoverage({
+    // D-F7-8: 1 delivery vacío cuenta como cobertura 100 % (misma herencia).
+    const deliveriesForCoverage = applySingleDeliveryQtyInherit({
       cargoWeightKg,
       cargoUnits,
       deliveries: explicitDeliveries,
+    });
+    return computeCargoDeliveryCoverage({
+      cargoWeightKg,
+      cargoUnits,
+      deliveries: deliveriesForCoverage,
     });
   }, [explicitDeliveries, unitsWatch, weightInKgWatch]);
 
@@ -765,7 +776,8 @@ function CargoMovementSheetSession({
         stopIndex: pickupStopIndex,
         movementType: "pickup",
       };
-      const validDeliveries: CargoMovementFormValues[] = deliveryAssignments
+      const cargoWeightKg = values.weightInKg ?? values.weight;
+      const explicit = deliveryAssignments
         .filter((d) => d.stopIndex >= 0)
         .map((d) => ({
           stopIndex: d.stopIndex,
@@ -774,6 +786,12 @@ function CargoMovementSheetSession({
           units: d.units,
           notes: d.notes,
         }));
+      // D-F7-8: al persistir, 1 delivery vacío hereda totales.
+      const validDeliveries = applySingleDeliveryQtyInherit({
+        cargoWeightKg,
+        cargoUnits: values.units,
+        deliveries: explicit,
+      });
       const requirement = catalogRequirementRef.current;
       // Marca 0: no persistir el interruptor ni la clave/embalaje.
       const persistHazmat =

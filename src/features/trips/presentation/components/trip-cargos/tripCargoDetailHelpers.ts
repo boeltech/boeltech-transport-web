@@ -11,6 +11,7 @@ import {
 
 import { cargoCopy } from "../../copy/tripDetail/cargoCopy";
 import {
+  applySingleDeliveryQtyInherit,
   computeCargoDeliveryCoverage,
   formatDeliveryRemainderLine,
 } from "../../utils/cargoDeliveryCoverage";
@@ -192,6 +193,7 @@ export type UnderAllocatedDeliveriesSummary = {
 /**
  * Soft warning F7: ≥1 delivery explícito y suma peso/uds &lt; total.
  * 0 deliveries (F5a) no entra — `computeCargoDeliveryCoverage` → `n/a`.
+ * D-F7-8: 1 delivery con qty vacía hereda totales → no under.
  */
 export function summarizeUnderAllocatedDeliveries(
   cargos: readonly TripCargo[],
@@ -204,12 +206,17 @@ export function summarizeUnderAllocatedDeliveries(
 
   for (const cargo of cargos) {
     if (isCargoPlanningGapMuted(cargo.status)) continue;
-    const deliveries = (cargo.movements ?? []).filter(
-      (movement) => movement.movementType === "delivery",
-    );
     const weightKg = getCargoWeightKg(cargo);
+    const cargoWeightKg = weightKg > 0 ? weightKg : null;
+    const deliveries = applySingleDeliveryQtyInherit({
+      cargoWeightKg,
+      cargoUnits: cargo.units,
+      deliveries: (cargo.movements ?? []).filter(
+        (movement) => movement.movementType === "delivery",
+      ),
+    });
     const coverage = computeCargoDeliveryCoverage({
-      cargoWeightKg: weightKg > 0 ? weightKg : null,
+      cargoWeightKg,
       cargoUnits: cargo.units,
       deliveries,
     });
@@ -247,21 +254,28 @@ export function summarizeUnderAllocatedDeliveries(
 export type UnderAllocatedAlertModel = {
   title: string;
   body: string;
+  /** Draft/scheduled: warning + CTA. Mid-trip (`!canEditStructural`): info, sin CTA. */
+  severity: "warning" | "info";
   showEditAction: boolean;
 };
 
+/**
+ * Soft F7 under-allocation en tab Cargas.
+ * F7c: mid-trip (`!canEditStructural`) = visible, body mid-trip, severity info, sin «Corregir carga».
+ */
 export function resolveUnderAllocatedAlert(args: {
   summary: UnderAllocatedDeliveriesSummary;
   canEditStructural: boolean;
 }): UnderAllocatedAlertModel {
   const { summary, canEditStructural } = args;
+  const count = summary.cargoIds.length;
   return {
     title: cargoCopy.alert.underAllocatedTitle,
-    body: cargoCopy.alert.underAllocatedBody(
-      summary.cargoIds.length,
-      summary.remainderLine,
-    ),
-    showEditAction: canEditStructural && summary.cargoIds.length > 0,
+    body: canEditStructural
+      ? cargoCopy.alert.underAllocatedBody(count, summary.remainderLine)
+      : cargoCopy.alert.underAllocatedBodyMidTrip(count, summary.remainderLine),
+    severity: canEditStructural ? "warning" : "info",
+    showEditAction: canEditStructural && count > 0,
   };
 }
 

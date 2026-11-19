@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applySingleDeliveryQtyInherit,
   computeCargoDeliveryCoverage,
   formatDeliveryRemainderLine,
   formatDeliveryRemainderParts,
+  normalizeMovementQty,
 } from "./cargoDeliveryCoverage";
 
 describe("computeCargoDeliveryCoverage (F7)", () => {
@@ -110,5 +112,60 @@ describe("formatDeliveryRemainderLine", () => {
     expect(formatDeliveryRemainderLine(500, null)).toBe("500 kg");
     expect(formatDeliveryRemainderLine(null, 3)).toBe("3 uds");
     expect(formatDeliveryRemainderLine(null, null)).toBe("");
+  });
+});
+
+describe("applySingleDeliveryQtyInherit (D-F7-8)", () => {
+  it("inherits cargo totals when exactly 1 delivery has empty qty", () => {
+    expect(
+      applySingleDeliveryQtyInherit({
+        cargoWeightKg: 6000,
+        cargoUnits: 6,
+        deliveries: [{ weight: null, units: undefined }],
+      }),
+    ).toEqual([{ weight: 6000, units: 6 }]);
+  });
+
+  it("does not inherit when delivery already has explicit qty", () => {
+    expect(
+      applySingleDeliveryQtyInherit({
+        cargoWeightKg: 6000,
+        cargoUnits: 6,
+        deliveries: [{ weight: 3000, units: 3 }],
+      }),
+    ).toEqual([{ weight: 3000, units: 3 }]);
+  });
+
+  it("does not inherit with ≥2 deliveries (soft under stays)", () => {
+    const deliveries = [
+      { weight: null, units: null },
+      { weight: null, units: null },
+    ];
+    expect(
+      applySingleDeliveryQtyInherit({
+        cargoWeightKg: 6000,
+        cargoUnits: 6,
+        deliveries,
+      }),
+    ).toEqual(deliveries);
+  });
+
+  it("0 deliveries stays empty (F5a / no false under via inherit)", () => {
+    expect(
+      applySingleDeliveryQtyInherit({
+        cargoWeightKg: 6000,
+        cargoUnits: 6,
+        deliveries: [],
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("normalizeMovementQty", () => {
+  it("maps positive to itself and empty to null", () => {
+    expect(normalizeMovementQty(12)).toBe(12);
+    expect(normalizeMovementQty(0)).toBeNull();
+    expect(normalizeMovementQty(null)).toBeNull();
+    expect(normalizeMovementQty(undefined)).toBeNull();
   });
 });

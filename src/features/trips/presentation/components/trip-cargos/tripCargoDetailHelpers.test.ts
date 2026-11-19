@@ -364,8 +364,31 @@ describe("summarizeUnderAllocatedDeliveries (F7)", () => {
     ).toEqual({
       title: copy.alert.underAllocatedTitle,
       body: copy.alert.underAllocatedBody(1, "11,000 kg / 11 uds"),
+      severity: "warning",
       showEditAction: true,
     });
+  });
+
+  it("F7c: mid-trip (!canEditStructural) uses mid-trip body, info, no Corregir", () => {
+    const summary = summarizeUnderAllocatedDeliveries([baseCargo]);
+    expect(summary).not.toBeNull();
+    expect(
+      resolveUnderAllocatedAlert({
+        summary: summary!,
+        canEditStructural: false,
+      }),
+    ).toEqual({
+      title: copy.alert.underAllocatedTitle,
+      body: copy.alert.underAllocatedBodyMidTrip(1, "11,000 kg / 11 uds"),
+      severity: "info",
+      showEditAction: false,
+    });
+    expect(copy.alert.underAllocatedBodyMidTrip(1, "11,000 kg / 11 uds")).not.toMatch(
+      /completar después/i,
+    );
+    expect(copy.alert.underAllocatedBodyMidTrip(2, "1 kg")).toMatch(
+      /2 cargas tienen entregas parciales/i,
+    );
   });
 
   it("CA2: clears when deliveries cover the total", () => {
@@ -398,5 +421,48 @@ describe("summarizeUnderAllocatedDeliveries (F7)", () => {
       movements: [baseCargo.movements[0]],
     } as TripCargo;
     expect(summarizeUnderAllocatedDeliveries([noDelivery])).toBeNull();
+  });
+
+  it("D-F7-8: 1 delivery with empty qty inherits totals — no under banner", () => {
+    const emptyQty = {
+      ...baseCargo,
+      movements: [
+        baseCargo.movements[0],
+        {
+          ...baseCargo.movements[1],
+          weight: null,
+          units: null,
+        },
+      ],
+    } as TripCargo;
+    expect(summarizeUnderAllocatedDeliveries([emptyQty])).toBeNull();
+  });
+
+  it("D-F7-8: ≥2 deliveries with empty qty still under (no inherit)", () => {
+    const splitEmpty = {
+      ...baseCargo,
+      movements: [
+        baseCargo.movements[0],
+        {
+          ...baseCargo.movements[1],
+          weight: null,
+          units: null,
+        },
+        {
+          id: "mov-d2",
+          stopIndex: 2,
+          movementType: "delivery",
+          weight: null,
+          units: null,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    } as TripCargo;
+    expect(summarizeUnderAllocatedDeliveries([splitEmpty])).toMatchObject({
+      cargoIds: ["cargo-1"],
+      pendingWeight: 21_000,
+      pendingUnits: 21,
+    });
   });
 });

@@ -21,7 +21,8 @@ function emptyToNull(value: string | undefined): string | null {
 
 /**
  * Maps a persisted trip cargo into wizard sheet form values for edit.
- * Movements are included for sheet context/validation; update API does not rewrite them.
+ * Movements are included for sheet context/validation; qty/stop de
+ * deliveries existentes se persisten vía PATCH …/movements/:id (F2).
  */
 export function tripCargoToFormValues(cargo: TripCargo): TripCargoFormValues {
   const currency: CurrencyType =
@@ -83,7 +84,10 @@ export function tripCargoToFormValues(cargo: TripCargo): TripCargoFormValues {
   };
 }
 
-/** Maps sheet form values to the existing update cargo contract (no movements). */
+/**
+ * Maps sheet form values to PUT cargo (mercantile fields only).
+ * Movements no van en el PUT: PATCH por movement en TripDetailCargoTab.
+ */
 export function formValuesToUpdateCargoInput(
   values: TripCargoFormValues,
 ): UpdateCargoInput {

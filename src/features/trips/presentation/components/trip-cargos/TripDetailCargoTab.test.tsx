@@ -237,6 +237,69 @@ vi.mock("../../pages/create/components/CargoMovementSheet", () => ({
         >
           Submit edit with delivery
         </button>
+        <button
+          type="button"
+          data-testid="sheet-submit-edit-qty"
+          onClick={() =>
+            void onSubmit(
+              {
+                description: "Tarimas de acero",
+                satProductCode: "50192100",
+                satUnitCode: "H87",
+                satUnitName: "Pieza",
+                currency: "MXN",
+                weight: 200,
+                units: 4,
+                weightInKg: 200,
+                hazardousMaterial: false,
+                requiresHazmat: false,
+                isInsured: false,
+                sectorRequirements: {},
+                movements: [
+                  { stopIndex: 0, movementType: "pickup" },
+                  {
+                    stopIndex: 1,
+                    movementType: "delivery",
+                    weight: 200,
+                    units: 4,
+                  },
+                ],
+              } as TripCargoFormValues,
+              0,
+            )
+          }
+        >
+          Submit edit qty
+        </button>
+        <button
+          type="button"
+          data-testid="sheet-submit-edit-inherit-empty-qty"
+          onClick={() =>
+            void onSubmit(
+              {
+                description: "Tarimas de acero",
+                satProductCode: "50192100",
+                satUnitCode: "H87",
+                satUnitName: "Pieza",
+                currency: "MXN",
+                weight: 200,
+                units: 4,
+                weightInKg: 200,
+                hazardousMaterial: false,
+                requiresHazmat: false,
+                isInsured: false,
+                sectorRequirements: {},
+                movements: [
+                  { stopIndex: 0, movementType: "pickup" },
+                  { stopIndex: 1, movementType: "delivery" },
+                ],
+              } as TripCargoFormValues,
+              0,
+            )
+          }
+        >
+          Submit edit inherit
+        </button>
       </div>
     ) : null,
 }));
@@ -776,6 +839,123 @@ describe("TripDetailCargoTab", () => {
     expect(screen.getByTestId("sheet-allow-add-delivery")).toHaveTextContent(
       "deny",
     );
+  });
+
+  it("PATCHes delivery qty on same-stop edit (F2)", async () => {
+    const user = userEvent.setup();
+    const destination = {
+      id: "st-dest",
+      stopType: ["destination", "delivery"],
+      address: "CEDIS",
+      city: "Monterrey",
+      state: "NL",
+      locationName: "Destino",
+      sequenceOrder: 1,
+    } as TripStop;
+    const cargoWithEmptyDelivery: TripCargo = {
+      ...sampleCargo,
+      movements: [
+        ...(sampleCargo.movements ?? []),
+        {
+          id: "mov-delivery-1",
+          stopId: "st-dest",
+          stopIndex: 1,
+          movementType: "delivery",
+          weight: null,
+          units: null,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    };
+
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.DRAFT}
+          cargos={[cargoWithEmptyDelivery]}
+          orderedStops={[pickupStop, destination]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.editCargo }),
+    );
+    await user.click(screen.getByTestId("sheet-submit-edit-qty"));
+
+    await waitFor(() => {
+      expect(mutateReassignAsync).toHaveBeenCalledWith({
+        cargoId: "cargo-1",
+        movementId: "mov-delivery-1",
+        data: { weight: 200, units: 4 },
+      });
+    });
+    expect(mutateUpdateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("D-F7-8: inherits empty single delivery qty and PATCHes on edit", async () => {
+    const user = userEvent.setup();
+    const destination = {
+      id: "st-dest",
+      stopType: ["destination", "delivery"],
+      address: "CEDIS",
+      city: "Monterrey",
+      state: "NL",
+      locationName: "Destino",
+      sequenceOrder: 1,
+    } as TripStop;
+    const cargoWithEmptyDelivery: TripCargo = {
+      ...sampleCargo,
+      movements: [
+        ...(sampleCargo.movements ?? []),
+        {
+          id: "mov-delivery-1",
+          stopId: "st-dest",
+          stopIndex: 1,
+          movementType: "delivery",
+          weight: null,
+          units: null,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    };
+
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.DRAFT}
+          cargos={[cargoWithEmptyDelivery]}
+          orderedStops={[pickupStop, destination]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.editCargo }),
+    );
+    await user.click(screen.getByTestId("sheet-submit-edit-inherit-empty-qty"));
+
+    await waitFor(() => {
+      expect(mutateReassignAsync).toHaveBeenCalledWith({
+        cargoId: "cargo-1",
+        movementId: "mov-delivery-1",
+        data: { weight: 200, units: 4 },
+      });
+    });
   });
 
   it("allows Agregar entrega in edit with ≥2 unload stops and POSTs new delivery", async () => {

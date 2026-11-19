@@ -17,6 +17,7 @@ import {
   type TripCargo,
   type TripStatusType,
   type TripStop,
+  type UpdateCargoMovementStopInput,
 } from "@features/trips/domain";
 import { useVehicle } from "@features/vehicles";
 import { useToast } from "@shared/hooks";
@@ -48,6 +49,10 @@ import {
   sumCargoUnits,
 } from "./tripCargoSummaryHelpers";
 import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
+import {
+  applySingleDeliveryQtyInherit,
+  normalizeMovementQty,
+} from "../../utils/cargoDeliveryCoverage";
 import {
   CargoMovementSheet,
   type CargoSheetDeliveryStop,
@@ -385,32 +390,49 @@ export function TripDetailCargoTab({
           editingCargo?.movements?.filter(
             (movement) => movement.movementType === "delivery",
           ) ?? [];
-        const nextDeliveries = (values.movements ?? []).filter(
-          (movement) => movement.movementType === "delivery",
-        );
-        const nextDeliveryIndexes = nextDeliveries.map(
-          (movement) => movement.stopIndex,
-        );
+        // D-F7-8: 1 delivery vacío hereda totales antes de PATCH/POST.
+        const nextDeliveries = applySingleDeliveryQtyInherit({
+          cargoWeightKg: values.weightInKg ?? values.weight,
+          cargoUnits: values.units,
+          deliveries: (values.movements ?? []).filter(
+            (movement) => movement.movementType === "delivery",
+          ),
+        });
 
+        // Existentes: PATCH parada y/o qty (F1 body weight/units).
         for (let i = 0; i < originalDeliveries.length; i += 1) {
           const deliveryMovement = originalDeliveries[i];
           if (!deliveryMovement?.id || deliveryMovement.completedAt) continue;
-          const nextStopIndex = nextDeliveryIndexes[i];
-          if (
-            nextStopIndex == null ||
-            nextStopIndex < 0 ||
-            nextStopIndex === deliveryMovement.stopIndex
-          ) {
-            continue;
+          const nextDelivery = nextDeliveries[i];
+          if (!nextDelivery || nextDelivery.stopIndex < 0) continue;
+
+          const stopChanged =
+            nextDelivery.stopIndex !== deliveryMovement.stopIndex;
+          const nextWeight = normalizeMovementQty(nextDelivery.weight);
+          const nextUnits = normalizeMovementQty(nextDelivery.units);
+          const weightChanged =
+            nextWeight !== normalizeMovementQty(deliveryMovement.weight);
+          const unitsChanged =
+            nextUnits !== normalizeMovementQty(deliveryMovement.units);
+
+          if (!stopChanged && !weightChanged && !unitsChanged) continue;
+
+          const data: UpdateCargoMovementStopInput = {};
+          if (stopChanged) {
+            const nextStop = orderedStops[nextDelivery.stopIndex];
+            if (!nextStop?.id) {
+              throw new Error(copy.toast.cargoStopUnresolved);
+            }
+            data.stopId = nextStop.id;
+            data.stopIndex = nextDelivery.stopIndex;
           }
-          const nextStop = orderedStops[nextStopIndex];
-          if (!nextStop?.id) {
-            throw new Error(copy.toast.cargoStopUnresolved);
-          }
+          if (weightChanged) data.weight = nextWeight;
+          if (unitsChanged) data.units = nextUnits;
+
           await reassignMovementStop.mutateAsync({
             cargoId: editingCargoId,
             movementId: deliveryMovement.id,
-            data: { stopId: nextStop.id, stopIndex: nextStopIndex },
+            data,
           });
         }
 

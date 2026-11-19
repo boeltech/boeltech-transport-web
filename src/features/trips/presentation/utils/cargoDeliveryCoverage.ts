@@ -138,3 +138,52 @@ export function formatDeliveryRemainderLine(
 ): string {
   return formatDeliveryRemainderParts(pendingWeight, pendingUnits).join(" / ");
 }
+
+function isEmptyDeliveryQty(value: number | null | undefined): boolean {
+  return value == null || value <= 0;
+}
+
+/**
+ * D-F7-8: con exactamente 1 delivery y qty vacía (peso y uds), hereda los
+ * totales de la mercancía. Con ≥2 deliveries no hereda (soft F7).
+ * No pisa qty ya explícita (p. ej. under intencional 1:1).
+ */
+export function applySingleDeliveryQtyInherit<T extends CargoDeliveryQty>(args: {
+  cargoWeightKg?: number | null;
+  cargoUnits?: number | null;
+  deliveries: readonly T[];
+}): T[] {
+  const { deliveries } = args;
+  if (deliveries.length !== 1) {
+    return deliveries.map((delivery) => ({ ...delivery }));
+  }
+
+  const delivery = deliveries[0]!;
+  if (
+    !isEmptyDeliveryQty(delivery.weight) ||
+    !isEmptyDeliveryQty(delivery.units)
+  ) {
+    return [{ ...delivery }];
+  }
+
+  const cargoWeight = positiveOrNull(args.cargoWeightKg);
+  const cargoUnits = positiveOrNull(args.cargoUnits);
+  if (cargoWeight == null && cargoUnits == null) {
+    return [{ ...delivery }];
+  }
+
+  return [
+    {
+      ...delivery,
+      ...(cargoWeight != null ? { weight: cargoWeight } : {}),
+      ...(cargoUnits != null ? { units: cargoUnits } : {}),
+    },
+  ];
+}
+
+/** Normaliza qty de movement para comparar / PATCH (≤0 → null). */
+export function normalizeMovementQty(
+  value: number | null | undefined,
+): number | null {
+  return value != null && value > 0 ? value : null;
+}

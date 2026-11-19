@@ -110,12 +110,21 @@ export const cargoCopy = {
     /**
      * F7 / QC-ENT-1: hay ≥1 delivery y la suma no cubre el total.
      * Soft — no apaga el chip Cargas ni bloquea Guardar.
+     * Draft/scheduled: CTA «Corregir carga» + «completar después».
      */
     underAllocatedTitle: "Falta asignar el resto de la mercancía",
     underAllocatedBody: (count: number, remainderLine: string) =>
       count === 1
         ? `Faltan ${remainderLine} por asignar a una entrega. Puede guardar y completar después.`
         : `${count} cargas tienen entregas parciales: faltan ${remainderLine} por asignar. Puede guardar y completar después.`,
+    /**
+     * F7c / ACEPTO CEO A: mid-trip solo lectura — sin «completar después»,
+     * sin CTA Corregir; explica que solo se pueden agregar cargas nuevas.
+     */
+    underAllocatedBodyMidTrip: (count: number, remainderLine: string) =>
+      count === 1
+        ? `Faltan ${remainderLine} por asignar a una entrega. En ruta no se puede corregir la mercancía existente; solo puedes agregar cargas nuevas.`
+        : `${count} cargas tienen entregas parciales: faltan ${remainderLine} por asignar. En ruta no se puede corregir la mercancía existente; solo puedes agregar cargas nuevas.`,
   },
   action: {
     addCargo: "Agregar carga",

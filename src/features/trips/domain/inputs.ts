@@ -73,11 +73,16 @@ export interface CompleteCargoMovementInput {
 }
 
 /**
- * Input para reasignar la parada de un movimiento existente
+ * Input para PATCH de un movimiento existente (parada y/o qty).
+ * - `stopId` + `stopIndex` juntos o ninguno.
+ * - `weight` / `units` opcionales; `null` limpia; omitir = no tocar.
+ * - Al menos parada y/o qty (contrato F1 `@boeltech/cfdi-domain` 0.54+).
  */
 export interface UpdateCargoMovementStopInput {
-  stopId: string;
-  stopIndex: number;
+  stopId?: string;
+  stopIndex?: number;
+  weight?: number | null;
+  units?: number | null;
 }
 
 // ============================================================================

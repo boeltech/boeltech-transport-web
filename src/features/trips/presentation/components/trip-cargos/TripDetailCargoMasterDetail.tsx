@@ -718,7 +718,7 @@ export function TripDetailCargoMasterDetail({
 
       {underAllocatedAlert ? (
         <DetailAlertCard
-          severity="warning"
+          severity={underAllocatedAlert.severity}
           icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
           title={underAllocatedAlert.title}
           items={[{ text: underAllocatedAlert.body }]}

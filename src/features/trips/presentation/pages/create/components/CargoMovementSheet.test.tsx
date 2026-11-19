@@ -776,6 +776,92 @@ describe("CargoMovementSheet", () => {
     });
   });
 
+  it("D-F7-8: 1 delivery with empty qty inherits on submit — no under banner", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          movements: [
+            { stopIndex: 0, movementType: "pickup" },
+            { stopIndex: 1, movementType: "delivery" },
+          ],
+        }}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(
+      screen.queryByText(sheet.alert.underAllocatedTitle),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: sheet.action.save }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+    const submitted = onSubmit.mock.calls[0]?.[0] as TripCargoFormValues;
+    expect(submitted.movements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          movementType: "delivery",
+          stopIndex: 1,
+          weight: 1000,
+          units: 10,
+        }),
+      ]),
+    );
+  });
+
+  it("D-F7-8: ≥2 deliveries with empty qty keep soft under (no inherit)", () => {
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={[
+          ...deliveryStops,
+          {
+            index: 2,
+            address: "Cliente 2",
+            city: "Santa Catarina",
+            locationName: "Descarga 2",
+          },
+        ]}
+        initialValues={{
+          ...validCargo,
+          movements: [
+            { stopIndex: 0, movementType: "pickup" },
+            { stopIndex: 1, movementType: "delivery" },
+            { stopIndex: 2, movementType: "delivery" },
+          ],
+        }}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(sheet.alert.underAllocatedTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(sheet.alert.underAllocatedBody("1,000 kg / 10 uds")),
+    ).toBeInTheDocument();
+  });
+
   it("F7: blocks Guardar when deliveries exceed cargo totals", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
