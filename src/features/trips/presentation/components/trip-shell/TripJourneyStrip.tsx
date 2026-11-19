@@ -2,6 +2,7 @@
  * Franja del viaje (D2): fases + 6 datos clave. Reemplaza StatCards.
  */
 
+import { Fragment } from "react";
 import { Check, X } from "lucide-react";
 
 import { cn } from "@shared/lib/utils/cn";
@@ -25,64 +26,69 @@ export function TripJourneyStrip({ model, className }: TripJourneyStripProps) {
       aria-label="Estado y datos clave del viaje"
       data-testid="trip-journey-strip"
     >
+      {/*
+        Rail = hermanos flex (fase + conector + fase…), como artboard `.ph` + `.ph-line`.
+        El flex-1 del conector debe vivir a nivel del rail, no dentro de un wrapper por fase.
+      */}
       <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5 text-[13px]">
         {phases.map((phase, index) => {
           const isCancelledCurrent =
             phase.state === "current" && phase.id === "cancelled";
           return (
-          <div key={phase.id} className="flex min-w-0 items-center gap-2.5">
-            {index > 0 ? (
-              <span
-                className="hidden h-px min-w-4 flex-1 bg-border sm:block"
-                aria-hidden
-              />
-            ) : null}
-            <span
-              className={cn(
-                "inline-flex items-center gap-2 whitespace-nowrap",
-                phase.state === "upcoming" && "text-muted-foreground",
-                phase.state === "done" && "text-foreground",
-                phase.state === "current" && "font-semibold text-foreground",
-              )}
-            >
+            <Fragment key={phase.id}>
+              {index > 0 ? (
+                <span
+                  className="hidden h-[1.5px] min-w-4 flex-1 bg-border sm:block"
+                  aria-hidden
+                  data-testid="trip-journey-phase-connector"
+                />
+              ) : null}
               <span
                 className={cn(
-                  "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold",
-                  phase.state === "done" &&
-                    "border-transparent bg-success/15 text-success",
-                  isCancelledCurrent &&
-                    "border-transparent bg-destructive text-destructive-foreground",
-                  phase.state === "current" &&
-                    !isCancelledCurrent &&
-                    "border-info bg-info text-info-foreground",
-                  phase.state === "upcoming" &&
-                    "border-border text-muted-foreground",
+                  "inline-flex shrink-0 items-center gap-2 whitespace-nowrap",
+                  phase.state === "upcoming" && "text-muted-foreground",
+                  phase.state === "done" && "text-foreground",
+                  phase.state === "current" && "font-semibold text-foreground",
                 )}
-                aria-hidden
-                data-testid={
-                  isCancelledCurrent
-                    ? "trip-journey-phase-cancelled-current"
-                    : undefined
-                }
               >
-                {phase.state === "done" ? (
-                  <Check className="h-3 w-3" strokeWidth={2.5} />
-                ) : isCancelledCurrent ? (
-                  <X className="h-3 w-3" strokeWidth={2.5} />
-                ) : (
-                  phase.stepNumber
-                )}
+                <span
+                  className={cn(
+                    "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold",
+                    phase.state === "done" &&
+                      "border-transparent bg-success-soft text-success-soft-foreground",
+                    isCancelledCurrent &&
+                      "border-transparent bg-destructive text-destructive-foreground",
+                    phase.state === "current" &&
+                      !isCancelledCurrent &&
+                      "border-info bg-info text-info-foreground",
+                    phase.state === "upcoming" &&
+                      "border-border text-muted-foreground",
+                  )}
+                  aria-hidden
+                  data-testid={
+                    isCancelledCurrent
+                      ? "trip-journey-phase-cancelled-current"
+                      : undefined
+                  }
+                >
+                  {phase.state === "done" ? (
+                    <Check className="h-3 w-3" strokeWidth={2.5} />
+                  ) : isCancelledCurrent ? (
+                    <X className="h-3 w-3" strokeWidth={2.5} />
+                  ) : (
+                    phase.stepNumber
+                  )}
+                </span>
+                <span>
+                  {phase.label}
+                  {phase.detail ? (
+                    <small className="ml-1.5 font-normal text-muted-foreground">
+                      {phase.detail}
+                    </small>
+                  ) : null}
+                </span>
               </span>
-              <span>
-                {phase.label}
-                {phase.detail ? (
-                  <small className="ml-1.5 font-normal text-muted-foreground">
-                    {phase.detail}
-                  </small>
-                ) : null}
-              </span>
-            </span>
-          </div>
+            </Fragment>
           );
         })}
       </div>
