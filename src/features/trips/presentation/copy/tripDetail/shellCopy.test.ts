@@ -131,10 +131,17 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     );
   });
 
-  it("orienta atención fiscal al camino Resumen → sustituir (T4-041 / D6)", () => {
-    expect(shellCopy.alert.fiscalAttentionBody).toMatch(/Resumen/i);
-    expect(shellCopy.alert.fiscalAttentionBody).toMatch(/docs vencidos|reasigna/i);
+  it("banner genérico sin consejo de flota; flota solo en BodyFleet (D4)", () => {
     expect(shellCopy.alert.fiscalAttentionBody).toMatch(/sustituye/i);
+    expect(shellCopy.alert.fiscalAttentionBody).not.toMatch(/Resumen/i);
+    expect(shellCopy.alert.fiscalAttentionBody).not.toMatch(
+      /docs vencidos|reasigna/i,
+    );
+    expect(shellCopy.alert.fiscalAttentionBodyFleet).toMatch(/Resumen/i);
+    expect(shellCopy.alert.fiscalAttentionBodyFleet).toMatch(
+      /docs vencidos|reasigna/i,
+    );
+    expect(shellCopy.alert.fiscalAttentionBodyFleet).toMatch(/sustituye/i);
   });
 
   it("split: multi-porción sin pretender un solo flete (T4-041-split)", () => {
@@ -142,6 +149,11 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.alert.fiscalAttentionSplitBody).toMatch(/sustituye/i);
     expect(shellCopy.alert.fiscalAttentionSplitBody).not.toMatch(
       /sustituye la factura/i,
+    );
+    expect(shellCopy.alert.fiscalAttentionSplitBody).not.toMatch(/Resumen/i);
+    expect(shellCopy.alert.fiscalAttentionSplitBodyFleet).toMatch(/Resumen/i);
+    expect(shellCopy.alert.fiscalAttentionSplitBodyFleet).toMatch(
+      /cada porción/i,
     );
     expect(shellCopy.alert.fiscalAttentionSplitCta).toMatch(/porción/i);
     expect(shellCopy.alert.fiscalAttentionSplitNoInvoiceBody).toMatch(

@@ -50,7 +50,7 @@ export const billingCopy = {
     paymentsOnInvoiceGeneric:
       "Los pagos se registran en la factura activa.",
     substituteHint:
-      "Registra cobros y REP en la factura activa (sustituta timbrada). Los pagos previos no se mueven.",
+      "Registra los cobros en la factura activa (la sustituta ya timbrada). Los cobros anteriores no se mueven.",
   },
   pendientes: {
     title: "Pendientes de facturación",
@@ -64,6 +64,25 @@ export const billingCopy = {
     whoUnknown: "—",
     substituteCta: "Sustituir factura",
     openInvoiceCta: "Abrir factura",
+    /**
+     * Títulos humanos por `mutation_kind` (SoT de UI).
+     * No pintar `reason` técnico del API en «Qué cambió».
+     */
+    mutationKinds: {
+      stop_replan: "Se reordenaron las escalas",
+      stops: "Se ajustaron paradas o la ruta",
+      /** Alias web histórico. */
+      route: "Se ajustaron paradas o la ruta",
+      cargo: "Se agregó o cambió carga",
+      fleet: "Se cambió unidad u operador",
+      reassignment: "Se cambió unidad u operador",
+      base_rate: "Se modificó la tarifa",
+      unknown: "Cambio operativo con factura vigente",
+    },
+    actionBody:
+      "Hay factura vigente. Sustituye la factura para que coincida con el viaje.",
+    actionBodySplit:
+      "Hay factura vigente. Sustituye cada porción ya facturada para alinear la factura con la ruta.",
   },
   stampError: {
     chip: "No se timbró",

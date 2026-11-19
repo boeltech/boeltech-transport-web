@@ -208,7 +208,7 @@ describe("TripDetailBillingTab (F5)", () => {
     expect(screen.getByText("RFC inválido en parada")).toBeInTheDocument();
   });
 
-  it("consume fiscal_attention (D21)", () => {
+  it("consume fiscal_attention por mutation_kind (no reason técnico)", () => {
     renderTab(
       baseTrip({
         requiresFiscalAttention: true,
@@ -217,13 +217,55 @@ describe("TripDetailBillingTab (F5)", () => {
           flaggedAt: "2026-11-12T10:00:00Z",
           flaggedBy: "u2",
           flaggedByName: "Luis",
-          reason: "Se agregó carga en ruta",
+          reason: "Mutación operativa (cargo) con CFDI vigente; requiere sustitución",
           invoiceStatus: "stamped",
         },
       }),
     );
-    expect(screen.getByText("Se agregó carga en ruta")).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.pendientes.mutationKinds.cargo),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.pendientes.actionBody),
+    ).toBeInTheDocument();
     expect(screen.getByText("Luis")).toBeInTheDocument();
+    expect(screen.queryByText(/Mutación operativa/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bCFDI\b/)).not.toBeInTheDocument();
+  });
+
+  it("stop_replan + reason técnico → título humano sin códigos", () => {
+    renderTab(
+      baseTrip({
+        requiresFiscalAttention: true,
+        invoicing: tripInvoicingFixture({
+          invoiceId: "inv-1",
+          invoiceFolio: "F-1",
+          invoiceStatus: "stamped",
+          hasActiveInvoice: true,
+          hasActivePrimaryInvoice: true,
+          hasActivePrincipalInvoice: true,
+          hasActiveSplit: true,
+          cartaPorteAttached: true,
+        }),
+        fiscalAttention: {
+          mutationKind: "stop_replan",
+          flaggedAt: "2026-11-12T10:00:00Z",
+          flaggedBy: "u2",
+          flaggedByName: "Ana",
+          reason:
+            "Mutación operativa (stop_replan) con CFDI vigente; requiere sustitución",
+          invoiceStatus: "stamped",
+        },
+      }),
+    );
+    expect(
+      screen.getByText(billingCopy.pendientes.mutationKinds.stop_replan),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.pendientes.actionBodySplit),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/stop_replan/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Mutación/i)).not.toBeInTheDocument();
   });
 
   it("F5b P1-A: Pendientes en columna principal antes de Facturas", () => {
@@ -235,7 +277,7 @@ describe("TripDetailBillingTab (F5)", () => {
           flaggedAt: "2026-11-12T10:00:00Z",
           flaggedBy: "u2",
           flaggedByName: "Rosa",
-          reason: "Se reasignó la unidad",
+          reason: "Mutación operativa (fleet) con CFDI vigente; requiere sustitución",
           invoiceStatus: "stamped",
         },
       }),
@@ -249,10 +291,33 @@ describe("TripDetailBillingTab (F5)", () => {
       pendientes.compareDocumentPosition(invoices) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    expect(
+      screen.getByText(billingCopy.pendientes.mutationKinds.fleet),
+    ).toBeInTheDocument();
     expect(screen.getByText(billingCopy.invoices.toSubstitute)).toBeInTheDocument();
     expect(
       screen.queryByText(/Qué ve cada rol/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("cobro hint sin REP aislado cuando hay atención fiscal", () => {
+    renderTab(
+      baseTrip({
+        requiresFiscalAttention: true,
+        fiscalAttention: {
+          mutationKind: "base_rate",
+          flaggedAt: "2026-11-12T10:00:00Z",
+          flaggedBy: "u2",
+          flaggedByName: "Luis",
+          reason: "Mutación operativa (base_rate) con CFDI vigente; requiere sustitución",
+          invoiceStatus: "stamped",
+        },
+      }),
+    );
+    expect(
+      screen.getByText(billingCopy.cobroRail.substituteHint),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\bREP\b/)).not.toBeInTheDocument();
   });
 
   it("F-ds P1-B2: chip Reparto, share (monto+%+barra) y Base de flete", () => {

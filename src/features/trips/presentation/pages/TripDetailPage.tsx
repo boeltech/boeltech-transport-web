@@ -142,6 +142,7 @@ import {
 } from "./tripDetailQueryGating";
 import { buildTripRouteDetailView } from "./tripDetailRouteData";
 import { buildPostCancelFiscalAlertLines } from "../helpers/buildPostCancelFiscalAlertLines";
+import { isFleetFiscalAttentionMutation } from "../helpers/fiscalAttentionMutationCopy";
 import { resolveFiscalAttentionAlertSlot } from "../helpers/resolveFiscalAttentionAlertSlot";
 import { resolveFiscalAttentionBannerMode } from "../helpers/resolveFiscalAttentionBannerMode";
 import {
@@ -710,6 +711,9 @@ export function TripDetailPage() {
           splitLegsReady: revenueSplitForFiscalCtaFetched,
           splitLegs: revenueSplitForFiscalCta?.legs ?? [],
         });
+        const fleetMutation = isFleetFiscalAttentionMutation(
+          trip.fiscalAttention?.mutationKind,
+        );
 
         let body: string = isPostCancel
           ? shell.alert.postCancelFiscalAttentionNoInvoiceBody
@@ -785,7 +789,9 @@ export function TripDetailPage() {
                 ? shell.alert.postCancelFiscalAttentionBody
                 : isManager
                   ? shell.alert.fiscalAttentionManagerBody
-                  : shell.alert.fiscalAttentionBody
+                  : fleetMutation
+                    ? shell.alert.fiscalAttentionBodyFleet
+                    : shell.alert.fiscalAttentionBody
               : isPostCancel
                 ? shell.alert.postCancelFiscalAttentionNoInvoiceBody
                 : shell.alert.fiscalAttentionNoInvoiceBody;
@@ -812,7 +818,9 @@ export function TripDetailPage() {
               ? shell.alert.postCancelFiscalAttentionSplitBody
               : isManager
                 ? shell.alert.fiscalAttentionSplitManagerBody
-                : shell.alert.fiscalAttentionSplitBody;
+                : fleetMutation
+                  ? shell.alert.fiscalAttentionSplitBodyFleet
+                  : shell.alert.fiscalAttentionSplitBody;
           }
           if (fiscalCta.bodyKey === "withInvoices") {
             const legs = fiscalCta.invoicedLegs;

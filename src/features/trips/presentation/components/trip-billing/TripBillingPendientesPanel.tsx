@@ -8,28 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { formatDateTime } from "@shared/utils/dateUtils";
 
 import { billingCopy } from "../../copy/tripDetail/billingCopy";
+import { fiscalAttentionMutationTitle } from "../../helpers/fiscalAttentionMutationCopy";
 import { resolveFiscalAttentionCta } from "../../helpers/resolveFiscalAttentionCta";
 
 const copy = billingCopy.pendientes;
-
-function mutationKindLabel(kind: string): string {
-  switch (kind) {
-    case "cargo":
-      return "Carga agregada o editada en ruta";
-    case "stops":
-    case "route":
-      return "Ruta o paradas ajustadas";
-    case "fleet":
-    case "reassignment":
-      return "Flota o operador reasignados";
-    case "base_rate":
-      return "Tarifa base modificada";
-    case "unknown":
-      return "Cambio operativo con factura vigente";
-    default:
-      return kind.replace(/_/g, " ");
-  }
-}
 
 export interface TripBillingPendientesPanelProps {
   trip: Trip;
@@ -60,6 +42,10 @@ export function TripBillingPendientesPanel({
   }
 
   const detail = fiscalAttention!;
+  const whatChanged = fiscalAttentionMutationTitle(detail.mutationKind);
+  const actionBody = trip.invoicing.hasActiveSplit
+    ? copy.actionBodySplit
+    : copy.actionBody;
   const cta = resolveFiscalAttentionCta({
     requiresFiscalAttention: true,
     hasActiveSplit: trip.invoicing.hasActiveSplit,
@@ -92,8 +78,9 @@ export function TripBillingPendientesPanel({
             <div>
               <p className="text-xs text-muted-foreground">{copy.whatLabel}</p>
               <p className="font-medium text-warning-soft-foreground">
-                {detail.reason?.trim() || mutationKindLabel(detail.mutationKind)}
+                {whatChanged}
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">{actionBody}</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <div>

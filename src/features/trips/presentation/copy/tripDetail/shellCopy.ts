@@ -60,8 +60,12 @@ export const shellCopy = {
       "Quedó en la bitácora de Seguimiento. Ciérralo con una nota desde Seguimiento, o la marca se limpia al finalizar o cancelar el viaje.",
     openIncidentCta: "Ir a Seguimiento",
     fiscalAttentionTitle: "Revisión de facturación pendiente",
+    /** Genérico (D4): sin consejo de flota. */
     fiscalAttentionBody:
-      "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Resumen; luego sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+      "Hubo cambios después de facturar. Sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+    /** Solo si mutation_kind es fleet / reassignment. */
+    fiscalAttentionBodyFleet:
+      "Hubo cambios después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Resumen; luego sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
     /** Gerente: verbo = trámite, no Resumen como paso 1 (D16). */
     fiscalAttentionManagerBody:
       "Hubo cambios después de facturar. Sustituye o cancela la factura. No bloquea el viaje.",
@@ -82,9 +86,11 @@ export const shellCopy = {
     substitutionCancelPendingBody:
       "La factura de flete tiene una sustituta vigente y el original sigue sin cancelar. Abre la factura original y reintenta la cancelación. No sustituyas de nuevo ni corrijas flota por este aviso.",
     substitutionCancelPendingCta: "Abrir factura original",
-    /** ADR-0081: prorrateo — no pretender un solo documento de flete. */
+    /** ADR-0081: prorrateo — genérico sin consejo de flota (D4). */
     fiscalAttentionSplitBody:
-      "Hubo cambios operativos después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Resumen; luego sustituye cada porción facturada pendiente al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+      "Hubo cambios después de facturar. Sustituye cada porción ya facturada al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+    fiscalAttentionSplitBodyFleet:
+      "Hubo cambios después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Resumen; luego sustituye cada porción ya facturada al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
     fiscalAttentionSplitManagerBody:
       "Hubo cambios después de facturar. Sustituye cada porción facturada pendiente. No bloquea el viaje.",
     fiscalAttentionSplitCta: "Abrir factura de porción",
