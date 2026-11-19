@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Calendar } from "lucide-react";
 
 import type { Trip } from "@features/trips/domain";
 import { Button } from "@shared/ui/button";
@@ -17,7 +16,14 @@ import {
 const copy = operationCopy;
 
 const COLUMNS: EntityListColumnDef<ScheduleComparisonRow>[] = [
-  { id: "event", header: copy.scheduleTable.event, kind: "text", accessor: (row) => row.event },
+  {
+    id: "event",
+    header: copy.scheduleTable.event,
+    kind: "text",
+    accessor: (row) => (
+      <span className="font-semibold text-foreground">{row.event}</span>
+    ),
+  },
   {
     id: "scheduled",
     header: copy.scheduleTable.scheduled,
@@ -62,10 +68,7 @@ export function TripResumenScheduleCard({
     <Card data-testid="trip-operation-schedule-card">
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
         <div className="space-y-1">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Calendar className="h-4 w-4 shrink-0 text-primary" />
-            {copy.section.schedule}
-          </CardTitle>
+          <CardTitle className="text-base">{copy.section.schedule}</CardTitle>
           <CardDescription>{copy.hint.schedule}</CardDescription>
         </div>
         {canEdit && !editing ? (

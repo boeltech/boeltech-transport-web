@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ClipboardList, Download, HelpCircle, RefreshCw } from "lucide-react";
+import { Download } from "lucide-react";
 
 import {
   getStatusLabel,
@@ -27,12 +27,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@shared/ui/alert-dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@shared/ui/tooltip";
 
 import { tripDetailCopy } from "../../copy";
 import {
@@ -51,10 +45,21 @@ export interface TripOrderCardProps {
   isDriverPortalView?: boolean;
 }
 
+function Kv({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 py-1 sm:flex-row sm:items-baseline sm:gap-6">
+      <span className="w-36 shrink-0 text-sm text-muted-foreground">{label}</span>
+      <div className="min-w-0 text-sm">{children}</div>
+    </div>
+  );
+}
+
 function CardShell({
+  badge,
   action,
   children,
 }: {
+  badge?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
 }) {
@@ -62,25 +67,9 @@ function CardShell({
     <Card data-testid="trip-order-card">
       <CardHeader className="flex flex-col gap-3 space-y-0 pb-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ClipboardList className="h-4 w-4 shrink-0 text-primary" />
+          <CardTitle className="flex flex-wrap items-center gap-2 text-base">
             {copy.title}
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex text-muted-foreground hover:text-foreground"
-                    aria-label={copy.helpTooltip}
-                  >
-                    <HelpCircle className="h-3.5 w-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs text-xs">
-                  {copy.helpTooltip}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {badge}
           </CardTitle>
           <CardDescription>{copy.description}</CardDescription>
         </div>
@@ -180,8 +169,31 @@ export function TripOrderCard({
   return (
     <>
       <CardShell
+        badge={
+          emission ? (
+            <Badge
+              variant={emission.outdated ? "warning" : "success"}
+              tone="soft"
+              className="text-[10px]"
+            >
+              {emission.outdated ? copy.badge.outdated : copy.badge.current}
+            </Badge>
+          ) : undefined
+        }
         action={
           <div className="flex flex-wrap items-center gap-2">
+            {showRegenerate ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="shrink-0"
+                disabled={isMutating}
+                onClick={() => setConfirmOpen(true)}
+              >
+                {copy.action.regenerate}
+              </Button>
+            ) : null}
             {showDownload ? (
               <Button
                 type="button"
@@ -195,29 +207,16 @@ export function TripOrderCard({
                 {copy.action.download}
               </Button>
             ) : null}
-            {showRegenerate ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="shrink-0 gap-1.5"
-                disabled={isMutating}
-                onClick={() => setConfirmOpen(true)}
-              >
-                <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
-                {copy.action.regenerate}
-              </Button>
-            ) : null}
             {showGenerate ? (
               <Button
                 type="button"
                 size="sm"
-                className="shrink-0 gap-1.5"
+                variant="outline"
+                className="shrink-0"
                 disabled={generateDisabled || isMutating}
                 title={generateDisabled ? (disabledReason ?? undefined) : undefined}
                 onClick={() => generateMutation.mutate()}
               >
-                <ClipboardList className="h-3.5 w-3.5" />
                 {copy.action.generate}
               </Button>
             ) : null}
@@ -225,43 +224,21 @@ export function TripOrderCard({
         }
       >
         {emission ? (
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium">
-                {copy.label.version(emission.version)}
-              </span>
-              <Badge
-                variant={emission.outdated ? "warning" : "success"}
-                tone="soft"
-                className="text-[10px]"
-              >
-                {emission.outdated ? copy.badge.outdated : copy.badge.current}
-              </Badge>
-            </div>
-            <dl className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
-              <div>
-                <dt className="inline text-xs">{copy.label.issuedAt}: </dt>
-                <dd className="inline">{formatDateTime(emission.issuedAt)}</dd>
-              </div>
-              {emission.issuedByName ? (
-                <div>
-                  <dt className="inline text-xs">{copy.label.issuedBy}: </dt>
-                  <dd className="inline">{emission.issuedByName}</dd>
-                </div>
-              ) : null}
-              <div>
-                <dt className="inline text-xs">{copy.label.statusAtIssue}: </dt>
-                <dd className="inline">
-                  {getStatusLabel(emission.tripStatusAtIssue)}
-                </dd>
-              </div>
-            </dl>
+          <div className="space-y-0">
+            <Kv label="Versión">{copy.label.version(emission.version)}</Kv>
+            <Kv label={copy.label.issuedAt}>
+              {formatDateTime(emission.issuedAt)}
+              {emission.issuedByName ? ` · por ${emission.issuedByName}` : null}
+            </Kv>
+            <Kv label={copy.label.statusAtIssue}>
+              {getStatusLabel(emission.tripStatusAtIssue)}
+            </Kv>
             {emission.outdated ? (
-              <p className="text-xs text-muted-foreground">{copy.outdatedHint}</p>
+              <p className="pt-2 text-xs text-muted-foreground">{copy.outdatedHint}</p>
             ) : null}
           </div>
         ) : (
-          <div className="space-y-1 rounded-md border border-dashed bg-muted/20 px-3 py-3">
+          <div className="space-y-1 rounded-md bg-muted/40 px-3 py-3">
             <p className="text-sm font-medium text-foreground">{copy.empty.title}</p>
             <p className="text-xs text-muted-foreground">{copy.empty.description}</p>
             {generateDisabled && disabledReason ? (

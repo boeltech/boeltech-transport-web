@@ -63,6 +63,11 @@ export interface DetailAlertCardProps {
   action?: ReactNode;
   /** Alias de `action` (mismo slot). Si ambos existen, gana `action`. */
   cta?: ReactNode;
+  /**
+   * `leading` (default): border-l-4 canónico.
+   * `full`: borde completo + CTA a la derecha (paridad Resumen / avisos).
+   */
+  borderStyle?: "leading" | "full";
   /** Clases extra. */
   className?: string;
 }
@@ -73,20 +78,28 @@ export interface DetailAlertCardProps {
 
 const severityClasses: Record<
   DetailAlertSeverity,
-  { border: string; bg: string; iconColor: string }
+  {
+    leadingBorder: string;
+    fullBorder: string;
+    bg: string;
+    iconColor: string;
+  }
 > = {
   critical: {
-    border: "border-l-destructive",
+    leadingBorder: "border-l-destructive",
+    fullBorder: "border-destructive/40",
     bg: "bg-destructive/5",
     iconColor: "text-destructive",
   },
   warning: {
-    border: "border-l-warning",
+    leadingBorder: "border-l-warning",
+    fullBorder: "border-warning/40",
     bg: "bg-warning-soft",
     iconColor: "text-warning",
   },
   info: {
-    border: "border-l-primary",
+    leadingBorder: "border-l-primary",
+    fullBorder: "border-primary/30",
     bg: "bg-primary/5",
     iconColor: "text-primary",
   },
@@ -104,25 +117,38 @@ export function DetailAlertCard({
   children,
   action,
   cta,
+  borderStyle = "leading",
   className,
 }: DetailAlertCardProps) {
   const styles = severityClasses[severity];
   const actionSlot = action ?? cta;
+  const isFull = borderStyle === "full";
 
   return (
-    <Card className={cn("border-l-4", styles.border, styles.bg, className)}>
-      <CardContent className="flex items-start gap-3 py-3">
+    <Card
+      className={cn(
+        styles.bg,
+        isFull ? cn("border", styles.fullBorder) : cn("border-l-4", styles.leadingBorder),
+        className,
+      )}
+    >
+      <CardContent
+        className={cn(
+          "flex items-start gap-3 py-3",
+          isFull && "sm:items-center",
+        )}
+      >
         {icon ? (
-          <span className={cn("shrink-0 mt-0.5", styles.iconColor)}>
+          <span className={cn("mt-0.5 shrink-0", styles.iconColor)}>
             {icon}
           </span>
         ) : null}
-        <div className="space-y-1 flex-1 min-w-0">
+        <div className="min-w-0 flex-1 space-y-1">
           <p className="font-medium">{title}</p>
           {children ? (
             <div className="text-sm text-muted-foreground">{children}</div>
           ) : items && items.length > 0 ? (
-            <ul className="text-sm text-muted-foreground space-y-0.5">
+            <ul className="space-y-0.5 text-sm text-muted-foreground">
               {items.map((item, idx) => (
                 <li key={idx}>
                   {"• "}
@@ -138,10 +164,15 @@ export function DetailAlertCard({
               ))}
             </ul>
           ) : null}
-          {actionSlot ? (
+          {!isFull && actionSlot ? (
             <div className="mt-2 flex flex-wrap gap-2">{actionSlot}</div>
           ) : null}
         </div>
+        {isFull && actionSlot ? (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {actionSlot}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

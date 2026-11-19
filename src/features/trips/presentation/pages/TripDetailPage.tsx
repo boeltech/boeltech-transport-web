@@ -32,13 +32,18 @@ import {
 } from "@shared/ui/dropdown-menu";
 import {
   AlertCircle,
-  Truck,
   Receipt,
   Wallet,
   Loader2,
   AlertTriangle,
   ChevronDown,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@shared/ui/tooltip";
 
 // ── Hooks de Application Layer ─────────────────────────────────────────────
 import {
@@ -98,7 +103,10 @@ import {
   formatTripLateDelayChip,
   resolveTripLateDelayMs,
 } from "../helpers/formatTripLateDelayChip";
-import { formatTripRouteTitle } from "../helpers/formatTripRouteTitle";
+import {
+  useTripListRouteCitiesOnly,
+  useTripListRouteLabel,
+} from "../hooks/useTripListRouteLabel";
 import { canDeclareFalseTrip } from "../components/trip-tracking/canDeclareFalseTrip";
 import {
   resolveTrackingPrimaryAction,
@@ -373,6 +381,24 @@ export function TripDetailPage() {
   // Stops del viaje (vienen en el trip o se pueden obtener separados)
   const stops = trip?.stops ?? [];
   const orderedStops = getOrderedStops(stops);
+
+  /** RP-2: H1 ciudad-only F11 B; tooltip ciudad+estado. */
+  const routeSummaryForTitle = useMemo(
+    () => ({
+      originCity: trip?.originCity ?? "",
+      originState: trip?.originState ?? "",
+      destinationCity: trip?.destinationCity ?? "",
+      destinationState: trip?.destinationState ?? "",
+    }),
+    [
+      trip?.originCity,
+      trip?.originState,
+      trip?.destinationCity,
+      trip?.destinationState,
+    ],
+  );
+  const routeTitleCities = useTripListRouteCitiesOnly(routeSummaryForTitle);
+  const routeTitleTooltip = useTripListRouteLabel(routeSummaryForTitle);
 
   const routeDetail = useMemo(
     () =>
@@ -656,6 +682,7 @@ export function TripDetailPage() {
           <DetailAlertCard
             key="false-trip-cancel-cfdi"
             severity="critical"
+            borderStyle="full"
             icon={<Receipt className="h-5 w-5" />}
             title={shell.alert.falseTripCancelCfdiTitle}
             action={
@@ -681,6 +708,7 @@ export function TripDetailPage() {
           <DetailAlertCard
             key="substitution-cancel-pending"
             severity="critical"
+            borderStyle="full"
             icon={<Receipt className="h-5 w-5" />}
             title={shell.alert.substitutionCancelPendingTitle}
             action={
@@ -730,13 +758,14 @@ export function TripDetailPage() {
           body = shell.alert.fiscalAttentionAskManagerBody;
           if (fiscalCta.kind === "primary" && fiscalCta.invoiceId) {
             cta = (
-              <Link
-                to={`/invoices/${fiscalCta.invoiceId}`}
-                state={{ from: tripDetailFromHref }}
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                {shell.alert.fiscalAttentionOpenInvoiceCta}
-              </Link>
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  to={`/invoices/${fiscalCta.invoiceId}`}
+                  state={{ from: tripDetailFromHref }}
+                >
+                  {shell.alert.fiscalAttentionOpenInvoiceCta}
+                </Link>
+              </Button>
             );
           } else if (
             fiscalCta.kind === "split" &&
@@ -745,28 +774,25 @@ export function TripDetailPage() {
             const legs = fiscalCta.invoicedLegs;
             if (legs.length === 1) {
               cta = (
-                <Link
-                  to={`/invoices/${legs[0].invoiceId}`}
-                  state={{ from: tripDetailFromHref }}
-                  className="font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  {shell.alert.fiscalAttentionOpenInvoiceCta}
-                </Link>
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    to={`/invoices/${legs[0].invoiceId}`}
+                    state={{ from: tripDetailFromHref }}
+                  >
+                    {shell.alert.fiscalAttentionOpenInvoiceCta}
+                  </Link>
+                </Button>
               );
             } else if (legs.length > 1) {
               cta = (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="h-auto p-0 font-medium text-primary underline-offset-4 hover:underline"
-                    >
+                    <Button variant="outline" size="sm">
                       {shell.alert.fiscalAttentionSplitMenuCta}
                       <ChevronDown className="ml-0.5 h-3.5 w-3.5 opacity-70" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-64">
+                  <DropdownMenuContent align="end" className="w-64">
                     {legs.map((leg) => (
                       <DropdownMenuItem key={leg.invoiceId} asChild>
                         <Link
@@ -797,15 +823,16 @@ export function TripDetailPage() {
                 : shell.alert.fiscalAttentionNoInvoiceBody;
           if (fiscalCta.invoiceId) {
             cta = (
-              <Link
-                to={`/invoices/${fiscalCta.invoiceId}`}
-                state={{ from: tripDetailFromHref }}
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                {isPostCancel
-                  ? shell.alert.postCancelFiscalAttentionCta
-                  : shell.alert.fiscalAttentionCta}
-              </Link>
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  to={`/invoices/${fiscalCta.invoiceId}`}
+                  state={{ from: tripDetailFromHref }}
+                >
+                  {isPostCancel
+                    ? shell.alert.postCancelFiscalAttentionCta
+                    : shell.alert.fiscalAttentionCta}
+                </Link>
+              </Button>
             );
           }
         } else if (fiscalCta.kind === "split") {
@@ -826,32 +853,29 @@ export function TripDetailPage() {
             const legs = fiscalCta.invoicedLegs;
             if (legs.length === 1) {
               cta = (
-                <Link
-                  to={`/invoices/${legs[0].invoiceId}`}
-                  state={{ from: tripDetailFromHref }}
-                  className="font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  {isPostCancel
-                    ? shell.alert.postCancelFiscalAttentionSplitCta
-                    : shell.alert.fiscalAttentionSplitCta}
-                </Link>
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    to={`/invoices/${legs[0].invoiceId}`}
+                    state={{ from: tripDetailFromHref }}
+                  >
+                    {isPostCancel
+                      ? shell.alert.postCancelFiscalAttentionSplitCta
+                      : shell.alert.fiscalAttentionSplitCta}
+                  </Link>
+                </Button>
               );
             } else if (legs.length > 1) {
               cta = (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="h-auto p-0 font-medium text-primary underline-offset-4 hover:underline"
-                    >
+                    <Button variant="outline" size="sm">
                       {isPostCancel
                         ? shell.alert.postCancelFiscalAttentionSplitMenuCta
                         : shell.alert.fiscalAttentionSplitMenuCta}
                       <ChevronDown className="ml-0.5 h-3.5 w-3.5 opacity-70" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-64">
+                  <DropdownMenuContent align="end" className="w-64">
                     {legs.map((leg) => (
                       <DropdownMenuItem key={leg.invoiceId} asChild>
                         <Link
@@ -873,16 +897,16 @@ export function TripDetailPage() {
           <DetailAlertCard
             key={isPostCancel ? "post-cancel-fiscal" : "fiscal-attention"}
             severity="warning"
+            borderStyle="full"
             icon={<Receipt className="h-5 w-5" />}
             title={
               isPostCancel
                 ? shell.alert.postCancelFiscalAttentionTitle
                 : shell.alert.fiscalAttentionTitle
             }
+            action={cta}
           >
-            <p>
-              {body} {cta}
-            </p>
+            <p>{body}</p>
           </DetailAlertCard>,
         );
       }
@@ -912,6 +936,7 @@ export function TripDetailPage() {
           <DetailAlertCard
             key="assignment-incomplete"
             severity="warning"
+            borderStyle="full"
             icon={<AlertTriangle className="h-5 w-5" />}
             title={shell.alert.assignmentIncompleteTitle}
             items={missing}
@@ -966,6 +991,7 @@ export function TripDetailPage() {
           <DetailAlertCard
             key="operation-missing"
             severity="critical"
+            borderStyle="full"
             icon={<AlertTriangle className="h-5 w-5" />}
             title={shell.alert.operationIncompleteTitle}
             items={missing}
@@ -999,27 +1025,29 @@ export function TripDetailPage() {
         <DetailAlertCard
           key="tracking-incident-open"
           severity="warning"
+          borderStyle="full"
           icon={<AlertTriangle className="h-5 w-5" />}
           title={shell.alert.openIncidentTitle}
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchParams(
+                  (prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("tab", "tracking");
+                    return next;
+                  },
+                  { replace: true },
+                );
+              }}
+            >
+              {shell.alert.openIncidentCta}
+            </Button>
+          }
         >
           <p>{shell.alert.openIncidentBody}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2"
-            onClick={() => {
-              setSearchParams(
-                (prev) => {
-                  const next = new URLSearchParams(prev);
-                  next.set("tab", "tracking");
-                  return next;
-                },
-                { replace: true },
-              );
-            }}
-          >
-            {shell.alert.openIncidentCta}
-          </Button>
         </DetailAlertCard>,
       );
     }
@@ -1033,6 +1061,7 @@ export function TripDetailPage() {
         <DetailAlertCard
           key="sin-cfdi-cash-freeze"
           severity="warning"
+          borderStyle="full"
           icon={<AlertCircle className="h-5 w-5" />}
           title={cfdiEmissionIntentCopy.governance.cashFreeze}
         >
@@ -1072,9 +1101,8 @@ export function TripDetailPage() {
       <DetailPageShell
         isLoading
         header={{
-          backHref,
-          backLabel,
-          icon: <Truck className="h-6 w-6" />,
+          backHref: isLeanTripPortal ? backHref : undefined,
+          backLabel: isLeanTripPortal ? backLabel : undefined,
           title: shell.title.fallback,
         }}
       />
@@ -1098,9 +1126,8 @@ export function TripDetailPage() {
           backLabel: accessDenied.backLabel,
         }}
         header={{
-          backHref,
-          backLabel,
-          icon: <Truck className="h-6 w-6" />,
+          backHref: isLeanTripPortal ? backHref : undefined,
+          backLabel: isLeanTripPortal ? backLabel : undefined,
           title: shell.title.fallback,
         }}
       />
@@ -1120,9 +1147,8 @@ export function TripDetailPage() {
           backLabel: shell.state.backToList,
         }}
         header={{
-          backHref,
-          backLabel,
-          icon: <Truck className="h-6 w-6" />,
+          backHref: isLeanTripPortal ? backHref : undefined,
+          backLabel: isLeanTripPortal ? backLabel : undefined,
           title: shell.title.fallback,
         }}
       />
@@ -1138,9 +1164,8 @@ export function TripDetailPage() {
       <DetailPageShell
         isLoading={false}
         header={{
-          backHref,
-          backLabel,
-          icon: <Truck className="h-6 w-6" />,
+          backHref: isLeanTripPortal ? backHref : undefined,
+          backLabel: isLeanTripPortal ? backLabel : undefined,
           title: shell.title.fallback,
         }}
       >
@@ -1180,9 +1205,8 @@ export function TripDetailPage() {
           backLabel: shell.state.backToList,
         }}
         header={{
-          backHref,
-          backLabel,
-          icon: <Truck className="h-6 w-6" />,
+          backHref: isLeanTripPortal ? backHref : undefined,
+          backLabel: isLeanTripPortal ? backLabel : undefined,
           title: shell.title.fallback,
         }}
       />
@@ -1479,41 +1503,41 @@ export function TripDetailPage() {
       <DetailPageShell
       isLoading={false}
       header={{
-        backHref,
-        backLabel,
-        icon: <Truck className="h-6 w-6" />,
-        iconVariant:
-          resolvedDisplayStatus === TripStatus.CANCELLED ? "muted" : "primary",
-        title: (
-          <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="min-w-0 truncate">
-              {formatTripRouteTitle(orderedStops, {
-                originCity: trip.originCity,
-                originState: trip.originState,
-                destinationCity: trip.destinationCity,
-                destinationState: trip.destinationState,
-              })}
+        // RP-1: crumbs sustituyen flecha + ícono de camión (staff).
+        backHref: isLeanTripPortal ? backHref : undefined,
+        backLabel: isLeanTripPortal ? backLabel : undefined,
+        breadcrumb: !isLeanTripPortal ? (
+          <nav aria-label="Ruta de navegación" className="flex items-center gap-1.5">
+            <Link to="/trips" className="hover:text-foreground hover:underline">
+              Viajes
+            </Link>
+            <span aria-hidden>/</span>
+            <span className="font-mono tabular-nums text-foreground">
+              {trip.tripCode}
             </span>
+          </nav>
+        ) : undefined,
+        title: (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="block max-w-full truncate" tabIndex={0}>
+                  {routeTitleCities}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-sm text-xs">
+                {routeTitleTooltip}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ),
+        statusBadge: (
+          <span className="inline-flex flex-wrap items-center gap-1.5">
             <TripStatusBadge
               status={resolvedDisplayStatus}
               size="sm"
-              showIcon
+              showIcon={false}
             />
-            {trip.requiresFiscalAttention ? (
-              <Badge
-                variant="warning"
-                tone="soft"
-                className="text-xs"
-                data-testid="trip-header-fiscal-attention-chip"
-              >
-                {shell.alert.fiscalAttentionChip}
-              </Badge>
-            ) : null}
-            {trip.operationalOutcome === "false_trip" ? (
-              <Badge variant="warning" tone="soft" className="text-xs">
-                {shell.alert.falseTripChip}
-              </Badge>
-            ) : null}
             {nextStepLate &&
             resolvedDisplayStatus === TripStatus.IN_PROGRESS &&
             lateDelayLabel ? (
@@ -1526,6 +1550,11 @@ export function TripDetailPage() {
                 {lateDelayLabel}
               </Badge>
             ) : null}
+            {trip.operationalOutcome === "false_trip" ? (
+              <Badge variant="warning" tone="soft" className="text-xs">
+                {shell.alert.falseTripChip}
+              </Badge>
+            ) : null}
           </span>
         ),
         subtitle: (
@@ -1536,7 +1565,13 @@ export function TripDetailPage() {
             {!isLeanTripPortal && trip.client?.legalName ? (
               <>
                 <span aria-hidden>·</span>
-                <span className="truncate">{trip.client.legalName}</span>
+                <Link
+                  to={`/clients/${trip.client.id}`}
+                  state={{ from: tripDetailFromHref }}
+                  className="truncate text-primary hover:underline"
+                >
+                  {trip.client.legalName}
+                </Link>
               </>
             ) : null}
             {!isLeanTripPortal ? (
@@ -1554,6 +1589,19 @@ export function TripDetailPage() {
                   {trip.cfdiEmissionIntent === "sin_cfdi_efectivo"
                     ? cfdiEmissionIntentCopy.chip.sinCfdi
                     : cfdiEmissionIntentCopy.chip.conCfdi}
+                </Badge>
+              </>
+            ) : null}
+            {trip.requiresFiscalAttention ? (
+              <>
+                <span aria-hidden>·</span>
+                <Badge
+                  variant="warning"
+                  tone="soft"
+                  className="text-xs"
+                  data-testid="trip-header-fiscal-attention-chip"
+                >
+                  {shell.alert.fiscalAttentionChip}
                 </Badge>
               </>
             ) : null}
@@ -1692,7 +1740,16 @@ export function TripDetailPage() {
           },
           {
             value: "route",
-            label: shell.format.routeTab(orderedStops.length),
+            label: (
+              <span className="inline-flex items-center gap-1">
+                {shell.format.routeTab()}
+                {orderedStops.length > 0 ? (
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {orderedStops.length}
+                  </Badge>
+                ) : null}
+              </span>
+            ),
             forceMount: true,
             content: (
               <TripDetailRouteTab
@@ -1720,9 +1777,12 @@ export function TripDetailPage() {
               <span className="inline-flex items-center gap-1">
                 {shell.tab.tracking}
                 {resolvedDisplayStatus === TripStatus.IN_PROGRESS ? (
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {shell.tab.trackingLive}
-                  </Badge>
+                  <span
+                    className="ml-1 inline-flex h-2 w-2 shrink-0 rounded-full bg-success"
+                    role="status"
+                    title={shell.tab.trackingLive}
+                    aria-label={shell.tab.trackingLive}
+                  />
                 ) : null}
                 {hasOpenTrackingIncident ? (
                   <span
@@ -1915,16 +1975,6 @@ export function TripDetailPage() {
               ]
             : []),
         ],
-      }}
-      metadata={{
-        createdAt: trip.createdAt,
-        updatedAt: trip.updatedAt,
-        createdBy: isClientPortal
-          ? undefined
-          : trip.createdByName?.trim() || trip.createdBy || undefined,
-        updatedBy: isClientPortal
-          ? undefined
-          : trip.updatedByName?.trim() || undefined,
       }}
       />
       {!isLeanTripPortal && trip ? (

@@ -57,47 +57,50 @@ export const shellCopy = {
   alert: {
     openIncidentTitle: "Incidente registrado en el viaje",
     openIncidentBody:
-      "Quedó en la bitácora de Seguimiento. Ciérralo con una nota desde Seguimiento, o la marca se limpia al finalizar o cancelar el viaje.",
+      "Ciérralo con una nota desde Seguimiento, o la marca se limpia al finalizar o cancelar el viaje.",
     openIncidentCta: "Ir a Seguimiento",
     fiscalAttentionTitle: "Revisión de facturación pendiente",
-    /** Genérico (D4): sin consejo de flota. */
+    /** Genérico (D4 / RP-4): cuerpo corto; detalle en Facturación. */
     fiscalAttentionBody:
-      "Hubo cambios después de facturar. Sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
-    /** Solo si mutation_kind es fleet / reassignment. */
+      "Hubo cambios después de facturar. Sustituye la factura al cerrar o antes de cobrar.",
+    /**
+     * Solo si mutation_kind es fleet / reassignment (RP-4).
+     * Prohibido «reasigna en Resumen» — flota se corrige en su card / Facturación.
+     */
     fiscalAttentionBodyFleet:
-      "Hubo cambios después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Resumen; luego sustituye la factura al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
-    /** Gerente: verbo = trámite, no Resumen como paso 1 (D16). */
+      "Hubo cambios de flota después de facturar. Sustituye la factura al cerrar o antes de cobrar.",
+    /** Gerente: verbo = trámite (D16 / RP-4). */
     fiscalAttentionManagerBody:
-      "Hubo cambios después de facturar. Sustituye o cancela la factura. No bloquea el viaje.",
+      "Hubo cambios después de facturar. Sustituye o cancela la factura.",
     fiscalAttentionCta: "Sustituir factura",
     /** Contador u otro rol sin escritura SAT: abrir + pide gerente (D9). */
     fiscalAttentionOpenInvoiceCta: "Abrir factura",
     fiscalAttentionAskManagerBody:
-      "Hubo cambios después de facturar. Abre la factura y pide a un gerente cancelar o sustituir. No bloquea la operación del viaje.",
+      "Hubo cambios después de facturar. Abre la factura y pide a un gerente cancelar o sustituir.",
     /** Sin escritura SAT y sin job fiscal (dispatcher) (D10). */
     fiscalAttentionEscalateBody:
-      "Avisa a facturación. Hubo cambios que deben revisar en la factura. No bloquea la operación del viaje.",
+      "Avisa a facturación: hay cambios que deben revisar en la factura.",
     fiscalAttentionChip: "Atención fiscal",
     fiscalAttentionNoInvoiceBody:
-      "Hay un pendiente de facturación en este viaje. Revísalo en Facturación cuando corresponda.",
+      "Hay un pendiente de facturación. Revísalo en Facturación.",
     /** Sustitución parcial (flete con active_replacement): no mid-trip flota/Sustituir. */
     substitutionCancelPendingTitle:
       "Sustituta emitida; original sin cancelar",
     substitutionCancelPendingBody:
-      "La factura de flete tiene una sustituta vigente y el original sigue sin cancelar. Abre la factura original y reintenta la cancelación. No sustituyas de nuevo ni corrijas flota por este aviso.",
+      "La factura de flete tiene una sustituta vigente y el original sigue sin cancelar. Abre la factura original y reintenta la cancelación.",
     substitutionCancelPendingCta: "Abrir factura original",
-    /** ADR-0081: prorrateo — genérico sin consejo de flota (D4). */
+    /** ADR-0081: prorrateo — genérico sin consejo de flota (D4 / RP-4). */
     fiscalAttentionSplitBody:
-      "Hubo cambios después de facturar. Sustituye cada porción ya facturada al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+      "Hubo cambios después de facturar. Sustituye cada porción ya facturada al cerrar o antes de cobrar.",
     fiscalAttentionSplitBodyFleet:
-      "Hubo cambios después de facturar. Si falta flota válida (p. ej. docs vencidos), reasigna en Resumen; luego sustituye cada porción ya facturada al cerrar o antes de cobrar el ajuste. No bloquea la operación del viaje.",
+      "Hubo cambios de flota después de facturar. Sustituye cada porción ya facturada al cerrar o antes de cobrar.",
     fiscalAttentionSplitManagerBody:
-      "Hubo cambios después de facturar. Sustituye cada porción facturada pendiente. No bloquea el viaje.",
+      "Hubo cambios después de facturar. Sustituye cada porción facturada pendiente.",
     fiscalAttentionSplitCta: "Abrir factura de porción",
     fiscalAttentionSplitMenuCta: "Abrir factura de porción…",
     fiscalAttentionSplitLegCta: (label: string) => `Porción · ${label}`,
     fiscalAttentionSplitNoInvoiceBody:
-      "Hay un pendiente de facturación en este viaje con prorrateo. Revísalo en Facturación cuando corresponda.",
+      "Hay un pendiente de facturación con prorrateo. Revísalo en Facturación.",
     falseTripChip: "Viaje en falso",
     falseTripCancelCfdiTitle: "Cancela la factura de flete",
     falseTripCancelCfdiBody:
@@ -194,8 +197,8 @@ export const shellCopy = {
     backToSettlementPayment: "Volver al pago",
   },
   format: {
-    routeTab: (stopCount: number) =>
-      stopCount > 0 ? `Ruta (${stopCount})` : "Ruta",
+    /** RP-5: el contador va en badge; el label del tab es solo «Ruta». */
+    routeTab: (_stopCount?: number) => "Ruta",
   },
   /** Portal cliente: enlace read-only al módulo de facturas. */
   action: {

@@ -1,12 +1,11 @@
-import { Calculator } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { TripStatus, type Trip, type TripExpense } from "@features/trips/domain";
-import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
 import { cn } from "@shared/lib/utils/cn";
 
 import { tripDetailCopy } from "../../copy";
 import {
-  TripWizardFinancialSummary,
   buildTripWizardFinancialSnapshot,
   formatMxCurrency,
 } from "../trip-financial";
@@ -20,6 +19,42 @@ export interface TripResumenResultRailProps {
   expenses: readonly TripExpense[];
   canReadCosts: boolean;
   onOpenCostsTab: () => void;
+}
+
+function CostValue({ amount }: { amount: number }) {
+  if (amount === 0) return <span>{formatMxCurrency(0)}</span>;
+  return <span>−{formatMxCurrency(amount)}</span>;
+}
+
+function Kv({
+  label,
+  value,
+  emphasize,
+}: {
+  label: string;
+  value: ReactNode;
+  emphasize?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-baseline justify-between gap-3 py-1",
+        emphasize && "font-semibold",
+      )}
+    >
+      <span
+        className={cn(
+          "text-sm",
+          emphasize ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {label}
+      </span>
+      <span className={cn("font-mono text-sm tabular-nums", emphasize && "font-semibold")}>
+        {value}
+      </span>
+    </div>
+  );
 }
 
 export function TripResumenResultRail({
@@ -40,43 +75,27 @@ export function TripResumenResultRail({
   const emptyCancelled =
     isCancelled && expenses.length === 0 && snapshot.totalExpenses === 0;
 
-  const queuedHint =
-    isCompleted && snapshot.queuedCostsTotal > 0
-      ? costsCopy.hint.queuedMayLower(
-          formatMxCurrency(snapshot.queuedCostsTotal),
-        )
-      : null;
-
   const marginPctLabel =
     snapshot.financial.marginPct == null
       ? null
       : `${snapshot.financial.marginPct.toFixed(1)}%`;
 
-  const footerBits: string[] = [];
-  if (marginPctLabel) {
-    if (queuedHint) {
-      footerBits.push(
-        opCopy.rail.marginWithQueued(
-          marginPctLabel,
-          formatMxCurrency(snapshot.queuedCostsTotal),
-        ),
-      );
-    } else {
-      footerBits.push(opCopy.rail.marginOnly(marginPctLabel));
-    }
-  }
+  const showQueuedHint =
+    !isCompleted && snapshot.queuedCostsTotal > 0;
 
   return (
     <Card data-testid="trip-resumen-result-rail">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Calculator className="h-4 w-4 shrink-0 text-primary" />
+        <CardTitle className="text-base">
           {emptyCancelled
             ? opCopy.rail.result
             : isCompleted
               ? opCopy.rail.result
               : opCopy.rail.resultEstimated}
         </CardTitle>
+        {!emptyCancelled && showQueuedHint ? (
+          <CardDescription>{opCopy.hint.resultIncludesQueued}</CardDescription>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
         {emptyCancelled ? (
@@ -85,22 +104,41 @@ export function TripResumenResultRail({
           </p>
         ) : (
           <>
-            <TripWizardFinancialSummary
-              showCard={false}
-              variant="totals"
-              snapshot={snapshot}
-              summaryCopy={costsCopy}
-              title={undefined}
-              marginLabel={
-                isCompleted ? costsCopy.label.marginConfirmed : undefined
-              }
-              calculationStatusHint={
-                isCompleted
-                  ? costsCopy.hint.calculationApprovedOnly
-                  : costsCopy.hint.calculationEstimated
-              }
-              queuedCostsHint={queuedHint}
-            />
+            <div className="space-y-0">
+              <Kv
+                label={costsCopy.label.income}
+                value={formatMxCurrency(snapshot.financial.baseRate)}
+              />
+              <Kv
+                label={costsCopy.label.costs}
+                value={
+                  <CostValue
+                    amount={snapshot.financial.totalOperationalCosts}
+                  />
+                }
+              />
+              <Kv
+                label={costsCopy.label.expenses}
+                value={
+                  <CostValue
+                    amount={snapshot.financial.totalIndirectExpenses}
+                  />
+                }
+              />
+              <Kv
+                label={
+                  isCompleted
+                    ? costsCopy.label.marginConfirmed
+                    : costsCopy.label.margin
+                }
+                value={
+                  <span className={snapshot.marginToneClass}>
+                    {formatMxCurrency(snapshot.financial.margin)}
+                  </span>
+                }
+                emphasize
+              />
+            </div>
             {snapshot.financial.marginPct != null &&
             snapshot.financial.marginPct > 0 ? (
               <div
@@ -122,16 +160,23 @@ export function TripResumenResultRail({
                 />
               </div>
             ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              {footerBits.length > 0 ? (
-                <p className="text-xs text-muted-foreground">{footerBits[0]}</p>
-              ) : (
-                <span />
-              )}
-              {canReadCosts ? (
+            <div className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+              {marginPctLabel ? (
+                canReadCosts ? (
+                  <button
+                    type="button"
+                    className="font-medium text-primary hover:underline"
+                    onClick={onOpenCostsTab}
+                  >
+                    {opCopy.rail.marginWithCostsLink(marginPctLabel)}
+                  </button>
+                ) : (
+                  <span>{opCopy.rail.marginOnly(marginPctLabel)}</span>
+                )
+              ) : canReadCosts ? (
                 <button
                   type="button"
-                  className="text-xs font-medium text-primary hover:underline"
+                  className="font-medium text-primary hover:underline"
                   onClick={onOpenCostsTab}
                 >
                   {opCopy.action.viewCosts}

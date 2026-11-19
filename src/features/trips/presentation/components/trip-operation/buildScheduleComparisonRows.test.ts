@@ -43,7 +43,7 @@ describe("buildScheduleComparisonRows", () => {
     expect(formatScheduleDifference(base, null)).toBe("—");
   });
 
-  it("footer con recorrido real, planeado y duración cuando hay cierre", () => {
+  it("footer con recorrido real y duración; sin Planeado (RP-7)", () => {
     const footer = buildScheduleFooterText(
       makeTrip({
         actualArrival: new Date("2026-05-28T20:20:00.000Z"),
@@ -51,7 +51,7 @@ describe("buildScheduleComparisonRows", () => {
       }),
     );
     expect(footer).toMatch(/Recorrido real 358 km/);
-    expect(footer).toMatch(/Planeado 352 km/);
+    expect(footer).not.toMatch(/Planeado/);
     expect(footer).toMatch(/Duración/);
   });
 });

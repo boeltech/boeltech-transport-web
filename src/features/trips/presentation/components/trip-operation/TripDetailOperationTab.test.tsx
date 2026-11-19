@@ -243,8 +243,13 @@ describe("TripDetailOperationTab — Resumen 2 col + riel (F2 / D6)", () => {
     expect(reassign.className).toMatch(/border/);
     expect(reassign.className).not.toMatch(/bg-primary(?!\/)/);
 
-    const viewClient = screen.getByRole("link", { name: copy.action.viewClient });
-    expect(viewClient.className).toMatch(/border/);
+    // RP-8: sin botón «Ver cliente»; el nombre ya es link.
+    expect(
+      screen.queryByRole("link", { name: copy.action.viewClient }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Transportes Alfa" }),
+    ).toBeInTheDocument();
   });
 
   it("muestra Asignar flota cuando no hay unidad ni conductor", () => {
@@ -264,18 +269,19 @@ describe("TripDetailOperationTab — Resumen 2 col + riel (F2 / D6)", () => {
     ).toBeInTheDocument();
   });
 
-  it("muestra cliente, unidad, conductor, placa de remolque y factura del viaje", () => {
+  it("muestra cliente, unidad, conductor, placa de remolque y facturación del viaje", () => {
     renderTab();
 
     expect(screen.getByText("Transportes Alfa")).toBeInTheDocument();
     expect(screen.getByText(copy.section.assignment)).toBeInTheDocument();
     expect(screen.getByText(/U-12/)).toBeInTheDocument();
     expect(screen.getByText("Ana Lopez")).toBeInTheDocument();
-    expect(screen.getByText("ABC-12-34 · Posición 1")).toBeInTheDocument();
+    expect(screen.getByText("ABC-12-34")).toBeInTheDocument();
+    expect(screen.getByText(copy.rail.trailerPosition(1))).toBeInTheDocument();
     expect(screen.getByText(copy.label.tripType)).toBeInTheDocument();
     expect(screen.getByText(copy.format.tripType("ingreso"))).toBeInTheDocument();
     expect(screen.getByText(copy.label.routeType)).toBeInTheDocument();
-    expect(screen.getByText("Foráneo")).toBeInTheDocument();
+    expect(screen.getByText(/Foráneo/)).toBeInTheDocument();
     expect(screen.getByText(copy.state.noSupportStaff)).toBeInTheDocument();
     expect(screen.getByText(copy.label.originBranch)).toBeInTheDocument();
     expect(screen.getByText("Monterrey")).toBeInTheDocument();

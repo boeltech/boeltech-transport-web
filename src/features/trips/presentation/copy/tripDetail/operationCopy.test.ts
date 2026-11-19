@@ -37,18 +37,18 @@ describe("operationCopy — léxico operativo (Capa 1 D8 / D11)", () => {
     expect(operationCopy.state.clientUnavailable).not.toMatch(/ID:/);
   });
 
-  it("nombra factura del viaje en léxico operativo (D6)", () => {
+  it("nombra facturación del viaje en léxico operativo (D6 / RP-8)", () => {
     expect(operationCopy.section.client).toBe("Cliente y contrato");
-    expect(operationCopy.label.tripType).toBe("Factura del viaje");
+    expect(operationCopy.label.tripType).toBe("Facturación del viaje");
+    expect(operationCopy.label.legalName).toBe("Cliente (quien paga)");
     expect(operationCopy.label.routeType).toBe("Clase de ruta");
     expect(operationCopy.format.tripType("ingreso")).toBe("Servicio con factura");
     expect(operationCopy.format.tripType("traslado")).toBe("Solo traslado");
   });
 
-  it("identifica remolque por placa, no por clave SAT", () => {
-    expect(operationCopy.format.trailerLine(1, "ABC-12-34")).toBe(
-      "ABC-12-34 · Posición 1",
-    );
+  it("identifica remolque por placa, no por clave SAT (RP-6)", () => {
+    expect(operationCopy.format.trailerLine(1, "ABC-12-34")).toBe("ABC-12-34");
+    expect(operationCopy.rail.trailerPosition(1)).toBe("Posición 1");
     expect(operationCopy.format.trailerLine(1, "ABC-12-34")).not.toMatch(
       /CTR|SubTipo/i,
     );

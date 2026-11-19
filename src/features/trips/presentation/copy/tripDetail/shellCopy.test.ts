@@ -131,27 +131,29 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     );
   });
 
-  it("banner genérico sin consejo de flota; flota solo en BodyFleet (D4)", () => {
+  it("banner genérico sin consejo de flota; flota solo en BodyFleet (D4 / RP-4)", () => {
     expect(shellCopy.alert.fiscalAttentionBody).toMatch(/sustituye/i);
     expect(shellCopy.alert.fiscalAttentionBody).not.toMatch(/Resumen/i);
     expect(shellCopy.alert.fiscalAttentionBody).not.toMatch(
       /docs vencidos|reasigna/i,
     );
-    expect(shellCopy.alert.fiscalAttentionBodyFleet).toMatch(/Resumen/i);
-    expect(shellCopy.alert.fiscalAttentionBodyFleet).toMatch(
-      /docs vencidos|reasigna/i,
-    );
+    expect(shellCopy.alert.fiscalAttentionBodyFleet).toMatch(/flota/i);
     expect(shellCopy.alert.fiscalAttentionBodyFleet).toMatch(/sustituye/i);
+    expect(shellCopy.alert.fiscalAttentionBodyFleet).not.toMatch(/Resumen/i);
+    expect(shellCopy.alert.fiscalAttentionBodyFleet).not.toMatch(/reasigna/i);
   });
 
-  it("split: multi-porción sin pretender un solo flete (T4-041-split)", () => {
+  it("split: multi-porción sin pretender un solo flete (T4-041-split / RP-4)", () => {
     expect(shellCopy.alert.fiscalAttentionSplitBody).toMatch(/cada porción/i);
     expect(shellCopy.alert.fiscalAttentionSplitBody).toMatch(/sustituye/i);
     expect(shellCopy.alert.fiscalAttentionSplitBody).not.toMatch(
       /sustituye la factura/i,
     );
     expect(shellCopy.alert.fiscalAttentionSplitBody).not.toMatch(/Resumen/i);
-    expect(shellCopy.alert.fiscalAttentionSplitBodyFleet).toMatch(/Resumen/i);
+    expect(shellCopy.alert.fiscalAttentionSplitBodyFleet).toMatch(/flota/i);
+    expect(shellCopy.alert.fiscalAttentionSplitBodyFleet).not.toMatch(
+      /Resumen|reasigna/i,
+    );
     expect(shellCopy.alert.fiscalAttentionSplitBodyFleet).toMatch(
       /cada porción/i,
     );
@@ -212,7 +214,7 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
       "Incidente registrado en el viaje",
     );
     expect(shellCopy.alert.openIncidentBody).toBe(
-      "Quedó en la bitácora de Seguimiento. Ciérralo con una nota desde Seguimiento, o la marca se limpia al finalizar o cancelar el viaje.",
+      "Ciérralo con una nota desde Seguimiento, o la marca se limpia al finalizar o cancelar el viaje.",
     );
     expect(shellCopy.alert.openIncidentBody).not.toMatch(/resuelto|borrar/i);
     expect(shellCopy.alert.openIncidentCta).toBe("Ir a Seguimiento");

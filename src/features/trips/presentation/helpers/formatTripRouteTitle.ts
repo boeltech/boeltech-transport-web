@@ -1,12 +1,12 @@
 /**
- * Título del detalle (F9h / D-F9h-14): corredor solo origen → destino.
- * Escalas no entran al H1. Identidad Lugar: locationName → city → address.
+ * Título del detalle (RP-2 / F11 opción B): corredor ciudad-only origen → destino.
+ * Escalas no entran al H1. No usa `resolveRouteStopPlaceLabel` (F9h locationName
+ * sigue en timeline / Distancias / markers).
  */
 
 import { StopType, type TripStop } from "@features/trips/domain";
 
 import { formatTripEndpointLabel } from "../uiHelpers";
-import { resolveRouteStopPlaceLabel } from "./routeStopPlaceLabel";
 
 export type TripRouteTitleLegacy = {
   originCity?: string | null;
@@ -15,8 +15,16 @@ export type TripRouteTitleLegacy = {
   destinationState?: string | null;
 };
 
+function cityOnlyFromStop(stop: TripStop | undefined): string | null {
+  if (!stop) return null;
+  const city = stop.city?.trim();
+  if (city && !/^\d{1,3}$/.test(city)) return city;
+  return null;
+}
+
 /**
- * Construye «Origen → Destino» (o «—»). Las escalas no participan.
+ * Construye «Origen → Destino» ciudad-only (o «—»). Las escalas no participan.
+ * Preferir `useTripListRouteCitiesOnly` en UI cuando hay catálogos SAT.
  */
 export function formatTripRouteTitle(
   stops: readonly TripStop[] | undefined,
@@ -36,16 +44,16 @@ export function formatTripRouteTitle(
   });
 
   const origin =
-    (originStop ? resolveRouteStopPlaceLabel(originStop) : null) ??
+    cityOnlyFromStop(originStop) ??
     formatTripEndpointLabel(undefined, {
       city: legacy.originCity,
-      state: legacy.originState,
+      state: undefined,
     });
   const destination =
-    (destinationStop ? resolveRouteStopPlaceLabel(destinationStop) : null) ??
+    cityOnlyFromStop(destinationStop) ??
     formatTripEndpointLabel(undefined, {
       city: legacy.destinationCity,
-      state: legacy.destinationState,
+      state: undefined,
     });
 
   if (!origin && !destination) return "—";

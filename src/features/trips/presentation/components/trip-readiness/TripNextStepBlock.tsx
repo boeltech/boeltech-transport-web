@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
+  ArrowRight,
   Ban,
   CheckCircle2,
   ChevronDown,
@@ -11,7 +12,6 @@ import {
   Play,
   Receipt,
   RotateCcw,
-  StickyNote,
 } from "lucide-react";
 
 import { TripStatus, type TripStatusType } from "@features/trips/domain";
@@ -213,7 +213,8 @@ function ActionIcon({
     case "open_draft":
       return <FileText className={iconClass} aria-hidden />;
     case "register_note":
-      return <StickyNote className={iconClass} aria-hidden />;
+      // RP-3: «Nota» ghost sin ícono.
+      return null;
     case "declare_false_trip":
       return <Ban className={iconClass} aria-hidden />;
     case "cancel_trip":
@@ -360,7 +361,7 @@ export function TripNextStepBlock({
         data-demoted={primaryDemoted ? "true" : undefined}
         onClick={() => runAction(primary, handlers)}
       >
-        <ActionIcon action={primary} phase={phase} />
+        {/* RP-3: CTA primario sin ícono. */}
         {ctaText}
       </Button>
     );
@@ -378,6 +379,17 @@ export function TripNextStepBlock({
       aria-labelledby="trip-next-step-title"
     >
       <div className="flex flex-wrap items-start gap-3">
+        <div
+          className={cn(
+            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+            late
+              ? "bg-warning/20 text-warning"
+              : "bg-primary/15 text-primary",
+          )}
+          aria-hidden
+        >
+          <ArrowRight className="h-4 w-4" />
+        </div>
         <div className="min-w-0 flex-1">
           <p
             id="trip-next-step-title"
@@ -396,23 +408,33 @@ export function TripNextStepBlock({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {secondaries.map((action) => (
-            <Button
-              key={`${action.id}:${action.tab ?? ""}:${action.invoiceId ?? ""}`}
-              type="button"
-              variant="outline"
-              size="sm"
-              data-testid={`trip-next-step-secondary-${action.id}`}
-              onClick={() => runAction(action, handlers)}
-            >
-              <ActionIcon action={action} phase={phase} />
-              {secondaryLabel(
-                action,
-                phase,
-                operateCtaLabel ?? operatePrimaryLabel,
-              )}
-            </Button>
-          ))}
+          {secondaries.map((action) => {
+            const isNote = action.id === "register_note";
+            return (
+              <Button
+                key={`${action.id}:${action.tab ?? ""}:${action.invoiceId ?? ""}`}
+                type="button"
+                variant={isNote ? "ghost" : "outline"}
+                size="sm"
+                className={
+                  isNote
+                    ? "h-8 px-2 text-muted-foreground hover:text-foreground"
+                    : undefined
+                }
+                data-testid={`trip-next-step-secondary-${action.id}`}
+                onClick={() => runAction(action, handlers)}
+              >
+                {!isNote ? (
+                  <ActionIcon action={action} phase={phase} />
+                ) : null}
+                {secondaryLabel(
+                  action,
+                  phase,
+                  operateCtaLabel ?? operatePrimaryLabel,
+                )}
+              </Button>
+            );
+          })}
           {primaryNode}
         </div>
       </div>

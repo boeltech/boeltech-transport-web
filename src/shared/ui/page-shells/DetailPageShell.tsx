@@ -47,8 +47,16 @@ export interface DetailPageShellHeader {
   backHref?: string;
   /** Aria-label del botón back. */
   backLabel?: string;
-  /** Icono de la entidad (envuelto en un círculo de fondo). */
-  icon: ReactNode;
+  /**
+   * Migas encima del título (p. ej. «Viajes / código»).
+   * Sustituye al back+ícono cuando el detalle usa navegación por crumbs.
+   */
+  breadcrumb?: ReactNode;
+  /**
+   * Icono de la entidad (envuelto en un círculo de fondo).
+   * Opcional: omitir en pantallas con breadcrumb (p. ej. detalle de viaje).
+   */
+  icon?: ReactNode;
   /** Variante del fondo del icono. Por defecto "primary". */
   iconVariant?: "primary" | "muted";
   /** Forma del fondo del icono. Por defecto "rounded". */
@@ -177,38 +185,51 @@ export const DetailPageShell = memo(function DetailPageShell({
           Peso del header (xl+): info ≥55 %, CTAs ≤40 %.
           Hasta xl: título a ancho completo. Sin flex-wrap en icono+texto.
         */}
-        <div className="flex min-w-0 flex-1 items-start gap-3 xl:min-w-[55%]">
-          {backHref ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0"
-              onClick={() => navigate(backHref)}
-              aria-label={header.backLabel ?? "Volver"}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5 xl:min-w-[55%]">
+          {header.breadcrumb ? (
+            <div className="text-sm text-muted-foreground">
+              {header.breadcrumb}
+            </div>
           ) : null}
-          <div
-            className={cn(
-              "flex h-12 w-12 shrink-0 items-center justify-center",
-              iconShapeVariants[header.iconShape ?? "rounded"],
-              iconBgVariants[header.iconVariant ?? "primary"],
-            )}
-          >
-            {header.icon}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-bold leading-tight">{header.title}</h1>
-            {header.subtitle ? (
-              <div className="mt-1 text-sm text-muted-foreground">
-                {header.subtitle}
+          <div className="flex min-w-0 items-start gap-3">
+            {backHref ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0"
+                onClick={() => navigate(backHref)}
+                aria-label={header.backLabel ?? "Volver"}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            ) : null}
+            {header.icon ? (
+              <div
+                className={cn(
+                  "flex h-12 w-12 shrink-0 items-center justify-center",
+                  iconShapeVariants[header.iconShape ?? "rounded"],
+                  iconBgVariants[header.iconVariant ?? "primary"],
+                )}
+              >
+                {header.icon}
               </div>
             ) : null}
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <h1 className="min-w-0 text-2xl font-bold leading-tight">
+                  {header.title}
+                </h1>
+                {header.statusBadge ? (
+                  <div className="shrink-0">{header.statusBadge}</div>
+                ) : null}
+              </div>
+              {header.subtitle ? (
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {header.subtitle}
+                </div>
+              ) : null}
+            </div>
           </div>
-          {header.statusBadge ? (
-            <div className="shrink-0 self-center">{header.statusBadge}</div>
-          ) : null}
         </div>
 
         {header.actions ? (

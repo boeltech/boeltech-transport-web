@@ -1,5 +1,5 @@
 /**
- * Description del bloque next-step (F8 / D15 · F9 / D16–D20 · F11c / D28).
+ * Description del bloque next-step (F8 / D15 · F9 / D16–D20 · F11c / D28 · RP-3).
  * Enriquecer con blocker duro (Flota), variantes create/borrador o progreso split.
  */
 
@@ -19,9 +19,9 @@ export type ResolveTripNextStepDescriptionInput = {
   readonly elevateInvoice?: boolean;
   /** Conteo de borradores ligados (F9). */
   readonly linkedDraftCount?: number;
-  /** Porciones facturadas del prorrateo (F11c / D28). */
+  /** Porciones facturadas del prorrateo (F11c / D28) — solo Completado (RP-3). */
   readonly splitLegsInvoiced?: number;
-  /** Total de porciones del prorrateo (F11c / D28). */
+  /** Total de porciones del prorrateo (F11c / D28) — solo Completado (RP-3). */
   readonly splitLegsTotal?: number;
 };
 
@@ -59,23 +59,13 @@ export function resolveTripNextStepDescription(
         ? copy.descriptionDraftReady
         : copy.descriptionDraftReadyFleetBlocked;
     case "scheduled":
-      if (splitPartial) {
-        return copy.descriptionScheduledSplitPartial(
-          splitLegsInvoiced as number,
-          splitLegsTotal as number,
-        );
-      }
+      // RP-3: Programado = operación; sin porciones en el cuerpo.
       if (elevateInvoice) return copy.descriptionScheduledCreate;
       if (linkedDraftCount > 1) return copy.descriptionScheduledWithDrafts;
       if (linkedDraftCount === 1) return copy.descriptionScheduledWithDraft;
       return copy.descriptionScheduledOperate;
     case "in_progress":
-      if (splitPartial) {
-        return copy.descriptionInProgressSplitPartial(
-          splitLegsInvoiced as number,
-          splitLegsTotal as number,
-        );
-      }
+      // RP-3: En ruta = operación de parada; sin N de M porciones.
       if (elevateInvoice) return copy.descriptionInProgressCreate;
       if (linkedDraftCount >= 1) return copy.descriptionInProgressWithDraft;
       return copy.descriptionInProgressOperate;

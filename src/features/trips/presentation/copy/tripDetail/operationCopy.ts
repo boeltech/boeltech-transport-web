@@ -14,21 +14,28 @@ export const operationCopy = {
   },
   hint: {
     client: "Quién contrata, paga y recibe la factura.",
-    schedule: "Programado frente a real, más kilometraje al salir y al cerrar.",
+    /** RP-7: subtítulo del artboard. */
+    schedule:
+      "Los tiempos reales y el kilometraje se registran en Seguimiento.",
     assignment: "Unidad, remolques, operador principal y equipo de apoyo.",
     mileage: "Kilometraje al salir y al cerrar.",
     notes: "Observaciones del canal (teléfono, mensaje, etc.).",
+    notesEmpty: "Sin notas",
     staffSection: "Equipo de apoyo",
     paymentResponsible: "Responsable de pago",
     trailersSection: "Remolques",
     cancelledFleetReadOnly:
       "Asignación al momento de cancelar. Solo lectura.",
+    /** Hint largo solo en el selector (RP-8), no en la tarjeta. */
     routeType:
       "Define cómo se paga al operador: entrega urbana (Local), trayecto foráneo, o maniobra patio↔patio (Transfer / Patio). No es la facturación del viaje.",
     sinCfdiClient: "Cobro operativo; este viaje no emite factura.",
+    /** RP-12: subtítulo bajo Resultado estimado. */
+    resultIncludesQueued: "Incluye registros en revisión.",
   },
   action: {
     viewClient: "Ver cliente",
+    changeRouteType: "Cambiar",
     saveSchedule: "Guardar programación",
     savingSchedule: "Guardando…",
     cancelSchedule: "Cancelar",
@@ -54,17 +61,25 @@ export const operationCopy = {
     billing: "Facturación y cobro",
     activity: "Actividad",
     noBillingPending: "Sin pendientes de facturación",
+    billingPendingCount: (n: number, detail: string) =>
+      n === 1 ? `1 pendiente: ${detail}` : `${n} pendientes: ${detail}`,
     freightInvoice: (folio: string) => `Factura de flete ${folio}`,
-    freightPending: "Flete",
+    freightPending: "Flete · Por facturar",
+    /** RP-13: reparto parcial. */
+    billingInProgress: "Facturación en curso",
     cancelledNoCosts: "Sin registros de costos. El viaje no se realizó.",
-    marginWithQueued: (marginPct: string, queued: string) =>
-      `Margen ${marginPct} · hay ${queued} en revisión`,
+    marginWithQueued: (marginPct: string, _queued?: string) =>
+      `Margen ${marginPct}`,
     marginOnly: (marginPct: string) => `Margen ${marginPct}`,
+    marginWithCostsLink: (marginPct: string) =>
+      `Margen ${marginPct} · Ver costos`,
     rate: "Tarifa",
+    trailerPosition: (position: number) => `Posición ${position}`,
   },
   scheduleTable: {
     ariaLabel: "Programación programado frente a real",
-    event: "Concepto",
+    /** RP-7: primera columna sin «Concepto». */
+    event: "",
     scheduled: "Programado",
     actual: "Real",
     difference: "Diferencia",
@@ -74,6 +89,7 @@ export const operationCopy = {
     onTime: "A tiempo",
     after: (label: string) => `${label} después`,
     before: (label: string) => `${label} antes`,
+    /** RP-7: sin pie «Planeado N km» (vive en Ruta / Recorrido). */
     footer: (parts: {
       actualKm: string | null;
       plannedKm: string | null;
@@ -81,7 +97,6 @@ export const operationCopy = {
     }) => {
       const bits: string[] = [];
       if (parts.actualKm) bits.push(`Recorrido real ${parts.actualKm}`);
-      if (parts.plannedKm) bits.push(`Planeado ${parts.plannedKm}`);
       if (parts.duration) bits.push(`Duración ${parts.duration}`);
       return bits.join(" · ");
     },
@@ -255,8 +270,9 @@ export const operationCopy = {
     tomorrowAtEight: "Mañana 08:00",
   },
   label: {
-    legalName: "Cliente",
-    tripType: "Factura del viaje",
+    /** RP-8. */
+    legalName: "Cliente (quien paga)",
+    tripType: "Facturación del viaje",
     routeType: "Clase de ruta",
     originBranch: "Sucursal de origen",
     scheduledDeparture: "Salida programada",
@@ -266,6 +282,7 @@ export const operationCopy = {
     actualArrival: "Llegada real",
     unit: "Unidad",
     plate: "Placa",
+    trailers: "Remolques",
     driver: "Operador principal",
     mileageStart: "Odómetro al salir",
     mileageEnd: "Odómetro al cerrar",
@@ -276,7 +293,7 @@ export const operationCopy = {
     clientUnavailable: "Cliente no disponible en esta vista",
     noVehicle: "Sin vehículo asignado",
     noDriver: "Sin conductor asignado",
-    noTrailers: "Sin remolques asignados",
+    noTrailers: "Sin remolques",
     noSupportStaff: "Sin equipo de apoyo",
     noOriginBranch: "Sin sucursal",
     emptyDash: "—",
@@ -288,8 +305,8 @@ export const operationCopy = {
       }
       return "Servicio con factura";
     },
-    trailerLine(position: 1 | 2, licensePlate: string): string {
-      return `${licensePlate} · Posición ${position}`;
+    trailerLine(_position: 1 | 2, licensePlate: string): string {
+      return licensePlate;
     },
     /** Rol en ruta del card (mismas etiquetas que fleetAssignment.labels). */
     staffRole(role: TripInternalStaff["internalRole"]): string {
@@ -301,5 +318,7 @@ export const operationCopy = {
       }
       return "Sin rol";
     },
+    staffSupportLine: (count: number) =>
+      count === 1 ? "Equipo de apoyo · 1" : `Equipo de apoyo · ${count}`,
   },
 } as const;

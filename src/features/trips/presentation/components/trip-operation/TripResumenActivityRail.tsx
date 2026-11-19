@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { History } from "lucide-react";
 
 import {
   TRIP_STATUS_LABELS,
@@ -9,6 +8,7 @@ import {
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
+import { cn } from "@shared/lib/utils/cn";
 
 import { tripDetailCopy } from "../../copy";
 
@@ -39,20 +39,20 @@ export function TripResumenActivityRail({
   return (
     <Card data-testid="trip-resumen-activity-rail">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <History className="h-4 w-4 shrink-0 text-primary" />
-          {history.section.activity}
-        </CardTitle>
+        <CardTitle className="text-base">{history.section.activity}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground">{history.state.empty}</p>
         ) : (
           <ol className="space-y-3">
-            {visible.map((entry) => (
+            {visible.map((entry, index) => (
               <li key={entry.id} className="relative pl-4">
                 <span
-                  className="absolute left-0 top-1.5 h-2 w-2 rounded-full bg-muted-foreground/40"
+                  className={cn(
+                    "absolute left-0 top-1.5 h-2 w-2 rounded-full",
+                    index === 0 ? "bg-primary" : "bg-muted-foreground/40",
+                  )}
                   aria-hidden
                 />
                 <p className="text-sm font-medium leading-snug">

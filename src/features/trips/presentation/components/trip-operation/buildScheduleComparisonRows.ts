@@ -1,14 +1,33 @@
 import type { Trip } from "@features/trips/domain";
-import { formatDateTime } from "@shared/utils/dateUtils";
+import { toUtcIsoInstantForParse } from "@shared/utils/dateUtils";
 
 import { operationCopy } from "../../copy";
 
 const copy = operationCopy.scheduleTable;
 const empty = operationCopy.state.emptyDash;
+const SCHEDULE_TZ = "America/Mexico_City";
 
 function formatOdometerKm(value: number | null | undefined): string {
   if (value == null) return empty;
   return value.toLocaleString("es-MX");
+}
+
+/** RP-7: `12 nov 2026, 06:00` (24 h, sin a.m./p.m.). */
+function formatScheduleDateTime(iso: string | null | undefined): string {
+  if (!iso) return empty;
+  const normalized = toUtcIsoInstantForParse(iso);
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return empty;
+  const raw = d.toLocaleString("es-MX", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: SCHEDULE_TZ,
+  });
+  return raw.replace(/\s*(a\.?\s*m\.?|p\.?\s*m\.?)/gi, "").trim();
 }
 
 export type ScheduleComparisonRowId = "departure" | "arrival";
@@ -60,10 +79,10 @@ export function buildScheduleComparisonRows(trip: Trip): ScheduleComparisonRow[]
       id: "departure",
       event: copy.departure,
       scheduled: trip.scheduledDeparture
-        ? formatDateTime(trip.scheduledDeparture.toISOString())
+        ? formatScheduleDateTime(trip.scheduledDeparture.toISOString())
         : empty,
       actual: trip.actualDeparture
-        ? formatDateTime(trip.actualDeparture.toISOString())
+        ? formatScheduleDateTime(trip.actualDeparture.toISOString())
         : empty,
       difference: formatScheduleDifference(
         trip.scheduledDeparture,
@@ -75,10 +94,10 @@ export function buildScheduleComparisonRows(trip: Trip): ScheduleComparisonRow[]
       id: "arrival",
       event: copy.arrival,
       scheduled: trip.scheduledArrival
-        ? formatDateTime(trip.scheduledArrival.toISOString())
+        ? formatScheduleDateTime(trip.scheduledArrival.toISOString())
         : empty,
       actual: trip.actualArrival
-        ? formatDateTime(trip.actualArrival.toISOString())
+        ? formatScheduleDateTime(trip.actualArrival.toISOString())
         : empty,
       difference: formatScheduleDifference(
         trip.scheduledArrival,

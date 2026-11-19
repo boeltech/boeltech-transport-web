@@ -1,12 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import {
-  ArrowRight,
-  Building2,
-  ExternalLink,
-  Phone,
-  Truck,
-} from "lucide-react";
+import { ArrowRight, ExternalLink, Truck } from "lucide-react";
 
 import type { Trip, TripStatusHistory } from "@features/trips/domain";
 import { TripStatus } from "@features/trips/domain";
@@ -21,8 +15,6 @@ import { usePermissions } from "@shared/permissions";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card";
-import { InfoRow } from "@shared/ui/data-display";
-import { Separator } from "@shared/ui/separator";
 
 import { TripRouteTypeInlineEditor } from "./TripRouteTypeInlineEditor";
 import { TripResumenActivityRail } from "./TripResumenActivityRail";
@@ -90,6 +82,21 @@ function formatTripTypeLabel(
   return copy.format.tripType(trip.cfdiDocumentIntent);
 }
 
+function KvRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1 py-1.5 sm:flex-row sm:items-baseline sm:gap-6">
+      <span className="w-40 shrink-0 text-sm text-muted-foreground">{label}</span>
+      <div className="min-w-0 text-sm">{children}</div>
+    </div>
+  );
+}
+
 function ClientContractCard({
   trip,
   showClientLink,
@@ -107,83 +114,45 @@ function ClientContractCard({
   return (
     <Card data-testid="trip-operation-client-card">
       <CardHeader className="pb-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Building2 className="h-4 w-4 shrink-0 text-primary" />
-              {copy.section.client}
-            </CardTitle>
-            <CardDescription className="mt-1.5">
-              {isSinCfdi ? copy.hint.sinCfdiClient : copy.hint.client}
-            </CardDescription>
-          </div>
-          {showClientLink && client ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="shrink-0"
-              asChild
-            >
+        <CardTitle className="text-base">{copy.section.client}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-0 pt-0">
+        {client ? (
+          <KvRow label={copy.label.legalName}>
+            {showClientLink ? (
               <Link
                 to={`/clients/${client.id}`}
                 state={{ from: `/trips/${tripId}` }}
+                className="text-primary hover:underline"
               >
-                {copy.action.viewClient}
-                <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                {client.legalName}
               </Link>
-            </Button>
-          ) : null}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-1 pt-0">
-        {client ? (
-          <InfoRow
-            variant="inline"
-            label={copy.label.legalName}
-            value={
-              showClientLink ? (
-                <Link
-                  to={`/clients/${client.id}`}
-                  state={{ from: `/trips/${tripId}` }}
-                  className="text-primary hover:underline"
-                >
-                  {client.legalName}
-                </Link>
-              ) : (
-                client.legalName
-              )
-            }
-          />
+            ) : (
+              client.legalName
+            )}
+          </KvRow>
         ) : (
           <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
             {copy.state.clientUnavailable}
           </div>
         )}
-        <InfoRow
-          variant="inline"
-          label={copy.label.tripType}
-          value={
-            isSinCfdi ? (
-              <Badge variant="warning" tone="soft" className="text-[10px]">
-                {formatTripTypeLabel(trip)}
-              </Badge>
-            ) : (
-              formatTripTypeLabel(trip)
-            )
-          }
+        <KvRow label={copy.label.tripType}>
+          {isSinCfdi ? (
+            <Badge variant="warning" tone="soft" className="text-[10px]">
+              {formatTripTypeLabel(trip)}
+            </Badge>
+          ) : (
+            formatTripTypeLabel(trip)
+          )}
+        </KvRow>
+        <TripRouteTypeInlineEditor
+          trip={trip}
+          readOnly={!canEditRouteType}
+          presentation="row"
         />
-        <div className="pt-2">
-          <TripRouteTypeInlineEditor
-            trip={trip}
-            readOnly={!canEditRouteType}
-          />
-        </div>
-        <InfoRow
-          variant="inline"
-          label={copy.label.originBranch}
-          value={originBranchName ?? copy.state.noOriginBranch}
-        />
+        <KvRow label={copy.label.originBranch}>
+          {originBranchName ?? copy.state.noOriginBranch}
+        </KvRow>
       </CardContent>
     </Card>
   );
@@ -280,10 +249,7 @@ export function TripDetailOperationTab({
         <Card data-testid="trip-operation-fleet-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <div className="space-y-1">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Truck className="h-4 w-4 shrink-0 text-primary" />
-                {copy.section.assignment}
-              </CardTitle>
+              <CardTitle className="text-base">{copy.section.assignment}</CardTitle>
               <CardDescription>
                 {isCancelled
                   ? copy.hint.cancelledFleetReadOnly
@@ -305,154 +271,129 @@ export function TripDetailOperationTab({
               </Button>
             ) : null}
           </CardHeader>
-          <CardContent className="space-y-3 pt-0">
-            {trip.vehicle ? (
-              <div className="space-y-1">
-                <InfoRow
-                  variant="inline"
-                  label={copy.label.unit}
-                  value={
-                    <span className="font-medium">
-                      {trip.vehicle.unitNumber}
-                      {trip.vehicle.licensePlate
-                        ? ` · ${trip.vehicle.licensePlate}`
-                        : null}
-                    </span>
-                  }
-                />
-                <TripResumenFleetGpsStatus vehicleId={trip.vehicleId} />
-              </div>
-            ) : (
-              <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
-                {copy.state.noVehicle}
-              </div>
-            )}
-
-            <Separator />
-
-            <div className="space-y-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {copy.hint.trailersSection}
-              </div>
-              {trip.trailers && trip.trailers.length > 0 ? (
-                trip.trailers
-                  .slice()
-                  .sort((a, b) => a.position - b.position)
-                  .map((trailer) => (
-                    <div
-                      key={`${trailer.trailerId}-${trailer.position}`}
-                      className="rounded-lg border bg-muted/20 px-3 py-2 text-xs"
-                    >
-                      <p className="font-medium">
-                        {copy.format.trailerLine(
-                          trailer.position,
-                          trailer.licensePlate,
-                        )}
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs text-muted-foreground">{copy.label.unit}</p>
+                {trip.vehicle ? (
+                  <>
+                    <p className="text-sm font-medium">{trip.vehicle.unitNumber}</p>
+                    {trip.vehicle.licensePlate ? (
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {trip.vehicle.licensePlate}
                       </p>
-                    </div>
-                  ))
-              ) : (
-                <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
-                  {copy.state.noTrailers}
-                </div>
-              )}
-            </div>
+                    ) : null}
+                    <TripResumenFleetGpsStatus vehicleId={trip.vehicleId} />
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {copy.state.noVehicle}
+                  </p>
+                )}
+              </div>
 
-            <Separator />
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  {copy.label.trailers}
+                </p>
+                {trip.trailers && trip.trailers.length > 0 ? (
+                  trip.trailers
+                    .slice()
+                    .sort((a, b) => a.position - b.position)
+                    .map((trailer) => (
+                      <div key={`${trailer.trailerId}-${trailer.position}`}>
+                        <p className="font-mono text-sm font-medium">
+                          {copy.format.trailerLine(
+                            trailer.position,
+                            trailer.licensePlate,
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {copy.rail.trailerPosition(trailer.position)}
+                        </p>
+                      </div>
+                    ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {copy.state.noTrailers}
+                  </p>
+                )}
+              </div>
 
-            {trip.driver ? (
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 space-y-1">
-                  <InfoRow
-                    variant="inline"
-                    label={copy.label.driver}
-                    value={trip.driver.fullName}
-                  />
-                  {driverPhone ? (
-                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1">
-                        <Phone className="h-3 w-3" aria-hidden />
-                        {driverPhone}
-                      </span>
-                      <a
-                        href={`tel:${driverPhone.replace(/\s+/g, "")}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {copy.action.callDriver}
-                      </a>
-                    </p>
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    {copy.label.driver}
+                  </p>
+                  {showSettlementActions &&
+                  canCreateSettlement &&
+                  titularEmployeeId ? (
+                    <SettlementLiquidateLink employeeId={titularEmployeeId} />
                   ) : null}
                 </div>
-                {showSettlementActions &&
-                canCreateSettlement &&
-                titularEmployeeId ? (
-                  <SettlementLiquidateLink employeeId={titularEmployeeId} />
-                ) : null}
+                {trip.driver ? (
+                  <>
+                    <p className="text-sm font-medium">{trip.driver.fullName}</p>
+                    {driverPhone ? (
+                      <>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {driverPhone}
+                        </p>
+                        <a
+                          href={`tel:${driverPhone.replace(/\s+/g, "")}`}
+                          className="text-xs font-medium text-primary hover:underline"
+                        >
+                          {copy.action.callDriver}
+                        </a>
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {copy.state.noDriver}
+                  </p>
+                )}
               </div>
-            ) : (
-              <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
-                {copy.state.noDriver}
-              </div>
-            )}
-
-            <Separator />
+            </div>
 
             <div
-              className="space-y-2"
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t pt-3 text-sm"
               data-testid="trip-operation-staff-card"
             >
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {copy.hint.staffSection}
-                {trip.internalStaff && trip.internalStaff.length > 0 ? (
-                  <Badge
-                    variant="secondary"
-                    className="ml-2 text-[10px] font-normal"
-                  >
-                    {trip.internalStaff.length}
-                  </Badge>
-                ) : null}
-              </div>
+              <span className="text-muted-foreground">
+                {copy.format.staffSupportLine(trip.internalStaff?.length ?? 0)}
+              </span>
               {trip.internalStaff && trip.internalStaff.length > 0 ? (
                 trip.internalStaff.map((member) => (
-                  <div
+                  <span
                     key={member.id}
-                    className="flex items-start justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-xs"
+                    className="inline-flex flex-wrap items-baseline gap-x-2"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium">{member.employeeFullName}</p>
-                      <p className="text-muted-foreground">
-                        {copy.format.staffRole(member.internalRole)}
-                        {member.isPaymentResponsible
-                          ? ` · ${copy.hint.paymentResponsible}`
-                          : null}
-                      </p>
-                      {member.paymentNotes ? (
-                        <p className="mt-1 italic text-muted-foreground">
-                          {member.paymentNotes}
-                        </p>
-                      ) : null}
-                    </div>
+                    <span className="font-medium">{member.employeeFullName}</span>
+                    <span className="text-muted-foreground">
+                      {copy.format.staffRole(member.internalRole)}
+                      {member.isPaymentResponsible
+                        ? ` · ${copy.hint.paymentResponsible}`
+                        : null}
+                    </span>
                     {showSettlementActions && canCreateSettlement ? (
                       <SettlementLiquidateLink employeeId={member.employeeId} />
                     ) : null}
-                  </div>
+                  </span>
                 ))
               ) : (
-                <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm text-muted-foreground">
+                <span className="text-muted-foreground">
                   {copy.state.noSupportStaff}
-                </div>
+                </span>
               )}
-
               {showSettlementActions && canReadSettlements ? (
-                <div className="pt-1">
-                  <Link
-                    to={tripSettlementsSearchHref}
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
-                    {copy.action.viewTripSettlements}
-                    <ExternalLink className="ml-1 inline h-3 w-3" aria-hidden />
-                  </Link>
-                </div>
+                <Link
+                  to={tripSettlementsSearchHref}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  {copy.action.viewTripSettlements}
+                  <ExternalLink className="ml-1 inline h-3 w-3" aria-hidden />
+                </Link>
               ) : null}
             </div>
           </CardContent>
@@ -479,15 +420,14 @@ export function TripDetailOperationTab({
         isDriverPortalView={isDriverPortalView}
       />
 
-      {!isClientPortalView && trip.notes ? (
+      {!isClientPortalView ? (
         <Card data-testid="trip-operation-notes-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{copy.section.notes}</CardTitle>
-            <CardDescription>{copy.hint.notes}</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="whitespace-pre-wrap rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
-              {trip.notes}
+            <p className="whitespace-pre-wrap rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
+              {trip.notes?.trim() ? trip.notes : copy.hint.notesEmpty}
             </p>
           </CardContent>
         </Card>

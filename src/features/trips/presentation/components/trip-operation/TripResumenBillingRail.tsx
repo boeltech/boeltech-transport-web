@@ -1,15 +1,15 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Receipt } from "lucide-react";
 
 import type { Trip } from "@features/trips/domain";
 import { resolveOperationalCashSummary } from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
-import { InfoRow } from "@shared/ui/data-display";
 import { cn } from "@shared/lib/utils/cn";
 
 import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { tripDetailCopy } from "../../copy";
+import { tripFiscalCopy } from "../../copy/tripFiscalCopy";
 import { formatMxCurrency } from "../trip-financial";
 import {
   operationalCashStatusBadgeVariant,
@@ -32,6 +32,21 @@ function invoiceStatusBadgeVariant(
   if (status === "cancellation_pending") return "warning";
   if (status === "cancelled") return "destructive";
   return "neutral";
+}
+
+function Kv({
+  label,
+  value,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-1">
+      <span className="min-w-0 text-sm text-muted-foreground">{label}</span>
+      <span className="shrink-0 text-sm">{value}</span>
+    </div>
+  );
 }
 
 export function TripResumenBillingRail({
@@ -60,10 +75,7 @@ export function TripResumenBillingRail({
     return (
       <Card data-testid="trip-resumen-billing-rail">
         <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Receipt className="h-4 w-4 shrink-0 text-primary" />
-            {cashCopy.sectionTitle}
-          </CardTitle>
+          <CardTitle className="text-base">{cashCopy.sectionTitle}</CardTitle>
           <Badge
             variant={operationalCashStatusBadgeVariant(summary.status)}
             tone="soft"
@@ -74,18 +86,12 @@ export function TripResumenBillingRail({
           </Badge>
         </CardHeader>
         <CardContent className="space-y-3 pt-0">
-          <InfoRow
-            variant="inline"
-            label={copy.rail.rate}
-            value={formatMxCurrency(rate)}
-          />
-          <InfoRow
-            variant="inline"
+          <Kv label={copy.rail.rate} value={formatMxCurrency(rate)} />
+          <Kv
             label={cashCopy.scorecardAccumulatedLabel}
             value={formatMxCurrency(collected)}
           />
-          <InfoRow
-            variant="inline"
+          <Kv
             label={cashCopy.scorecardPendingLabel}
             value={formatMxCurrency(pending)}
           />
@@ -120,69 +126,107 @@ export function TripResumenBillingRail({
     ? getTripInvoiceStatusLabel(status)
     : "Por facturar";
 
+  const invoiced = invoicing.splitLegsInvoiced ?? 0;
+  const total = invoicing.splitLegsTotal ?? 0;
+  const splitPartial =
+    invoicing.hasActiveSplit &&
+    total > 0 &&
+    invoiced > 0 &&
+    invoiced < total;
+  const splitPending = Math.max(0, total - invoiced);
+
+  const primaryLabel = splitPartial
+    ? copy.rail.billingInProgress
+    : hasInvoice && invoicing.invoiceFolio
+      ? copy.rail.freightInvoice(invoicing.invoiceFolio)
+      : copy.rail.freightPending;
+
+  const primaryBadge = splitPartial
+    ? tripFiscalCopy.detailBadge.splitPartial
+    : statusLabel;
+
+  let pendingLine: string | null = null;
+  if (trip.requiresFiscalAttention) {
+    pendingLine = copy.rail.billingPendingCount(
+      1,
+      tripDetailCopy.shell.alert.fiscalAttentionChip,
+    );
+  } else if (splitPartial && splitPending > 0) {
+    pendingLine = copy.rail.billingPendingCount(
+      splitPending,
+      `${splitPending} de ${total} porciones`,
+    );
+  } else if (status === "stamped" || status === "cancellation_pending") {
+    pendingLine = copy.rail.noBillingPending;
+  } else if (!hasInvoice) {
+    pendingLine = copy.rail.billingPendingCount(1, "flete");
+  }
+
   return (
     <Card data-testid="trip-resumen-billing-rail">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Receipt className="h-4 w-4 shrink-0 text-primary" />
-          {copy.rail.billing}
-        </CardTitle>
+        <CardTitle className="text-base">{copy.rail.billing}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 pt-0">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">
-              {hasInvoice && invoicing.invoiceFolio
-                ? copy.rail.freightInvoice(invoicing.invoiceFolio)
-                : copy.rail.freightPending}
-            </p>
-            {hasInvoice && invoicing.invoiceId ? (
+      <CardContent className="space-y-2 pt-0">
+        <Kv
+          label={
+            hasInvoice && invoicing.invoiceId && !splitPartial ? (
               <Link
                 to={`/invoices/${invoicing.invoiceId}`}
-                className="text-xs text-primary hover:underline"
+                className="text-foreground hover:text-primary hover:underline"
               >
-                {invoicing.invoiceFolio ?? invoicing.invoiceId}
+                {primaryLabel}
               </Link>
-            ) : null}
-          </div>
-          <Badge
-            variant={invoiceStatusBadgeVariant(status)}
-            tone="soft"
-            className="shrink-0 text-[10px] font-normal"
-          >
-            {statusLabel}
-          </Badge>
-        </div>
+            ) : (
+              primaryLabel
+            )
+          }
+          value={
+            <Badge
+              variant={
+                splitPartial
+                  ? "warning"
+                  : invoiceStatusBadgeVariant(status)
+              }
+              tone="soft"
+              className="text-[10px] font-normal"
+            >
+              {primaryBadge}
+            </Badge>
+          }
+        />
 
         {trip.facturadoVigente != null ? (
-          <InfoRow
-            variant="inline"
+          <Kv
             label={copy.label.facturadoVigente}
-            value={formatMxCurrency(trip.facturadoVigente)}
+            value={
+              <span className="font-mono tabular-nums">
+                {formatMxCurrency(trip.facturadoVigente)}
+              </span>
+            }
           />
         ) : null}
         {trip.cobradoViaje != null ? (
-          <InfoRow
-            variant="inline"
+          <Kv
             label={copy.label.cobradoViaje}
-            value={formatMxCurrency(trip.cobradoViaje)}
+            value={
+              <span className="font-mono tabular-nums">
+                {formatMxCurrency(trip.cobradoViaje)}
+              </span>
+            }
           />
         ) : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <p className="text-xs text-muted-foreground">
-            {status === "stamped" || status === "cancellation_pending"
-              ? copy.rail.noBillingPending
-              : null}
-          </p>
+        <p className="pt-1 text-xs text-muted-foreground">
+          {pendingLine ? `${pendingLine} · ` : null}
           <button
             type="button"
-            className="text-xs font-medium text-primary hover:underline"
+            className="font-medium text-primary hover:underline"
             onClick={onOpenBillingTab}
           >
             {copy.action.viewBilling}
           </button>
-        </div>
+        </p>
       </CardContent>
     </Card>
   );

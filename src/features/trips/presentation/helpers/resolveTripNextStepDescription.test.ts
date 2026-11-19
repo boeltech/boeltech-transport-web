@@ -79,7 +79,7 @@ describe("resolveTripNextStepDescription (F8 / F9)", () => {
     expect(text).not.toMatch(/iniciar/i);
   });
 
-  it("F11c/D28 scheduled: split parcial prioriza progreso N de M", () => {
+  it("RP-3 scheduled: split parcial no entra al cuerpo (sigue elevate/operate)", () => {
     const text = resolveTripNextStepDescription({
       phase: "scheduled",
       elevateInvoice: true,
@@ -87,11 +87,11 @@ describe("resolveTripNextStepDescription (F8 / F9)", () => {
       splitLegsInvoiced: 2,
       splitLegsTotal: 4,
     });
-    expect(text).toBe(copy.descriptionScheduledSplitPartial(2, 4));
-    expect(text).toMatch(/Se facturaron 2 de 4 porciones/);
+    expect(text).toBe(copy.descriptionScheduledCreate);
+    expect(text).not.toMatch(/porciones/i);
   });
 
-  it("F11c/D28 in_progress: split parcial prioriza progreso N de M", () => {
+  it("RP-3 in_progress: split parcial no entra al cuerpo (sigue elevate/operate)", () => {
     const text = resolveTripNextStepDescription({
       phase: "in_progress",
       elevateInvoice: true,
@@ -99,8 +99,8 @@ describe("resolveTripNextStepDescription (F8 / F9)", () => {
       splitLegsInvoiced: 1,
       splitLegsTotal: 3,
     });
-    expect(text).toBe(copy.descriptionInProgressSplitPartial(1, 3));
-    expect(text).toMatch(/Se facturaron 1 de 3 porciones/);
+    expect(text).toBe(copy.descriptionInProgressCreate);
+    expect(text).not.toMatch(/porciones/i);
   });
 
   it("F11c/D28 completed: split parcial prioriza progreso N de M", () => {

@@ -227,8 +227,8 @@ describe("TripNextStepBlock", () => {
     ).toBeInTheDocument();
   });
 
-  describe("QS-I1 icon map (D-QS1…6)", () => {
-    it("CA1 Reserva sin cargas: Completar cargas=Package · Ir a Ruta=MapPin", () => {
+  describe("QS-I1 icon map (D-QS1…6 / RP-3)", () => {
+    it("CA1 Reserva sin cargas: primaria sin ícono · Ir a Ruta=MapPin", () => {
       render(
         <TripNextStepBlock
           plan={{
@@ -242,12 +242,11 @@ describe("TripNextStepBlock", () => {
 
       const primary = screen.getByTestId("trip-next-step-primary");
       const goToRoute = screen.getByTestId("trip-next-step-secondary-go_to_route");
-      expect(primary.querySelector("svg.lucide-package")).toBeTruthy();
+      expect(primary.querySelector("svg")).toBeNull();
       expect(goToRoute.querySelector("svg.lucide-map-pin")).toBeTruthy();
-      expect(primary.querySelector("svg.lucide-map-pin")).toBeNull();
     });
 
-    it("CA2 Reserva falta ruta: primaria MapPin · Ir a Cargas=Package", () => {
+    it("CA2 Reserva falta ruta: primaria sin ícono · Ir a Cargas=Package", () => {
       render(
         <TripNextStepBlock
           plan={{
@@ -261,12 +260,11 @@ describe("TripNextStepBlock", () => {
 
       const primary = screen.getByTestId("trip-next-step-primary");
       const goToCargo = screen.getByTestId("trip-next-step-secondary-go_to_cargo");
-      expect(primary.querySelector("svg.lucide-map-pin")).toBeTruthy();
+      expect(primary.querySelector("svg")).toBeNull();
       expect(goToCargo.querySelector("svg.lucide-package")).toBeTruthy();
-      expect(primary.querySelector("svg.lucide-package")).toBeNull();
     });
 
-    it("CA3 Programado: Despachar… = Play", () => {
+    it("CA3 Programado: Despachar… primaria sin ícono", () => {
       render(
         <TripNextStepBlock
           plan={{
@@ -280,12 +278,10 @@ describe("TripNextStepBlock", () => {
       );
 
       const primary = screen.getByTestId("trip-next-step-primary");
-      expect(primary.querySelector("svg.lucide-play")).toBeTruthy();
-      expect(primary.querySelector("svg.lucide-navigation")).toBeNull();
-      expect(primary.querySelector("svg.lucide-truck")).toBeNull();
+      expect(primary.querySelector("svg")).toBeNull();
     });
 
-    it("CA4 En ruta: operate=Navigation · Nota=StickyNote · distintos", () => {
+    it("CA4 En ruta: primaria sin ícono · Nota ghost sin StickyNote", () => {
       render(
         <TripNextStepBlock
           plan={{
@@ -303,13 +299,12 @@ describe("TripNextStepBlock", () => {
 
       const primary = screen.getByTestId("trip-next-step-primary");
       const note = screen.getByTestId("trip-next-step-secondary-register_note");
-      expect(primary.querySelector("svg.lucide-navigation")).toBeTruthy();
-      expect(note.querySelector("svg.lucide-sticky-note")).toBeTruthy();
-      expect(primary.querySelector("svg.lucide-sticky-note")).toBeNull();
-      expect(note.querySelector("svg.lucide-navigation")).toBeNull();
+      expect(primary.querySelector("svg")).toBeNull();
+      expect(note.querySelector("svg")).toBeNull();
+      expect(note.className).toMatch(/text-muted-foreground/);
     });
 
-    it("D-QS3 confirm_reserve sin slot usa CheckCircle2", () => {
+    it("D-QS3 confirm_reserve sin slot: primaria sin ícono", () => {
       render(
         <TripNextStepBlock
           plan={{
@@ -322,7 +317,7 @@ describe("TripNextStepBlock", () => {
       );
 
       const primary = screen.getByTestId("trip-next-step-primary");
-      expect(primary.querySelector("svg.lucide-circle-check")).toBeTruthy();
+      expect(primary.querySelector("svg")).toBeNull();
     });
   });
 });
