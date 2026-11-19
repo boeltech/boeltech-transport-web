@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -181,9 +181,16 @@ function renderPage(
   );
 }
 
+/** Scope to the tip card — FilesReady also uses «Entendido». */
+function followThroughCard() {
+  const title = screen.getByText("Siguiente paso");
+  return within(title.parentElement as HTMLElement);
+}
+
 describe("InvoiceDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     mockHasPermission.mockReturnValue(false);
     mockUseRole.mockReturnValue("accountant");
     refetchMock.mockResolvedValue(undefined);
@@ -420,7 +427,7 @@ describe("InvoiceDetailPage", () => {
     expect(actions).toHaveAttribute("data-open-resume-cancel", "1");
   });
 
-  it("A-54 pending_receiver: resume cancel CTA syncs when original awaits receptor", async () => {
+  it("A-73 pending_receiver: Actualizar estado CTA syncs when original awaits receptor", async () => {
     mockUseRole.mockReturnValue("manager");
     mockHasPermission.mockImplementation(
       (_module?: string, action?: string) =>
@@ -436,6 +443,7 @@ describe("InvoiceDetailPage", () => {
     useInvoiceMock.mockReturnValue({
       data: buildInvoice({
         status: "cancellation_pending",
+        satCancellationStatus: "pending_receiver",
         canCancelInvoice: true,
         canSubstituteInvoice: false,
         activeReplacement: {
@@ -469,8 +477,13 @@ describe("InvoiceDetailPage", () => {
     renderPage();
 
     expect(
+      screen.getAllByText(
+        invoicingCopy.detail.hint.substitutionCancelPendingWaitingTitle,
+      ).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
       screen.getByText(
-        invoicingCopy.detail.hint.substitutionCancelPendingTitle,
+        invoicingCopy.detail.hint.substitutionCancelPendingBodyOriginalWaiting,
       ),
     ).toBeInTheDocument();
     expect(
@@ -480,16 +493,52 @@ describe("InvoiceDetailPage", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
-        name: invoicingCopy.detail.hint.cancellationPendingBannerCta,
+        name: invoicingCopy.detail.hint.substitutionCancelPendingCta,
       }),
     ).not.toBeInTheDocument();
+
+    const updateBtn = screen.getByRole("button", {
+      name: invoicingCopy.detail.hint.substitutionCancelPendingCtaUpdate,
+    });
+    const actions = screen.getByTestId("invoice-actions");
+    await user.click(updateBtn);
+    expect(actions).toHaveAttribute("data-open-resume-cancel", "1");
+  });
+
+  it("A-73 requesting: CTA disabled with waiting helper", () => {
+    mockUseRole.mockReturnValue("manager");
+    mockHasPermission.mockImplementation(
+      (_module?: string, action?: string) =>
+        action === "execute" || action === "read",
+    );
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "stamped",
+        satCancellationStatus: "requesting",
+        activeReplacement: {
+          id: "inv-59",
+          serie: "A",
+          folio: 59,
+          cfdiUuid: null,
+        },
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
 
     const resumeBtn = screen.getByRole("button", {
       name: invoicingCopy.detail.hint.substitutionCancelPendingCta,
     });
-    const actions = screen.getByTestId("invoice-actions");
-    await user.click(resumeBtn);
-    expect(actions).toHaveAttribute("data-open-resume-cancel", "1");
+    expect(resumeBtn).toBeDisabled();
+    expect(
+      screen.getByText(
+        invoicingCopy.detail.hint.substitutionCancelPendingRequestingHelper,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("A-55: orients to original and does not show mid-trip Sustituir", () => {
@@ -668,20 +717,38 @@ describe("InvoiceDetailPage", () => {
   });
 
   it("shows send follow-through without module links", () => {
+    mockHasPermission.mockImplementation(
+      (resource?: string, action?: string) =>
+        resource === "invoices" && action === "execute",
+    );
     renderPage();
 
     expect(screen.getByText("Siguiente paso")).toBeInTheDocument();
     expect(
       screen.getByText(invoicingCopy.detail.hint.followThroughSend),
     ).toBeInTheDocument();
+    expect(
+      followThroughCard().getByRole("button", {
+        name: invoicingCopy.detail.hint.followThroughDismiss,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      followThroughCard().queryByRole("button", {
+        name: invoicingCopy.detail.actions.registerPayment,
+      }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ir a Envíos/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ir a Cobros/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/complemento de pagos/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Cartera/i)).not.toBeInTheDocument();
   });
 
-  it("manager follow-through usa el mismo copy llano de envío", () => {
+  it("manager follow-through usa el mismo tip de correo", () => {
     mockUseRole.mockReturnValue("manager");
+    mockHasPermission.mockImplementation(
+      (resource?: string, action?: string) =>
+        resource === "invoices" && action === "execute",
+    );
     renderPage();
 
     expect(
@@ -690,6 +757,13 @@ describe("InvoiceDetailPage", () => {
     expect(screen.queryByRole("link", { name: /Ir a Envíos/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Por facturar/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/emitir/i)).not.toBeInTheDocument();
+  });
+
+  it("sin permiso execute no muestra el tip de correo", () => {
+    mockHasPermission.mockReturnValue(false);
+    renderPage();
+
+    expect(screen.queryByText("Siguiente paso")).not.toBeInTheDocument();
   });
 
   it("follow-through Enviar en action incrementa openSendRequestKey del toolbar", async () => {
@@ -704,7 +778,7 @@ describe("InvoiceDetailPage", () => {
     expect(actions).toHaveAttribute("data-open-send", "0");
 
     await user.click(
-      screen.getByRole("button", {
+      followThroughCard().getByRole("button", {
         name: invoicingCopy.detail.actions.sendByEmail,
       }),
     );
@@ -712,8 +786,40 @@ describe("InvoiceDetailPage", () => {
     expect(actions).toHaveAttribute("data-open-send", "1");
   });
 
-  it("follow-through Registrar pago en action incrementa openPaymentRequestKey", async () => {
-    const user = userEvent.setup();
+  it("timbrada con saldo: tip solo correo, sin Registrar cobro en el banner", () => {
+    mockHasPermission.mockImplementation(
+      (resource?: string, action?: string) =>
+        resource === "invoices" && action === "execute",
+    );
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        paymentMethod: "PPD",
+        totalPaid: 0,
+        balanceDue: 1160,
+        dispatchSentAt: null,
+      }),
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Siguiente paso")).toBeInTheDocument();
+    expect(
+      screen.getByText(invoicingCopy.detail.hint.followThroughSend),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: invoicingCopy.detail.actions.registerPayment,
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/^1\./)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^2\./)).not.toBeInTheDocument();
+  });
+
+  it("timbrada ya enviada con saldo: sin tip", () => {
     mockHasPermission.mockImplementation(
       (resource?: string, action?: string) =>
         resource === "invoices" && action === "execute",
@@ -733,49 +839,52 @@ describe("InvoiceDetailPage", () => {
 
     renderPage();
 
-    const actions = screen.getByTestId("invoice-actions");
-    expect(actions).toHaveAttribute("data-open-payment", "0");
-
-    await user.click(
-      screen.getByRole("button", {
-        name: invoicingCopy.detail.actions.registerPayment,
-      }),
-    );
-
-    expect(actions).toHaveAttribute("data-open-payment", "1");
+    expect(screen.queryByText("Siguiente paso")).not.toBeInTheDocument();
   });
 
-  it("shows numbered checklist when send and collect are both pending", () => {
-    useInvoiceMock.mockReturnValue({
-      data: buildInvoice({
-        paymentMethod: "PPD",
-        totalPaid: 0,
-        balanceDue: 1160,
-        dispatchSentAt: null,
+  it("Entendido oculta el tip al recargar la misma factura; otra factura lo muestra", async () => {
+    const user = userEvent.setup();
+    mockHasPermission.mockImplementation(
+      (resource?: string, action?: string) =>
+        resource === "invoices" && action === "execute",
+    );
+    const first = renderPage("inv-1");
+
+    await user.click(
+      followThroughCard().getByRole("button", {
+        name: invoicingCopy.detail.hint.followThroughDismiss,
       }),
+    );
+    expect(screen.queryByText("Siguiente paso")).not.toBeInTheDocument();
+
+    first.unmount();
+    const second = renderPage("inv-1");
+    expect(screen.queryByText("Siguiente paso")).not.toBeInTheDocument();
+
+    second.unmount();
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({ id: "inv-2" }),
       isLoading: false,
       isError: false,
       error: null,
       refetch: refetchMock,
     });
-
-    renderPage();
-
+    renderPage("inv-2");
     expect(screen.getByText("Siguiente paso")).toBeInTheDocument();
-    expect(
-      screen.getByText(invoicingCopy.detail.hint.followThroughSendBoth),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(invoicingCopy.detail.hint.followThroughCollectBoth),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(invoicingCopy.detail.hint.followThroughSend),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Ir a Envíos/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Ir a Cobros/i })).not.toBeInTheDocument();
   });
 
-  it("auto-dispatch failed: DetailAlertCard con Enviar y Ver este lote", async () => {
+  it("portal no muestra tip de correo", () => {
+    mockUseRole.mockReturnValue("client");
+    mockHasPermission.mockImplementation(
+      (resource?: string, action?: string) =>
+        resource === "invoices" && action === "execute",
+    );
+    renderPage();
+
+    expect(screen.queryByText("Siguiente paso")).not.toBeInTheDocument();
+  });
+
+  it("auto-dispatch failed: alert crítico sin tip suave apilado", async () => {
     const user = userEvent.setup();
     mockHasPermission.mockImplementation(
       (resource?: string, action?: string) =>
@@ -802,6 +911,7 @@ describe("InvoiceDetailPage", () => {
     expect(
       screen.getByText(invoicingCopy.send.autoDispatchFailedTitle),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Siguiente paso")).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", {
         name: invoicingCopy.send.autoDispatchFailedLink,
@@ -810,12 +920,11 @@ describe("InvoiceDetailPage", () => {
 
     const actions = screen.getByTestId("invoice-actions");
     expect(actions).toHaveAttribute("data-open-send", "0");
-    // Follow-through + auto-dispatch pueden mostrar ambos «Enviar»; cualquiera cablea el toolbar.
-    const sendButtons = screen.getAllByRole("button", {
-      name: invoicingCopy.detail.actions.sendByEmail,
-    });
-    expect(sendButtons.length).toBeGreaterThanOrEqual(1);
-    await user.click(sendButtons[0]!);
+    await user.click(
+      screen.getByRole("button", {
+        name: invoicingCopy.detail.actions.sendByEmail,
+      }),
+    );
     expect(actions).toHaveAttribute("data-open-send", "1");
   });
 

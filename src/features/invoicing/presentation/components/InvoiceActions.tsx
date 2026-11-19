@@ -356,9 +356,17 @@ export function InvoiceActions({
     hasActiveReplacement &&
     Boolean(fullInvoice);
 
-  /** Eleva Reintentar cancelación cuando hay sustitución parcial (A-54). */
+  /** Eleva CTA de reclaim cuando hay sustitución parcial (A-73). */
   const elevateResumeCancelPrimary =
     variant === "buttons" && canShowResumeCancel;
+
+  const isResumeCancelUpdateMode =
+    invoiceStatus === "cancellation_pending";
+  const isResumeCancelRequesting =
+    fullInvoice?.satCancellationStatus === "requesting";
+  const resumeCancelCtaLabel = isResumeCancelUpdateMode
+    ? hintCopy.substitutionCancelPendingCtaUpdate
+    : hintCopy.substitutionCancelPendingCta;
 
   const openCancelBlockedFeedback = () => {
     setCancelBlockedDialogOpen(true);
@@ -479,10 +487,15 @@ export function InvoiceActions({
       return;
     }
     lastOpenResumeCancelKeyRef.current = openResumeCancelRequestKey;
-    if (canShowResumeCancel) {
+    if (canShowResumeCancel && !isResumeCancelRequesting) {
       setResumeCancelDialogOpen(true);
     }
-  }, [variant, openResumeCancelRequestKey, canShowResumeCancel]);
+  }, [
+    variant,
+    openResumeCancelRequestKey,
+    canShowResumeCancel,
+    isResumeCancelRequesting,
+  ]);
 
   useEffect(() => {
     if (variant !== "buttons") return;
@@ -781,15 +794,38 @@ export function InvoiceActions({
         ) : null}
 
         {elevateResumeCancelPrimary && fullInvoice ? (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => setResumeCancelDialogOpen(true)}
-            disabled={isLoading}
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            {hintCopy.substitutionCancelPendingCta}
-          </Button>
+          isResumeCancelRequesting ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled
+                    aria-label={
+                      hintCopy.substitutionCancelPendingRequestingHelper
+                    }
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    {resumeCancelCtaLabel}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs text-left">
+                {hintCopy.substitutionCancelPendingRequestingHelper}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setResumeCancelDialogOpen(true)}
+              disabled={isLoading || resumeCancelDialogOpen}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {resumeCancelCtaLabel}
+            </Button>
+          )
         ) : null}
 
         {paymentIsPrimary && fullInvoice ? (
@@ -1230,6 +1266,7 @@ export function InvoiceActions({
           open={resumeCancelDialogOpen}
           onOpenChange={setResumeCancelDialogOpen}
           defaultReason={fullInvoice.cancellationReason}
+          mode={isResumeCancelUpdateMode ? "update" : "resume"}
         />
       ) : null}
 

@@ -4,7 +4,7 @@ import { invoicingCopy } from "../copy/invoicingCopy";
 import { resolveInvoiceFollowThrough } from "./resolveInvoiceFollowThrough";
 
 const BANNED_FOLLOW_THROUGH =
-  /XML|PDF|PUE|REP|crédito|sella|segundo plano|complemento|timbre/i;
+  /XML|PDF|PUE|REP|crédito|sella|segundo plano|complemento|timbre|cobro|pago/i;
 
 describe("resolveInvoiceFollowThrough", () => {
   it("no enseña follow-through en borrador", () => {
@@ -12,64 +12,35 @@ describe("resolveInvoiceFollowThrough", () => {
       resolveInvoiceFollowThrough({
         status: "draft",
         dispatchSentAt: null,
-        balanceDue: 100,
       }),
-    ).toEqual({ showSend: false, showCollect: false });
+    ).toEqual({ showSend: false });
   });
 
-  it("PPD timbrada sin envío y con saldo: Enviar + Cobrar", () => {
+  it("timbrada sin envío: tip de correo (independiente del saldo)", () => {
     expect(
       resolveInvoiceFollowThrough({
         status: "stamped",
         dispatchSentAt: null,
-        balanceDue: 500,
       }),
-    ).toEqual({ showSend: true, showCollect: true });
+    ).toEqual({ showSend: true });
   });
 
-  it("timbrada sin envío y sin saldo: solo Enviar", () => {
-    expect(
-      resolveInvoiceFollowThrough({
-        status: "stamped",
-        dispatchSentAt: null,
-        balanceDue: 0,
-      }),
-    ).toEqual({ showSend: true, showCollect: false });
-  });
-
-  it("PUE timbrada con saldo: también orienta a anotar el cobro", () => {
+  it("timbrada ya enviada: sin tip", () => {
     expect(
       resolveInvoiceFollowThrough({
         status: "stamped",
         dispatchSentAt: "2026-09-11T12:00:00.000Z",
-        balanceDue: 200,
       }),
-    ).toEqual({ showSend: false, showCollect: true });
+    ).toEqual({ showSend: false });
   });
 
-  it("copy de follow-through es llano (CTAs Enviar/Cobrar viven en action)", () => {
+  it("copy de follow-through es tip de correo (sin cobro ni checklist)", () => {
     const { hint } = invoicingCopy.detail;
-    for (const text of [
-      hint.followThroughSend,
-      hint.followThroughCollect,
-      hint.followThroughSendBoth,
-      hint.followThroughCollectBoth,
-    ]) {
-      expect(text).not.toMatch(BANNED_FOLLOW_THROUGH);
-    }
+    expect(hint.followThroughSend).not.toMatch(BANNED_FOLLOW_THROUGH);
     expect(hint.followThroughSend).toMatch(/correo/i);
-    expect(hint.followThroughCollect).toMatch(/pago/i);
-    expect(hint.followThroughSendBoth).toMatch(/^1\./);
-    expect(hint.followThroughCollectBoth).toMatch(/^2\./);
-  });
-
-  it("ya enviada y sin saldo: no pide Enviar ni Cobrar", () => {
-    expect(
-      resolveInvoiceFollowThrough({
-        status: "stamped",
-        dispatchSentAt: "2026-09-11T12:00:00.000Z",
-        balanceDue: 0,
-      }),
-    ).toEqual({ showSend: false, showCollect: false });
+    expect(hint.followThroughDismiss).toBe("Entendido");
+    expect(hint).not.toHaveProperty("followThroughCollect");
+    expect(hint).not.toHaveProperty("followThroughSendBoth");
+    expect(hint).not.toHaveProperty("followThroughCollectBoth");
   });
 });

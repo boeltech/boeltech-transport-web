@@ -616,34 +616,40 @@ export const invoicingCopy = {
       fiscalAttentionChip: "Atención fiscal",
       /**
        * Sustitución parcial: sustituta timbrada / original sin cancelar.
-       * Reutiliza título/CTA del sheet (`cancelFailed*` / `resumeCancel`).
+       * stamped → Reintentar; cancellation_pending → Actualizar estado (D1/D2).
        */
       substitutionCancelPendingTitle:
         "Sustituta timbrada; original sin cancelar",
+      /** A-73 pending + parcial: mismo glosario que cancel genérica. */
+      substitutionCancelPendingWaitingTitle: "Esperando al receptor",
       substitutionCancelPendingBodyOriginal: (uuid: string | null) =>
         uuid
           ? `La nueva factura ya tiene UUID ${uuid}. No vuelvas a Sustituir: reintenta la cancelación del original.`
           : "La nueva factura ya se timbró. No vuelvas a Sustituir: reintenta la cancelación del original.",
+      substitutionCancelPendingBodyOriginalWaiting:
+        "La solicitud de cancelación del original ya se envió. La sustituta ya está timbrada. Espera la aceptación del receptor. No asumas que el original quedó cancelado ante el SAT. Si el portal del PAC ya lo marca cancelado, actualiza el estado aquí.",
       substitutionCancelPendingBodySubstitute:
         "Esta factura ya está timbrada como sustituta. Falta cancelar el original ante el SAT. Abre la factura original y reintenta la cancelación ahí.",
       substitutionCancelPendingBodyParentWaiting:
         "La cancelación del original ya se envió y espera al receptor. Abre la factura original para ver el estado; no asumas que quedó cancelada ante el SAT.",
       substitutionCancelPendingCta: "Reintentar cancelación",
+      /** Misma string que cancellationPendingBannerCta (D2). */
+      substitutionCancelPendingCtaUpdate: "Actualizar estado",
       substitutionCancelPendingLinkOriginal: "Ir a la factura original",
       substitutionCancelPendingAskManagerBody:
         "La sustituta ya está timbrada y el original sigue sin cancelar. Pide a un gerente reintentar la cancelación del original.",
+      /** satCancellationStatus === requesting (D5). */
+      substitutionCancelPendingRequestingHelper:
+        "Solicitud en curso. Espera unos minutos antes de volver a consultar.",
       satHoleTitle: "Trámite SAT: pide a un gerente",
       satHoleBody:
         "Cancelar o sustituir esta factura lo hace un gerente. Tú puedes enviar el XML/PDF y registrar el cobro.",
       followThroughTitle: "Siguiente paso",
-      /** Solo falta enviar — CTA Enviar en action abre el Dialog del header. */
-      followThroughSend: "Mándale la factura al cliente por correo.",
-      /** Solo falta cobrar — CTA Registrar pago en action abre el Dialog del header. */
-      followThroughCollect:
-        "Aún te deben. Anota el pago cuando te lo depositen o te lo entreguen.",
-      /** Ambos pendientes: checklist numerada (envío primero). */
-      followThroughSendBoth: "1. Mándale la factura al cliente.",
-      followThroughCollectBoth: "2. Cuando paguen, anota el cobro aquí.",
+      /** Tip de correo — CTA Enviar en action abre el Dialog del header; cobro solo en header. */
+      followThroughSend:
+        "Mándale la factura al cliente por correo (si así le entregas).",
+      /** Dismiss persistente por factura (localStorage), espejo de filesAlertDismiss. */
+      followThroughDismiss: "Entendido",
       /** Viaje en falso con flete vigente (ADR-0079 / web #34) — cancelar, no sustituir. */
       falseTripCancelCfdiTitle: "Cancela la factura de flete",
       falseTripCancelCfdiBody:
@@ -832,16 +838,21 @@ export const invoicingCopy = {
           : "La nueva factura ya se timbró. No vuelvas a Sustituir: usa «Reintentar cancelación del original».",
       resumeCancel: "Reintentar cancelación del original",
       resumeCancelProcessing: "Reintentando cancelación…",
+      resumeCancelProcessingUpdate: "Actualizando estado…",
       resumeCancelSuccessTitle: "Cancelación del original completada",
       resumeCancelSuccessDescription:
         "La factura sustituta queda vigente. El original quedó cancelado ante el SAT o está esperando al receptor.",
       resumeCancelDialogTitle: "Reintentar cancelación del original",
+      resumeCancelDialogTitleUpdate: "Actualizar estado de la cancelación",
       resumeCancelDialogDescription:
         "Confirma el motivo de cancelación ante el SAT. No emite otra sustituta.",
+      resumeCancelDialogDescriptionUpdate:
+        "Consulta el estado ante el SAT. No emite otra sustituta.",
       resumeCancelReasonLabel: "Motivo de la cancelación",
       resumeCancelReasonPlaceholder:
         "Ej. Corrección del RFC del receptor (reintento)",
       resumeCancelConfirm: "Reintentar cancelación",
+      resumeCancelConfirmUpdate: "Actualizar estado",
       resumeCancelDefaultReason:
         "Reintento de cancelación del original tras sustitución",
       tripsStopLoadErrorTitle: "No se pudieron cargar las paradas",

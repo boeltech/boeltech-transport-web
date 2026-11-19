@@ -1,23 +1,32 @@
 /**
  * Tab Facturación / Cobro (F5) — hogar fiscal único (D7).
  * Sin factura → Cobro (D15 / Q11). Con factura → facturas + CP + pendientes.
+ * Riel Cobro: Σ total CFDI vigentes (con IVA) vía linked invoices — no facturadoVigente API.
  */
 
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, AlertTriangle } from "lucide-react";
 
+import { useTripLinkedInvoices } from "@features/trips/application";
 import type { Trip, TripRevenueSplit } from "@features/trips/domain";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import { DetailAlertCard, InfoRow } from "@shared/ui/data-display";
+import { Skeleton } from "@shared/ui/skeleton";
 import { formatDateTime } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { billingCopy } from "../../copy/tripDetail/billingCopy";
 import { TripFleetSnapshotCard } from "../trip-fleet-snapshot";
+import { buildTripBillingCobroSummary } from "./buildTripBillingCobroSummary";
+import { buildTripBillingInvoiceRows } from "./buildTripBillingInvoiceRows";
+import { resolveTripBillingSubstitution } from "./resolveTripBillingSubstitution";
+import { TripBillingFalseTripDeclarationCard } from "./TripBillingFalseTripDeclarationCard";
 import { TripBillingInvoicesPanel } from "./TripBillingInvoicesPanel";
 import { TripBillingPendientesPanel } from "./TripBillingPendientesPanel";
+import { TripBillingSubstitutionHistoryCard } from "./TripBillingSubstitutionHistoryCard";
 import { TripSinCfdiCobroPanel } from "./TripSinCfdiCobroPanel";
 
 const copy = billingCopy;
@@ -41,11 +50,48 @@ export function TripDetailBillingTab({
 }: TripDetailBillingTabProps) {
   const isSinCfdi = trip.cfdiEmissionIntent === "sin_cfdi_efectivo";
   const isTraslado = trip.cfdiDocumentIntent === "traslado";
+  const needsLinkedCobro = !isSinCfdi && !isTraslado;
   const lastStampError = trip.invoicing.lastStampError ?? null;
-  const facturado = trip.facturadoVigente ?? 0;
-  const cobrado = trip.cobradoViaje ?? 0;
-  const porCobrar = Math.max(0, facturado - cobrado);
   const folio = trip.invoicing.invoiceFolio;
+
+  const { data: linkedInvoices = [], isLoading: cobroLoading } =
+    useTripLinkedInvoices(trip.id, { enabled: needsLinkedCobro });
+
+  const cobroRows = useMemo(
+    () =>
+      needsLinkedCobro
+        ? buildTripBillingInvoiceRows({
+            trip,
+            linkedInvoices,
+            revenueSplit,
+            // Solo totales vigentes; slots pendientes no cuentan en summarizeVigente.
+            canCreate: false,
+          })
+        : [],
+    [linkedInvoices, needsLinkedCobro, revenueSplit, trip],
+  );
+
+  const cobro = useMemo(
+    () => buildTripBillingCobroSummary(cobroRows),
+    [cobroRows],
+  );
+
+  const substitution = useMemo(
+    () =>
+      needsLinkedCobro
+        ? resolveTripBillingSubstitution(linkedInvoices)
+        : null,
+    [linkedInvoices, needsLinkedCobro],
+  );
+
+  const cobroActiveFolio =
+    substitution?.hasPartialSubstitution && substitution.substituteFolio
+      ? substitution.substituteFolio
+      : folio;
+  const cobroActiveInvoiceId =
+    substitution?.hasPartialSubstitution && substitution.substituteInvoiceId
+      ? substitution.substituteInvoiceId
+      : trip.invoicing.invoiceId;
 
   if (isSinCfdi) {
     return (
@@ -112,23 +158,7 @@ export function TripDetailBillingTab({
         ) : null}
 
         {trip.operationalOutcome === "false_trip" ? (
-          <Card data-testid="trip-billing-false-trip">
-            <CardHeader className="pb-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <CardTitle className="text-base">
-                  {copy.falseTrip.cardTitle}
-                </CardTitle>
-                <Badge variant="warning" tone="soft">
-                  {copy.falseTrip.cardTitle}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              {trip.falseTripDeclaredAt
-                ? formatDateTime(trip.falseTripDeclaredAt.toISOString())
-                : copy.falseTrip.reasonMissing}
-            </CardContent>
-          </Card>
+          <TripBillingFalseTripDeclarationCard trip={trip} />
         ) : null}
 
         {revenueSplit?.status === "draft" ? (
@@ -148,18 +178,41 @@ export function TripDetailBillingTab({
           trip={trip}
           fiscalAttention={trip.fiscalAttention ?? null}
           canSubstitute={canSubstituteInvoice}
+          substitution={substitution}
         />
 
         <TripBillingInvoicesPanel
           trip={trip}
           revenueSplit={revenueSplit}
           onOpenRevenueSplit={onOpenRevenueSplit}
-          onOpenHistory={onOpenHistory}
+          onOpenHistory={
+            onOpenHistory ??
+            (substitution && substitution.history.length > 0
+              ? () => {
+                  document
+                    .querySelector(
+                      '[data-testid="trip-billing-substitution-history"]',
+                    )
+                    ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                }
+              : undefined)
+          }
+          hasPartialSubstitution={Boolean(
+            substitution?.hasPartialSubstitution,
+          )}
         />
+
+        {substitution && substitution.history.length > 0 ? (
+          <TripBillingSubstitutionHistoryCard items={substitution.history} />
+        ) : null}
 
         <TripFleetSnapshotCard
           trip={trip}
-          canSubstituteInvoice={canSubstituteInvoice}
+          canSubstituteInvoice={
+            // D27: no empujar Sustituir/flota cuando el pendiente es cancelar original.
+            canSubstituteInvoice &&
+            !substitution?.hasPartialSubstitution
+          }
         />
       </div>
 
@@ -172,30 +225,48 @@ export function TripDetailBillingTab({
             <InfoRow
               variant="inline"
               label={copy.cobroRail.facturado}
-              value={formatMxCurrency(facturado)}
+              value={
+                cobroLoading ? (
+                  <Skeleton className="ml-auto h-4 w-24" />
+                ) : (
+                  formatMxCurrency(cobro.facturado)
+                )
+              }
             />
             <InfoRow
               variant="inline"
               label={copy.cobroRail.cobrado}
-              value={formatMxCurrency(cobrado)}
+              value={
+                cobroLoading ? (
+                  <Skeleton className="ml-auto h-4 w-24" />
+                ) : (
+                  formatMxCurrency(cobro.cobrado)
+                )
+              }
             />
             <div>
               <p className="text-xs text-muted-foreground">
                 {copy.cobroRail.porCobrar}
               </p>
-              <p className="text-lg font-semibold tabular-nums">
-                {formatMxCurrency(porCobrar)}
-              </p>
+              {cobroLoading ? (
+                <Skeleton className="mt-1 h-7 w-28" />
+              ) : (
+                <p className="text-lg font-semibold tabular-nums">
+                  {formatMxCurrency(cobro.porCobrar)}
+                </p>
+              )}
             </div>
-            {folio && trip.invoicing.invoiceId ? (
+            {cobroActiveFolio && cobroActiveInvoiceId ? (
               <p className="text-xs text-muted-foreground">
-                Los pagos se registran en la factura ·{" "}
+                {substitution?.hasPartialSubstitution
+                  ? copy.cobroRail.paymentsOnSubstitute(cobroActiveFolio)
+                  : copy.cobroRail.paymentsOnInvoice(cobroActiveFolio)}{" "}
                 <Link
                   className="text-primary underline-offset-2 hover:underline"
-                  to={`/invoices/${trip.invoicing.invoiceId}`}
+                  to={`/invoices/${cobroActiveInvoiceId}`}
                   state={{ from: `/trips/${trip.id}` }}
                 >
-                  Abrir {folio}
+                  Abrir {cobroActiveFolio}
                 </Link>
               </p>
             ) : (
@@ -204,7 +275,7 @@ export function TripDetailBillingTab({
               </p>
             )}
             {/* Q10 sustituta: copy permitido; prohibido migración. */}
-            {trip.requiresFiscalAttention ? (
+            {substitution?.hasPartialSubstitution ? (
               <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 {copy.cobroRail.substituteHint}
               </p>

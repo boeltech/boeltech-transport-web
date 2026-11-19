@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,8 +15,38 @@ vi.mock("../trip-fleet-snapshot", () => ({
 }));
 
 vi.mock("@features/invoicing/application", () => ({
-  useInvoice: () => ({ data: undefined }),
-  buildInvoiceCreateHref: () => "/invoices/new",
+  buildInvoiceCreateHref: (params: {
+    tripId: string;
+    scope?: string;
+    legId?: string;
+  }) => {
+    const q = new URLSearchParams({ tripId: params.tripId });
+    if (params.scope) q.set("scope", params.scope);
+    if (params.legId) q.set("legId", params.legId);
+    return `/invoices/new?${q.toString()}`;
+  },
+}));
+
+const useTripLinkedInvoicesMock = vi.fn(() => ({
+  data: [] as unknown[],
+  isLoading: false,
+}));
+
+const useTripTimelineMock = vi.fn(() => ({
+  data: undefined as
+    | { events: Array<{
+        eventType: string;
+        notes: string | null;
+        capturedBy: string | null;
+        occurredAt: Date;
+      }> }
+    | undefined,
+  isLoading: false,
+}));
+
+const useTripExpensesSummaryMock = vi.fn(() => ({
+  data: undefined as { total: number } | undefined,
+  isLoading: false,
 }));
 
 vi.mock("@features/trips/application", () => ({
@@ -26,6 +56,11 @@ vi.mock("@features/trips/application", () => ({
     isError: false,
     refetch: vi.fn(),
   }),
+  useTripLinkedInvoices: (...args: unknown[]) =>
+    useTripLinkedInvoicesMock(...args),
+  useTripTimeline: (...args: unknown[]) => useTripTimelineMock(...args),
+  useTripExpensesSummary: (...args: unknown[]) =>
+    useTripExpensesSummaryMock(...args),
 }));
 
 vi.mock("@shared/permissions", () => ({
@@ -159,6 +194,41 @@ function activeSplitFixture(): TripRevenueSplit {
 }
 
 describe("TripDetailBillingTab (F5)", () => {
+  beforeEach(() => {
+    useTripLinkedInvoicesMock.mockReset();
+    useTripTimelineMock.mockReset();
+    useTripExpensesSummaryMock.mockReset();
+    useTripLinkedInvoicesMock.mockReturnValue({
+      data: [
+        {
+          id: "inv-1",
+          serie: "F",
+          folio: 1,
+          status: "stamped",
+          billingScope: "primary_transport",
+          splitLegId: null,
+          attachCartaPorte: true,
+          sharePercent: null,
+          total: 18500,
+          totalPaid: 0,
+          balanceDue: 18500,
+          stampedAt: "2026-11-12T14:00:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-12T13:00:00Z",
+        },
+      ],
+      isLoading: false,
+    });
+    useTripTimelineMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    });
+    useTripExpensesSummaryMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+    });
+  });
+
   it("muestra hogar Facturación con facturas y sin placeholder", () => {
     renderTab(baseTrip());
     expect(screen.getByTestId("trip-billing-tab")).toBeInTheDocument();
@@ -269,6 +339,27 @@ describe("TripDetailBillingTab (F5)", () => {
   });
 
   it("F5b P1-A: Pendientes en columna principal antes de Facturas", () => {
+    useTripLinkedInvoicesMock.mockReturnValue({
+      data: [
+        {
+          id: "inv-1",
+          serie: "F",
+          folio: 1187,
+          status: "stamped",
+          billingScope: "primary_transport",
+          splitLegId: null,
+          attachCartaPorte: true,
+          sharePercent: null,
+          total: 31920,
+          totalPaid: 0,
+          balanceDue: 31920,
+          stampedAt: "2026-11-11T10:05:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-11T10:00:00Z",
+        },
+      ],
+      isLoading: false,
+    });
     renderTab(
       baseTrip({
         requiresFiscalAttention: true,
@@ -296,34 +387,222 @@ describe("TripDetailBillingTab (F5)", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(billingCopy.invoices.toSubstitute)).toBeInTheDocument();
     expect(
+      screen.getByRole("link", {
+        name: billingCopy.pendientes.substituteCta,
+      }),
+    ).toBeInTheDocument();
+    expect(
       screen.queryByText(/Qué ve cada rol/i),
     ).not.toBeInTheDocument();
   });
 
-  it("cobro hint sin REP aislado cuando hay atención fiscal", () => {
+  it("D27: aviso cancelar original + historial; sin CTA Sustituir; cobro en sustituta", () => {
+    useTripLinkedInvoicesMock.mockReturnValue({
+      data: [
+        {
+          id: "orig",
+          serie: "F",
+          folio: 1187,
+          status: "stamped",
+          billingScope: "primary_transport",
+          splitLegId: null,
+          attachCartaPorte: true,
+          sharePercent: null,
+          total: 31920,
+          totalPaid: 0,
+          balanceDue: 31920,
+          stampedAt: "2026-11-11T10:05:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-11T10:00:00Z",
+        },
+        {
+          id: "sub",
+          serie: "F",
+          folio: 1205,
+          status: "stamped",
+          billingScope: "primary_transport",
+          splitLegId: null,
+          attachCartaPorte: true,
+          sharePercent: null,
+          total: 31920,
+          totalPaid: 0,
+          balanceDue: 31920,
+          stampedAt: "2026-11-13T10:18:00Z",
+          parentInvoiceId: "orig",
+          createdAt: "2026-11-13T10:18:00Z",
+        },
+      ],
+      isLoading: false,
+    });
     renderTab(
       baseTrip({
         requiresFiscalAttention: true,
         fiscalAttention: {
-          mutationKind: "base_rate",
-          flaggedAt: "2026-11-12T10:00:00Z",
+          mutationKind: "fleet",
+          flaggedAt: "2026-11-12T09:12:00Z",
           flaggedBy: "u2",
-          flaggedByName: "Luis",
-          reason: "Mutación operativa (base_rate) con CFDI vigente; requiere sustitución",
+          flaggedByName: "Rosa",
+          reason: "Mutación operativa (fleet) con CFDI vigente; requiere sustitución",
           invoiceStatus: "stamped",
         },
+        invoicing: tripInvoicingFixture({
+          invoiceId: "sub",
+          invoiceFolio: "F-1205",
+          invoiceStatus: "stamped",
+          hasActiveInvoice: true,
+          hasActivePrimaryInvoice: true,
+          hasActivePrincipalInvoice: true,
+          cartaPorteAttached: true,
+        }),
       }),
     );
+
+    expect(
+      screen.getByText(
+        billingCopy.pendientes.cancelOriginalTitle("F-1187"),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: billingCopy.pendientes.cancelOriginalCta,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", {
+        name: billingCopy.pendientes.substituteCta,
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(billingCopy.invoices.docFreight)).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.invoices.docFreightOriginal),
+    ).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.invoices.toCancel)).toBeInTheDocument();
+    expect(
+      screen.queryByText(billingCopy.invoices.toSubstitute),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("trip-billing-substitution-history"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(billingCopy.cobroRail.substituteHint),
     ).toBeInTheDocument();
     expect(screen.queryByText(/\bREP\b/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.cobroRail.paymentsOnSubstitute("F-1205")),
+    ).toBeInTheDocument();
+    // Cobro = solo sustituta (31920), no duplica original.
+    expect(screen.getAllByText("$31,920.00").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("riel Cobro usa Σ total CFDI vigentes (no facturadoVigente subtotal API)", () => {
+    useTripLinkedInvoicesMock.mockReturnValue({
+      data: [
+        {
+          id: "inv-1",
+          serie: "F",
+          folio: 1,
+          status: "stamped",
+          billingScope: "primary_transport",
+          splitLegId: null,
+          attachCartaPorte: true,
+          sharePercent: null,
+          total: 31920,
+          totalPaid: 5000,
+          balanceDue: 26920,
+          stampedAt: "2026-11-12T14:00:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-12T13:00:00Z",
+        },
+        {
+          id: "draft-1",
+          serie: "F",
+          folio: 2,
+          status: "draft",
+          billingScope: "accessory",
+          splitLegId: null,
+          attachCartaPorte: false,
+          sharePercent: null,
+          total: 9999,
+          totalPaid: 0,
+          balanceDue: 9999,
+          stampedAt: null,
+          parentInvoiceId: null,
+          createdAt: "2026-11-12T15:00:00Z",
+        },
+        {
+          id: "cancelled-1",
+          serie: "F",
+          folio: 0,
+          status: "cancelled",
+          billingScope: "primary_transport",
+          splitLegId: null,
+          attachCartaPorte: true,
+          sharePercent: null,
+          total: 8000,
+          totalPaid: 0,
+          balanceDue: 0,
+          stampedAt: "2026-11-10T14:00:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-10T13:00:00Z",
+        },
+      ],
+      isLoading: false,
+    });
+
+    renderTab(
+      baseTrip({
+        // Subtotal API (sin IVA) — no debe pintar el riel Cobro.
+        facturadoVigente: 28500,
+        cobradoViaje: 999,
+        costs: {
+          baseRate: 28500,
+          fuelCost: 0,
+          tollCost: 0,
+          otherCosts: 0,
+          totalCost: 0,
+        },
+      }),
+    );
+
+    const rail = screen.getByTestId("trip-billing-cobro-rail");
+    expect(rail).toHaveTextContent(billingCopy.cobroRail.facturado);
+    expect(rail).toHaveTextContent(/\$31,920\.00/);
+    expect(rail).toHaveTextContent(/\$5,000\.00/);
+    expect(rail).toHaveTextContent(billingCopy.cobroRail.porCobrar);
+    expect(rail).toHaveTextContent(/\$26,920\.00/);
+    // Subtotal API / cobradoViaje / draft / cancelada no mandan el riel.
+    expect(rail).not.toHaveTextContent(/\$28,500\.00/);
+    expect(rail).not.toHaveTextContent(/\$999\.00/);
+    expect(rail).not.toHaveTextContent(/\$9,999\.00/);
+    expect(rail).not.toHaveTextContent(/\$8,000\.00/);
   });
 
   it("F-ds P1-B2: chip Reparto, share (monto+%+barra) y Base de flete", () => {
+    useTripLinkedInvoicesMock.mockReturnValue({
+      data: [
+        {
+          id: "inv-a",
+          serie: "A",
+          folio: 10,
+          status: "stamped",
+          billingScope: "split_share",
+          splitLegId: "leg-a",
+          attachCartaPorte: true,
+          sharePercent: 60,
+          total: 19152,
+          totalPaid: 0,
+          balanceDue: 19152,
+          stampedAt: "2026-11-12T14:00:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-12T13:00:00Z",
+        },
+      ],
+      isLoading: false,
+    });
     const split = activeSplitFixture();
     renderTab(
       baseTrip({
+        clientId: "c1",
         invoicing: tripInvoicingFixture({
           hasActiveSplit: true,
           canGenerateSplitShareInvoice: true,
@@ -334,6 +613,7 @@ describe("TripDetailBillingTab (F5)", () => {
     expect(screen.getByTestId("trip-billing-split-chip")).toHaveTextContent(
       billingCopy.split.activeChip("60", "40"),
     );
+    expect(screen.getByText(billingCopy.invoices.titleSplit)).toBeInTheDocument();
     expect(screen.getByText(billingCopy.invoices.sharePercent(60))).toBeInTheDocument();
     expect(screen.getByText(billingCopy.invoices.sharePercent(40))).toBeInTheDocument();
     expect(screen.getByText(billingCopy.invoices.freightBasis)).toBeInTheDocument();
@@ -342,5 +622,189 @@ describe("TripDetailBillingTab (F5)", () => {
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
     const invoices = screen.getByTestId("trip-billing-invoices");
     expect(invoices.querySelector("tr[data-entity-summary-row]")).toBeTruthy();
+    expect(screen.getByTestId("trip-billing-accessories")).toBeInTheDocument();
+  });
+
+  it("D19/F-02: split → piernas en tabla; accesoria en card aparte con cobrado real", () => {
+    useTripLinkedInvoicesMock.mockReturnValue({
+      data: [
+        {
+          id: "inv-a",
+          serie: "A",
+          folio: 10,
+          status: "stamped",
+          billingScope: "split_share",
+          splitLegId: "leg-a",
+          attachCartaPorte: true,
+          sharePercent: 60,
+          total: 19152,
+          totalPaid: 500,
+          balanceDue: 18652,
+          stampedAt: "2026-11-12T14:00:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-12T13:00:00Z",
+        },
+        {
+          id: "acc-1",
+          serie: "A",
+          folio: 1,
+          status: "stamped",
+          billingScope: "accessory",
+          splitLegId: null,
+          attachCartaPorte: false,
+          sharePercent: null,
+          total: 1500,
+          totalPaid: 1500,
+          balanceDue: 0,
+          stampedAt: "2026-11-12T15:00:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-12T15:00:00Z",
+        },
+      ],
+      isLoading: false,
+    });
+    const split = activeSplitFixture();
+    renderTab(
+      baseTrip({
+        clientId: "c1",
+        invoicing: tripInvoicingFixture({
+          hasActiveSplit: true,
+          canGenerateSplitShareInvoice: true,
+        }),
+      }),
+      split,
+    );
+
+    const invoices = screen.getByTestId("trip-billing-invoices");
+    const accessories = screen.getByTestId("trip-billing-accessories");
+
+    expect(invoices).toHaveTextContent("Cliente A");
+    expect(invoices).toHaveTextContent("Cliente B");
+    expect(invoices).toHaveTextContent(billingCopy.invoices.badgePrimaryClient);
+    expect(invoices).toHaveTextContent(billingCopy.invoices.badgeCarriesCp);
+    expect(invoices).toHaveTextContent(billingCopy.invoices.invoicePortion);
+    expect(invoices).not.toHaveTextContent(billingCopy.invoices.docAccessory);
+    expect(invoices).not.toHaveTextContent(billingCopy.invoices.columns.collected);
+
+    expect(accessories).toHaveTextContent(
+      billingCopy.invoices.accessoriesSectionTitle,
+    );
+    expect(accessories).toHaveTextContent(billingCopy.invoices.docAccessory);
+    expect(accessories.textContent ?? "").toMatch(/1,?500/);
+
+    const freightBasis = screen.getByText(billingCopy.invoices.freightBasis);
+    expect(invoices.contains(freightBasis)).toBe(true);
+    expect(
+      invoices.compareDocumentPosition(accessories) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    expect(screen.getByText(billingCopy.invoices.sharePercent(60))).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.invoices.sharePercent(40))).toBeInTheDocument();
+    expect(screen.getByText(billingCopy.invoices.sharePercent(100))).toBeInTheDocument();
+  });
+
+  it("viaje en falso: Declaración (quién/motivo/gastos) + filas tipadas + sin empty accesorias", () => {
+    useTripTimelineMock.mockReturnValue({
+      data: {
+        events: [
+          {
+            eventType: "false_trip_declared",
+            notes: "El cliente canceló la carga con la unidad en camino.",
+            capturedBy: "Rosa Alcántara",
+            occurredAt: new Date("2026-11-13T15:40:00Z"),
+          },
+        ],
+      },
+      isLoading: false,
+    });
+    useTripExpensesSummaryMock.mockReturnValue({
+      data: { total: 1180 },
+      isLoading: false,
+    });
+    useTripLinkedInvoicesMock.mockReturnValue({
+      data: [
+        {
+          id: "false-1",
+          serie: "A",
+          folio: 77,
+          status: "stamped",
+          billingScope: "false_trip",
+          splitLegId: null,
+          attachCartaPorte: false,
+          sharePercent: null,
+          total: 31920,
+          totalPaid: 0,
+          balanceDue: 31920,
+          stampedAt: "2026-11-19T17:40:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-19T17:00:00Z",
+        },
+        {
+          id: "freight-cancelled",
+          serie: "F",
+          folio: 1,
+          status: "cancelled",
+          billingScope: "primary_transport",
+          splitLegId: null,
+          attachCartaPorte: true,
+          sharePercent: null,
+          total: 8000,
+          totalPaid: 0,
+          balanceDue: 0,
+          stampedAt: "2026-11-10T14:00:00Z",
+          parentInvoiceId: null,
+          createdAt: "2026-11-10T13:00:00Z",
+        },
+      ],
+      isLoading: false,
+    });
+    renderTab(
+      baseTrip({
+        operationalOutcome: "false_trip",
+        falseTripDeclaredAt: new Date("2026-11-13T15:40:00Z"),
+        falseTripDeclaredBy: null,
+        facturadoVigente: 28500,
+        costs: {
+          baseRate: 28500,
+          fuelCost: 0,
+          tollCost: 0,
+          otherCosts: 0,
+          totalCost: 0,
+        },
+        invoicing: tripInvoicingFixture({
+          invoiceId: "false-1",
+          invoiceFolio: "A-77",
+          invoiceStatus: "stamped",
+          hasActivePrincipalInvoice: true,
+        }),
+      }),
+    );
+
+    const declaration = screen.getByTestId("trip-billing-false-trip");
+    expect(declaration).toHaveTextContent(billingCopy.falseTrip.cardTitle);
+    expect(declaration).toHaveTextContent("Rosa Alcántara");
+    expect(declaration).toHaveTextContent(
+      "El cliente canceló la carga con la unidad en camino.",
+    );
+    expect(declaration).toHaveTextContent(billingCopy.falseTrip.expenses);
+    expect(declaration).toHaveTextContent(/\$1,180\.00/);
+    expect(
+      declaration.querySelector('a[href="/trips/trip-1?tab=costs"]'),
+    ).toBeTruthy();
+
+    const invoices = screen.getByTestId("trip-billing-invoices");
+    expect(invoices).toHaveTextContent(billingCopy.invoices.docFalseTrip);
+    expect(invoices).toHaveTextContent(billingCopy.invoices.docFalseTripSubtitle);
+    expect(invoices).toHaveTextContent(billingCopy.invoices.docFreight);
+    expect(invoices).toHaveTextContent(billingCopy.invoices.descriptionFalseTrip);
+    expect(
+      screen.queryByText(billingCopy.invoices.emptyAccessories),
+    ).not.toBeInTheDocument();
+
+    // A-77: Cobro = total CFDI vigente (no tarifa/subtotal 28,500).
+    const rail = screen.getByTestId("trip-billing-cobro-rail");
+    expect(rail).toHaveTextContent(/\$31,920\.00/);
+    expect(rail).not.toHaveTextContent(/\$28,500\.00/);
   });
 });

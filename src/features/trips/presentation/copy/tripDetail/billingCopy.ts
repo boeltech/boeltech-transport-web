@@ -5,18 +5,29 @@
 export const billingCopy = {
   invoices: {
     title: "Facturas del viaje",
+    /** D19 / F-01: título de la tabla de piernas. */
+    titleSplit: "Reparto del flete entre clientes",
     description:
       "Servicio con factura · el cobro lo lleva quien recibe cada factura.",
+    /** D27: ambas vigentes ante el SAT hasta cancelar la original. */
+    descriptionPartialSubstitution:
+      "Hasta cancelar la original, las dos facturas están vigentes ante el SAT.",
     descriptionSplit:
-      "Reparto del flete · cada porción se factura y cobra por su cuenta.",
+      "Cada cliente factura y cobra su porción del flete.",
     descriptionFalseTrip:
-      "Ingreso sin Carta Porte · el cobro lo lleva quien recibe la factura.",
+      "El viaje en falso es la única factura vigente de este viaje.",
     emptyAccessories: "Sin facturas de servicios adicionales",
+    /** F-02: card aparte bajo la tabla de piernas. */
+    accessoriesSectionTitle: "Servicios adicionales",
     history: "Historial",
     accessoryCta: "Facturar servicios adicionales",
     columns: {
       document: "Documento",
+      /** D19: eje cliente en modo reparto. */
+      client: "Cliente",
       statusFolio: "Estado y folio",
+      /** D19: estado + folio / CTA en modo reparto. */
+      invoice: "Factura",
       total: "Total",
       /** F-ds: columna share (monto + % + barra). */
       share: "Parte del flete",
@@ -25,20 +36,50 @@ export const billingCopy = {
     },
     /** F-ds: label de summaryRow en modo reparto. */
     freightBasis: "Base de flete",
+    /** D-INV-4: summary modo docs (excluye borrador/canceladas). */
+    facturadoVigente: "Facturado vigente",
+    /** Summary de Factura en Base de flete (Σ totales vigentes del reparto). */
+    facturadoSummary: (amount: string) => `Facturado ${amount}`,
     docFreight: "Flete",
+    /** D27: fila del CFDI reemplazado (aún sin cancelar o ya cancelado). */
+    docFreightOriginal: "Flete original",
+    /** D27 / split: porción reemplazada. */
+    docSplitOriginal: (label: string) => `${label} · original`,
     docAccessory: "Servicio adicional",
-    docFalseTrip: "Ingreso sin Carta Porte",
-    docSplit: (label: string) => `Porción · ${label}`,
+    /** D20 / F-11: título tipado de la fila de ingreso en falso. */
+    docFalseTrip: "Viaje en falso",
+    /** Subtítulo de la fila (ingreso sin CP); el estado «Por facturar» vive en la columna Estado. */
+    docFalseTripSubtitle: "Ingreso sin Carta Porte",
+    /** Título de fila pierna = razón social (D19); legacy tests usan docSplit. */
+    docSplit: (label: string) => label,
+    badgePrimaryClient: "Cliente principal",
+    badgeCarriesCp: "Lleva Carta Porte",
     withCartaPorte: "Con Carta Porte",
     withoutCartaPorte: "Sin Carta Porte",
     /** F5b P1-A: flete vigente con Atención fiscal. */
     toSubstitute: "Por sustituir",
+    /** D27: original reemplazada aún sin cancelar ante el SAT. */
+    toCancel: "Por cancelar",
+    /** D-INV-7: cadena de sustitución (folios del listado). */
+    replaces: (folio: string) => `Sustituye a ${folio}`,
+    replacedBy: (folio: string) => `Reemplazada por ${folio}`,
+    openInvoice: "Abrir factura",
+    /** Slot sin CFDI (falso / porción). */
+    pendingInvoice: "Por facturar",
+    /** Badge en columna Factura (modo reparto, artboard D19). */
+    pendingInvoiceBadge: "Pendiente de facturar",
+    pendingInvoiceDetail: "Aún sin factura",
+    /** D-INV-8: viaje cancelado sin factura en la porción. */
+    noEmit: "Sin factura · no emitir",
+    emptyTable: "Aún no hay facturas en este viaje. Usa Facturar en el encabezado.",
     /** Texto % (tests / chip); la celda share formatea el % vía EntityListTable. */
     sharePercent: (pct: number) => `${pct}%`,
     viewInvoice: "Ver factura",
     invoicePortion: "Facturar porción",
     openDraft: "Continuar borrador",
     draftNotInTotals: "Los borradores no cuentan en el total cobrado.",
+    /** Total CFDI en celda Factura (modo reparto). */
+    invoiceTotal: (amount: string) => `Total ${amount}`,
   },
   cobroRail: {
     title: "Cobro",
@@ -46,11 +87,14 @@ export const billingCopy = {
     cobrado: "Cobrado del viaje",
     porCobrar: "Por cobrar",
     paymentsOnInvoice: (folio: string) =>
-      `Los pagos se registran en la factura · Abrir ${folio}`,
+      `Los pagos se registran en la factura ${folio}.`,
     paymentsOnInvoiceGeneric:
       "Los pagos se registran en la factura activa.",
     substituteHint:
       "Registra los cobros en la factura activa (la sustituta ya timbrada). Los cobros anteriores no se mueven.",
+    /** D27 / Q10: apunta a la sustituta por folio. */
+    paymentsOnSubstitute: (folio: string) =>
+      `Registra los pagos en la sustituta ${folio}.`,
   },
   pendientes: {
     title: "Pendientes de facturación",
@@ -64,6 +108,13 @@ export const billingCopy = {
     whoUnknown: "—",
     substituteCta: "Sustituir factura",
     openInvoiceCta: "Abrir factura",
+    /** D27: no invita a Sustituir de nuevo; oriente a cancelar original. */
+    cancelOriginalTitle: (folio: string) =>
+      `Cancela la factura original ${folio}`,
+    cancelOriginalBody: (originalFolio: string, substituteFolio: string) =>
+      `La sustituta ${substituteFolio} ya está vigente y la original ${originalFolio} sigue sin cancelar. Abre la original y reintenta la cancelación. No sustituyas de nuevo ni corrijas flota por este aviso.`,
+    cancelOriginalCta: "Abrir factura original",
+    cancelOriginalBadge: "Original sin cancelar",
     /**
      * Títulos humanos por `mutation_kind` (SoT de UI).
      * No pintar `reason` técnico del API en «Qué cambió».
@@ -96,14 +147,29 @@ export const billingCopy = {
     body: "Este viaje es solo traslado: no se emiten documentos de ingreso ni Carta Porte desde tlamx.",
   },
   falseTrip: {
-    cardTitle: "Viaje en falso",
+    /** D20 / F-11 · artboard Fact-Falso. */
+    cardTitle: "Declaración de viaje en falso",
     declaredBy: "Declaró",
+    reason: "Motivo",
     reasonMissing: "Sin motivo registrado",
+    whoUnknown: "—",
+    expenses: "Gastos del viaje",
+    viewCosts: "Ver costos",
+    expensesHint: "Los gastos se capturan antes de declarar.",
+    declaredAtLine: (who: string, when: string) => `${who} · ${when}`,
   },
   substitute: {
     chip: "Sustitución",
     openOriginal: "Abrir factura original",
-    historyTitle: "Historial",
+    historyTitle: "Sustitución",
+    historyDescription: "Por qué hay dos facturas de flete.",
+    historyCancelPending: (folio: string) =>
+      `Cancelación de ${folio} no completada · reintentar`,
+    historyWaitingReceptor: (folio: string) =>
+      `${folio} en espera del receptor · reintentar si aplica`,
+    historySubstituteStamped: (subFolio: string, origFolio: string) =>
+      `${subFolio} timbrada como sustituta de ${origFolio}`,
+    historyOriginalStamped: (folio: string) => `${folio} timbrada`,
   },
   split: {
     draftChip: "Reparto sin confirmar",

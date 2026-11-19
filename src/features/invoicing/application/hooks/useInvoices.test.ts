@@ -4,7 +4,9 @@ import {
   useCreateInvoice,
   useCancelInvoice,
   useDeleteInvoice,
+  useUpdateInvoice,
   useSubstituteStampedInvoice,
+  useResumeSubstitutionCancel,
   useRetryRepStamp,
   invoiceQueryKeys,
 } from "./useInvoices";
@@ -53,10 +55,24 @@ vi.mock("@features/invoicing/infrastructure", () => ({
     registerPayment: vi.fn(),
     retryRepStamp: vi.fn(),
     substituteStampedInvoice: vi.fn(),
+    resumeSubstitutionCancel: vi.fn(),
     openPdf: vi.fn(),
     downloadXml: vi.fn(),
   },
 }));
+
+const linkedTripStub = (tripId: string): Invoice["trips"][number] => ({
+  tripId,
+  tripCode: "V-001",
+  clientName: "Cliente",
+  scheduledDeparture: "2026-06-01T10:00:00.000Z",
+  originCity: "Monterrey",
+  originState: "NL",
+  destinationCity: "CDMX",
+  destinationState: "CMX",
+  baseRate: 40000,
+  billingScope: "primary_transport",
+});
 
 describe("useCreateInvoice cache invalidation", () => {
   beforeEach(() => {
@@ -69,7 +85,7 @@ describe("useCreateInvoice cache invalidation", () => {
     useMutationMock.mockClear();
   });
 
-  it("invalidates lists, finance root and trips without prefill", () => {
+  it("invalidates lists, finance root and trips without prefill", async () => {
     const mutationConfig = useCreateInvoice({
       onSuccess: onSuccessSpy,
     }) as unknown as {
@@ -78,10 +94,10 @@ describe("useCreateInvoice cache invalidation", () => {
         variables: unknown,
         context: unknown,
         mutation: unknown,
-      ) => void;
+      ) => Promise<void>;
     };
 
-    mutationConfig.onSuccess({ id: "inv-1" }, {}, {}, {});
+    await mutationConfig.onSuccess({ id: "inv-1" }, {}, {}, {});
 
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: invoiceQueryKeys.lists(),
@@ -90,13 +106,114 @@ describe("useCreateInvoice cache invalidation", () => {
       queryKey: ["finance"],
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: ["trips"],
+      queryKey: tripQueryKeys.all,
     });
 
     expect(invalidateQueries).not.toHaveBeenCalledWith({
       queryKey: ["invoices", "prefill"],
     });
     expect(onSuccessSpy).toHaveBeenCalled();
+  });
+
+  it("invalidates linked trip caches when create response includes trips", async () => {
+    const tripId = "trip-created-link";
+    const mutationConfig = useCreateInvoice() as unknown as {
+      onSuccess: (
+        data: Invoice,
+        variables: { tripIds: string[] },
+        context: unknown,
+        mutation: unknown,
+      ) => Promise<void>;
+    };
+
+    await mutationConfig.onSuccess(
+      { id: "inv-2", trips: [linkedTripStub(tripId)] } as Invoice,
+      { tripIds: [tripId] },
+      {},
+      {},
+    );
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.detail(tripId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.lists(),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.revenueSplit(tripId),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.all,
+    });
+  });
+});
+
+describe("useUpdateInvoice cache invalidation", () => {
+  beforeEach(() => {
+    invalidateQueries.mockReset();
+    invalidateQueries.mockResolvedValue(undefined);
+    removeQueries.mockReset();
+    refetchQueries.mockReset();
+    refetchQueries.mockResolvedValue(undefined);
+    onSuccessSpy.mockReset();
+    useMutationMock.mockClear();
+  });
+
+  it("invalidates linked trip caches when update response includes trips", async () => {
+    const tripId = "trip-updated-link";
+    const mutationConfig = useUpdateInvoice({
+      onSuccess: onSuccessSpy,
+    }) as unknown as {
+      onSuccess: (
+        data: Invoice,
+        variables: { id: string; payload: unknown },
+        context: unknown,
+        mutation: unknown,
+      ) => Promise<void>;
+    };
+
+    await mutationConfig.onSuccess(
+      { id: "inv-upd", trips: [linkedTripStub(tripId)] } as Invoice,
+      { id: "inv-upd", payload: {} },
+      {},
+      {},
+    );
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.detail(tripId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.lists(),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.revenueSplit(tripId),
+    });
+    expect(onSuccessSpy).toHaveBeenCalled();
+  });
+
+  it("falls back to trip lists when update response has no trips", async () => {
+    const mutationConfig = useUpdateInvoice() as unknown as {
+      onSuccess: (
+        data: Invoice,
+        variables: { id: string; payload: unknown },
+        context: unknown,
+        mutation: unknown,
+      ) => Promise<void>;
+    };
+
+    await mutationConfig.onSuccess(
+      { id: "inv-upd-empty", trips: [] } as Invoice,
+      { id: "inv-upd-empty", payload: {} },
+      {},
+      {},
+    );
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.lists(),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.all,
+    });
   });
 });
 
@@ -342,7 +459,21 @@ describe("useSubstituteStampedInvoice cache invalidation", () => {
   });
 });
 
-describe("useDeleteInvoice cache eviction", () => {
+describe("useResumeSubstitutionCancel cache invalidation", () => {
+  const tripId = "trip-resume-cancel";
+  const invoiceId = "invoice-original-resume";
+
+  const makeResult = (): SubstituteStampedInvoiceResult => ({
+    replacement: {
+      id: "invoice-replacement-resume",
+      trips: [linkedTripStub(tripId)],
+    } as Invoice,
+    original: {
+      id: invoiceId,
+      trips: [linkedTripStub(tripId)],
+    } as Invoice,
+  });
+
   beforeEach(() => {
     invalidateQueries.mockReset();
     invalidateQueries.mockResolvedValue(undefined);
@@ -353,7 +484,57 @@ describe("useDeleteInvoice cache eviction", () => {
     useMutationMock.mockClear();
   });
 
-  it("removes detail query for the deleted invoice id", () => {
+  it("invalidates trip detail, lists and revenueSplit like substitute/cancel", async () => {
+    const mutationConfig = useResumeSubstitutionCancel(invoiceId, {
+      onSuccess: onSuccessSpy,
+    }) as unknown as {
+      onSuccess: (
+        data: SubstituteStampedInvoiceResult,
+        variables: { cancellationReason: string },
+        context: unknown,
+        mutation: unknown,
+      ) => Promise<void>;
+    };
+
+    await mutationConfig.onSuccess(
+      makeResult(),
+      { cancellationReason: "01" },
+      {},
+      {},
+    );
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.detail(tripId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.lists(),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.revenueSplit(tripId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: invoiceQueryKeys.detail(invoiceId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: invoiceQueryKeys.detail("invoice-replacement-resume"),
+    });
+    expect(onSuccessSpy).toHaveBeenCalled();
+  });
+});
+
+describe("useDeleteInvoice cache eviction", () => {
+  beforeEach(() => {
+    invalidateQueries.mockReset();
+    invalidateQueries.mockResolvedValue(undefined);
+    removeQueries.mockReset();
+    refetchQueries.mockReset();
+    refetchQueries.mockResolvedValue(undefined);
+    onSuccessSpy.mockReset();
+    useMutationMock.mockClear();
+    queryDataStore.clear();
+  });
+
+  it("removes detail query for the deleted invoice id", async () => {
     const invoiceId = "invoice-to-delete";
     const mutationConfig = useDeleteInvoice({
       onSuccess: onSuccessSpy,
@@ -363,10 +544,10 @@ describe("useDeleteInvoice cache eviction", () => {
         variables: string,
         context: unknown,
         mutation: unknown,
-      ) => void;
+      ) => Promise<void>;
     };
 
-    mutationConfig.onSuccess(undefined, invoiceId, {}, {});
+    await mutationConfig.onSuccess(undefined, invoiceId, {}, {});
 
     expect(removeQueries).toHaveBeenCalledWith({
       queryKey: invoiceQueryKeys.detail(invoiceId),
@@ -378,9 +559,39 @@ describe("useDeleteInvoice cache eviction", () => {
       queryKey: ["finance"],
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: ["trips"],
+      queryKey: tripQueryKeys.all,
     });
     expect(onSuccessSpy).toHaveBeenCalled();
+  });
+
+  it("invalidates linked trip caches from cached invoice before remove", async () => {
+    const invoiceId = "invoice-to-delete-cached";
+    const tripId = "trip-delete-link";
+    queryDataStore.set(
+      JSON.stringify(invoiceQueryKeys.detail(invoiceId)),
+      { id: invoiceId, trips: [linkedTripStub(tripId)] },
+    );
+
+    const mutationConfig = useDeleteInvoice() as unknown as {
+      onSuccess: (
+        data: void,
+        variables: string,
+        context: unknown,
+        mutation: unknown,
+      ) => Promise<void>;
+    };
+
+    await mutationConfig.onSuccess(undefined, invoiceId, {}, {});
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.detail(tripId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.lists(),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.all,
+    });
   });
 });
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { Receipt, AlertCircle, FileText, Clock } from "lucide-react";
+import { AlertCircle, FileText, Clock, Receipt } from "lucide-react";
 import { canRegisterFinancialPayment } from "@boeltech/cfdi-domain";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -12,6 +12,11 @@ import { usePermissions, useRole } from "@shared/permissions";
 import { isClientPortalRole, ROLES } from "@shared/constants/roles";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
+import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
 import { useInvoice } from "@features/invoicing/application";
 import {
   getInvoiceDisplayAmounts,
@@ -42,6 +47,11 @@ import {
   InvoiceFilesReadyAlert,
   readInvoiceFilesReadyCollapsed,
 } from "../components/InvoiceFilesReadyAlert";
+import {
+  getInvoiceFollowThroughStorageKey,
+  InvoiceFollowThroughAlert,
+  readInvoiceFollowThroughCollapsed,
+} from "../components/InvoiceFollowThroughAlert";
 import { invoicingCopy } from "../copy/invoicingCopy";
 import {
   hasRepFiscalDeadlineAlert,
@@ -60,6 +70,9 @@ import {
 const copy = invoicingCopy.detail;
 /** Sin max-w propio: mismo techo que el listado (`LayoutShell` max-w-7xl). */
 const DETAIL_SHELL_CLASS = "w-full p-4 sm:p-6";
+const INVOICES_LIST_PATH = "/finance/invoices";
+const INVOICES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[INVOICES_LIST_PATH] ?? "Facturas";
 
 function invoiceBackHref(
   from: string | undefined,
@@ -81,12 +94,13 @@ export function InvoiceDetailPage() {
     role === ROLES.ADMIN || role === ROLES.MANAGER;
   const canExecuteInvoice = hasPermission("invoices", "execute");
   const canEditInvoice = hasPermission("invoices", "update");
-  const fromState = location.state?.from as string | undefined;
+  const incoming = useIncomingWayfinding();
+  const fromState = incoming?.from ?? (location.state?.from as string | undefined);
+  const fromLabel = incoming?.fromLabel;
   const [interactionBusy, setInteractionBusy] = useState(false);
   const [openSubstituteRequestKey, setOpenSubstituteRequestKey] = useState(0);
   const [openCancelRequestKey, setOpenCancelRequestKey] = useState(0);
   const [openSendRequestKey, setOpenSendRequestKey] = useState(0);
-  const [openPaymentRequestKey, setOpenPaymentRequestKey] = useState(0);
   const [openResumeCancelRequestKey, setOpenResumeCancelRequestKey] =
     useState(0);
 
@@ -99,6 +113,16 @@ export function InvoiceDetailPage() {
       readInvoiceFilesReadyCollapsed(filesReadyStorageKey),
     );
   }, [filesReadyStorageKey]);
+
+  const followThroughStorageKey = getInvoiceFollowThroughStorageKey(id ?? "");
+  const [followThroughCollapsed, setFollowThroughCollapsed] = useState(() =>
+    readInvoiceFollowThroughCollapsed(followThroughStorageKey),
+  );
+  useEffect(() => {
+    setFollowThroughCollapsed(
+      readInvoiceFollowThroughCollapsed(followThroughStorageKey),
+    );
+  }, [followThroughStorageKey]);
 
   const {
     data: invoice,
@@ -139,16 +163,27 @@ export function InvoiceDetailPage() {
   );
 
   /**
-   * (B) Sustitución parcial — A-54: original aún vigente (stamped o
-   * cancellation_pending) + hijo activo. El pending_receiver también debe
-   * ofrecer «Reintentar cancelación» para sincronizar con el PAC/SAT.
-   * Precedencia PRD D2 sobre mid-trip flota.
+   * (B) Sustitución parcial — A-73: original aún vigente (stamped o
+   * cancellation_pending) + hijo activo. stamped → Reintentar; pending →
+   * Actualizar estado (mismo reclaim). Precedencia sobre mid-trip flota.
    */
   const showSubstitutionCancelPendingOriginal =
     !isClientPortal &&
     (invoice?.status === "stamped" ||
       invoice?.status === "cancellation_pending") &&
     invoice.activeReplacement != null;
+
+  const isSubstitutionCancelWaitingReceiver =
+    showSubstitutionCancelPendingOriginal &&
+    invoice?.status === "cancellation_pending";
+
+  const isSubstitutionCancelRequesting =
+    showSubstitutionCancelPendingOriginal &&
+    invoice?.satCancellationStatus === "requesting";
+
+  const substitutionCancelPendingCtaLabel = isSubstitutionCancelWaitingReceiver
+    ? copy.hint.substitutionCancelPendingCtaUpdate
+    : copy.hint.substitutionCancelPendingCta;
 
   /**
    * (B) en A-55: sustituta vigente mientras el original sigue stamped
@@ -242,11 +277,29 @@ export function InvoiceDetailPage() {
     navigate(invoiceBackHref(fromState, invoice));
   };
 
-  const shellHeaderPlaceholder = {
-    backHref: invoiceBackHref(fromState, undefined),
-    icon: <Receipt className="h-6 w-6" />,
-    title: copy.header.title,
-  };
+  const invoiceCurrentLabel = invoice
+    ? `${invoice.serie}-${invoice.folio}`
+    : copy.header.title;
+  const invoiceCrumbs = resolveDetailCrumbs({
+    from: fromState,
+    fromLabel,
+    module: { listPath: INVOICES_LIST_PATH, label: INVOICES_MODULE_LABEL },
+    current: { label: invoiceCurrentLabel, mono: true },
+  });
+  const portalBackHref = invoiceBackHref(fromState, invoice);
+  const shellHeaderPlaceholder = isClientPortal
+    ? {
+        variant: "portal" as const,
+        backHref: portalBackHref,
+        backLabel: resolveInvoiceWayfindingBackLabel(portalBackHref, {
+          isClientPortal: true,
+        }),
+        title: copy.header.title,
+      }
+    : {
+        crumbs: invoiceCrumbs,
+        title: copy.header.title,
+      };
 
   const errorState = resolveDetailQueryErrorState({
     missingId: !id,
@@ -360,6 +413,15 @@ export function InvoiceDetailPage() {
     Boolean(invoice.parentInvoiceId) && invoice.status !== "cancelled";
 
   const backHref = invoiceBackHref(fromState, invoice);
+  const staffOrPortalHeader = isClientPortal
+    ? {
+        variant: "portal" as const,
+        backHref,
+        backLabel: resolveInvoiceWayfindingBackLabel(backHref, {
+          isClientPortal: true,
+        }),
+      }
+    : { crumbs: invoiceCrumbs };
 
   /** Misma regla que InvoiceEmailDispatchBadge: fallo auto solo si aún no hay envío exitoso. */
   const autoDispatchFailed =
@@ -373,17 +435,14 @@ export function InvoiceDetailPage() {
   const followThrough = resolveInvoiceFollowThrough({
     status: invoice.status,
     dispatchSentAt: invoice.dispatchSentAt,
-    balanceDue: invoice.balanceDue,
   });
+  /** Tip suave de correo: no apilar sobre el alert crítico de auto-envío fallido (D1). */
   const showFollowThrough =
     !isClientPortal &&
-    (followThrough.showSend || followThrough.showCollect);
-  const canFollowThroughSend =
-    followThrough.showSend && canExecuteInvoice && invoice.status === "stamped";
-  const canFollowThroughCollect =
-    followThrough.showCollect &&
-    canExecuteInvoice &&
-    canRegisterFinancialPayment(toInvoiceLike(invoice));
+    !autoDispatchFailed &&
+    !followThroughCollapsed &&
+    followThrough.showSend &&
+    canExecuteInvoice;
   const canSendFromAlert =
     canExecuteInvoice && invoice.status === "stamped";
   const sendAlertLabel = invoice.dispatchSentAt
@@ -602,25 +661,34 @@ export function InvoiceDetailPage() {
         <DetailAlertCard
           severity="critical"
           icon={<Receipt className="h-5 w-5" />}
-          title={copy.hint.substitutionCancelPendingTitle}
+          title={
+            isSubstitutionCancelWaitingReceiver
+              ? copy.hint.substitutionCancelPendingWaitingTitle
+              : copy.hint.substitutionCancelPendingTitle
+          }
           action={
             showSubstitutionCancelPendingOriginal && canAdminManagerFiscal ? (
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() =>
-                  setOpenResumeCancelRequestKey((key) => key + 1)
-                }
+                disabled={isSubstitutionCancelRequesting}
+                onClick={() => {
+                  if (isSubstitutionCancelRequesting) return;
+                  setOpenResumeCancelRequestKey((key) => key + 1);
+                }}
               >
-                {copy.hint.substitutionCancelPendingCta}
+                {substitutionCancelPendingCtaLabel}
               </Button>
             ) : showSubstitutionCancelPendingSubstitute &&
               invoice.parentInvoiceId ? (
               <Button asChild size="sm" variant="outline">
                 <Link
                   to={`/invoices/${invoice.parentInvoiceId}`}
-                  state={{ from: location.pathname }}
+                  state={{
+                    from: location.pathname,
+                    fromLabel: `${invoice.serie}-${invoice.folio}`,
+                  }}
                 >
                   {copy.hint.substitutionCancelPendingLinkOriginal}
                 </Link>
@@ -629,15 +697,24 @@ export function InvoiceDetailPage() {
           }
         >
           {canAdminManagerFiscal ? (
-            <p>
-              {showSubstitutionCancelPendingOriginal
-                ? copy.hint.substitutionCancelPendingBodyOriginal(
-                    invoice.activeReplacement?.cfdiUuid ?? null,
-                  )
-                : parentInvoiceForPartial?.status === "cancellation_pending"
-                  ? copy.hint.substitutionCancelPendingBodyParentWaiting
-                  : copy.hint.substitutionCancelPendingBodySubstitute}
-            </p>
+            <>
+              <p>
+                {showSubstitutionCancelPendingOriginal
+                  ? isSubstitutionCancelWaitingReceiver
+                    ? copy.hint.substitutionCancelPendingBodyOriginalWaiting
+                    : copy.hint.substitutionCancelPendingBodyOriginal(
+                        invoice.activeReplacement?.cfdiUuid ?? null,
+                      )
+                  : parentInvoiceForPartial?.status === "cancellation_pending"
+                    ? copy.hint.substitutionCancelPendingBodyParentWaiting
+                    : copy.hint.substitutionCancelPendingBodySubstitute}
+              </p>
+              {isSubstitutionCancelRequesting ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {copy.hint.substitutionCancelPendingRequestingHelper}
+                </p>
+              ) : null}
+            </>
           ) : (
             <p>{copy.hint.substitutionCancelPendingAskManagerBody}</p>
           )}
@@ -669,50 +746,12 @@ export function InvoiceDetailPage() {
         </DetailAlertCard>
       ) : null}
       {showFollowThrough ? (
-        <DetailAlertCard
-          severity="info"
-          icon={<Receipt className="h-5 w-5" />}
-          title={copy.hint.followThroughTitle}
-          action={
-            <>
-              {canFollowThroughSend ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenSendRequestKey((key) => key + 1)}
-                >
-                  {copy.actions.sendByEmail}
-                </Button>
-              ) : null}
-              {canFollowThroughCollect ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenPaymentRequestKey((key) => key + 1)}
-                >
-                  {copy.actions.registerPayment}
-                </Button>
-              ) : null}
-            </>
-          }
-        >
-          {followThrough.showSend ? (
-            <p>
-              {followThrough.showCollect
-                ? copy.hint.followThroughSendBoth
-                : copy.hint.followThroughSend}
-            </p>
-          ) : null}
-          {followThrough.showCollect ? (
-            <p>
-              {followThrough.showSend
-                ? copy.hint.followThroughCollectBoth
-                : copy.hint.followThroughCollect}
-            </p>
-          ) : null}
-        </DetailAlertCard>
+        <InvoiceFollowThroughAlert
+          invoiceId={invoice.id}
+          storageKey={followThroughStorageKey}
+          onSend={() => setOpenSendRequestKey((key) => key + 1)}
+          onDismissed={() => setFollowThroughCollapsed(true)}
+        />
       ) : null}
       {autoDispatchFailed ? (
         <DetailAlertCard
@@ -735,7 +774,10 @@ export function InvoiceDetailPage() {
                 <Button asChild size="sm" variant="outline">
                   <Link
                     to={`/finance/dispatch/${invoice.autoDispatch.lastScheduledRunId}`}
-                    state={{ from: `${location.pathname}${location.search}` }}
+                    state={{
+                      from: `${location.pathname}${location.search}`,
+                      fromLabel: `${invoice.serie}-${invoice.folio}`,
+                    }}
                   >
                     {invoicingCopy.send.autoDispatchFailedLink}
                   </Link>
@@ -769,7 +811,10 @@ export function InvoiceDetailPage() {
             <Button asChild size="sm" variant="outline">
               <Link
                 to={`/invoices/${invoice.parentInvoiceId}`}
-                state={{ from: location.pathname }}
+                state={{
+                  from: location.pathname,
+                  fromLabel: `${invoice.serie}-${invoice.folio}`,
+                }}
               >
                 {copy.hint.substitutionLink}
               </Link>
@@ -801,11 +846,7 @@ export function InvoiceDetailPage() {
       isLoading={false}
       className={DETAIL_SHELL_CLASS}
       header={{
-        backHref,
-        backLabel: resolveInvoiceWayfindingBackLabel(backHref, {
-          isClientPortal,
-        }),
-        icon: <Receipt className="h-6 w-6" />,
+        ...staffOrPortalHeader,
         title: (
           <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
             <span className="shrink-0">{`${invoice.serie}-${invoice.folio}`}</span>
@@ -851,7 +892,6 @@ export function InvoiceDetailPage() {
             openSubstituteRequestKey={openSubstituteRequestKey}
             openCancelRequestKey={openCancelRequestKey}
             openSendRequestKey={openSendRequestKey}
-            openPaymentRequestKey={openPaymentRequestKey}
             openResumeCancelRequestKey={openResumeCancelRequestKey}
           />
         ),

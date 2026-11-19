@@ -62,6 +62,10 @@ export function useStartTrip(
         actualDeparture: trip.actualDeparture,
       });
       await invalidateTripAssignmentResources(queryClient);
+      // startTrip may freeze CP31 fleet snapshot — refresh card without waiting staleTime.
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.fleetSnapshot(trip.id),
+      });
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       invalidateDashboardLiveQueries(queryClient);
       // F7: inicio de viaje afecta readiness de liquidaciones (viajes del periodo)

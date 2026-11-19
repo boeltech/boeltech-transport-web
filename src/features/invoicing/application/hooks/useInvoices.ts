@@ -232,10 +232,20 @@ export function useCreateInvoice(
   return useMutation({
     mutationFn: (payload: CreateInvoicePayload) => invoicingApi.create(payload),
     ...options,
-    onSuccess: (data, variables, context, mutation) => {
+    onSuccess: async (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeQueryRoot });
-      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      if (data.trips?.length) {
+        await invalidateInvoiceLinkedTripCaches(queryClient, data);
+      } else if (variables.tripIds?.length) {
+        await invalidateSubstitutionTripCaches(
+          queryClient,
+          variables.tripIds,
+          false,
+        );
+      } else {
+        queryClient.invalidateQueries({ queryKey: tripQueryKeys.all });
+      }
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -261,12 +271,19 @@ export function useUpdateInvoice(
       payload: UpdateInvoicePayload;
     }) => invoicingApi.update(id, payload),
     ...options,
-    onSuccess: (data, variables, context, mutation) => {
+    onSuccess: async (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: invoiceQueryKeys.detail(data.id),
       });
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
+      // Update can project into trip.invoicing; prefer trips from response.
+      if (data.trips?.length) {
+        await invalidateInvoiceLinkedTripCaches(queryClient, data);
+      } else {
+        // No trips on response: best-effort list refresh (avoids blind ["trips"]).
+        queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      }
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -279,14 +296,22 @@ export function useDeleteInvoice(
   return useMutation({
     mutationFn: (id: string) => invoicingApi.delete(id),
     ...options,
-    onSuccess: (data, variables, context, mutation) => {
+    onSuccess: async (data, variables, context, mutation) => {
+      const cached = queryClient.getQueryData<Invoice>(
+        invoiceQueryKeys.detail(variables),
+      );
       queryClient.removeQueries({
         queryKey: invoiceQueryKeys.detail(variables),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeQueryRoot });
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
-      queryClient.invalidateQueries({ queryKey: ["trips"] });
+      // Delete returns void; use cached trips when present, else broad trips root.
+      if (cached?.trips?.length) {
+        await invalidateInvoiceLinkedTripCaches(queryClient, cached);
+      } else {
+        queryClient.invalidateQueries({ queryKey: tripQueryKeys.all });
+      }
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -462,6 +487,13 @@ export function useResumeSubstitutionCancel(
         queryKey: invoiceQueryKeys.detail(data.replacement.id),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
+      await invalidateSubstitutionTripCaches(
+        queryClient,
+        collectSubstitutionAffectedTripIds(data, {
+          cancellationReason: variables.cancellationReason,
+        }),
+        false,
+      );
       await invalidateAndRefetchFinance(queryClient);
       options?.onSuccess?.(data, variables, context, mutation);
     },

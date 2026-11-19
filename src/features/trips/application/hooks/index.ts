@@ -85,6 +85,7 @@ export {
   useUpsertTripRevenueSplit,
   useDeleteTripRevenueSplit,
 } from "./useTripRevenueSplit";
+export { useTripLinkedInvoices } from "./useTripLinkedInvoices";
 export {
   useTripFleetSnapshot,
   useRefreshTripFleetSnapshot,

@@ -64,6 +64,27 @@ function splitMutationOptions<TData, TError, TVariables, TContext = unknown>(
   return { userOnSuccess, userOnError, userOnSettled, rest };
 }
 
+async function invalidateCargoMutationCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  tripId: string,
+  options?: { timeline?: boolean },
+): Promise<void> {
+  await queryClient.invalidateQueries({
+    queryKey: tripQueryKeys.cargos(tripId),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: tripQueryKeys.detail(tripId),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: tripQueryKeys.lists(),
+  });
+  if (options?.timeline) {
+    await queryClient.invalidateQueries({
+      queryKey: tripQueryKeys.timeline(tripId),
+    });
+  }
+}
+
 // ============================================================================
 // QUERY HOOKS
 // ============================================================================
@@ -128,12 +149,7 @@ export function useAddCargo(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.cargos(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateCargoMutationCaches(queryClient, tripId);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
@@ -183,12 +199,7 @@ export function useUpdateCargo(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.cargos(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateCargoMutationCaches(queryClient, tripId);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
@@ -226,12 +237,7 @@ export function useDeleteCargo(
       }
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.cargos(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateCargoMutationCaches(queryClient, tripId);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
@@ -283,12 +289,7 @@ export function useAddCargoMovement(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.cargos(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateCargoMutationCaches(queryClient, tripId);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
@@ -350,12 +351,7 @@ export function useReassignCargoMovementStop(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.cargos(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateCargoMutationCaches(queryClient, tripId);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
@@ -413,14 +409,8 @@ export function useCompleteTripCargoMovement(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.cargos(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.timeline(tripId),
+      await invalidateCargoMutationCaches(queryClient, tripId, {
+        timeline: true,
       });
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
@@ -478,12 +468,7 @@ export function useCompleteCargoMovement(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.cargos(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateCargoMutationCaches(queryClient, tripId);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
@@ -534,12 +519,7 @@ export function useAddMultipleCargos(
       return results;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.cargos(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateCargoMutationCaches(queryClient, tripId);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {

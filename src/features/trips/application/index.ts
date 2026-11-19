@@ -79,6 +79,7 @@ export {
   useTripRevenueSplit,
   useUpsertTripRevenueSplit,
   useDeleteTripRevenueSplit,
+  useTripLinkedInvoices,
   useTripFleetSnapshot,
   useRefreshTripFleetSnapshot,
   type RefreshTripFleetSnapshotOutcome,

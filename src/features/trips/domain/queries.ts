@@ -150,6 +150,14 @@ export const tripQueryKeys = {
   revenueSplit: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "revenue-split"] as const,
 
+  /**
+   * Libro de cobro del viaje (GET /trips/:id/invoices).
+   * Bajo `detail(tripId)`: se invalida con mutaciones que tocan
+   * `tripQueryKeys.detail(tripId)` (misma familia que revenue-split / fleet).
+   */
+  linkedInvoices: (tripId: string) =>
+    [...tripQueryKeys.detail(tripId), "invoices"] as const,
+
   /** Datos para Carta Porte congelados del viaje (unidad y operador). */
   fleetSnapshot: (tripId: string) =>
     [...tripQueryKeys.detail(tripId), "fleet-snapshot"] as const,

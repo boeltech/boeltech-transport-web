@@ -4,6 +4,10 @@ export {
   InvoiceFilesReadyAlert,
   getInvoiceFilesReadyStorageKey,
 } from "./InvoiceFilesReadyAlert";
+export {
+  InvoiceFollowThroughAlert,
+  getInvoiceFollowThroughStorageKey,
+} from "./InvoiceFollowThroughAlert";
 export { InvoiceTable } from "./InvoiceTable";
 export { InvoiceCard } from "./InvoiceCard";
 export { InvoiceCardSkeleton } from "./InvoiceCardSkeleton";

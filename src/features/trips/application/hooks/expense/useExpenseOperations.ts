@@ -67,6 +67,21 @@ function splitMutationOptions<TData, TError, TVariables, TContext = unknown>(
   return { userOnSuccess, userOnError, userOnSettled, rest };
 }
 
+async function invalidateExpenseMutationCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  tripId: string,
+): Promise<void> {
+  await queryClient.invalidateQueries({
+    queryKey: tripQueryKeys.expenses(tripId),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: tripQueryKeys.detail(tripId),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: tripQueryKeys.lists(),
+  });
+}
+
 /** Otro usuario decidió el gasto: refrescar para que la fila muestre su estado actual. */
 function refreshAfterNotMutable(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -74,8 +89,7 @@ function refreshAfterNotMutable(
   error: unknown,
 ) {
   if (!isExpenseNotMutableError(error)) return;
-  void queryClient.invalidateQueries({ queryKey: tripQueryKeys.expenses(tripId) });
-  void queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
+  void invalidateExpenseMutationCaches(queryClient, tripId);
   invalidateApprovalsRelatedQueries(queryClient);
 }
 
@@ -171,12 +185,7 @@ export function useAddExpense(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.expenses(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateExpenseMutationCaches(queryClient, tripId);
       invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
@@ -231,12 +240,7 @@ export function useUpdateExpense(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.expenses(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateExpenseMutationCaches(queryClient, tripId);
       invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
@@ -276,12 +280,7 @@ export function useDeleteExpense(
       }
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.expenses(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateExpenseMutationCaches(queryClient, tripId);
       invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
@@ -329,12 +328,7 @@ export function useApproveExpense(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.expenses(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateExpenseMutationCaches(queryClient, tripId);
       invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
@@ -392,12 +386,7 @@ export function useRejectExpense(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.expenses(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateExpenseMutationCaches(queryClient, tripId);
       invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
@@ -440,12 +429,7 @@ export function useReturnExpense(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.expenses(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateExpenseMutationCaches(queryClient, tripId);
       invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
@@ -501,12 +485,7 @@ export function useAddMultipleExpenses(
       return results;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.expenses(tripId),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: tripQueryKeys.detail(tripId),
-      });
+      await invalidateExpenseMutationCaches(queryClient, tripId);
       invalidateApprovalsRelatedQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },

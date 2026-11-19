@@ -299,6 +299,8 @@ export type {
   PatchTripFiscalResult,
 } from "./tripFiscal.types";
 
+export type { TripLinkedInvoice } from "./tripLinkedInvoice.types";
+
 export type {
   RefreshTripFleetSnapshotInput,
   RefreshTripFleetSnapshotResult,

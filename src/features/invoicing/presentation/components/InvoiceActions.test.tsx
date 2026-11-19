@@ -93,11 +93,20 @@ vi.mock("./SubstituteInvoiceSheet", () => ({
 vi.mock("./ResumeSubstitutionCancelDialog", () => ({
   ResumeSubstitutionCancelDialog: ({
     open,
+    mode = "resume",
   }: {
     open: boolean;
+    mode?: "resume" | "update";
   }) =>
     open ? (
-      <div role="dialog" aria-label="Reintentar cancelación del original">
+      <div
+        role="dialog"
+        aria-label={
+          mode === "update"
+            ? "Actualizar estado de la cancelación"
+            : "Reintentar cancelación del original"
+        }
+      >
         Resume cancel dialog open
       </div>
     ) : null,
@@ -505,6 +514,73 @@ describe("InvoiceActions RBAC execute/delete", () => {
         name: "Reintentar cancelación del original",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("elevates Actualizar estado (not Reintentar) when partial + cancellation_pending", async () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseRole.mockReturnValue("manager");
+    mockUseTrip.mockReturnValue({ data: undefined });
+
+    renderActions(
+      buildInvoice({
+        status: "cancellation_pending",
+        satCancellationStatus: "pending_receiver",
+        canSubstituteInvoice: false,
+        activeReplacement: {
+          id: "inv-58",
+          serie: "A",
+          folio: 58,
+          cfdiUuid: "6a0f148d-750b-516d-b7dc-d9b8c923a2b9",
+        },
+      }),
+    );
+
+    const user = userEvent.setup();
+    expect(
+      screen.queryByRole("button", {
+        name: invoicingCopy.detail.hint.substitutionCancelPendingCta,
+      }),
+    ).not.toBeInTheDocument();
+    const updatePrimary = screen.getByRole("button", {
+      name: invoicingCopy.detail.hint.substitutionCancelPendingCtaUpdate,
+    });
+    expect(updatePrimary).toBeInTheDocument();
+    await user.click(updatePrimary);
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Actualizar estado de la cancelación",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("disables reclaim CTA when satCancellationStatus is requesting", () => {
+    mockHasPermission.mockImplementation(
+      (_module: string, action: string) =>
+        action === "execute" || action === "read",
+    );
+    mockUseRole.mockReturnValue("manager");
+    mockUseTrip.mockReturnValue({ data: undefined });
+
+    renderActions(
+      buildInvoice({
+        status: "stamped",
+        satCancellationStatus: "requesting",
+        activeReplacement: {
+          id: "inv-59",
+          serie: "A",
+          folio: 59,
+          cfdiUuid: null,
+        },
+      }),
+    );
+
+    const resumePrimary = screen.getByRole("button", {
+      name: invoicingCopy.detail.hint.substitutionCancelPendingRequestingHelper,
+    });
+    expect(resumePrimary).toBeDisabled();
   });
 
   it("elevates Cancelar (not Sustituir) when linked trip is cancelled + fiscal attention", async () => {

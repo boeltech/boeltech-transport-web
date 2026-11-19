@@ -30,12 +30,16 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+/** resume = stamped + parcial; update = cancellation_pending + parcial (D1/D2). */
+export type ResumeSubstitutionCancelMode = "resume" | "update";
+
 interface Props {
   invoiceId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Motivo previo (si el API ya lo guardó) o default de reintento. */
   defaultReason?: string | null;
+  mode?: ResumeSubstitutionCancelMode;
 }
 
 export function ResumeSubstitutionCancelDialog({
@@ -43,6 +47,7 @@ export function ResumeSubstitutionCancelDialog({
   open,
   onOpenChange,
   defaultReason,
+  mode = "resume",
 }: Props) {
   const { toast } = useToast();
   const [alertTitle, setAlertTitle] = useState<string>(sheetCopy.errorTitle);
@@ -53,6 +58,7 @@ export function ResumeSubstitutionCancelDialog({
       toast,
     });
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+  const isUpdateMode = mode === "update";
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
@@ -98,15 +104,25 @@ export function ResumeSubstitutionCancelDialog({
   );
 
   const validationMessages = collectFieldErrorMessages(form.formState.errors);
+  const dialogTitle = isUpdateMode
+    ? sheetCopy.resumeCancelDialogTitleUpdate
+    : sheetCopy.resumeCancelDialogTitle;
+  const dialogDescription = isUpdateMode
+    ? sheetCopy.resumeCancelDialogDescriptionUpdate
+    : sheetCopy.resumeCancelDialogDescription;
+  const confirmLabel = isUpdateMode
+    ? sheetCopy.resumeCancelConfirmUpdate
+    : sheetCopy.resumeCancelConfirm;
+  const processingLabel = isUpdateMode
+    ? sheetCopy.resumeCancelProcessingUpdate
+    : sheetCopy.resumeCancelProcessing;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{sheetCopy.resumeCancelDialogTitle}</DialogTitle>
-          <DialogDescription>
-            {sheetCopy.resumeCancelDialogDescription}
-          </DialogDescription>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -144,9 +160,7 @@ export function ResumeSubstitutionCancelDialog({
               {sheetCopy.close}
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending
-                ? sheetCopy.resumeCancelProcessing
-                : sheetCopy.resumeCancelConfirm}
+              {isPending ? processingLabel : confirmLabel}
             </Button>
           </DialogFooter>
         </form>

@@ -67,6 +67,10 @@ export function useReassignTripFleet(
       await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.detail(tripId),
       });
+      // Reassignment freezes/rewrites CP31 fleet snapshot — refresh card.
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.fleetSnapshot(tripId),
+      });
       await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.lists(),
       });
