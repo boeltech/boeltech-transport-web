@@ -28,6 +28,10 @@ export function usePatchTripFiscal(
     onSuccess: async (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) });
       queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+        refetchType: "active",
+      });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.all });
       await invalidateFiscalCorrectionResources(queryClient, [

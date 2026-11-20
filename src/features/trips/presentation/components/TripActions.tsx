@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import {
   AlertDialog,
@@ -196,6 +196,7 @@ export function TripActions(props: TripActionsProps) {
   const code = props.trip?.tripCode ?? props.tripCode!;
   const currentStatus = props.trip?.status ?? props.status!;
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
 
@@ -251,7 +252,16 @@ export function TripActions(props: TripActionsProps) {
   const deleteMutation = useDeleteTrip({
     onSuccess: () => {
       toast({ title: "Viaje eliminado", variant: "success" });
-      navigate("/trips");
+      // N02: preservar filtro de vista del listado (`?status=…`) si venimos de allí.
+      const from =
+        typeof (location.state as { from?: unknown } | null)?.from === "string"
+          ? (location.state as { from: string }).from
+          : undefined;
+      const listHref =
+        from && (from === "/trips" || from.startsWith("/trips?"))
+          ? from
+          : "/trips";
+      navigate(listHref);
     },
     onError: (error) => {
       showTripDetailErrorToast(toast, error, "Error al eliminar");

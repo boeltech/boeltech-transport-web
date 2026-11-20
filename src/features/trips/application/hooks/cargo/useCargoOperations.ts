@@ -67,7 +67,7 @@ function splitMutationOptions<TData, TError, TVariables, TContext = unknown>(
 async function invalidateCargoMutationCaches(
   queryClient: ReturnType<typeof useQueryClient>,
   tripId: string,
-  options?: { timeline?: boolean },
+  options?: { timeline?: boolean; invoiceableSummary?: boolean },
 ): Promise<void> {
   await queryClient.invalidateQueries({
     queryKey: tripQueryKeys.cargos(tripId),
@@ -81,6 +81,12 @@ async function invalidateCargoMutationCaches(
   if (options?.timeline) {
     await queryClient.invalidateQueries({
       queryKey: tripQueryKeys.timeline(tripId),
+    });
+  }
+  if (options?.invoiceableSummary) {
+    await queryClient.invalidateQueries({
+      queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+      refetchType: "active",
     });
   }
 }
@@ -411,6 +417,7 @@ export function useCompleteTripCargoMovement(
     onSuccess: async (data, variables, onMutateResult, context) => {
       await invalidateCargoMutationCaches(queryClient, tripId, {
         timeline: true,
+        invoiceableSummary: true,
       });
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
@@ -468,7 +475,10 @@ export function useCompleteCargoMovement(
       return result.data;
     },
     onSuccess: async (data, variables, onMutateResult, context) => {
-      await invalidateCargoMutationCaches(queryClient, tripId);
+      await invalidateCargoMutationCaches(queryClient, tripId, {
+        timeline: true,
+        invoiceableSummary: true,
+      });
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {

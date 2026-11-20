@@ -20,7 +20,8 @@ export type CreateOperationalCashReceiptInput = {
   reference?: string | null;
 };
 
-async function invalidateOperationalCashSurface(
+/** Misma superficie para alta y anulación de recibos operativos (Q06). */
+export async function invalidateOperationalCashSurface(
   queryClient: QueryClient,
   tripId: string,
 ) {

@@ -81,5 +81,13 @@ describe("useStartTrip cache callbacks", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: tripQueryKeys.lists(),
     });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.opsDaySummary(),
+      refetchType: "active",
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+      refetchType: "active",
+    });
   });
 });

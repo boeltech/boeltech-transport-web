@@ -3,11 +3,10 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import {
-  tripQueryKeys,
-  type OperationalCashReceipt,
-} from "@features/trips/domain";
+import { type OperationalCashReceipt } from "@features/trips/domain";
 import { tripsApi } from "@features/trips/infrastructure/api/tripsApi";
+
+import { invalidateOperationalCashSurface } from "./useCreateOperationalCashReceipt";
 
 export type VoidOperationalCashReceiptInput = {
   receiptId: string;
@@ -38,17 +37,7 @@ export function useVoidOperationalCashReceipt(
         reason: input.reason,
       }),
     onSuccess: async (receipt, variables, onMutateResult, context) => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: tripQueryKeys.detail(tripId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: tripQueryKeys.operationalCashReceipts(tripId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: tripQueryKeys.lists(),
-        }),
-      ]);
+      await invalidateOperationalCashSurface(queryClient, tripId);
       await userOnSuccess?.(receipt, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {

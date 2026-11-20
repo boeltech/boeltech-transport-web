@@ -25,6 +25,10 @@ async function invalidateSplitCaches(
     }),
     queryClient.invalidateQueries({ queryKey: tripQueryKeys.detail(tripId) }),
     queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() }),
+    queryClient.invalidateQueries({
+      queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+      refetchType: "active",
+    }),
   ]);
 }
 

@@ -54,6 +54,14 @@ export function useDepartOrigin(
       await refetchTripTrackingViews(queryClient, variables.tripId);
       await invalidateTripAssignmentResources(queryClient);
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.opsDaySummary(),
+        refetchType: "active",
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+        refetchType: "active",
+      });
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });

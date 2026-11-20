@@ -47,5 +47,16 @@ export async function invalidateTripDetailSurface(
   }
 
   await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+
+  // Inicio (Viajes de hoy) + Por facturar — resúmenes hermanos del detalle.
+  await queryClient.invalidateQueries({
+    queryKey: tripQueryKeys.opsDaySummary(),
+    refetchType: "active",
+  });
+  await queryClient.invalidateQueries({
+    queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+    refetchType: "active",
+  });
+
   invalidateDashboardLiveQueries(queryClient);
 }

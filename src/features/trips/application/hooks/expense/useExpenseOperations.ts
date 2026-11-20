@@ -18,6 +18,7 @@ import {
 } from "@tanstack/react-query";
 import { invalidateApprovalsRelatedQueries } from "@features/approvals/application";
 import type { ApprovalGuards } from "@features/approvals/domain";
+import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
 import {
   isExpenseNotMutableError,
   tripQueryKeys,
@@ -79,6 +80,15 @@ async function invalidateExpenseMutationCaches(
   });
   await queryClient.invalidateQueries({
     queryKey: tripQueryKeys.lists(),
+  });
+  // Análisis / rentabilidad (U08). No Pagos a operadores (TB-4).
+  await queryClient.invalidateQueries({
+    queryKey: [...financeQueryKeys.all, "profitability-trips"],
+    refetchType: "active",
+  });
+  await queryClient.invalidateQueries({
+    queryKey: [...financeQueryKeys.all, "profitability-aggregate"],
+    refetchType: "active",
   });
 }
 

@@ -4,6 +4,7 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
+import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
 import {
   tripQueryKeys,
   type CreateTrackingEventInput,
@@ -16,6 +17,13 @@ import {
   buildTripDetailPatchFromTrackingEvent,
   refetchTripTrackingViews,
 } from "./syncTripDetailFromTimeline";
+
+/** Eventos que cierran el viaje o lo declaran en falso → SettWB. */
+function trackingEventAffectsSettlements(
+  eventType: CreateTrackingEventInput["eventType"],
+): boolean {
+  return eventType === "trip_arrived" || eventType === "false_trip_declared";
+}
 
 interface RegisterTrackingEventVariables {
   tripId: string;
@@ -68,6 +76,20 @@ export function useRegisterTrackingEvent(
       await refetchTripTrackingViews(queryClient, variables.tripId, patch);
       await invalidateTripAssignmentResources(queryClient);
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.opsDaySummary(),
+        refetchType: "active",
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+        refetchType: "active",
+      });
+      if (trackingEventAffectsSettlements(variables.event.eventType)) {
+        await queryClient.invalidateQueries({
+          queryKey: settlementsQueryKeys.workbench(),
+          refetchType: "active",
+        });
+      }
       // Tracking puede pasar a in_progress / completed — refresca Viajes de hoy.
       invalidateDashboardLiveQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);

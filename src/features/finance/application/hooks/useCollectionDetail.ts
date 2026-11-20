@@ -9,6 +9,7 @@ import type {
   PaymentCollectionDetail,
   ReceiptCollectionDetail,
 } from "@features/finance/domain/collectionDetail";
+import { tripQueryKeys } from "@features/trips/domain";
 import { financeQueryKeys } from "../financeQueryKeys";
 import { invalidateOperationalReceiptBatchSurface } from "./useOperationalReceiptBatch";
 
@@ -143,7 +144,7 @@ export function useVoidOperationalCashReceiptFromCollection(
         tripIds: [variables.tripId],
       });
       void queryClient.invalidateQueries({
-        queryKey: ["trips"],
+        queryKey: tripQueryKeys.all,
       });
       options?.onSuccess?.(data, variables, context, mutation);
     },

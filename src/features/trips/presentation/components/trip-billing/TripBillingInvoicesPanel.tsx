@@ -507,7 +507,7 @@ export function TripBillingInvoicesPanel({
                       tripId: trip.id,
                       scope: "accessory",
                     }),
-                    { state: { from: `/trips/${trip.id}` } },
+                    { state: tripInvoiceNavState(trip.id, trip.tripCode) },
                   )
                 }
               >
@@ -572,7 +572,7 @@ export function TripBillingInvoicesPanel({
                       tripId: trip.id,
                       scope: "accessory",
                     }),
-                    { state: { from: `/trips/${trip.id}` } },
+                    { state: tripInvoiceNavState(trip.id, trip.tripCode) },
                   )
                 }
               >

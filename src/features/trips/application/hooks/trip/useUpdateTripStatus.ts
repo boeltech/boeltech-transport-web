@@ -3,6 +3,8 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { invalidateNotificationsQueries } from "@features/notifications/application/invalidateNotificationsQueries";
+import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
 import {
   tripQueryKeys,
   type Trip,
@@ -10,12 +12,8 @@ import {
 } from "@features/trips/domain";
 import { createUpdateTripStatusUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
-import { invalidateNotificationsQueries } from "@features/notifications/application/invalidateNotificationsQueries";
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
 import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
-
-/** Prefijo de React Query para workbench de liquidaciones (evitar import circular). */
-const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
 
 type UpdateTripStatusVariables = { id: string; status: TripStatusType };
 type UpdateTripStatusContext = { previous: Trip | undefined };
@@ -85,7 +83,10 @@ export function useUpdateTripStatus(
       await invalidateTripAssignmentResources(queryClient);
       invalidateNotificationsQueries(queryClient);
       // F7: cambio de status afecta readiness de liquidaciones
-      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+      void queryClient.invalidateQueries({
+        queryKey: settlementsQueryKeys.workbench(),
+        refetchType: "active",
+      });
       userOnSettled?.(data, err, variables, context, mutation);
     },
     onSuccess: (data, variables, onMutateResult, context) => {

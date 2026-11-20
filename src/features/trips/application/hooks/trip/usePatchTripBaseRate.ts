@@ -39,6 +39,10 @@ export function usePatchTripBaseRate(
       await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.lists(),
       });
+      await queryClient.invalidateQueries({
+        queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+        refetchType: "active",
+      });
       await userOnSuccess?.(trip, baseRate, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {

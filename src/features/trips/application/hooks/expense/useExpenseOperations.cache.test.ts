@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
 import { tripQueryKeys } from "@features/trips/domain";
 import {
   useAddExpense,
@@ -50,26 +51,42 @@ describe("expense mutation cache invalidation", () => {
     ["useAddExpense", () => useAddExpense(tripId)],
     ["useUpdateExpense", () => useUpdateExpense(tripId)],
     ["useDeleteExpense", () => useDeleteExpense(tripId)],
-  ] as const)("%s invalidates expenses, detail and lists", async (_name, factory) => {
-    const mutationConfig = factory() as unknown as {
-      onSuccess: (
-        data: unknown,
-        variables: unknown,
-        context: unknown,
-        mutation: unknown,
-      ) => Promise<void>;
-    };
+  ] as const)(
+    "%s invalidates expenses, detail, lists and profitability (Q03)",
+    async (_name, factory) => {
+      const mutationConfig = factory() as unknown as {
+        onSuccess: (
+          data: unknown,
+          variables: unknown,
+          context: unknown,
+          mutation: unknown,
+        ) => Promise<void>;
+      };
 
-    await mutationConfig.onSuccess({}, {}, {}, {});
+      await mutationConfig.onSuccess({}, {}, {}, {});
 
-    expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: tripQueryKeys.expenses(tripId),
-    });
-    expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: tripQueryKeys.detail(tripId),
-    });
-    expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: tripQueryKeys.lists(),
-    });
-  });
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: tripQueryKeys.expenses(tripId),
+      });
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: tripQueryKeys.detail(tripId),
+      });
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: tripQueryKeys.lists(),
+      });
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: [...financeQueryKeys.all, "profitability-trips"],
+        refetchType: "active",
+      });
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: [...financeQueryKeys.all, "profitability-aggregate"],
+        refetchType: "active",
+      });
+      expect(invalidateQueries).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryKey: expect.arrayContaining(["settlements"]),
+        }),
+      );
+    },
+  );
 });

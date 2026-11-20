@@ -4,6 +4,7 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
+import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
 import {
   tripQueryKeys,
   type CreateTrackingEventInput,
@@ -16,6 +17,14 @@ import {
   buildTripDetailPatchFromTrackingEvent,
   refetchTripTrackingViews,
 } from "./syncTripDetailFromTimeline";
+
+function batchAffectsSettlements(events: CreateTrackingEventInput[]): boolean {
+  return events.some(
+    (event) =>
+      event.eventType === "trip_arrived" ||
+      event.eventType === "false_trip_declared",
+  );
+}
 
 interface CreateTrackingEventBatchVariables {
   tripId: string;
@@ -68,6 +77,20 @@ export function useCreateTrackingEventBatch(
       await refetchTripTrackingViews(queryClient, variables.tripId, patch);
       await invalidateTripAssignmentResources(queryClient);
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
+      await queryClient.invalidateQueries({
+        queryKey: tripQueryKeys.opsDaySummary(),
+        refetchType: "active",
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+        refetchType: "active",
+      });
+      if (batchAffectsSettlements(variables.events)) {
+        await queryClient.invalidateQueries({
+          queryKey: settlementsQueryKeys.workbench(),
+          refetchType: "active",
+        });
+      }
       invalidateDashboardLiveQueries(queryClient);
       await userOnSuccess?.(data, variables, onMutateResult, context);
     },

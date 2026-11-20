@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 
+import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
 import { tripQueryKeys } from "@features/trips/domain";
 import { useRegisterTrackingEvent } from "./useRegisterTrackingEvent";
 
@@ -25,6 +26,10 @@ vi.mock("./syncTripDetailFromTimeline", () => ({
   buildTripDetailPatchFromTrackingEvent: () => undefined,
   refetchTripTrackingViews: (...args: unknown[]) =>
     refetchTripTrackingViews(...args),
+}));
+
+vi.mock("@features/dashboard/application/invalidateDashboardLiveQueries", () => ({
+  invalidateDashboardLiveQueries: vi.fn(),
 }));
 
 describe("useRegisterTrackingEvent cache callbacks", () => {
@@ -134,6 +139,134 @@ describe("useRegisterTrackingEvent cache callbacks", () => {
         warnings: [
           expect.objectContaining({ code: "FISCAL_ATTENTION_PENDING" }),
         ],
+      }),
+    );
+  });
+
+  it("tras trip_arrived invalida OpsDay, InvSum y SettWB (Q01·Q02·Q04)", async () => {
+    createEvent.mockResolvedValue({
+      data: {
+        id: "evt-3",
+        tripId: "trip-1",
+        eventType: "trip_arrived",
+      },
+    });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    function wrapper({ children }: { children: ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useRegisterTrackingEvent(), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        tripId: "trip-1",
+        event: {
+          eventType: "trip_arrived",
+          occurredAt: "2026-05-17T18:00:00.000Z",
+          mileage: 100,
+        } as never,
+      });
+    });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: tripQueryKeys.opsDaySummary(),
+        refetchType: "active",
+      });
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+      refetchType: "active",
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: settlementsQueryKeys.workbench(),
+      refetchType: "active",
+    });
+  });
+
+  it("tras false_trip_declared invalida SettWB (Q04)", async () => {
+    createEvent.mockResolvedValue({
+      data: {
+        id: "evt-4",
+        tripId: "trip-1",
+        eventType: "false_trip_declared",
+      },
+    });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    function wrapper({ children }: { children: ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useRegisterTrackingEvent(), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        tripId: "trip-1",
+        event: {
+          eventType: "false_trip_declared",
+          occurredAt: "2026-05-17T18:00:00.000Z",
+        } as never,
+      });
+    });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: settlementsQueryKeys.workbench(),
+        refetchType: "active",
+      });
+    });
+  });
+
+  it("evento note no invalida SettWB", async () => {
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    function wrapper({ children }: { children: ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      );
+    }
+
+    const { result } = renderHook(() => useRegisterTrackingEvent(), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        tripId: "trip-1",
+        event: {
+          eventType: "note",
+          occurredAt: "2026-05-17T10:00:00.000Z",
+          notes: "hola",
+        } as never,
+      });
+    });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: tripQueryKeys.opsDaySummary(),
+        refetchType: "active",
+      });
+    });
+    expect(invalidateSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: settlementsQueryKeys.workbench(),
       }),
     );
   });

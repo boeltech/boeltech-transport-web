@@ -1,7 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { tripQueryKeys } from "@features/trips/domain";
-import { useAddCargo, useUpdateCargo, useDeleteCargo } from "./useCargoOperations";
+import {
+  useAddCargo,
+  useUpdateCargo,
+  useDeleteCargo,
+  useCompleteCargoMovement,
+  useCompleteTripCargoMovement,
+} from "./useCargoOperations";
 
 const invalidateQueries = vi.fn().mockResolvedValue(undefined);
 const useMutationMock = vi.fn((config: unknown) => config);
@@ -63,4 +69,31 @@ describe("cargo mutation cache invalidation", () => {
       queryKey: tripQueryKeys.lists(),
     });
   });
+
+  it.each([
+    ["useCompleteCargoMovement", () => useCompleteCargoMovement(tripId, "cargo-1")],
+    ["useCompleteTripCargoMovement", () => useCompleteTripCargoMovement(tripId)],
+  ] as const)(
+    "%s invalidates timeline + invoiceable-summary (Q05·Q02)",
+    async (_name, factory) => {
+      const mutationConfig = factory() as unknown as {
+        onSuccess: (
+          data: unknown,
+          variables: unknown,
+          context: unknown,
+          mutation: unknown,
+        ) => Promise<void>;
+      };
+
+      await mutationConfig.onSuccess({}, {}, {}, {});
+
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: tripQueryKeys.timeline(tripId),
+      });
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+        refetchType: "active",
+      });
+    },
+  );
 });

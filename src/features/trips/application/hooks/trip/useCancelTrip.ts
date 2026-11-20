@@ -3,14 +3,12 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
 import { TripStatus, type Trip } from "@features/trips/domain";
 import { createCancelTripUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";
 import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
-
-/** Prefijo de React Query para workbench de liquidaciones (evitar import circular). */
-const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
 
 /**
  * Hook para cancelar viaje
@@ -36,7 +34,10 @@ export function useCancelTrip(
       });
       await invalidateTripAssignmentResources(queryClient);
       // F7: cancelación de viaje afecta readiness de liquidaciones
-      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+      void queryClient.invalidateQueries({
+        queryKey: settlementsQueryKeys.workbench(),
+        refetchType: "active",
+      });
       options?.onSuccess?.(trip, variables, onMutateResult, context);
     },
   });

@@ -9,6 +9,18 @@ import { tripsListCopy, cloneTripCopy } from "../copy";
 import { TripActions } from "./TripActions";
 
 const mockHasPermission = vi.fn();
+const mockNavigate = vi.fn();
+let deleteOnSuccess: (() => void) | undefined;
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>(
+    "react-router-dom",
+  );
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 vi.mock("@shared/permissions", () => ({
   usePermissions: () => ({
@@ -29,7 +41,15 @@ vi.mock("@shared/hooks", async () => {
 
 vi.mock("@features/trips/application", () => ({
   useCancelTrip: () => ({ mutate: vi.fn(), isPending: false }),
-  useDeleteTrip: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteTrip: (options?: { onSuccess?: () => void }) => {
+    deleteOnSuccess = options?.onSuccess;
+    return {
+      mutate: () => {
+        deleteOnSuccess?.();
+      },
+      isPending: false,
+    };
+  },
   useCloneTrip: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
@@ -42,6 +62,8 @@ describe("TripActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockHasPermission.mockReturnValue(true);
+    deleteOnSuccess = undefined;
+    mockNavigate.mockReset();
   });
 
   it("does not show Confirmar reserva or Edición completa in the Más menu", async () => {
@@ -204,5 +226,56 @@ describe("TripActions", () => {
     expect(
       screen.queryByRole("menuitem", { name: /^Editar$/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("tras eliminar navega a /trips preservando ?status= de la vista (N02)", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/trips/trip-1",
+            state: { from: "/trips?status=in_progress" },
+          },
+        ]}
+      >
+        <TooltipProvider delayDuration={0}>
+          <TripActions
+            variant="detailMenu"
+            tripId="trip-1"
+            tripCode="TR-001"
+            status={TripStatus.DRAFT}
+          />
+        </TooltipProvider>
+      </MemoryRouter>,
+    );
+
+    await openMoreMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: /Eliminar/i }));
+    await user.click(screen.getByRole("button", { name: /^Confirmar$/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/trips?status=in_progress");
+  });
+
+  it("tras eliminar sin from de listado cae a /trips", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/trips/trip-1"]}>
+        <TooltipProvider delayDuration={0}>
+          <TripActions
+            variant="detailMenu"
+            tripId="trip-1"
+            tripCode="TR-001"
+            status={TripStatus.DRAFT}
+          />
+        </TooltipProvider>
+      </MemoryRouter>,
+    );
+
+    await openMoreMenu(user);
+    await user.click(screen.getByRole("menuitem", { name: /Eliminar/i }));
+    await user.click(screen.getByRole("button", { name: /^Confirmar$/i }));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/trips");
   });
 });

@@ -108,4 +108,31 @@ describe("invalidateTripDetailSurface", () => {
       queryClient.getQueryState(dashboardQueryKeys.all)?.isInvalidated,
     ).toBe(true);
   });
+
+  it("invalidates opsDaySummary and invoiceable-summary prefix (Q01·Q02)", async () => {
+    const tripId = "trip-7";
+    queryClient.setQueryData(tripQueryKeys.opsDaySummary(), { tripsToday: 1 });
+    queryClient.setQueryData(tripQueryKeys.invoiceableSummary(""), {
+      ready: 0,
+    });
+    queryClient.setQueryData(tripQueryKeys.invoiceableSummary("acme"), {
+      ready: 2,
+    });
+
+    await invalidateTripDetailSurface(queryClient, tripId, {
+      status: TripStatus.COMPLETED,
+    });
+
+    expect(
+      queryClient.getQueryState(tripQueryKeys.opsDaySummary())?.isInvalidated,
+    ).toBe(true);
+    expect(
+      queryClient.getQueryState(tripQueryKeys.invoiceableSummary(""))
+        ?.isInvalidated,
+    ).toBe(true);
+    expect(
+      queryClient.getQueryState(tripQueryKeys.invoiceableSummary("acme"))
+        ?.isInvalidated,
+    ).toBe(true);
+  });
 });
