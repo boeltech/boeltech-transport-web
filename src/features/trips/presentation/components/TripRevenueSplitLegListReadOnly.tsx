@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@shared/ui/button";
 import type { Trip, TripRevenueSplit } from "@features/trips/domain";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
+import { tripInvoiceNavState } from "../utils/tripWayfinding";
 
 const splitCopy = tripFiscalCopy.revenueSplit;
 
@@ -56,7 +57,10 @@ export function TripRevenueSplitLegListReadOnly({
             </div>
             {leg.invoiceId ? (
               <Button asChild size="sm" variant="ghost">
-                <Link to={`/invoices/${leg.invoiceId}`}>
+                <Link
+                  to={`/invoices/${leg.invoiceId}`}
+                  state={tripInvoiceNavState(trip.id, trip.tripCode)}
+                >
                   {splitCopy.viewInvoice}
                 </Link>
               </Button>

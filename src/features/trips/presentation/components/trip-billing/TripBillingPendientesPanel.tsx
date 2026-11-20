@@ -10,6 +10,7 @@ import { formatDateTime } from "@shared/utils/dateUtils";
 import { billingCopy } from "../../copy/tripDetail/billingCopy";
 import { fiscalAttentionMutationTitle } from "../../helpers/fiscalAttentionMutationCopy";
 import { resolveFiscalAttentionCta } from "../../helpers/resolveFiscalAttentionCta";
+import { tripInvoiceNavState } from "../../utils/tripWayfinding";
 import type { TripBillingSubstitutionState } from "./resolveTripBillingSubstitution";
 
 const copy = billingCopy.pendientes;
@@ -81,7 +82,7 @@ export function TripBillingPendientesPanel({
           <Button asChild size="sm">
             <Link
               to={`/invoices/${substitution.originalInvoiceId}`}
-              state={{ from: `/trips/${trip.id}` }}
+              state={tripInvoiceNavState(trip.id, trip.tripCode)}
             >
               {copy.cancelOriginalCta}
             </Link>
@@ -149,7 +150,10 @@ export function TripBillingPendientesPanel({
 
         {invoiceHref ? (
           <Button asChild variant="outline" size="sm">
-            <Link to={invoiceHref} state={{ from: `/trips/${trip.id}` }}>
+            <Link
+              to={invoiceHref}
+              state={tripInvoiceNavState(trip.id, trip.tripCode)}
+            >
               {canSubstitute ? copy.substituteCta : copy.openInvoiceCta}
             </Link>
           </Button>

@@ -26,6 +26,7 @@ import {
   listEligibleTripInvoiceScopes,
   resolveTripInvoiceScopeDecision,
 } from "../helpers/listEligibleTripInvoiceScopes";
+import { tripInvoiceNavState } from "../utils/tripWayfinding";
 import { canUpsertTripRevenueSplit } from "./trip-fiscal/tripFiscalHelpers";
 import { TripInvoiceScopeDecisionSheet } from "./TripInvoiceScopeDecisionSheet";
 
@@ -55,7 +56,7 @@ export function TripInvoiceActions({
   const navigate = useNavigate();
   const goToInvoice = (href: string) =>
     navigate(href, {
-      state: { from: `/trips/${trip.id}`, fromLabel: trip.tripCode },
+      state: tripInvoiceNavState(trip.id, trip.tripCode),
     });
   const { hasPermission } = usePermissions();
 

@@ -121,6 +121,7 @@ import {
   resolveTripAccessDeniedCopy,
   resolveTripBackHref,
   resolveTripWayfindingBackLabel,
+  tripInvoiceNavState,
 } from "../utils/tripWayfinding";
 import { TripDetailOperationTab } from "../components/trip-operation";
 import { TripDetailRouteTab } from "../components/trip-route";
@@ -730,7 +731,11 @@ export function TripDetailPage() {
                 <Button variant="outline" size="sm" asChild>
                   <Link
                     to={`/invoices/${cancelInvoiceId}`}
-                    state={{ from: tripDetailFromHref }}
+                    state={tripInvoiceNavState(
+                      trip.id,
+                      trip.tripCode,
+                      tripDetailFromHref,
+                    )}
                   >
                     {shell.alert.falseTripCancelCfdiCta}
                   </Link>
@@ -756,7 +761,11 @@ export function TripDetailPage() {
                 <Button variant="outline" size="sm" asChild>
                   <Link
                     to={`/invoices/${originalInvoiceId}`}
-                    state={{ from: tripDetailFromHref }}
+                    state={tripInvoiceNavState(
+                      trip.id,
+                      trip.tripCode,
+                      tripDetailFromHref,
+                    )}
                   >
                     {shell.alert.substitutionCancelPendingCta}
                   </Link>
@@ -801,7 +810,11 @@ export function TripDetailPage() {
               <Button variant="outline" size="sm" asChild>
                 <Link
                   to={`/invoices/${fiscalCta.invoiceId}`}
-                  state={{ from: tripDetailFromHref }}
+                  state={tripInvoiceNavState(
+                    trip.id,
+                    trip.tripCode,
+                    tripDetailFromHref,
+                  )}
                 >
                   {shell.alert.fiscalAttentionOpenInvoiceCta}
                 </Link>
@@ -817,7 +830,11 @@ export function TripDetailPage() {
                 <Button variant="outline" size="sm" asChild>
                   <Link
                     to={`/invoices/${legs[0].invoiceId}`}
-                    state={{ from: tripDetailFromHref }}
+                    state={tripInvoiceNavState(
+                      trip.id,
+                      trip.tripCode,
+                      tripDetailFromHref,
+                    )}
                   >
                     {shell.alert.fiscalAttentionOpenInvoiceCta}
                   </Link>
@@ -837,7 +854,11 @@ export function TripDetailPage() {
                       <DropdownMenuItem key={leg.invoiceId} asChild>
                         <Link
                           to={`/invoices/${leg.invoiceId}`}
-                          state={{ from: tripDetailFromHref }}
+                          state={tripInvoiceNavState(
+                            trip.id,
+                            trip.tripCode,
+                            tripDetailFromHref,
+                          )}
                         >
                           {shell.alert.fiscalAttentionSplitLegCta(leg.label)}
                         </Link>
@@ -866,7 +887,11 @@ export function TripDetailPage() {
               <Button variant="outline" size="sm" asChild>
                 <Link
                   to={`/invoices/${fiscalCta.invoiceId}`}
-                  state={{ from: tripDetailFromHref }}
+                  state={tripInvoiceNavState(
+                    trip.id,
+                    trip.tripCode,
+                    tripDetailFromHref,
+                  )}
                 >
                   {isPostCancel
                     ? shell.alert.postCancelFiscalAttentionCta
@@ -896,7 +921,11 @@ export function TripDetailPage() {
                 <Button variant="outline" size="sm" asChild>
                   <Link
                     to={`/invoices/${legs[0].invoiceId}`}
-                    state={{ from: tripDetailFromHref }}
+                    state={tripInvoiceNavState(
+                      trip.id,
+                      trip.tripCode,
+                      tripDetailFromHref,
+                    )}
                   >
                     {isPostCancel
                       ? shell.alert.postCancelFiscalAttentionSplitCta
@@ -920,7 +949,11 @@ export function TripDetailPage() {
                       <DropdownMenuItem key={leg.invoiceId} asChild>
                         <Link
                           to={`/invoices/${leg.invoiceId}`}
-                          state={{ from: tripDetailFromHref }}
+                          state={tripInvoiceNavState(
+                            trip.id,
+                            trip.tripCode,
+                            tripDetailFromHref,
+                          )}
                         >
                           {shell.alert.fiscalAttentionSplitLegCta(leg.label)}
                         </Link>
@@ -1292,7 +1325,11 @@ export function TripDetailPage() {
   const handleNextStepInvoice = () => {
     if (invoiceScopeDecision.kind === "navigate") {
       navigate(invoiceScopeDecision.href, {
-        state: { from: tripDetailFromHref },
+        state: tripInvoiceNavState(
+          trip.id,
+          trip.tripCode,
+          tripDetailFromHref,
+        ),
       });
       return;
     }
@@ -1303,7 +1340,7 @@ export function TripDetailPage() {
 
   const handleNextStepOpenDraft = (invoiceId: string) => {
     navigate(`/invoices/${invoiceId}`, {
-      state: { from: tripDetailFromHref },
+      state: tripInvoiceNavState(trip.id, trip.tripCode, tripDetailFromHref),
     });
   };
 
@@ -1403,7 +1440,7 @@ export function TripDetailPage() {
 
   const handleSelectLinkedDraft = (invoiceId: string) => {
     navigate(`/invoices/${invoiceId}`, {
-      state: { from: tripDetailFromHref },
+      state: tripInvoiceNavState(trip.id, trip.tripCode, tripDetailFromHref),
     });
   };
 
@@ -1634,10 +1671,11 @@ export function TripDetailPage() {
                     }
                     state={
                       trip.invoicing.invoiceId
-                        ? {
-                            from: tripDetailFromHref,
-                            fromLabel: trip.tripCode,
-                          }
+                        ? tripInvoiceNavState(
+                            trip.id,
+                            trip.tripCode,
+                            tripDetailFromHref,
+                          )
                         : undefined
                     }
                   >
@@ -1803,7 +1841,7 @@ export function TripDetailPage() {
                   pendingSinCfdiRequest={
                     trip.settlementException?.status === "in_progress"
                   }
-                  falseTripDeclaredBy={trip.falseTripDeclaredBy}
+                  falseTripDeclaredBy={trip.falseTripDeclaredByName}
                   hasActiveSplit={trip.invoicing.hasActiveSplit}
                   requiresFiscalAttention={trip.requiresFiscalAttention}
                   originNoCargoPendingOutcome={

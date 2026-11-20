@@ -24,6 +24,7 @@ import { formatDateTime } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { billingCopy } from "../../copy/tripDetail/billingCopy";
+import { tripInvoiceNavState } from "../../utils/tripWayfinding";
 import {
   buildTripBillingInvoiceRows,
   summarizeVigente,
@@ -69,9 +70,10 @@ function formatMoneyCell(
 
 function rowAction(
   row: TripBillingInvoiceRow,
-  tripId: string,
+  trip: Pick<Trip, "id" | "tripCode">,
   navigate: ReturnType<typeof useNavigate>,
 ): ReactNode {
+  const navState = tripInvoiceNavState(trip.id, trip.tripCode);
   if (row.href) {
     const label = row.isDraft
       ? copy.openDraft
@@ -80,7 +82,7 @@ function rowAction(
         : copy.viewInvoice;
     return (
       <Button asChild variant="ghost" size="sm">
-        <Link to={row.href} state={{ from: `/trips/${tripId}` }}>
+        <Link to={row.href} state={navState}>
           {label}
         </Link>
       </Button>
@@ -94,7 +96,7 @@ function rowAction(
         size="sm"
         onClick={() =>
           navigate(row.invoicePortionHref!, {
-            state: { from: `/trips/${tripId}` },
+            state: navState,
           })
         }
       >
@@ -261,7 +263,7 @@ export function TripBillingInvoicesPanel({
         id: "actions",
         header: "",
         kind: "actions",
-        accessor: (row) => rowAction(row, trip.id, navigate),
+        accessor: (row) => rowAction(row, trip, navigate),
       },
     ],
     [navigate, trip.id, trip.status],
@@ -338,7 +340,7 @@ export function TripBillingInvoicesPanel({
         id: "actions",
         header: "",
         kind: "actions",
-        accessor: (row) => rowAction(row, trip.id, navigate),
+        accessor: (row) => rowAction(row, trip, navigate),
       },
     ];
     return cols;
@@ -451,7 +453,7 @@ export function TripBillingInvoicesPanel({
           id: "actions",
           header: "",
           kind: "actions",
-          accessor: (row) => rowAction(row, trip.id, navigate),
+          accessor: (row) => rowAction(row, trip, navigate),
         },
       ],
       [navigate, trip.id],

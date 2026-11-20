@@ -14,6 +14,21 @@ function pathOnly(href: string): string {
   return href.split("?")[0] ?? href;
 }
 
+/**
+ * `location.state` al abrir una factura desde el detalle de viaje (migas + chevron).
+ * Preferir sobre `{ from }` solo para no duplicar «Viajes › Viajes › …».
+ */
+export function tripInvoiceNavState(
+  tripId: string,
+  tripCode: string,
+  from?: string,
+): { from: string; fromLabel: string } {
+  return {
+    from: from ?? `/trips/${tripId}`,
+    fromLabel: tripCode,
+  };
+}
+
 /** Detalle de factura (`/invoices/:id`), no alta ni edit. */
 export function isInvoiceDetailHref(href: string): boolean {
   const path = pathOnly(href);

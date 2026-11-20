@@ -85,7 +85,12 @@ describe("TripInvoiceActions false trip (ADR-0079)", () => {
     await user.click(cta);
     expect(mockNavigate).toHaveBeenCalledWith(
       `/invoices/new?trip_id=${TRIP_ID}&scope=false_trip`,
-      { state: { from: `/trips/${TRIP_ID}` } },
+      {
+        state: {
+          from: `/trips/${TRIP_ID}`,
+          fromLabel: "VJ-FALSO-001",
+        },
+      },
     );
   });
 
@@ -251,7 +256,12 @@ describe("TripInvoiceActions decision sheet (F3 / D2)", () => {
 
     expect(mockNavigate).toHaveBeenCalledWith(
       `/invoices/new?trip_id=${TRIP_ID}`,
-      { state: { from: `/trips/${TRIP_ID}` } },
+      {
+        state: {
+          from: `/trips/${TRIP_ID}`,
+          fromLabel: "VJ-FALSO-001",
+        },
+      },
     );
     expect(
       screen.queryByRole("heading", {
@@ -399,7 +409,12 @@ describe("TripInvoiceActions headerMenu D5 / D-HF1 (sin Select hermano)", () => 
     await user.click(facturar);
     expect(mockNavigate).toHaveBeenCalledWith(
       `/invoices/new?trip_id=${TRIP_ID}`,
-      { state: { from: `/trips/${TRIP_ID}` } },
+      {
+        state: {
+          from: `/trips/${TRIP_ID}`,
+          fromLabel: "VJ-FALSO-001",
+        },
+      },
     );
   });
 

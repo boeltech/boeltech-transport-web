@@ -138,7 +138,12 @@ export function resolveDetailCrumbs(
     return [{ label: match.label, to: resolved }, current];
   }
 
-  const midLabel = input.fromLabel?.trim() || match.label;
+  const midLabel = input.fromLabel?.trim();
+  // Detail without a useful mid label → 2 crumbs (avoid «Viajes › Viajes › …»).
+  if (!midLabel) {
+    return [{ label: match.label, to: resolved }, current];
+  }
+
   return [
     { label: match.label, to: match.listPath },
     { label: midLabel, to: resolved },

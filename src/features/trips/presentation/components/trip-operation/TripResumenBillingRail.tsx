@@ -16,6 +16,7 @@ import {
   operationalCashStatusLabel,
 } from "../../utils/operationalCashUi";
 import { getTripInvoiceStatusLabel } from "../../utils/tripListFilterUtils";
+import { tripInvoiceNavState } from "../../utils/tripWayfinding";
 
 const copy = tripDetailCopy.operation;
 const cashCopy = cfdiEmissionIntentCopy.cash;
@@ -173,6 +174,7 @@ export function TripResumenBillingRail({
             hasInvoice && invoicing.invoiceId && !splitPartial ? (
               <Link
                 to={`/invoices/${invoicing.invoiceId}`}
+                state={tripInvoiceNavState(trip.id, trip.tripCode)}
                 className="text-foreground hover:text-primary hover:underline"
               >
                 {primaryLabel}

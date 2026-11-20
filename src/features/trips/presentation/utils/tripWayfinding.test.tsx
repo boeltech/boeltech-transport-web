@@ -6,7 +6,23 @@ import {
   resolveTripBackHref,
   resolveTripReturnHrefFromInvoiceCreate,
   resolveTripWayfindingBackLabel,
+  tripInvoiceNavState,
 } from "./tripWayfinding";
+
+describe("tripInvoiceNavState", () => {
+  it("incluye from + fromLabel; respeta from opcional", () => {
+    expect(tripInvoiceNavState("t-1", "TRP-1")).toEqual({
+      from: "/trips/t-1",
+      fromLabel: "TRP-1",
+    });
+    expect(
+      tripInvoiceNavState("t-1", "TRP-1", "/trips/t-1?tab=billing"),
+    ).toEqual({
+      from: "/trips/t-1?tab=billing",
+      fromLabel: "TRP-1",
+    });
+  });
+});
 
 describe("isSafeTripReturnHref / resolveTripBackHref", () => {
   it("allowlist trips, invoiceable, dispatch, approvals, settlements, factura y listado", () => {

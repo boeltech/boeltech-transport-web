@@ -122,7 +122,7 @@ describe("resolveDetailCrumbs (Q1)", () => {
     ]);
   });
 
-  it("detalle de otro módulo → 3 eslabones; fromLabel o sustantivo", () => {
+  it("detalle de otro módulo → 3 con fromLabel; 2 sin fromLabel (sin duplicar)", () => {
     expect(
       resolveDetailCrumbs({
         from: "/trips/trip-1?tab=billing",
@@ -143,7 +143,6 @@ describe("resolveDetailCrumbs (Q1)", () => {
         current,
       }),
     ).toEqual([
-      { label: "Viajes", to: "/trips" },
       { label: "Viajes", to: "/trips/trip-1" },
       { label: "F-1211", mono: true },
     ]);

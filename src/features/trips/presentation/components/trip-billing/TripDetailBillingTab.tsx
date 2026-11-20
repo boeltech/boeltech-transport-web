@@ -19,6 +19,7 @@ import { formatDateTime } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 
 import { billingCopy } from "../../copy/tripDetail/billingCopy";
+import { tripInvoiceNavState } from "../../utils/tripWayfinding";
 import { TripFleetSnapshotCard } from "../trip-fleet-snapshot";
 import { buildTripBillingCobroSummary } from "./buildTripBillingCobroSummary";
 import { buildTripBillingInvoiceRows } from "./buildTripBillingInvoiceRows";
@@ -264,7 +265,7 @@ export function TripDetailBillingTab({
                 <Link
                   className="text-primary underline-offset-2 hover:underline"
                   to={`/invoices/${cobroActiveInvoiceId}`}
-                  state={{ from: `/trips/${trip.id}` }}
+                  state={tripInvoiceNavState(trip.id, trip.tripCode)}
                 >
                   Abrir {cobroActiveFolio}
                 </Link>

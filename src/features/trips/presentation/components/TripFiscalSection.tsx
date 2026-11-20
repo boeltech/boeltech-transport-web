@@ -14,6 +14,7 @@ import {
   toDetailInvoicingBadge,
 } from "../uiHelpers";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
+import { tripInvoiceNavState } from "../utils/tripWayfinding";
 import { hasTripFiscalSectionContent } from "./shouldShowTripInvoicingConsole";
 
 const sectionCopy = tripFiscalCopy.invoicesSection;
@@ -186,6 +187,7 @@ export function TripFiscalSection({
         <Button variant="outline" size="sm" className="shrink-0" asChild>
           <Link
             to={`/invoices/${invoicing.invoiceId}`}
+            state={tripInvoiceNavState(trip.id, trip.tripCode)}
             className="inline-flex items-center gap-1"
           >
             {sectionCopy.openInvoice}
