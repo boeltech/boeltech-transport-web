@@ -45,11 +45,17 @@ describe("helpCenterCopy.spotlight", () => {
 });
 
 describe("helpCenterCopy product labels (PRD D1–D5)", () => {
-  it("uses operative group/index copy without «Concepto fiscal» / «plataforma»", () => {
+  it("uses operative group/index copy aligned to menu (P-V1 A)", () => {
     expect(helpCenterCopy.groups.concepto_fiscal).toBe("Conceptos de factura");
     expect(helpCenterCopy.groups.flota).toBe("Flota");
-    expect(helpCenterCopy.groups.configuracion).toBe("Configuración");
+    expect(helpCenterCopy.groups.viajes).toBe("Operación");
+    expect(helpCenterCopy.groups.operacion).toBe("Operación");
+    expect(helpCenterCopy.groups.configuracion).toBe(
+      "Administración · Configuración",
+    );
     expect(helpCenterCopy.groups.cobranza).toBe("Cobranza");
+    expect(helpCenterCopy.groups.pagos_operadores).toBe("Pagos a operadores");
+    expect(helpCenterCopy.groups.tu_cuenta).toBe("Tu cuenta");
     expect(helpCenterCopy.index.description).toBe(
       "Guías y artículos para operar día a día",
     );
@@ -77,6 +83,14 @@ describe("helpCenterCopy product labels (PRD D1–D5)", () => {
     expect(helpCenterCopy.detail.notCoveredSection).toBe("Qué no cubre");
   });
 
+  it("exposes V4 article section copy (Si falla, Para, soporte)", () => {
+    expect(helpCenterCopy.detail.problemSection).toBe("Si falla");
+    expect(helpCenterCopy.detail.rolesLabel).toBe("Para");
+    expect(helpCenterCopy.detail.rolesAll).toBe("Para todos los roles");
+    expect(helpCenterCopy.detail.writeSupport).toBe("Escribir a soporte");
+    expect(helpCenterCopy.detail.supportPrompt).toMatch(/No lo resolviste/i);
+  });
+
   it("exposes F3 D14 mínimo (Reintentar, Limpiar, Nuevo ticket)", () => {
     expect(helpCenterCopy.index.clearSearch).toBe("Limpiar búsqueda");
     expect(helpCenterCopy.index.loadErrorRetry).toBe("Reintentar");
@@ -96,7 +110,6 @@ describe("helpCenterCopy.ticketsPaused", () => {
     expect(helpCenterCopy.ticketsPaused.deepLink).toBe(
       "El envío de tickets está pausado mientras actualizamos las guías…",
     );
-    expect(helpCenterCopy.ticketsPaused.panelHint).toMatch(/guías/i);
     expect(helpCenterCopy.ticketsPaused.panelHint).not.toMatch(
       /feature flag|kill-switch/i,
     );

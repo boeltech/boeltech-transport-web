@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { AlertCircle, BookOpen, Mail, Search, Ticket, TicketPlus } from "lucide-react";
+import { AlertCircle, BookOpen, Mail, Search, Ticket } from "lucide-react";
 import { useDebounce } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
 import { BRAND } from "@shared/ui/brand";
@@ -30,7 +30,7 @@ import { CreateTicketSheet } from "./CreateTicketSheet";
 
 const copy = helpCenterCopy.panel;
 const indexCopy = helpCenterCopy.index;
-const pausedCopy = helpCenterCopy.ticketsPaused;
+const detailCopy = helpCenterCopy.detail;
 
 interface HelpPanelProps {
   open: boolean;
@@ -56,8 +56,17 @@ export const HelpPanel = memo(function HelpPanel({
     id: string;
     title: string;
   } | null>(null);
+  /** P-V3: una tarjeta abierta a la vez. */
+  const [expandedId, setExpandedId] = useState<string | null>(
+    expandArticleId ?? null,
+  );
 
   const isSearching = debouncedSearch.length >= 2;
+
+  useEffect(() => {
+    if (!open) return;
+    setExpandedId(expandArticleId ?? null);
+  }, [open, expandArticleId]);
 
   useEffect(() => {
     if (!open || !isSearching) return;
@@ -160,6 +169,10 @@ export const HelpPanel = memo(function HelpPanel({
 
   const onOpenTicket = ticketsEnabled ? openTicketSheet : undefined;
 
+  const handleExpandedChange = (articleId: string, next: boolean) => {
+    setExpandedId(next ? articleId : null);
+  };
+
   return (
     <>
     <Sheet open={open} onOpenChange={handlePanelOpenChange}>
@@ -217,7 +230,8 @@ export const HelpPanel = memo(function HelpPanel({
               emptyMessage={copy.noResults}
               onNavigate={closePanel}
               onOpenTicket={onOpenTicket}
-              expandArticleId={expandArticleId}
+              expandedId={expandedId}
+              onExpandedChange={handleExpandedChange}
             />
           )}
 
@@ -229,7 +243,8 @@ export const HelpPanel = memo(function HelpPanel({
                     articles={[pinnedArticle]}
                     onNavigate={closePanel}
                     onOpenTicket={onOpenTicket}
-                    expandArticleId={expandArticleId}
+                    expandedId={expandedId}
+                    onExpandedChange={handleExpandedChange}
                   />
                 </section>
               ) : null}
@@ -241,7 +256,8 @@ export const HelpPanel = memo(function HelpPanel({
                     articles={screenArticles!}
                     onNavigate={closePanel}
                     onOpenTicket={onOpenTicket}
-                    expandArticleId={expandArticleId}
+                    expandedId={expandedId}
+                    onExpandedChange={handleExpandedChange}
                   />
                 </section>
               )}
@@ -253,7 +269,8 @@ export const HelpPanel = memo(function HelpPanel({
                     articles={frequentArticles}
                     onNavigate={closePanel}
                     onOpenTicket={onOpenTicket}
-                    expandArticleId={expandArticleId}
+                    expandedId={expandedId}
+                    onExpandedChange={handleExpandedChange}
                   />
                 ) : (
                   <EmptyState
@@ -288,41 +305,20 @@ export const HelpPanel = memo(function HelpPanel({
           </nav>
         </div>
 
-        <div className="shrink-0 space-y-2 border-t pt-4">
-          {ticketsEnabled ? (
-            <>
-              <p className="text-xs font-medium text-muted-foreground">
-                {copy.notFoundAnswer}
-              </p>
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full"
-                onClick={() => openTicketSheet()}
-              >
-                <TicketPlus className="mr-2 h-4 w-4" />
-                {copy.sendTicket}
-              </Button>
-              <Button variant="outline" size="sm" className="w-full" asChild>
-                <a href={mailtoHref}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  {copy.contactByEmail}
-                </a>
-              </Button>
-            </>
-          ) : (
-            <>
-              <p className="text-xs text-muted-foreground">
-                {pausedCopy.panelHint}
-              </p>
-              <Button variant="default" size="sm" className="w-full" asChild>
-                <a href={mailtoHref}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  {copy.contactByEmail}
-                </a>
-              </Button>
-            </>
-          )}
+        {/* P-V4 / AY-H9: pie fijo supportPrompt + mailto (sin panelHint provisional) */}
+        <div
+          className="shrink-0 space-y-2 border-t pt-4"
+          data-help-panel-footer=""
+        >
+          <p className="text-xs text-muted-foreground">
+            {detailCopy.supportPrompt}
+          </p>
+          <Button variant="outline" size="sm" className="w-full" asChild>
+            <a href={mailtoHref}>
+              <Mail className="mr-2 h-4 w-4" />
+              {detailCopy.writeSupport}
+            </a>
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
@@ -355,12 +351,14 @@ function ArticleList({
   articles,
   onNavigate,
   onOpenTicket,
-  expandArticleId,
+  expandedId,
+  onExpandedChange,
 }: {
   articles: HelpArticle[];
   onNavigate: () => void;
   onOpenTicket?: (article: HelpArticle) => void;
-  expandArticleId?: string | null;
+  expandedId: string | null;
+  onExpandedChange: (articleId: string, next: boolean) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -368,9 +366,10 @@ function ArticleList({
         <ArticleCard
           key={article.id}
           article={article}
+          expanded={expandedId === article.id}
+          onExpandedChange={(next) => onExpandedChange(article.id, next)}
           onNavigate={onNavigate}
           onOpenTicket={onOpenTicket}
-          defaultExpanded={expandArticleId === article.id}
         />
       ))}
     </div>
@@ -382,13 +381,15 @@ function ArticleSection({
   emptyMessage,
   onNavigate,
   onOpenTicket,
-  expandArticleId,
+  expandedId,
+  onExpandedChange,
 }: {
   articles: HelpArticle[];
   emptyMessage: string;
   onNavigate: () => void;
   onOpenTicket?: (article: HelpArticle) => void;
-  expandArticleId?: string | null;
+  expandedId: string | null;
+  onExpandedChange: (articleId: string, next: boolean) => void;
 }) {
   if (articles.length === 0) {
     return (
@@ -404,7 +405,8 @@ function ArticleSection({
       articles={articles}
       onNavigate={onNavigate}
       onOpenTicket={onOpenTicket}
-      expandArticleId={expandArticleId}
+      expandedId={expandedId}
+      onExpandedChange={onExpandedChange}
     />
   );
 }

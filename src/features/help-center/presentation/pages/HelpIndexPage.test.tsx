@@ -77,7 +77,7 @@ describe("HelpIndexPage (F1)", () => {
     });
   });
 
-  it("usa toolbar.search ListingSearchInput y EntityListCard sin menú ⋯ (D3/D9)", async () => {
+  it("usa toolbar.search y filas sin EntityListCard / menú ⋯ (AY-H7)", async () => {
     const user = userEvent.setup();
     renderPage();
 
@@ -85,11 +85,53 @@ describe("HelpIndexPage (F1)", () => {
       screen.getByPlaceholderText(copy.searchPlaceholder),
     ).toBeInTheDocument();
     expect(screen.getByText(sampleArticle.title)).toBeInTheDocument();
+    expect(screen.getByText("Facturación")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /acciones/i })).not.toBeInTheDocument();
     expect(screen.queryByText("⋯")).not.toBeInTheDocument();
+    expect(document.querySelector("[data-help-article-row]")).toBeTruthy();
 
     await user.click(screen.getByText(sampleArticle.title));
     expect(screen.getByTestId("article-detail")).toBeInTheDocument();
+  });
+
+  it("remapea display P-V1 A: cuenta-seguridad → Tu cuenta (AY-H8)", () => {
+    mockUseHelpArticles.mockReturnValue({
+      data: [
+        {
+          id: "cuenta-seguridad",
+          title: "Cuidar tu acceso",
+          group: "administracion",
+          screens: [],
+          roles: [],
+          phrase: "Cambias tu contraseña y cierras sesiones.",
+          guide: null,
+          problem: null,
+          sortOrder: 1,
+        },
+        {
+          id: "liquidar-viaje",
+          title: "Liquidar un viaje",
+          group: "finanzas",
+          screens: [],
+          roles: [],
+          phrase: "Cierras el corte del operador.",
+          guide: null,
+          problem: null,
+          sortOrder: 2,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetch,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Tu cuenta")).toBeInTheDocument();
+    expect(screen.getByText("Pagos a operadores")).toBeInTheDocument();
+    const tuCuenta = document.querySelector('[data-help-group="tu_cuenta"]');
+    expect(tuCuenta).toBeTruthy();
+    expect(tuCuenta?.textContent).toMatch(/Cuidar tu acceso/);
   });
 
   it("búsqueda sin resultados muestra EmptyState con Limpiar búsqueda (D4)", async () => {

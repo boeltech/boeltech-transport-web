@@ -10,7 +10,24 @@ describe("truncateGuideForPanel", () => {
     });
   });
 
-  it("stops after maxSteps", () => {
+  it("default maxSteps is 8 (AY-H5) — 8 steps stay complete", () => {
+    const guide = [
+      "1. Uno",
+      "2. Dos",
+      "3. Tres",
+      "4. Cuatro",
+      "5. Cinco",
+      "6. Seis",
+      "7. Siete",
+      "8. Ocho",
+    ].join("\n");
+    expect(truncateGuideForPanel(guide)).toEqual({
+      preview: guide,
+      truncated: false,
+    });
+  });
+
+  it("stops after explicit maxSteps", () => {
     const guide = [
       "1. Uno",
       "2. Dos",
@@ -24,6 +41,16 @@ describe("truncateGuideForPanel", () => {
     expect(result.truncated).toBe(true);
     expect(result.preview).toContain("5. Cinco");
     expect(result.preview).not.toContain("6. Seis");
+  });
+
+  it("truncates the 9th step with default maxSteps 8", () => {
+    const guide = Array.from({ length: 9 }, (_, i) => `${i + 1}. Paso`).join(
+      "\n",
+    );
+    const result = truncateGuideForPanel(guide);
+    expect(result.truncated).toBe(true);
+    expect(result.preview).toContain("8. Paso");
+    expect(result.preview).not.toContain("9. Paso");
   });
 
   it("stops when maxChars would be exceeded", () => {

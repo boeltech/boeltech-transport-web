@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { AlertCircle, BookOpen, ChevronDown } from "lucide-react";
+import { AlertCircle, BookOpen } from "lucide-react";
 import config from "@shared/config/env";
-import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
+import { Card } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
 import { DetailPageShell } from "@shared/ui/page-shells";
 import {
@@ -11,20 +11,21 @@ import {
   resolveDetailCrumbs,
 } from "@shared/utils/masterWayfinding";
 import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@shared/ui/collapsible";
 import { resolveDetailQueryErrorState } from "@shared/utils/resolveQueryErrorState";
+import { buildSupportMailto } from "@widgets/header/lib/buildSupportMailto";
+import { BRAND } from "@shared/ui/brand";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useHelpArticle } from "../../application";
 import { trackHelpEvent } from "../../application/trackHelpEvent";
 import { markHelpArticleViewed } from "../../infrastructure/helpSessionFlags";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
+import { resolveHelpDisplayGroup } from "../utils/helpDisplayGroup";
 import { ArticleFeedback } from "../components/ArticleFeedback";
 import { CreateTicketSheet } from "../components/CreateTicketSheet";
+import { HelpProblemList } from "../components/HelpProblemList";
 import { HelpRichText } from "../components/HelpRichText";
+import { HelpRoleChips } from "../components/HelpRoleChips";
+import { HelpSteps } from "../components/HelpSteps";
 
 const copy = helpCenterCopy.detail;
 const AYUDA_LIST_PATH = "/ayuda";
@@ -38,7 +39,6 @@ export function HelpArticlePage() {
   const incoming = useIncomingWayfinding();
   const ticketsEnabled = config.help.ticketsEnabled;
   const [ticketSheetOpen, setTicketSheetOpen] = useState(false);
-  const [showProblem, setShowProblem] = useState(false);
   const {
     data: article,
     isLoading,
@@ -72,10 +72,15 @@ export function HelpArticlePage() {
     queryState === "missingId";
   const isNotFound =
     !isLoading &&
-    (queryState === "notFound" || queryState === "forbidden" || (!article && !isError));
+    (queryState === "notFound" ||
+      queryState === "forbidden" ||
+      (!article && !isError));
 
   const groupLabel = article
-    ? (helpCenterCopy.groups[article.group] ?? article.group)
+    ? (() => {
+        const displayGroup = resolveHelpDisplayGroup(article.id, article.group);
+        return helpCenterCopy.groups[displayGroup] ?? displayGroup;
+      })()
     : "";
 
   const crumbs = resolveDetailCrumbs({
@@ -83,6 +88,16 @@ export function HelpArticlePage() {
     fromLabel: incoming?.fromLabel,
     module: { listPath: AYUDA_LIST_PATH, label: AYUDA_MODULE_LABEL },
     current: { label: article?.title ?? copy.backLabel },
+  });
+
+  const mailtoHref = buildSupportMailto({
+    supportEmail: config.support.email,
+    productName: config.app.name || BRAND.productName,
+    tenantName: user?.tenant?.name,
+    userEmail: user?.email,
+    currentPath: `${location.pathname}${location.search}`,
+    environment: config.observability.environment,
+    release: config.observability.release,
   });
 
   if (!isLoading && isLoadError) {
@@ -132,75 +147,59 @@ export function HelpArticlePage() {
       header={{
         crumbs,
         title: article?.title ?? "",
-        subtitle: article?.phrase,
+        subtitle: groupLabel || undefined,
       }}
     >
       {article && (
-        <div className="space-y-6">
-          <div className="flex flex-wrap gap-2" aria-label={copy.groupLabel}>
-            <Badge variant="neutral" tone="soft">
-              {groupLabel}
-            </Badge>
+        <div
+          className="mx-auto flex w-full max-w-[720px] flex-col gap-6"
+          data-help-article-layout="a"
+        >
+          {/* Orden V3: Frase → Para quién → Pasos → Si falla → Soporte → Qué no cubre → ¿Te sirvió? */}
+          <p className="m-0 text-[15px] leading-6 text-foreground" data-help-phrase="">
+            {article.phrase}
+          </p>
+
+          <HelpRoleChips roles={article.roles} currentRole={user?.role} />
+
+          {article.guide?.trim() ? <HelpSteps guide={article.guide} /> : null}
+
+          {article.problem?.trim() ? (
+            <HelpProblemList problem={article.problem} />
+          ) : null}
+
+          <div
+            className="flex flex-wrap items-center gap-3 rounded-lg bg-muted px-3.5 py-3 text-sm"
+            data-help-support=""
+          >
+            <span className="min-w-0 flex-1 text-muted-foreground">
+              {copy.supportPrompt}
+            </span>
+            <Button variant="outline" size="sm" asChild>
+              <a href={mailtoHref}>{copy.writeSupport}</a>
+            </Button>
           </div>
 
-          {article.guide && (
-            <section>
-              <h2 className="mb-3 text-lg font-semibold">{copy.stepsSection}</h2>
-              <HelpRichText markdown={article.guide} />
-            </section>
-          )}
-
           {article.notCovered?.trim() ? (
-            <section>
-              <h2 className="mb-3 text-lg font-semibold">
+            <section className="flex flex-col gap-2" data-help-not-covered="">
+              <h2 className="text-base font-semibold leading-6">
                 {copy.notCoveredSection}
               </h2>
-              <HelpRichText markdown={article.notCovered} />
+              <Card className="px-4 py-1.5">
+                <HelpRichText markdown={article.notCovered} />
+              </Card>
             </section>
           ) : null}
 
-          <ArticleFeedback
-            key={article.id}
-            articleId={article.id}
-            hasProblem={Boolean(article.problem)}
-            onRequestTicket={
-              ticketsEnabled ? () => setTicketSheetOpen(true) : undefined
-            }
-            onShowProblem={
-              article.problem ? () => setShowProblem(true) : undefined
-            }
-          />
-
-          {article.problem && (
-            <Collapsible open={showProblem} onOpenChange={setShowProblem}>
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center gap-2 px-0 text-base font-semibold hover:bg-transparent"
-                >
-                  {copy.problemSection}
-                  <ChevronDown className="h-4 w-4 transition-transform [[data-state=open]>&]:rotate-180" />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <HelpRichText
-                  markdown={article.problem}
-                  className="mt-2 rounded-lg bg-muted/50 p-4"
-                />
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-
-          {ticketsEnabled ? (
-            <div className="border-t pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setTicketSheetOpen(true)}
-              >
-                {copy.sendTicketAboutThis}
-              </Button>
-            </div>
-          ) : null}
+          <div data-help-feedback="">
+            <ArticleFeedback
+              key={article.id}
+              articleId={article.id}
+              onRequestTicket={
+                ticketsEnabled ? () => setTicketSheetOpen(true) : undefined
+              }
+            />
+          </div>
         </div>
       )}
 

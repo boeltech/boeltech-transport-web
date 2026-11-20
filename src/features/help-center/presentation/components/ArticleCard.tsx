@@ -1,43 +1,44 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ChevronRight, ExternalLink } from "lucide-react";
 import { cn } from "@shared/lib/utils/cn";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@shared/ui/collapsible";
+import { useAuth } from "@/shared/hooks/useAuth";
 import { trackHelpEvent } from "../../application/trackHelpEvent";
 import type { HelpArticle } from "../../domain";
 import { markHelpArticleViewed } from "../../infrastructure/helpSessionFlags";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
 import { truncateGuideForPanel } from "../utils/truncateGuideForPanel";
 import { ArticleFeedback } from "./ArticleFeedback";
+import { HelpProblemList } from "./HelpProblemList";
 import { HelpRichText } from "./HelpRichText";
+import { HelpRoleChips } from "./HelpRoleChips";
 import { HelpSpotlightCta } from "./HelpSpotlightCta";
+import { HelpSteps } from "./HelpSteps";
 
 const copy = helpCenterCopy.panel;
+const detailCopy = helpCenterCopy.detail;
 
 interface ArticleCardProps {
   article: HelpArticle;
+  /** Controlled accordion (P-V3 — una abierta a la vez desde HelpPanel). */
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
   /** Called when user navigates to the full article page (to close parent sheet). */
   onNavigate?: () => void;
   /** Open ticket sheet with this article (parent owns CreateTicketSheet). */
   onOpenTicket?: (article: HelpArticle) => void;
-  /** Open expanded (deep-link from empty / ⌘K). */
-  defaultExpanded?: boolean;
 }
 
 export const ArticleCard = memo(function ArticleCard({
   article,
+  expanded,
+  onExpandedChange,
   onNavigate,
   onOpenTicket,
-  defaultExpanded = false,
 }: ArticleCardProps) {
   const location = useLocation();
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const [showProblem, setShowProblem] = useState(false);
-  const trackedDefaultExpand = useRef(false);
+  const { user } = useAuth();
+  const trackedExpand = useRef(false);
 
   const guidePreview = useMemo(() => {
     if (!article.guide) return { preview: "", truncated: false };
@@ -55,46 +56,41 @@ export const ArticleCard = memo(function ArticleCard({
   }, [article.id, location.pathname]);
 
   useEffect(() => {
-    if (!defaultExpanded || trackedDefaultExpand.current) return;
-    trackedDefaultExpand.current = true;
-    setExpanded(true);
+    if (!expanded || trackedExpand.current) return;
+    trackedExpand.current = true;
     trackViewed();
-  }, [defaultExpanded, trackViewed]);
+  }, [expanded, trackViewed]);
 
   const handleToggleExpand = useCallback(() => {
-    setExpanded((prev) => {
-      const next = !prev;
-      if (next) {
-        trackViewed();
-      } else {
-        setShowProblem(false);
-      }
-      return next;
-    });
-  }, [trackViewed]);
-
-  const handleShowProblem = useCallback(() => {
-    setShowProblem(true);
-  }, []);
+    const next = !expanded;
+    if (next) {
+      trackViewed();
+      trackedExpand.current = true;
+    }
+    onExpandedChange(next);
+  }, [expanded, onExpandedChange, trackViewed]);
 
   const handleRequestTicket = useCallback(() => {
     onOpenTicket?.(article);
   }, [article, onOpenTicket]);
 
   return (
-    <div className="rounded-lg border bg-card p-3">
+    <div
+      className="rounded-lg border bg-card p-3"
+      data-help-article-card=""
+      data-expanded={expanded ? "true" : undefined}
+    >
       <button
         type="button"
         className="flex w-full items-start gap-2 text-left"
         onClick={handleToggleExpand}
+        aria-expanded={expanded}
       >
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium leading-snug">{article.title}</p>
-          {!expanded && (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {article.phrase}
-            </p>
-          )}
+          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+            {article.phrase}
+          </p>
         </div>
         <ChevronRight
           className={cn(
@@ -106,21 +102,29 @@ export const ArticleCard = memo(function ArticleCard({
 
       {expanded && (
         <div className="mt-3 space-y-3">
-          {guidePreview.preview && (
-            <HelpRichText
-              markdown={guidePreview.preview}
-              className="text-sm"
-            />
-          )}
+          {/* Orden V3: Para quién → Pasos → Si falla → Qué no cubre → feedback → link */}
+          <HelpRoleChips
+            roles={article.roles}
+            currentRole={user?.role}
+            className="text-xs"
+          />
 
-          {guidePreview.truncated && (
+          {guidePreview.preview ? (
+            <HelpSteps guide={guidePreview.preview} variant="tight" />
+          ) : null}
+
+          {guidePreview.truncated ? (
             <p className="text-xs text-muted-foreground">{copy.moreSteps}</p>
-          )}
+          ) : null}
 
-          {!guidePreview.truncated && article.notCovered?.trim() ? (
-            <div>
-              <p className="mb-1 text-xs font-medium text-muted-foreground">
-                {helpCenterCopy.detail.notCoveredSection}
+          {article.problem?.trim() ? (
+            <HelpProblemList problem={article.problem} variant="tight" />
+          ) : null}
+
+          {article.notCovered?.trim() ? (
+            <div data-help-not-covered="">
+              <p className="mb-1 text-xs font-semibold text-foreground">
+                {detailCopy.notCoveredSection}
               </p>
               <HelpRichText
                 markdown={article.notCovered}
@@ -134,45 +138,14 @@ export const ArticleCard = memo(function ArticleCard({
             articleScreens={article.screens}
             pathname={location.pathname}
             onRequestTicket={onOpenTicket ? handleRequestTicket : undefined}
-            onShowProblem={
-              article.problem && !guidePreview.truncated
-                ? handleShowProblem
-                : undefined
-            }
-            hasProblem={Boolean(article.problem) && !guidePreview.truncated}
           />
 
           <ArticleFeedback
             key={article.id}
             articleId={article.id}
-            hasProblem={Boolean(article.problem) && !guidePreview.truncated}
             compact
             onRequestTicket={onOpenTicket ? handleRequestTicket : undefined}
-            onShowProblem={
-              article.problem && !guidePreview.truncated
-                ? handleShowProblem
-                : undefined
-            }
           />
-
-          {article.problem && !guidePreview.truncated && (
-            <Collapsible open={showProblem} onOpenChange={setShowProblem}>
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                >
-                  {copy.didntSolve}
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <HelpRichText
-                  markdown={article.problem}
-                  className="mt-2 rounded-md bg-muted/50 p-3 text-sm"
-                />
-              </CollapsibleContent>
-            </Collapsible>
-          )}
 
           <Link
             to={`/ayuda/${article.id}`}

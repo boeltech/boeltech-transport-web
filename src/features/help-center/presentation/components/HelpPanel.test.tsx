@@ -10,6 +10,7 @@ import type { HelpArticle } from "../../domain";
 
 const copy = helpCenterCopy.panel;
 const indexCopy = helpCenterCopy.index;
+const detailCopy = helpCenterCopy.detail;
 
 const mockRefetchScreen = vi.fn();
 const mockRefetchAll = vi.fn();
@@ -57,6 +58,13 @@ vi.mock("../../application", () => ({
 
 vi.mock("../../application/trackHelpEvent", () => ({
   trackHelpSearchPerformed: vi.fn(),
+  trackHelpEvent: vi.fn(),
+}));
+
+vi.mock("../../infrastructure/helpSessionFlags", () => ({
+  markHelpArticleViewed: vi.fn(),
+  hasHelpFeedback: vi.fn(() => false),
+  markHelpFeedback: vi.fn(),
 }));
 
 const sampleArticle: HelpArticle = {
@@ -140,6 +148,64 @@ describe("HelpPanel (F2 D7–D8)", () => {
       screen.getByRole("button", { name: /Cómo facturar un viaje/i }),
     ).toBeInTheDocument();
     expect(screen.queryByText(sampleArticle.phrase)).toBeInTheDocument();
+  });
+
+  it("pie P-V4: supportPrompt + Escribir a soporte mailto (AY-H9)", () => {
+    renderPanel();
+
+    expect(screen.getByText(detailCopy.supportPrompt)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: detailCopy.writeSupport }),
+    ).toHaveAttribute("href", "mailto:support@test.com");
+    expect(
+      screen.queryByText(/Estamos mejorando las guías/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.sendTicket }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("abre una sola tarjeta a la vez (P-V3)", async () => {
+    const user = userEvent.setup();
+    const second: HelpArticle = {
+      ...sampleArticle,
+      id: "art-2",
+      title: "Registrar un gasto",
+      phrase: "Gastas y queda en revisión",
+    };
+    mockUseHelpArticles.mockImplementation((filters: { screen?: string; q?: string }) => {
+      if (filters?.q) {
+        return { data: [], isLoading: false, isError: false, refetch: mockRefetchSearch };
+      }
+      if (filters?.screen) {
+        return {
+          data: [sampleArticle, second],
+          isLoading: false,
+          isError: false,
+          refetch: mockRefetchScreen,
+        };
+      }
+      return { data: [], isLoading: false, isError: false, refetch: mockRefetchAll };
+    });
+
+    renderPanel();
+
+    const firstBtn = screen.getByRole("button", {
+      name: /Cómo facturar un viaje/i,
+    });
+    const secondBtn = screen.getByRole("button", {
+      name: /Registrar un gasto/i,
+    });
+
+    await user.click(firstBtn);
+    expect(firstBtn).toHaveAttribute("aria-expanded", "true");
+    expect(secondBtn).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText(copy.viewFullArticle)).toBeInTheDocument();
+
+    await user.click(secondBtn);
+    expect(firstBtn).toHaveAttribute("aria-expanded", "false");
+    expect(secondBtn).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByText(copy.viewFullArticle)).toHaveLength(1);
   });
 
   it("búsqueda sin resultados usa EmptyState sm (D7)", async () => {

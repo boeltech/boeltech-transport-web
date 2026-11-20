@@ -4,22 +4,24 @@ import { AlertCircle, BookOpen, ChevronRight, Ticket } from "lucide-react";
 import config from "@shared/config/env";
 import { useDebounce } from "@shared/hooks";
 import { Button } from "@shared/ui/button";
-import { CardContent, CardHeader } from "@shared/ui/card";
 import { DetailAlertCard } from "@shared/ui/data-display";
-import { EntityListCard } from "@shared/ui/listing";
 import { ListPageShell } from "@shared/ui/page-shells";
 import { useHelpArticles, useOpenTicketCount } from "../../application";
 import { trackHelpSearchPerformed } from "../../application/trackHelpEvent";
 import type { HelpArticle } from "../../domain";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
+import {
+  resolveHelpDisplayGroup,
+  sortHelpGroupKeys,
+} from "../utils/helpDisplayGroup";
 
 const copy = helpCenterCopy.index;
 const groupLabels = helpCenterCopy.groups;
 
-function groupByField(articles: HelpArticle[]): Record<string, HelpArticle[]> {
+function groupByDisplay(articles: HelpArticle[]): Record<string, HelpArticle[]> {
   const grouped: Record<string, HelpArticle[]> = {};
   for (const article of articles) {
-    const key = article.group;
+    const key = resolveHelpDisplayGroup(article.id, article.group);
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(article);
   }
@@ -56,8 +58,11 @@ export function HelpIndexPage() {
 
   const showLoadError = isError && !isLoading;
   const hasSearch = search.trim().length > 0;
-  const grouped = useMemo(() => groupByField(articles), [articles]);
-  const groupKeys = Object.keys(grouped);
+  const grouped = useMemo(() => groupByDisplay(articles), [articles]);
+  const groupKeys = useMemo(
+    () => sortHelpGroupKeys(Object.keys(grouped)),
+    [grouped],
+  );
 
   const clearSearch = () => setSearch("");
 
@@ -122,21 +127,26 @@ export function HelpIndexPage() {
       }}
       renderTable={() =>
         showLoadError ? null : (
-          <div className="space-y-8">
+          <div className="space-y-8" data-help-index="">
             {groupKeys.map((group) => (
-              <section key={group}>
+              <section key={group} data-help-group={group}>
                 <h2 className="mb-3 text-lg font-semibold">
                   {groupLabels[group] ?? group}
                 </h2>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {/* AY-H7: una superficie por grupo; filas, no EntityListCard anidados */}
+                <ul className="m-0 grid list-none grid-cols-1 overflow-hidden rounded-xl border bg-card p-0 shadow-sm sm:grid-cols-2">
                   {grouped[group].map((article) => (
-                    <HelpArticleTile
+                    <li
                       key={article.id}
-                      article={article}
-                      onOpen={() => navigate(`/ayuda/${article.id}`)}
-                    />
+                      className="border-b border-border last:border-b-0 sm:odd:border-r sm:[&:nth-last-child(-n+2)]:border-b-0"
+                    >
+                      <HelpArticleRow
+                        article={article}
+                        onOpen={() => navigate(`/ayuda/${article.id}`)}
+                      />
+                    </li>
                   ))}
-                </div>
+                </ul>
               </section>
             ))}
           </div>
@@ -146,32 +156,35 @@ export function HelpIndexPage() {
   );
 }
 
-interface HelpArticleTileProps {
+interface HelpArticleRowProps {
   article: HelpArticle;
   onOpen: () => void;
 }
 
-const HelpArticleTile = memo(function HelpArticleTile({
+const HelpArticleRow = memo(function HelpArticleRow({
   article,
   onOpen,
-}: HelpArticleTileProps) {
+}: HelpArticleRowProps) {
   return (
-    <EntityListCard onClick={onOpen}>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-medium">{article.title}</h3>
-          <ChevronRight
-            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-            aria-hidden="true"
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <p className="line-clamp-2 text-xs text-muted-foreground">
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-center gap-2.5 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+      data-help-article-row=""
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium leading-5 text-foreground">
+          {article.title}
+        </span>
+        <span className="mt-0.5 line-clamp-2 block text-xs leading-[18px] text-muted-foreground">
           {article.phrase}
-        </p>
-      </CardContent>
-    </EntityListCard>
+        </span>
+      </span>
+      <ChevronRight
+        className="h-4 w-4 shrink-0 text-muted-foreground"
+        aria-hidden="true"
+      />
+    </button>
   );
 });
 

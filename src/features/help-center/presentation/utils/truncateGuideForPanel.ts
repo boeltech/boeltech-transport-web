@@ -6,7 +6,7 @@ export function truncateGuideForPanel(
   guide: string,
   options?: { maxSteps?: number; maxChars?: number },
 ): { preview: string; truncated: boolean } {
-  const maxSteps = options?.maxSteps ?? 5;
+  const maxSteps = options?.maxSteps ?? 8;
   const maxChars = options?.maxChars ?? 700;
   const text = guide.replace(/\r\n/g, "\n").trim();
   if (!text) return { preview: "", truncated: false };

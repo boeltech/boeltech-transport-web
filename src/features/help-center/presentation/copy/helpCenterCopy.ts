@@ -33,7 +33,17 @@ export const helpCenterCopy = {
     backLabel: "Ayuda",
     stepsSection: "Pasos",
     notCoveredSection: "Qué no cubre",
-    problemSection: "Si no funciona",
+    /** V3 / anatomía pin 7 — sección abierta (antes «Si no funciona»). */
+    problemSection: "Si falla",
+    /** V3 P-V2 — etiqueta de chips de rol. */
+    rolesLabel: "Para",
+    /** R3 anatomía — cuando `roles` trae los 7 canónicos. */
+    rolesAll: "Para todos los roles",
+    yourRoleTitle: "Tu rol",
+    /** V3 P-V4 / soporte tras Si falla (mailto outline). */
+    supportPrompt:
+      "¿No lo resolviste? Escríbenos e incluye la pantalla donde estabas.",
+    writeSupport: "Escribir a soporte",
     sendTicketAboutThis: "Enviar un ticket sobre esto",
     groupLabel: "Grupo",
     notFoundTitle: "Artículo no encontrado",
@@ -67,9 +77,11 @@ export const helpCenterCopy = {
     showProblem: "Si no funciona",
   },
 
+  /** Labels P-V1 A — alineados al menú lateral + «Tu cuenta». */
   groups: {
     facturacion: "Facturación",
-    viajes: "Viajes",
+    /** Legacy API; display remapea a Operación vía helpDisplayGroup. */
+    viajes: "Operación",
     operacion: "Operación",
     flota: "Flota",
     comercial: "Comercial",
@@ -78,8 +90,11 @@ export const helpCenterCopy = {
     portales: "Portales",
     concepto_fiscal: "Conceptos de factura",
     administracion: "Administración",
-    configuracion: "Configuración",
+    /** Ítem Configuración del menú Administración. */
+    configuracion: "Administración · Configuración",
     cobranza: "Cobranza",
+    pagos_operadores: "Pagos a operadores",
+    tu_cuenta: "Tu cuenta",
   } as Record<string, string>,
   aria: {
     openHelp: "Ayuda",
