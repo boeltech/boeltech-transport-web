@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Query, UseMutationOptions } from "@tanstack/react-query";
+import type { Query, QueryClient, UseMutationOptions } from "@tanstack/react-query";
+import { clientQueryKeys } from "@features/clients/domain";
 import {
   financePaymentsApi,
   OPEN_PPD_INVOICES_PAGE_SIZE,
@@ -21,6 +22,47 @@ const invoiceInvalidationKeys = {
   lists: () => ["invoices", "list"] as const,
   detail: (id: string) => ["invoices", "detail", id] as const,
 };
+
+/**
+ * Semáforo crédito (H-U06-Q01): el payload de cobro no trae clientId;
+ * se resuelve desde open-ppd en caché (filtro clientId) o listados de facturas.
+ */
+function invalidateCreditSummariesForPaidInvoices(
+  queryClient: QueryClient,
+  invoiceIds: string[],
+): void {
+  const wanted = new Set(invoiceIds.filter(Boolean));
+  if (wanted.size === 0) return;
+
+  const clientIds = new Set<string>();
+
+  for (const [key, data] of queryClient.getQueriesData<{
+    data?: Array<{ id?: string }>;
+  }>({ queryKey: financeQueryKeys.all })) {
+    if (key[1] !== "open-ppd") continue;
+    const filters = key[2] as { clientId?: string | null } | undefined;
+    if (!filters?.clientId) continue;
+    if (data?.data?.some((inv) => inv?.id && wanted.has(inv.id))) {
+      clientIds.add(filters.clientId);
+    }
+  }
+
+  for (const [, data] of queryClient.getQueriesData<{
+    data?: Array<{ id?: string; clientId?: string | null }>;
+  }>({ queryKey: invoiceInvalidationKeys.lists() })) {
+    for (const row of data?.data ?? []) {
+      if (row?.id && wanted.has(row.id) && row.clientId) {
+        clientIds.add(row.clientId);
+      }
+    }
+  }
+
+  for (const clientId of clientIds) {
+    void queryClient.invalidateQueries({
+      queryKey: [...clientQueryKeys.detail(clientId), "credit-summary"],
+    });
+  }
+}
 
 function useDocumentVisible(): boolean {
   const [visible, setVisible] = useState(() =>
@@ -193,11 +235,15 @@ export function useRegisterFinancePayment(
       void queryClient.invalidateQueries({
         queryKey: invoiceInvalidationKeys.lists(),
       });
-      for (const allocation of variables.allocations) {
+      const paidInvoiceIds = variables.allocations.map(
+        (allocation) => allocation.ingressInvoiceId,
+      );
+      for (const invoiceId of paidInvoiceIds) {
         void queryClient.invalidateQueries({
-          queryKey: invoiceInvalidationKeys.detail(allocation.ingressInvoiceId),
+          queryKey: invoiceInvalidationKeys.detail(invoiceId),
         });
       }
+      invalidateCreditSummariesForPaidInvoices(queryClient, paidInvoiceIds);
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });

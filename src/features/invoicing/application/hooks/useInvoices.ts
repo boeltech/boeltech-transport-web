@@ -14,6 +14,7 @@ import { useRef } from "react";
 import { devRefetchIntervalFn } from "@/shared/config/devPolling";
 import { useToast } from "@shared/hooks";
 import { invoicingApi } from "@features/invoicing/infrastructure";
+import { clientQueryKeys } from "@features/clients/domain";
 import { tripQueryKeys } from "@features/trips/application/tripsQueryKeys";
 import type {
   Invoice,
@@ -96,17 +97,21 @@ function collectSubstitutionAffectedTripIds(
   return [...ids];
 }
 
-async function invalidateSubstitutionTripCaches(
+/**
+ * Surface viaje↔factura tras mutaciones de invoicing (C1 / H-U05-Q01).
+ * Detalle + listas + prorrateo + Por facturar (InvSum). No reabre Surf U02.
+ */
+export async function invalidateInvoiceTripSurface(
   queryClient: ReturnType<typeof useQueryClient>,
   tripIds: string[],
-  amountCorrections: boolean,
+  opts?: { amountCorrections?: boolean; includeOpsDay?: boolean },
 ): Promise<void> {
+  const amountCorrections = opts?.amountCorrections === true;
   if (tripIds.length === 0 && !amountCorrections) {
     return;
   }
 
-  queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
-  queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
+  await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
 
   for (const tripId of tripIds) {
     await queryClient.invalidateQueries({
@@ -118,8 +123,33 @@ async function invalidateSubstitutionTripCaches(
     });
   }
 
+  await queryClient.invalidateQueries({
+    queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+    refetchType: "active",
+  });
+
+  if (opts?.includeOpsDay) {
+    await queryClient.invalidateQueries({
+      queryKey: tripQueryKeys.opsDaySummary(),
+      refetchType: "active",
+    });
+  }
+
   if (amountCorrections) {
-    queryClient.invalidateQueries({ queryKey: tripQueryKeys.all });
+    await queryClient.invalidateQueries({ queryKey: tripQueryKeys.all });
+  }
+}
+
+async function invalidateSubstitutionTripCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  tripIds: string[],
+  amountCorrections: boolean,
+): Promise<void> {
+  await invalidateInvoiceTripSurface(queryClient, tripIds, {
+    amountCorrections,
+  });
+  if (tripIds.length > 0 || amountCorrections) {
+    queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
   }
 }
 
@@ -140,6 +170,32 @@ async function invalidateInvoiceLinkedTripCaches(
     collectInvoiceLinkedTripIds(invoice),
     false,
   );
+}
+
+/** Semáforo crédito (U04) tras cobro desde factura — resuelve clientId desde listados en caché. */
+function invalidateCreditSummariesForInvoiceIds(
+  queryClient: ReturnType<typeof useQueryClient>,
+  invoiceIds: string[],
+): void {
+  const wanted = new Set(invoiceIds.filter(Boolean));
+  if (wanted.size === 0) return;
+
+  const clientIds = new Set<string>();
+  for (const [, data] of queryClient.getQueriesData<{
+    data?: Array<{ id?: string; clientId?: string | null }>;
+  }>({ queryKey: invoiceQueryKeys.lists() })) {
+    for (const row of data?.data ?? []) {
+      if (row?.id && wanted.has(row.id) && row.clientId) {
+        clientIds.add(row.clientId);
+      }
+    }
+  }
+
+  for (const clientId of clientIds) {
+    void queryClient.invalidateQueries({
+      queryKey: [...clientQueryKeys.detail(clientId), "credit-summary"],
+    });
+  }
 }
 
 // ============================================================================
@@ -330,6 +386,9 @@ export function useStampInvoice(
       queryClient.invalidateQueries({
         queryKey: invoiceQueryKeys.detail(data.id),
       });
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.dispatchDocuments(),
+      });
       await invalidateAndRefetchFinance(queryClient);
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
       await invalidateInvoiceLinkedTripCaches(queryClient, data);
@@ -363,6 +422,9 @@ export function useCancelInvoice(
       queryClient.invalidateQueries({
         queryKey: invoiceQueryKeys.detail(data.id),
       });
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.dispatchDocuments(),
+      });
       await invalidateAndRefetchFinance(queryClient);
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
       await invalidateInvoiceLinkedTripCaches(queryClient, data);
@@ -392,6 +454,7 @@ export function useRegisterPayment(
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeQueryRoot });
+      invalidateCreditSummariesForInvoiceIds(queryClient, [invoiceId]);
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });
@@ -445,6 +508,9 @@ export function useSubstituteStampedInvoice(
         queryKey: invoiceQueryKeys.detail(data.replacement.id),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.dispatchDocuments(),
+      });
       const amountCorrections = hasSubstitutionAmountCorrections(
         variables.corrections,
       );
@@ -487,6 +553,9 @@ export function useResumeSubstitutionCancel(
         queryKey: invoiceQueryKeys.detail(data.replacement.id),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: invoiceQueryKeys.dispatchDocuments(),
+      });
       await invalidateSubstitutionTripCaches(
         queryClient,
         collectSubstitutionAffectedTripIds(data, {
@@ -557,6 +626,7 @@ export function useSendInvoice(
           const settled = await pollSendBatchUntilSettled(
             data.batchId,
             queryClient,
+            { invoiceId },
           );
           if (generation !== pollGenerationRef.current) return;
           if (!settled) return;

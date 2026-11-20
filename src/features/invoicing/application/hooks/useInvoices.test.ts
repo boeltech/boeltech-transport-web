@@ -8,8 +8,11 @@ import {
   useSubstituteStampedInvoice,
   useResumeSubstitutionCancel,
   useRetryRepStamp,
+  useStampInvoice,
+  useRegisterPayment,
   invoiceQueryKeys,
 } from "./useInvoices";
+import { clientQueryKeys } from "@features/clients/domain";
 import { tripQueryKeys } from "@features/trips/domain";
 import { driverQueryKeys } from "@features/drivers/domain";
 import { vehicleQueryKeys } from "@features/vehicles/domain";
@@ -37,6 +40,19 @@ vi.mock("@tanstack/react-query", () => ({
       queryDataStore.get(JSON.stringify(queryKey)),
     setQueryData: (queryKey: readonly unknown[], data: unknown) => {
       queryDataStore.set(JSON.stringify(queryKey), data);
+    },
+    getQueriesData: ({ queryKey }: { queryKey: readonly unknown[] }) => {
+      const matched: Array<[readonly unknown[], unknown]> = [];
+      for (const [storedKey, data] of queryDataStore.entries()) {
+        const parsed = JSON.parse(storedKey) as unknown[];
+        if (
+          Array.isArray(parsed) &&
+          queryKey.every((part, i) => parsed[i] === part)
+        ) {
+          matched.push([parsed, data]);
+        }
+      }
+      return matched;
     },
   }),
 }));
@@ -141,6 +157,10 @@ describe("useCreateInvoice cache invalidation", () => {
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: tripQueryKeys.revenueSplit(tripId),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+      refetchType: "active",
     });
     expect(invalidateQueries).not.toHaveBeenCalledWith({
       queryKey: tripQueryKeys.all,
@@ -629,6 +649,90 @@ describe("useRetryRepStamp cache invalidation", () => {
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: ["finance"],
+    });
+    expect(onSuccessSpy).toHaveBeenCalled();
+  });
+});
+
+describe("useStampInvoice cache invalidation (C1·C2)", () => {
+  beforeEach(() => {
+    invalidateQueries.mockReset();
+    invalidateQueries.mockResolvedValue(undefined);
+    removeQueries.mockReset();
+    refetchQueries.mockReset();
+    refetchQueries.mockResolvedValue(undefined);
+    onSuccessSpy.mockReset();
+    useMutationMock.mockClear();
+  });
+
+  it("invalidates InvSum and Envíos (dispatchDocuments) after stamp with trips", async () => {
+    const tripId = "trip-stamp-link";
+    const mutationConfig = useStampInvoice({
+      onSuccess: onSuccessSpy,
+    }) as unknown as {
+      onSuccess: (
+        data: Invoice,
+        variables: string,
+        context: unknown,
+        mutation: unknown,
+      ) => Promise<void>;
+    };
+
+    await mutationConfig.onSuccess(
+      { id: "inv-stamped", trips: [linkedTripStub(tripId)] } as Invoice,
+      "inv-stamped",
+      {},
+      {},
+    );
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
+      refetchType: "active",
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: invoiceQueryKeys.dispatchDocuments(),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: tripQueryKeys.detail(tripId),
+    });
+    expect(onSuccessSpy).toHaveBeenCalled();
+  });
+});
+
+describe("useRegisterPayment cache invalidation (C5)", () => {
+  beforeEach(() => {
+    invalidateQueries.mockReset();
+    invalidateQueries.mockResolvedValue(undefined);
+    removeQueries.mockReset();
+    refetchQueries.mockReset();
+    refetchQueries.mockResolvedValue(undefined);
+    onSuccessSpy.mockReset();
+    useMutationMock.mockClear();
+    queryDataStore.clear();
+  });
+
+  it("invalidates credit-summary for client resolved from invoice list cache", () => {
+    const invoiceId = "inv-pay-1";
+    const clientId = "client-pay-1";
+    queryDataStore.set(JSON.stringify(invoiceQueryKeys.list()), {
+      data: [{ id: invoiceId, clientId }],
+    });
+
+    const mutationConfig = useRegisterPayment(invoiceId, {
+      onSuccess: onSuccessSpy,
+    }) as unknown as {
+      onSuccess: (
+        data: unknown,
+        variables: unknown,
+        context: unknown,
+        mutation: unknown,
+      ) => void;
+    };
+
+    mutationConfig.onSuccess({}, {}, {}, {});
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: [...clientQueryKeys.detail(clientId), "credit-summary"],
     });
     expect(onSuccessSpy).toHaveBeenCalled();
   });

@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { useActiveClients } from "@features/clients/application";
 import { isApiError } from "@shared/api/interceptors/error-handler";
@@ -42,7 +41,6 @@ import {
 } from "@features/invoicing/domain";
 import {
   getBulkDownloadInProgressActiveId,
-  invalidateNotificationsAfterBulkDownloadTerminal,
   useCreateInvoiceBulkDownload,
   useDownloadInvoiceBulkDownloadPart,
   useInvoiceBulkDownload,
@@ -143,10 +141,8 @@ function InvoiceBulkDownloadSheetBody({
   initialJobId?: string | null;
 }) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [sessionJobId, setSessionJobId] = useState<string | null>(null);
   const [formMode, setFormMode] = useState(!initialJobId);
-  const previousStatusRef = useRef<string | undefined>(undefined);
   const jobId = formMode ? null : (sessionJobId ?? initialJobId ?? null);
 
   const form = useForm<InvoiceBulkDownloadFormValues>({
@@ -188,17 +184,6 @@ function InvoiceBulkDownloadSheetBody({
   const jobQuery = useInvoiceBulkDownload(jobId, {
     enabled: Boolean(jobId),
   });
-
-  useEffect(() => {
-    const job = jobQuery.data;
-    if (!job) return;
-    invalidateNotificationsAfterBulkDownloadTerminal(
-      queryClient,
-      previousStatusRef.current,
-      job,
-    );
-    previousStatusRef.current = job.status;
-  }, [jobQuery.data, queryClient]);
 
   const createMutation = useCreateInvoiceBulkDownload();
   const downloadMutation = useDownloadInvoiceBulkDownloadPart({

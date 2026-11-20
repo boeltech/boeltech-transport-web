@@ -29,8 +29,19 @@ export async function invalidateDispatchLists(
   await queryClient.invalidateQueries({ queryKey: financeQueryRoot });
 }
 
+async function invalidateInvoiceDetailIfPresent(
+  queryClient: QueryClient,
+  invoiceId: string | undefined,
+): Promise<void> {
+  if (!invoiceId) return;
+  await queryClient.invalidateQueries({
+    queryKey: ["invoices", "detail", invoiceId],
+  });
+}
+
 /**
  * Poll hasta completed* o timeout. Exportado para tests.
+ * Al terminal (o timeout) invalida detalle de factura si se pasa `invoiceId` (H-U05-Q05).
  */
 export async function pollSendBatchUntilSettled(
   batchId: string,
@@ -39,6 +50,8 @@ export async function pollSendBatchUntilSettled(
     intervalMs?: number;
     maxMs?: number;
     getStatus?: (id: string) => Promise<SendBatchPollResult>;
+    /** Factura origen del envío — refresca `dispatch_sent_at` en detalle. */
+    invoiceId?: string;
   },
 ): Promise<SendBatchPollResult | null> {
   const intervalMs = opts?.intervalMs ?? SEND_BATCH_POLL_INTERVAL_MS;
@@ -55,6 +68,7 @@ export async function pollSendBatchUntilSettled(
         status.status === "completed" ||
         status.status === "completed_with_errors"
       ) {
+        await invalidateInvoiceDetailIfPresent(queryClient, opts?.invoiceId);
         return status;
       }
     } catch {
@@ -67,5 +81,6 @@ export async function pollSendBatchUntilSettled(
   }
 
   await invalidateDispatchLists(queryClient);
+  await invalidateInvoiceDetailIfPresent(queryClient, opts?.invoiceId);
   return null;
 }

@@ -62,6 +62,17 @@ export function useRetryPaymentRep(
       void queryClient.invalidateQueries({
         queryKey: invoiceInvalidationKeys.lists(),
       });
+      // H-U06-Q03: paridad con useRetryFinanceRepStamp. retryRep API → void;
+      // invoiceIds desde detalle de cobro en caché (allocations).
+      const cached = queryClient.getQueryData<PaymentCollectionDetail>(
+        financeQueryKeys.paymentCollectionDetail(variables.paymentId),
+      );
+      for (const allocation of cached?.allocations ?? []) {
+        if (!allocation.ingressInvoiceId) continue;
+        void queryClient.invalidateQueries({
+          queryKey: invoiceInvalidationKeys.detail(allocation.ingressInvoiceId),
+        });
+      }
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });

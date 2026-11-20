@@ -41,6 +41,11 @@ export type {
 } from "./hooks/useSendInvoicesBatch";
 
 export {
+  invalidateDispatchLists,
+  pollSendBatchUntilSettled,
+} from "./hooks/sendBatchPoll";
+
+export {
   prefetchInvoiceLinkedTrips,
   buildStopsByIdFromCache,
   buildTripsByIdFromCache,

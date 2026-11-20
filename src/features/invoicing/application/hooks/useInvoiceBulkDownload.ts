@@ -2,6 +2,7 @@
  * Hooks — descarga masiva de CFDI (ADR-0104).
  */
 
+import { useEffect, useRef } from "react";
 import {
   useMutation,
   useQuery,
@@ -98,23 +99,25 @@ export function getBulkDownloadInProgressActiveId(
 
 /**
  * Detalle del job. Polling cada 3 s mientras `queued|processing`.
- * Al terminar, el Sheet debe llamar `invalidateNotificationsQueries`.
+ * Al terminal invalida la campana aquí (H-U05-Q06) aunque el Sheet se cierre.
  */
 export function useInvoiceBulkDownload(
   id: string | null | undefined,
   options?: { enabled?: boolean },
 ) {
+  const queryClient = useQueryClient();
+  const previousStatusRef = useRef<string | undefined>(undefined);
   const enabled = (options?.enabled ?? true) && Boolean(id);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: invoiceBulkDownloadKeys.detail(id ?? ""),
     queryFn: () => invoiceBulkDownloadApi.getById(id!),
     enabled,
     staleTime: 2_000,
     refetchInterval: enabled
       ? devRefetchIntervalFn(
-          (query: Query<InvoiceBulkDownloadJob, Error>) => {
-            const job = query.state.data;
+          (q: Query<InvoiceBulkDownloadJob, Error>) => {
+            const job = q.state.data;
             if (!job) return STATUS_POLL_MS;
             if (isInvoiceBulkDownloadActive(job.status)) return STATUS_POLL_MS;
             return false;
@@ -122,6 +125,19 @@ export function useInvoiceBulkDownload(
         )
       : false,
   });
+
+  useEffect(() => {
+    const job = query.data;
+    if (!job) return;
+    invalidateNotificationsAfterBulkDownloadTerminal(
+      queryClient,
+      previousStatusRef.current,
+      job,
+    );
+    previousStatusRef.current = job.status;
+  }, [query.data, queryClient]);
+
+  return query;
 }
 
 /** Invalida campana cuando el job deja de estar activo. */

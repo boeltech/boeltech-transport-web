@@ -1,7 +1,9 @@
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isApiError } from "@shared/api/interceptors/error-handler";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/utils/errorMapper";
+import { invalidateDispatchLists } from "@features/invoicing/application";
 import type {
   ConfirmSendDispatchRunPayload,
   CreateBillingDispatchRunPayload,
@@ -74,18 +76,39 @@ export function useBillingDispatchRuns(params?: {
 
 const IN_FLIGHT_DISPATCH_STATUSES = new Set(["send_confirmed", "sending"]);
 
+const TERMINAL_SEND_DISPATCH_STATUSES = new Set(["completed", "failed"]);
+
 export function useBillingDispatchRun(id: string | undefined) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const previousStatusRef = useRef<DispatchRunStatus | undefined>(undefined);
+
+  const query = useQuery({
     queryKey: billingDispatchRunKeys.detail(id ?? ""),
     queryFn: () => fetchBillingDispatchRunById(id!),
     enabled: Boolean(id),
     staleTime: 1000 * 15,
     // D7: poll while the run is sending so the operator sees progress.
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
+    refetchInterval: (q) => {
+      const status = q.state.data?.status;
       return status && IN_FLIGHT_DISPATCH_STATUSES.has(status) ? 3000 : false;
     },
   });
+
+  // H-U05-Q03: al pasar a terminal tras envío, refrescar Envíos / facturas / finance.
+  useEffect(() => {
+    const status = query.data?.status;
+    const previous = previousStatusRef.current;
+    previousStatusRef.current = status;
+    if (!status || !previous) return;
+    if (
+      IN_FLIGHT_DISPATCH_STATUSES.has(previous) &&
+      TERMINAL_SEND_DISPATCH_STATUSES.has(status)
+    ) {
+      void invalidateDispatchLists(queryClient);
+    }
+  }, [query.data?.status, queryClient]);
+
+  return query;
 }
 
 export function useBillingDispatchPeriodPreview(
@@ -174,6 +197,8 @@ export function useConfirmSendBillingDispatchRun() {
       void queryClient.invalidateQueries({
         queryKey: billingDispatchRunKeys.all,
       });
+      // H-U05-Q03: Envíos / listas facturas / finance (misma superficie que sendBatchPoll).
+      void invalidateDispatchLists(queryClient);
       if (run.status === "failed") {
         toast({
           title: dispatchRunsCopy.toast.sendFailedTitle,
