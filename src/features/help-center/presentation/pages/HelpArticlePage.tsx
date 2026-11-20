@@ -22,9 +22,9 @@ import { useHelpArticle } from "../../application";
 import { trackHelpEvent } from "../../application/trackHelpEvent";
 import { markHelpArticleViewed } from "../../infrastructure/helpSessionFlags";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
-import { renderSimpleMarkdown } from "../utils/renderSimpleMarkdown";
 import { ArticleFeedback } from "../components/ArticleFeedback";
 import { CreateTicketSheet } from "../components/CreateTicketSheet";
+import { HelpRichText } from "../components/HelpRichText";
 
 const copy = helpCenterCopy.detail;
 const AYUDA_LIST_PATH = "/ayuda";
@@ -146,14 +146,18 @@ export function HelpArticlePage() {
           {article.guide && (
             <section>
               <h2 className="mb-3 text-lg font-semibold">{copy.stepsSection}</h2>
-              <div
-                className="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
-                dangerouslySetInnerHTML={{
-                  __html: renderSimpleMarkdown(article.guide),
-                }}
-              />
+              <HelpRichText markdown={article.guide} />
             </section>
           )}
+
+          {article.notCovered?.trim() ? (
+            <section>
+              <h2 className="mb-3 text-lg font-semibold">
+                {copy.notCoveredSection}
+              </h2>
+              <HelpRichText markdown={article.notCovered} />
+            </section>
+          ) : null}
 
           <ArticleFeedback
             key={article.id}
@@ -179,11 +183,9 @@ export function HelpArticlePage() {
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div
-                  className="prose prose-sm dark:prose-invert mt-2 max-w-none rounded-lg bg-muted/50 p-4 leading-relaxed"
-                  dangerouslySetInnerHTML={{
-                    __html: renderSimpleMarkdown(article.problem),
-                  }}
+                <HelpRichText
+                  markdown={article.problem}
+                  className="mt-2 rounded-lg bg-muted/50 p-4"
                 />
               </CollapsibleContent>
             </Collapsible>

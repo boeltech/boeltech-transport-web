@@ -10,5 +10,7 @@ export { ArticleCard } from "./ArticleCard";
 export { ArticleFeedback } from "./ArticleFeedback";
 export { ArticleSearch } from "./ArticleSearch";
 export { CreateTicketSheet } from "./CreateTicketSheet";
+export { HelpRichText } from "./HelpRichText";
 export { HelpSpotlightCta } from "./HelpSpotlightCta";
 export { TicketStatusBadge } from "./TicketStatusBadge";
+

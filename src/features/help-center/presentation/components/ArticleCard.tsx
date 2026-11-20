@@ -11,9 +11,9 @@ import { trackHelpEvent } from "../../application/trackHelpEvent";
 import type { HelpArticle } from "../../domain";
 import { markHelpArticleViewed } from "../../infrastructure/helpSessionFlags";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
-import { renderSimpleMarkdown } from "../utils/renderSimpleMarkdown";
 import { truncateGuideForPanel } from "../utils/truncateGuideForPanel";
 import { ArticleFeedback } from "./ArticleFeedback";
+import { HelpRichText } from "./HelpRichText";
 import { HelpSpotlightCta } from "./HelpSpotlightCta";
 
 const copy = helpCenterCopy.panel;
@@ -107,17 +107,27 @@ export const ArticleCard = memo(function ArticleCard({
       {expanded && (
         <div className="mt-3 space-y-3">
           {guidePreview.preview && (
-            <div
-              className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"
-              dangerouslySetInnerHTML={{
-                __html: renderSimpleMarkdown(guidePreview.preview),
-              }}
+            <HelpRichText
+              markdown={guidePreview.preview}
+              className="text-sm"
             />
           )}
 
           {guidePreview.truncated && (
             <p className="text-xs text-muted-foreground">{copy.moreSteps}</p>
           )}
+
+          {!guidePreview.truncated && article.notCovered?.trim() ? (
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                {helpCenterCopy.detail.notCoveredSection}
+              </p>
+              <HelpRichText
+                markdown={article.notCovered}
+                className="text-sm"
+              />
+            </div>
+          ) : null}
 
           <HelpSpotlightCta
             articleId={article.id}
@@ -156,11 +166,9 @@ export const ArticleCard = memo(function ArticleCard({
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div
-                  className="prose prose-sm dark:prose-invert mt-2 max-w-none rounded-md bg-muted/50 p-3 text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{
-                    __html: renderSimpleMarkdown(article.problem),
-                  }}
+                <HelpRichText
+                  markdown={article.problem}
+                  className="mt-2 rounded-md bg-muted/50 p-3 text-sm"
                 />
               </CollapsibleContent>
             </Collapsible>

@@ -46,6 +46,7 @@ const sampleArticle = {
   phrase: "Emite el CFDI del flete",
   guide: "Paso 1",
   problem: null,
+  notCovered: null as string | null | undefined,
   sortOrder: 1,
 };
 
@@ -73,8 +74,62 @@ describe("HelpArticlePage (F1)", () => {
 
   it("renderiza el artículo en DetailPageShell", () => {
     renderPage();
-    expect(screen.getByText(sampleArticle.title)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: sampleArticle.title }),
+    ).toBeInTheDocument();
     expect(screen.getByText(copy.stepsSection)).toBeInTheDocument();
+  });
+
+  it("muestra «Qué no cubre» cuando notCovered tiene texto", () => {
+    mockUseHelpArticle.mockReturnValue({
+      data: {
+        ...sampleArticle,
+        notCovered: "- No cubre liquidaciones del operador.",
+      },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mockRefetch,
+    });
+
+    renderPage();
+
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: copy.notCoveredSection,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/No cubre liquidaciones del operador/),
+    ).toBeInTheDocument();
+  });
+
+  it("oculta «Qué no cubre» si notCovered falta", () => {
+    renderPage();
+    expect(
+      screen.queryByRole("heading", {
+        level: 2,
+        name: copy.notCoveredSection,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("oculta «Qué no cubre» si notCovered es solo whitespace", () => {
+    mockUseHelpArticle.mockReturnValue({
+      data: { ...sampleArticle, notCovered: "   " },
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: mockRefetch,
+    });
+    renderPage();
+    expect(
+      screen.queryByRole("heading", {
+        level: 2,
+        name: copy.notCoveredSection,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("error de carga usa DetailAlertCard+Reintentar y no notFound (D5)", () => {
