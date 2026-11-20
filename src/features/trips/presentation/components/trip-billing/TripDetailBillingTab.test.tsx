@@ -38,6 +38,7 @@ const useTripTimelineMock = vi.fn(() => ({
         eventType: string;
         notes: string | null;
         capturedBy: string | null;
+        capturedByName: string | null;
         occurredAt: Date;
       }> }
     | undefined,
@@ -107,6 +108,7 @@ function baseTrip(overrides: Partial<Trip> = {}): Trip {
     operationalOutcome: "standard",
     falseTripDeclaredAt: null,
     falseTripDeclaredBy: null,
+    falseTripDeclaredByName: null,
     notes: null,
     cancellationReason: null,
     invoicing: tripInvoicingFixture({
@@ -711,7 +713,8 @@ describe("TripDetailBillingTab (F5)", () => {
           {
             eventType: "false_trip_declared",
             notes: "El cliente canceló la carga con la unidad en camino.",
-            capturedBy: "Rosa Alcántara",
+            capturedBy: "66d10682-f191-4a6d-91a4-268de3fa0558",
+            capturedByName: "Rosa Alcántara",
             occurredAt: new Date("2026-11-13T15:40:00Z"),
           },
         ],

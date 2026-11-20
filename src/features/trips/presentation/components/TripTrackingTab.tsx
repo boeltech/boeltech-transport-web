@@ -112,7 +112,7 @@ interface TripTrackingTabProps {
   cfdiEmissionIntent?: CfdiEmissionIntent;
   /** Solicitud Sin factura abierta: al iniciar, el API la cancela (D6). */
   pendingSinCfdiRequest?: boolean;
-  /** ADR-0079: actor del falso si el API lo envía en el viaje (fallback de bitácora). */
+  /** ADR-0079: nombre del declarante (fallback de bitácora; no UUID). */
   falseTripDeclaredBy?: string | null;
   /**
    * T4-043: `trip.invoicing.hasActiveSplit` — bloquea CTA de viaje en falso.

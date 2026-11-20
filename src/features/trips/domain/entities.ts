@@ -707,6 +707,8 @@ export interface Trip {
   readonly falseTripDeclaredAt: Date | null;
   /** ADR-0079: UUID del usuario que declaró el falso, si el API lo envía. */
   readonly falseTripDeclaredBy: string | null;
+  /** Nombre completo del declarante (JOIN users en detalle). */
+  readonly falseTripDeclaredByName: string | null;
   readonly notes: string | null;
   readonly cancellationReason: string | null;
   readonly invoicing: TripInvoicing;

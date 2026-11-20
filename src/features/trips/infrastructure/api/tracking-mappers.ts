@@ -35,6 +35,7 @@ export function mapApiTrackingEvent(
     payload: api.payload ?? {},
     notes: api.notes,
     capturedBy: api.captured_by,
+    capturedByName: api.captured_by_name ?? null,
     capturedVia: api.captured_via,
     idempotencyKey: api.idempotency_key,
   };

@@ -28,6 +28,7 @@ const baseTrip = {
   operationalOutcome: "standard",
   falseTripDeclaredAt: null,
   falseTripDeclaredBy: null,
+  falseTripDeclaredByName: null,
   notes: "Notas del viaje",
   cancellationReason: null,
   invoicing: tripInvoicingFixture({

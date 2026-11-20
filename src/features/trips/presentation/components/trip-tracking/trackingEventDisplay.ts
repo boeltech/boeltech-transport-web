@@ -88,9 +88,27 @@ export function shouldShowIncidentClosedChip(
   return eventType === "incident" && !hasOpenIncident;
 }
 
+function displayTrackingActor(
+  name: string | null | undefined,
+  id: string | null | undefined,
+): string | null {
+  const trimmedName = name?.trim();
+  if (trimmedName) return trimmedName;
+  const trimmedId = id?.trim();
+  if (!trimmedId) return null;
+  const looksLikeUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      trimmedId,
+    );
+  return looksLikeUuid ? null : trimmedId;
+}
+
 /** PD7: causa, km, actor del evento `false_trip_declared`. */
 export function getFalseTripDeclaredTimelineMeta(
-  event: Pick<TrackingEvent, "eventType" | "notes" | "mileage" | "capturedBy">,
+  event: Pick<
+    TrackingEvent,
+    "eventType" | "notes" | "mileage" | "capturedBy" | "capturedByName"
+  >,
   declaredByFromTrip?: string | null,
 ): string[] {
   if (event.eventType !== "false_trip_declared") return [];
@@ -105,7 +123,10 @@ export function getFalseTripDeclaredTimelineMeta(
       trackingCopy.hint.timelineMileage(event.mileage.toLocaleString("es-MX")),
     );
   }
-  const actor = event.capturedBy?.trim() || declaredByFromTrip?.trim();
+  const actor =
+    displayTrackingActor(event.capturedByName, event.capturedBy) ||
+    declaredByFromTrip?.trim() ||
+    null;
   if (actor) {
     lines.push(trackingCopy.hint.timelineActor(actor));
   }

@@ -45,6 +45,7 @@ function draftTrip(over: Partial<Trip> = {}): Trip {
     operationalOutcome: "standard",
     falseTripDeclaredAt: null,
     falseTripDeclaredBy: null,
+    falseTripDeclaredByName: null,
     notes: null,
     cancellationReason: null,
     invoicing: tripInvoicingFixture(),

@@ -29,6 +29,7 @@ function event(
     payload: {},
     notes: null,
     capturedBy: null,
+    capturedByName: null,
     capturedVia: "web",
     idempotencyKey: null,
     ...partial,
@@ -104,7 +105,8 @@ describe("trackingEventDisplay", () => {
       eventType: "false_trip_declared",
       notes: "El cliente canceló en sitio",
       mileage: 12500,
-      capturedBy: "Ana Dispatcher",
+      capturedBy: "66d10682-f191-4a6d-91a4-268de3fa0558",
+      capturedByName: "Ana Dispatcher",
     });
 
     expect(getTrackingEventTimelineBody(declared)).toBeNull();
@@ -122,6 +124,7 @@ describe("trackingEventDisplay", () => {
           eventType: "false_trip_declared",
           notes: "Sin carga",
           capturedBy: null,
+          capturedByName: null,
         }),
         "Luis Operador",
       ),
@@ -129,5 +132,18 @@ describe("trackingEventDisplay", () => {
       trackingCopy.hint.timelineCause("Sin carga"),
       trackingCopy.hint.timelineActor("Luis Operador"),
     ]);
+  });
+
+  it("does not show raw UUID as timeline actor", () => {
+    expect(
+      getFalseTripDeclaredTimelineMeta(
+        event({
+          eventType: "false_trip_declared",
+          notes: "Sin carga",
+          capturedBy: "66d10682-f191-4a6d-91a4-268de3fa0558",
+          capturedByName: null,
+        }),
+      ),
+    ).toEqual([trackingCopy.hint.timelineCause("Sin carga")]);
   });
 });

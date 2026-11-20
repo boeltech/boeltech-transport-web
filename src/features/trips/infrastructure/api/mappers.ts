@@ -788,6 +788,7 @@ export function mapApiTrip(api: ApiTripResponse): Trip {
       api.operational_outcome === "false_trip" ? "false_trip" : "standard",
     falseTripDeclaredAt: toDateOrNull(api.false_trip_declared_at),
     falseTripDeclaredBy: api.false_trip_declared_by ?? null,
+    falseTripDeclaredByName: api.false_trip_declared_by_name ?? null,
     notes: api.notes,
     cancellationReason: api.cancellation_reason,
     invoicing: mapApiTripInvoicing(api.invoicing, api.status),

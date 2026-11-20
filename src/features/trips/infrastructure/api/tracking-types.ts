@@ -38,6 +38,7 @@ export interface ApiTrackingEventResponse {
   payload: Record<string, unknown>;
   notes: string | null;
   captured_by: string | null;
+  captured_by_name?: string | null;
   captured_via: ApiTrackingCapturedVia;
   idempotency_key: string | null;
 }

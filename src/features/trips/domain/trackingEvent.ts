@@ -39,6 +39,8 @@ export interface TrackingEvent {
   payload: Record<string, unknown>;
   notes: string | null;
   capturedBy: string | null;
+  /** Nombre completo del capturador cuando el API lo enriquece. */
+  capturedByName: string | null;
   capturedVia: TrackingCapturedVia;
   idempotencyKey: string | null;
 }

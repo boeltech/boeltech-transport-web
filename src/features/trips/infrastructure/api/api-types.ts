@@ -501,6 +501,8 @@ export interface ApiTripResponse {
   operational_outcome?: "standard" | "false_trip";
   false_trip_declared_at?: string | null;
   false_trip_declared_by?: string | null;
+  /** Nombre del declarante (API detail JOIN users). */
+  false_trip_declared_by_name?: string | null;
   notes: string | null;
   cancellation_reason: string | null;
   invoicing?: ApiTripInvoicingResponse;
@@ -617,6 +619,8 @@ export interface ApiTripListItemResponse {
   cfdi_emission_intent?: "emitir_cfdi" | "sin_cfdi_efectivo";
   false_trip_declared_at?: string | null;
   false_trip_declared_by?: string | null;
+  /** Nombre del declarante (API detail JOIN users). */
+  false_trip_declared_by_name?: string | null;
   cargo_description: string | null;
   /** F11: omitido si el caller no tiene `finance.read`. */
   base_rate?: string | number | null;
