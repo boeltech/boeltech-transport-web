@@ -1205,9 +1205,14 @@ function CargoMovementSheetSession({
                     return (
                       <li
                         key={`${delivery.stopIndex}-${idx}`}
-                        className="rounded-lg border bg-muted/20 px-3 py-2 text-sm"
+                        className="min-w-0 rounded-lg border bg-muted/20 px-3 py-2 text-sm"
                       >
-                        <p className="font-medium leading-snug">{stopLabel}</p>
+                        <p
+                          className="min-w-0 truncate font-medium leading-snug"
+                          title={stopLabel}
+                        >
+                          {stopLabel}
+                        </p>
                         {facts ? (
                           <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                             {facts}
@@ -1218,135 +1223,155 @@ function CargoMovementSheetSession({
                   })}
                 </ul>
               ) : (
-                <div className="space-y-2">
-                  {deliveryAssignments.map((delivery, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-2 rounded-lg border p-3"
-                    >
-                      <div className="flex-1 space-y-3">
-                        <FormFieldShell
-                          fieldId={`cargo-delivery-stop-${idx}`}
-                          label={sheet.label.deliveryStop}
-                          errorMessage={
-                            delivery.stopIndex < 0 && deliveryStopError
-                              ? deliveryStopError
-                              : undefined
-                          }
-                        >
-                          <Select
-                            value={
-                              delivery.stopIndex >= 0
-                                ? String(delivery.stopIndex)
-                                : ""
-                            }
-                            onValueChange={(val) =>
-                              handleUpdateDelivery(
-                                idx,
-                                "stopIndex",
-                                Number(val),
-                              )
-                            }
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger
-                              id={`cargo-delivery-stop-${idx}`}
-                              className="h-9"
-                              error={
-                                delivery.stopIndex < 0 &&
-                                Boolean(deliveryStopError)
-                              }
-                              aria-invalid={
-                                delivery.stopIndex < 0 &&
-                                Boolean(deliveryStopError)
-                                  ? true
-                                  : undefined
-                              }
-                              aria-describedby={
-                                delivery.stopIndex < 0 && deliveryStopError
-                                  ? `cargo-delivery-stop-${idx}-error`
-                                  : undefined
-                              }
-                            >
-                              <SelectValue
-                                placeholder={sheet.placeholder.deliveryStop}
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableDeliveryStops.map((s) => (
-                                <SelectItem
-                                  key={s.index}
-                                  value={String(s.index)}
-                                >
-                                  {sheet.format.deliveryStopOption(
-                                    s.index,
-                                    s.locationName || "",
-                                    s.address,
-                                    s.city,
-                                  )}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormFieldShell>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <FormFieldShell
-                            fieldId={`cargo-delivery-weight-${idx}`}
-                            label={sheet.label.deliveryWeight}
-                          >
-                            <Input
-                              id={`cargo-delivery-weight-${idx}`}
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              disabled={isSubmitting}
-                              value={delivery.weight ?? ""}
-                              onChange={(e) =>
-                                handleUpdateDelivery(
-                                  idx,
-                                  "weight",
-                                  e.target.value
-                                    ? Number(e.target.value)
-                                    : undefined,
-                                )
-                              }
-                            />
-                          </FormFieldShell>
-                          <FormFieldShell
-                            fieldId={`cargo-delivery-units-${idx}`}
-                            label={sheet.label.deliveryUnits}
-                          >
-                            <Input
-                              id={`cargo-delivery-units-${idx}`}
-                              type="number"
-                              min="0"
-                              disabled={isSubmitting}
-                              value={delivery.units ?? ""}
-                              onChange={(e) =>
-                                handleUpdateDelivery(
-                                  idx,
-                                  "units",
-                                  e.target.value
-                                    ? Number(e.target.value)
-                                    : undefined,
-                                )
-                              }
-                            />
-                          </FormFieldShell>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={isSubmitting}
-                        className="h-7 w-7 flex-shrink-0 text-destructive hover:text-destructive"
-                        onClick={() => handleRemoveDelivery(idx)}
+                <div className="min-w-0 space-y-2">
+                  {deliveryAssignments.map((delivery, idx) => {
+                    const selectedDeliveryStop =
+                      delivery.stopIndex >= 0
+                        ? availableDeliveryStops.find(
+                            (s) => s.index === delivery.stopIndex,
+                          )
+                        : undefined;
+                    const selectedDeliveryLabel = selectedDeliveryStop
+                      ? sheet.format.deliveryStopOption(
+                          selectedDeliveryStop.index,
+                          selectedDeliveryStop.locationName || "",
+                          selectedDeliveryStop.address,
+                          selectedDeliveryStop.city,
+                        )
+                      : undefined;
+                    return (
+                      <div
+                        key={idx}
+                        className="flex min-w-0 items-start gap-2 rounded-lg border p-3"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <FormFieldShell
+                            fieldId={`cargo-delivery-stop-${idx}`}
+                            label={sheet.label.deliveryStop}
+                            className="min-w-0"
+                            errorMessage={
+                              delivery.stopIndex < 0 && deliveryStopError
+                                ? deliveryStopError
+                                : undefined
+                            }
+                          >
+                            <Select
+                              value={
+                                delivery.stopIndex >= 0
+                                  ? String(delivery.stopIndex)
+                                  : ""
+                              }
+                              onValueChange={(val) =>
+                                handleUpdateDelivery(
+                                  idx,
+                                  "stopIndex",
+                                  Number(val),
+                                )
+                              }
+                              disabled={isSubmitting}
+                            >
+                              <SelectTrigger
+                                id={`cargo-delivery-stop-${idx}`}
+                                className="h-9"
+                                title={selectedDeliveryLabel}
+                                error={
+                                  delivery.stopIndex < 0 &&
+                                  Boolean(deliveryStopError)
+                                }
+                                aria-invalid={
+                                  delivery.stopIndex < 0 &&
+                                  Boolean(deliveryStopError)
+                                    ? true
+                                    : undefined
+                                }
+                                aria-describedby={
+                                  delivery.stopIndex < 0 && deliveryStopError
+                                    ? `cargo-delivery-stop-${idx}-error`
+                                    : undefined
+                                }
+                              >
+                                <SelectValue
+                                  placeholder={sheet.placeholder.deliveryStop}
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableDeliveryStops.map((s) => (
+                                  <SelectItem
+                                    key={s.index}
+                                    value={String(s.index)}
+                                  >
+                                    {sheet.format.deliveryStopOption(
+                                      s.index,
+                                      s.locationName || "",
+                                      s.address,
+                                      s.city,
+                                    )}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormFieldShell>
+                          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                            <FormFieldShell
+                              fieldId={`cargo-delivery-weight-${idx}`}
+                              label={sheet.label.deliveryWeight}
+                              className="min-w-0"
+                            >
+                              <Input
+                                id={`cargo-delivery-weight-${idx}`}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                disabled={isSubmitting}
+                                value={delivery.weight ?? ""}
+                                onChange={(e) =>
+                                  handleUpdateDelivery(
+                                    idx,
+                                    "weight",
+                                    e.target.value
+                                      ? Number(e.target.value)
+                                      : undefined,
+                                  )
+                                }
+                              />
+                            </FormFieldShell>
+                            <FormFieldShell
+                              fieldId={`cargo-delivery-units-${idx}`}
+                              label={sheet.label.deliveryUnits}
+                              className="min-w-0"
+                            >
+                              <Input
+                                id={`cargo-delivery-units-${idx}`}
+                                type="number"
+                                min="0"
+                                disabled={isSubmitting}
+                                value={delivery.units ?? ""}
+                                onChange={(e) =>
+                                  handleUpdateDelivery(
+                                    idx,
+                                    "units",
+                                    e.target.value
+                                      ? Number(e.target.value)
+                                      : undefined,
+                                  )
+                                }
+                              />
+                            </FormFieldShell>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={isSubmitting}
+                          className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveDelivery(idx)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CargoOptionalSection>

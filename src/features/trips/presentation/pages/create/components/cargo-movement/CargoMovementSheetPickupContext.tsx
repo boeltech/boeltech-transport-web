@@ -41,13 +41,28 @@ export function CargoMovementSheetPickupContext({
     Boolean(onPickupStopChange) &&
     (availablePickupStops?.length ?? 0) > 1;
 
+  const selectedPickupLabel = sheet.format.deliveryStopOption(
+    pickupStop.index,
+    pickupStop.locationName || "",
+    pickupStop.address,
+    pickupStop.city,
+  );
+  const readOnlyPickupText = [
+    `${sheet.context.stopPrefix} ${stopLabel(pickupStop.index)}`,
+    pickupStop.locationName || pickupStop.address,
+    pickupStop.clientName || null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+    <div className="min-w-0 space-y-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
       {canChoosePickup && availablePickupStops ? (
         <FormFieldShell
           fieldId="cargo-pickup-stop"
           label={sheet.label.pickupStop}
           description={sheet.hint.pickupStop}
+          className="min-w-0"
         >
           <Select
             value={String(pickupStop.index)}
@@ -58,7 +73,11 @@ export function CargoMovementSheetPickupContext({
               if (next) onPickupStopChange?.(next);
             }}
           >
-            <SelectTrigger id="cargo-pickup-stop" className="h-9 bg-background">
+            <SelectTrigger
+              id="cargo-pickup-stop"
+              className="h-9 bg-background"
+              title={selectedPickupLabel}
+            >
               <SelectValue placeholder={sheet.placeholder.pickupStop} />
             </SelectTrigger>
             <SelectContent>
@@ -76,8 +95,11 @@ export function CargoMovementSheetPickupContext({
           </Select>
         </FormFieldShell>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          <MapPin className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" />
+        <p
+          className="min-w-0 truncate text-sm text-muted-foreground"
+          title={readOnlyPickupText}
+        >
+          <MapPin className="mr-1.5 inline h-3.5 w-3.5 shrink-0 align-[-2px]" />
           {sheet.context.stopPrefix}{" "}
           <span className="font-medium text-foreground">
             {stopLabel(pickupStop.index)}

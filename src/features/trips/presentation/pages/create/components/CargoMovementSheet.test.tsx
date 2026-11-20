@@ -908,6 +908,196 @@ describe("CargoMovementSheet", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("contains long delivery stop labels without forcing sheet overflow (ellipsis + title)", () => {
+    const longLocation =
+      "Movimientos Industriales de la Construcción S.A. de C.V. (Movimientos Industriales)";
+    const longStop: CargoSheetDeliveryStop = {
+      index: 5,
+      address: "Calle Industrial 1200 Oriente",
+      city: "Monterrey",
+      locationName: longLocation,
+      clientName: "Movimientos Industriales",
+    };
+    const longLabel = sheet.format.deliveryStopOption(
+      longStop.index,
+      longStop.locationName || "",
+      longStop.address,
+      longStop.city,
+    );
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={[longStop]}
+        initialValues={{
+          ...validCargo,
+          movements: [
+            { stopIndex: 0, movementType: "pickup" },
+            {
+              stopIndex: 5,
+              movementType: "delivery",
+              weight: 500,
+              units: 5,
+            },
+          ],
+        }}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("combobox", {
+      name: sheet.label.deliveryStop,
+    });
+    expect(trigger).toHaveAttribute("title", longLabel);
+    expect(trigger.className).toMatch(/min-w-0/);
+    expect(trigger.className).toMatch(/overflow-hidden/);
+
+    const deliveryCard = trigger.closest(".rounded-lg.border");
+    expect(deliveryCard).toBeTruthy();
+    expect(deliveryCard?.className).toMatch(/min-w-0/);
+    const fieldColumn = deliveryCard?.querySelector(".min-w-0.flex-1");
+    expect(fieldColumn).toBeTruthy();
+    expect(
+      deliveryCard?.querySelector(".grid.min-w-0"),
+    ).toBeTruthy();
+  });
+
+  it("truncates read-only delivery stop labels with full title", () => {
+    const longLocation =
+      "Centro de Distribución Logística Internacional del Norte S.A. de C.V.";
+    const longStop: CargoSheetDeliveryStop = {
+      index: 2,
+      address: "Av. Larga 999",
+      city: "Saltillo",
+      locationName: longLocation,
+    };
+    const longLabel = sheet.format.deliveryStopOption(
+      longStop.index,
+      longStop.locationName || "",
+      longStop.address,
+      longStop.city,
+    );
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={[longStop]}
+        initialValues={{
+          ...validCargo,
+          movements: [
+            { stopIndex: 0, movementType: "pickup" },
+            {
+              stopIndex: 2,
+              movementType: "delivery",
+              weight: 100,
+              units: 1,
+            },
+          ],
+        }}
+        editingIndex={0}
+        deliveriesReadOnly
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const labelEl = screen.getByText(longLabel);
+    expect(labelEl.className).toMatch(/truncate/);
+    expect(labelEl).toHaveAttribute("title", longLabel);
+  });
+
+  it("contains long pickup stop Select labels with title (chooser mode)", () => {
+    const longPickup: CargoSheetPickupStop = {
+      index: 0,
+      address: "Planta Norte",
+      city: "Monterrey",
+      locationName:
+        "Coca Cola: Ciel Norte — Centro Embotellador Metropolitano de Bebidas S.A. de C.V.",
+      clientName: "Coca-Cola FEMSA",
+    };
+    const otherPickup: CargoSheetPickupStop = {
+      index: 3,
+      address: "Planta Sur",
+      city: "Apodaca",
+      locationName: "Bodega Sur",
+    };
+    const longLabel = sheet.format.deliveryStopOption(
+      longPickup.index,
+      longPickup.locationName || "",
+      longPickup.address,
+      longPickup.city,
+    );
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={longPickup}
+        availablePickupStops={[longPickup, otherPickup]}
+        onPickupStopChange={vi.fn()}
+        availableDeliveryStops={deliveryStops}
+        initialValues={validCargo}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("combobox", {
+      name: sheet.label.pickupStop,
+    });
+    expect(trigger).toHaveAttribute("title", longLabel);
+    expect(trigger.className).toMatch(/min-w-0/);
+  });
+
+  it("truncates read-only pickup context with full title", () => {
+    const longPickup: CargoSheetPickupStop = {
+      index: 0,
+      address: "Calle Muy Larga 1000",
+      city: "Monterrey",
+      locationName:
+        "Almacén Central de Materias Primas Industriales del Noreste",
+      clientName: "Cliente con razón social extremadamente larga S.A. de C.V.",
+    };
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={longPickup}
+        availableDeliveryStops={deliveryStops}
+        initialValues={validCargo}
+        editingIndex={0}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const readOnly = screen.getByTitle(
+      [
+        `${sheet.context.stopPrefix} ${wizardCopy.cargo.format.stopFallback(longPickup.index)}`,
+        longPickup.locationName,
+        longPickup.clientName,
+      ].join(" · "),
+    );
+    expect(readOnly.className).toMatch(/truncate/);
+    expect(readOnly.className).toMatch(/min-w-0/);
+  });
+
   it("aplica la marca del GET aunque StrictMode cancele la primera hidratación", async () => {
     const user = userEvent.setup();
     pickedProduct = {
