@@ -32,6 +32,7 @@ export const helpCenterCopy = {
   detail: {
     backLabel: "Ayuda",
     stepsSection: "Pasos",
+    notCoveredSection: "Qué no cubre",
     problemSection: "Si no funciona",
     sendTicketAboutThis: "Enviar un ticket sobre esto",
     groupLabel: "Grupo",

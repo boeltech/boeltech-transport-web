@@ -73,6 +73,10 @@ describe("helpCenterCopy product labels (PRD D1–D5)", () => {
     expect(helpCenterCopy.ticketDetail.loadErrorRetry).toBe("Reintentar");
   });
 
+  it("exposes R5 F4 notCovered section title", () => {
+    expect(helpCenterCopy.detail.notCoveredSection).toBe("Qué no cubre");
+  });
+
   it("exposes F3 D14 mínimo (Reintentar, Limpiar, Nuevo ticket)", () => {
     expect(helpCenterCopy.index.clearSearch).toBe("Limpiar búsqueda");
     expect(helpCenterCopy.index.loadErrorRetry).toBe("Reintentar");

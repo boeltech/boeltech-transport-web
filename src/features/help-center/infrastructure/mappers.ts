@@ -17,6 +17,8 @@ export interface ApiHelpArticleRaw {
   phrase: string;
   guide: string | null;
   problem: string | null;
+  /** Opcional: API previa a R5 no lo envía. */
+  not_covered?: string | null;
   sort_order: number;
 }
 

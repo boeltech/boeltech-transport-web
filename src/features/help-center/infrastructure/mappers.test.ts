@@ -89,6 +89,28 @@ describe("help-center mappers", () => {
       expect(result.guide).toBeNull();
       expect(result.problem).toBeNull();
     });
+
+    it("maps not_covered → notCovered", () => {
+      const raw: ApiHelpArticleRaw = {
+        ...RAW_ARTICLE,
+        not_covered: "- No cubre liquidaciones.",
+      };
+      const result = mapHelpArticle(raw);
+      expect(result.notCovered).toBe("- No cubre liquidaciones.");
+    });
+
+    it("tolerates missing not_covered (API vieja)", () => {
+      const result = mapHelpArticle(RAW_ARTICLE);
+      expect(result.notCovered).toBeUndefined();
+    });
+
+    it("maps not_covered: null → notCovered null", () => {
+      const raw: ApiHelpArticleRaw = {
+        ...RAW_ARTICLE,
+        not_covered: null,
+      };
+      expect(mapHelpArticle(raw).notCovered).toBeNull();
+    });
   });
 
   describe("mapHelpArticleListResponse", () => {

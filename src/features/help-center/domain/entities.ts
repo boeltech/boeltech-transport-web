@@ -7,6 +7,8 @@ export interface HelpArticle {
   phrase: string;
   guide: string | null;
   problem: string | null;
+  /** Alcance negativo (API `not_covered`). Ausente si API vieja no lo envía. */
+  notCovered?: string | null;
   sortOrder: number;
 }
 
