@@ -13,6 +13,14 @@ import { useUpdateUserStatus } from "./useUsers";
 const mockPatch = vi.hoisted(() => vi.fn());
 const mockOnError = vi.hoisted(() => vi.fn());
 
+vi.mock("@features/auth", () => ({
+  useAuth: () => ({
+    user: { id: "actor-admin" },
+    refreshProfile: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
 vi.mock("@shared/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@shared/api")>();
   return { ...actual, apiClient: { ...actual.apiClient, patch: mockPatch } };

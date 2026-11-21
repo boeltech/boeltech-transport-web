@@ -171,4 +171,36 @@ describe("UserManagementActivityPage toolbar", () => {
     expect(inset).toBeTruthy();
     expect(inset?.querySelector("h3")).toBeTruthy();
   });
+
+  it("feed sin segunda card anidada (T6 / H-U09-T01 · framed={false})", () => {
+    mockUseUserManagementActivity.mockReturnValue({
+      data: {
+        data: [
+          {
+            id: "evt-1",
+            subjectUserId: "u1",
+            actorUserId: "u1",
+            actorEmail: "ana@example.com",
+            actorFirstName: "Ana",
+            actorLastName: "López",
+            action: "user_created",
+            payload: {},
+            createdAt: "2026-10-01T12:00:00.000Z",
+          },
+        ],
+        pagination: { page: 1, totalPages: 1, total: 1, limit: 25 },
+      },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    const { container } = renderPage();
+    const inset = container.querySelector(".px-4.py-4");
+    expect(inset).toBeTruthy();
+    // Solo ListingResultsFrame del shell aporta card; el feed no anida otra.
+    expect(inset?.querySelector(".rounded-xl.border.bg-card")).toBeNull();
+  });
 });

@@ -208,6 +208,10 @@ export function useTerminateEmployee() {
       queryClient.invalidateQueries({
         queryKey: employeeQueryKeys.availableForDriver(),
       });
+      // Paridad con update: baja afecta Operadores / workbench / asignaciones
+      queryClient.invalidateQueries({ queryKey: COMPENSATION_ASSIGNMENTS_KEY });
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_OPERATORS_KEY });
     },
   });
 }

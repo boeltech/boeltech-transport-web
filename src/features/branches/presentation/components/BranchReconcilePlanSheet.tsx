@@ -24,6 +24,11 @@ import {
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
 import { mapBackendError } from "@shared/utils/errorMapper";
+import { employeeQueryKeys } from "@features/employees/application";
+import {
+  branchEmployeeQueryKeys,
+  branchVehicleQueryKeys,
+} from "../../application";
 import { branchQueryKeys } from "../../domain";
 import { branchesApi } from "../../infrastructure";
 import { branchesCopy } from "../copy/branchesCopy";
@@ -119,6 +124,11 @@ export function BranchReconcilePlanSheet({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: branchQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: branchQueryKeys.reconcilePreview() });
+      // Reasignación / baja de sucursales mueve empleados y flota por sucursal
+      queryClient.invalidateQueries({ queryKey: employeeQueryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: employeeQueryKeys.details() });
+      queryClient.invalidateQueries({ queryKey: branchEmployeeQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: branchVehicleQueryKeys.all });
       toast({
         title: branchesCopy.overQuota.reconcileSuccess,
         variant: "success",

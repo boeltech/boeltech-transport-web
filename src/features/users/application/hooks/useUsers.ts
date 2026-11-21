@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@features/auth";
 import { userQueryKeys, type UserQueryParams } from "../../domain";
 import type {
   CreateUserDTO,
@@ -14,6 +15,22 @@ interface MutationCallbacks<TData = unknown, TError = Error, TVariables = unknow
 
 type UpdateUserVariables = { id: string; data: UpdateUserDTO };
 type UpdateUserStatusVariables = { id: string; data: UpdateUserStatusDTO };
+
+/** Tras mutar el usuario en sesión: refrescar perfil (menú/permisos) o cerrar si queda inactivo. */
+async function syncSessionAfterSelfUserChange(args: {
+  targetUserId: string;
+  sessionUserId: string | undefined;
+  nextStatus?: string;
+  refreshProfile: () => Promise<unknown>;
+  logout: () => Promise<void>;
+}): Promise<void> {
+  if (!args.sessionUserId || args.targetUserId !== args.sessionUserId) return;
+  if (args.nextStatus && args.nextStatus !== "active") {
+    await args.logout();
+    return;
+  }
+  await args.refreshProfile();
+}
 
 export const useUsers = (
   params?: UserQueryParams,
@@ -63,12 +80,19 @@ export const useUpdateUser = (
   callbacks?: MutationCallbacks<unknown, Error, UpdateUserVariables>,
 ) => {
   const queryClient = useQueryClient();
+  const { user, refreshProfile, logout } = useAuth();
   return useMutation({
     mutationFn: ({ id, data }: UpdateUserVariables) => usersApi.update(id, data),
-    onSuccess: (result, variables) => {
+    onSuccess: async (result, variables) => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: userQueryKeys.detail(result.data.id) });
       void queryClient.invalidateQueries({ queryKey: userQueryKeys.activityRoot(variables.id) });
+      await syncSessionAfterSelfUserChange({
+        targetUserId: variables.id,
+        sessionUserId: user?.id,
+        refreshProfile,
+        logout,
+      });
       callbacks?.onSuccess?.(result);
     },
     onError: (error: Error, variables) => callbacks?.onError?.(error, variables),
@@ -79,12 +103,22 @@ export const useUpdateUserStatus = (
   callbacks?: MutationCallbacks<unknown, Error, UpdateUserStatusVariables>,
 ) => {
   const queryClient = useQueryClient();
+  const { user, refreshProfile, logout } = useAuth();
   return useMutation({
     mutationFn: ({ id, data }: UpdateUserStatusVariables) => usersApi.updateStatus(id, data),
-    onSuccess: (result, variables) => {
+    onSuccess: async (result, variables) => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() });
       queryClient.invalidateQueries({ queryKey: userQueryKeys.detail(result.data.id) });
       void queryClient.invalidateQueries({ queryKey: userQueryKeys.activityRoot(variables.id) });
+      // API: SELF_STATUS_CHANGE_DENIED si el actor se desactiva a sí mismo (400).
+      // Si algún día el success llega con status ≠ active, cerramos sesión aquí.
+      await syncSessionAfterSelfUserChange({
+        targetUserId: variables.id,
+        sessionUserId: user?.id,
+        nextStatus: variables.data.status,
+        refreshProfile,
+        logout,
+      });
       callbacks?.onSuccess?.(result);
     },
     onError: (error: Error, variables) => callbacks?.onError?.(error, variables),

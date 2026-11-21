@@ -2,6 +2,12 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { employeeQueryKeys } from "@features/employees/application";
+import {
+  branchEmployeeQueryKeys,
+  branchVehicleQueryKeys,
+} from "../../application";
+import { branchQueryKeys } from "../../domain";
 import { BranchReconcilePlanSheet } from "./BranchReconcilePlanSheet";
 import { branchesCopy } from "../copy/branchesCopy";
 import { buildBranchListMeta } from "../../test/branchTestFixtures";
@@ -13,6 +19,10 @@ vi.mock("../../infrastructure", () => ({
     getReconcilePreview: vi.fn(),
     reconcilePlan: vi.fn(),
   },
+}));
+
+vi.mock("@shared/hooks", () => ({
+  useToast: () => ({ toast: vi.fn() }),
 }));
 
 const mockedApi = vi.mocked(branchesApi);
@@ -64,15 +74,20 @@ function buildPreview(): BranchReconcilePreview {
   };
 }
 
-function renderSheet() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <BranchReconcilePlanSheet open onOpenChange={() => {}} />
-    </QueryClientProvider>,
-  );
+function renderSheet(queryClient?: QueryClient) {
+  const client =
+    queryClient ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+  return {
+    queryClient: client,
+    ...render(
+      <QueryClientProvider client={client}>
+        <BranchReconcilePlanSheet open onOpenChange={() => {}} />
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 const copy = branchesCopy.overQuota.sheet;
@@ -130,6 +145,39 @@ describe("BranchReconcilePlanSheet", () => {
         mainBranchId: MTY,
         employeeReassignments: [],
       });
+    });
+  });
+
+  it("invalidates Emp lists/details + branch employees/vehicles after reconcile (H-U09-Q02)", async () => {
+    const user = userEvent.setup();
+    const { queryClient } = renderSheet();
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    const mtyRow = (await screen.findByText("MTY-01 — Monterrey")).closest("label");
+    await user.click(within(mtyRow as HTMLElement).getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: copy.confirm }));
+
+    await waitFor(() => {
+      expect(mockedApi.reconcilePlan).toHaveBeenCalled();
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: branchQueryKeys.lists(),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: branchQueryKeys.reconcilePreview(),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: employeeQueryKeys.lists(),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: employeeQueryKeys.details(),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: branchEmployeeQueryKeys.all,
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: branchVehicleQueryKeys.all,
     });
   });
 });

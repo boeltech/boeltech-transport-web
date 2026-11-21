@@ -311,7 +311,8 @@ export function UserManagementActivityPage() {
         cta: emptyCta,
       }}
       renderTable={() => (
-        // ListingResultsFrame es edge-to-edge (tablas); el feed necesita inset.
+        // ListingResultsFrame del shell es el único marco; feed sin card anidada
+        // (T6 / H-U09-T01 — equivalente a EntityListTable framed={false}).
         <div className="px-4 py-4 sm:px-6">
           {isLoading ? (
             <UserActivityFeedSkeleton />

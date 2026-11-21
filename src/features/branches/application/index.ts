@@ -7,7 +7,10 @@ export {
   useUpdateBranch,
 } from "./hooks/useBranches";
 export { useExportBranches } from "./hooks/useExportBranches";
-export { useBranchEmployees } from "./hooks/useBranchEmployees";
+export {
+  branchEmployeeQueryKeys,
+  useBranchEmployees,
+} from "./hooks/useBranchEmployees";
 export {
   branchVehicleQueryKeys,
   useBranchVehicles,
