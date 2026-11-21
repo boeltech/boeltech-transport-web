@@ -31,6 +31,8 @@ export function useCancelTrip(
     onSuccess: async (trip, variables, onMutateResult, context) => {
       await invalidateTripDetailSurface(queryClient, trip.id, {
         status: TripStatus.CANCELLED,
+        driverId: trip.driverId,
+        clientId: trip.clientId,
       });
       await invalidateTripAssignmentResources(queryClient);
       // F7: cancelación de viaje afecta readiness de liquidaciones

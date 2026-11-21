@@ -191,9 +191,15 @@ function invalidateCreditSummariesForInvoiceIds(
     }
   }
 
+  if (clientIds.size === 0) {
+    void queryClient.invalidateQueries({
+      queryKey: clientQueryKeys.details(),
+    });
+    return;
+  }
   for (const clientId of clientIds) {
     void queryClient.invalidateQueries({
-      queryKey: [...clientQueryKeys.detail(clientId), "credit-summary"],
+      queryKey: clientQueryKeys.detail(clientId),
     });
   }
 }

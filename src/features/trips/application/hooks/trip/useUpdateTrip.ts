@@ -3,6 +3,8 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { clientQueryKeys } from "@features/clients/domain";
+import { driverQueryKeys } from "@features/drivers/domain";
 import {
   tripQueryKeys,
   type Trip,
@@ -113,9 +115,10 @@ export function useUpdateTrip(
     onSuccess: async (updatedTrip, variables, onMutateResult, context) => {
       const { id, data } = variables;
       const structuralReplace = data.stops !== undefined;
+      const previous = queryClient.getQueryData<Trip>(tripQueryKeys.detail(id));
 
-      queryClient.setQueryData<Trip>(tripQueryKeys.detail(id), (previous) =>
-        mergeTripDetailAfterUpdate(previous, updatedTrip, { structuralReplace }),
+      queryClient.setQueryData<Trip>(tripQueryKeys.detail(id), (prev) =>
+        mergeTripDetailAfterUpdate(prev, updatedTrip, { structuralReplace }),
       );
       await queryClient.invalidateQueries({ queryKey: tripQueryKeys.lists() });
       // Prefijo detail(id) también marca stale `…/cargos` (RQ v5 partial match).
@@ -128,6 +131,37 @@ export function useUpdateTrip(
         });
       }
       await invalidateTripAssignmentResources(queryClient);
+
+      // H-U03-Q03 / H-U04-Q02: operador o cliente del viaje.
+      if (data.driverId !== undefined) {
+        const driverIds = new Set<string>();
+        const prevDriver = previous?.driverId ?? previous?.driver?.id;
+        if (prevDriver) driverIds.add(prevDriver);
+        if (updatedTrip.driverId) driverIds.add(updatedTrip.driverId);
+        if (data.driverId) driverIds.add(data.driverId);
+        for (const driverId of driverIds) {
+          void queryClient.invalidateQueries({
+            queryKey: driverQueryKeys.trips(driverId),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: driverQueryKeys.stats(driverId),
+          });
+        }
+      }
+      if (data.clientId !== undefined || data.baseRate !== undefined) {
+        const clientIds = new Set<string>();
+        const prevClient = previous?.clientId ?? previous?.client?.id;
+        if (prevClient) clientIds.add(prevClient);
+        if (updatedTrip.clientId) clientIds.add(updatedTrip.clientId);
+        if (data.clientId) clientIds.add(data.clientId);
+        for (const clientId of clientIds) {
+          void queryClient.invalidateQueries({
+            queryKey: clientQueryKeys.detail(clientId),
+            refetchType: "active",
+          });
+        }
+      }
+
       await onSuccessExternal?.(updatedTrip, variables, onMutateResult, context);
     },
     onError: async (error, variables, onMutateResult, context) => {

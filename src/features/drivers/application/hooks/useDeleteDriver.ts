@@ -10,6 +10,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { invalidateFleetDocumentSurfaces } from "@features/fleet-documents/application";
 import type { MappedActionResult } from "@shared/api";
 import { driverQueryKeys } from "../../domain";
 import { createDeleteDriverUseCase } from "../index";
@@ -67,6 +68,7 @@ export function useDeleteDriver(
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.lists() });
       // Invalidar lista de disponibles
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.available() });
+      invalidateFleetDocumentSurfaces(queryClient);
       // Llamar callback personalizado
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },

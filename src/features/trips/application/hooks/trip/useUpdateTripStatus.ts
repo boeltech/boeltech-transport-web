@@ -79,6 +79,8 @@ export function useUpdateTripStatus(
     onSettled: async (data, err, variables, context, mutation) => {
       await invalidateTripDetailSurface(queryClient, variables.id, {
         status: variables.status,
+        driverId: data?.driverId ?? context?.previous?.driverId,
+        clientId: data?.clientId ?? context?.previous?.clientId,
       });
       await invalidateTripAssignmentResources(queryClient);
       invalidateNotificationsQueries(queryClient);

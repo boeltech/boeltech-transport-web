@@ -16,10 +16,13 @@ import {
   useQuery,
   useMutation,
   useQueryClient,
+  type QueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
 import { isVehicleStartableStatus } from "@boeltech/cfdi-domain/reglas/trip-resource-sync";
 import { validateVehicleForCartaPorteStamp } from "@boeltech/cfdi-domain";
+import { branchVehicleQueryKeys } from "@features/branches/application";
+import { invalidateFleetDocumentSurfaces } from "@features/fleet-documents/application";
 import { invalidateNotificationsQueries } from "@features/notifications/application/invalidateNotificationsQueries";
 import { vehiclesApi } from "../../infrastructure";
 import {
@@ -37,6 +40,27 @@ import {
   type RestoreVehicleResult,
 } from "@features/vehicles/domain";
 import { isExpired } from "@shared/utils/dateUtils";
+
+/** H-U03-Q02: padrones de vehículos por sucursal (origen / destino / prefijo). */
+function invalidateBranchVehicleSurfaces(
+  queryClient: QueryClient,
+  ...branchIds: Array<string | null | undefined>
+): void {
+  const unique = new Set(
+    branchIds.filter((id): id is string => typeof id === "string" && id.length > 0),
+  );
+  if (unique.size === 0) {
+    void queryClient.invalidateQueries({
+      queryKey: branchVehicleQueryKeys.all,
+    });
+    return;
+  }
+  for (const branchId of unique) {
+    void queryClient.invalidateQueries({
+      queryKey: branchVehicleQueryKeys.byBranch(branchId),
+    });
+  }
+}
 
 const UTILITY_NOT_ASSIGNABLE_REASON =
   "El utilitario no se asigna a viajes; úsalo solo como apoyo.";
@@ -310,11 +334,15 @@ export const useCreateVehicle = (
 
   return useMutation({
     mutationFn: (data: CreateVehiclePayload) => vehiclesApi.create(data),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: vehicleQueryKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: vehicleQueryKeys.assignable(),
       });
+      invalidateFleetDocumentSurfaces(queryClient);
+      if (variables.branchId) {
+        invalidateBranchVehicleSurfaces(queryClient, variables.branchId);
+      }
       callbacks?.onSuccess?.(data.data);
     },
     onError: (error: Error) => {
@@ -329,7 +357,10 @@ export const useUpdateVehicle = (callbacks?: MutationCallbacks) => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateVehiclePayload }) =>
       vehiclesApi.update(id, data),
-    onSuccess: (vehicle) => {
+    onSuccess: (vehicle, variables) => {
+      const previous = queryClient.getQueryData<Vehicle>(
+        vehicleQueryKeys.detail(variables.id),
+      );
       queryClient.invalidateQueries({ queryKey: vehicleQueryKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: vehicleQueryKeys.detail(vehicle.data.id),
@@ -338,6 +369,15 @@ export const useUpdateVehicle = (callbacks?: MutationCallbacks) => {
         queryKey: vehicleQueryKeys.assignable(),
       });
       invalidateNotificationsQueries(queryClient);
+      invalidateFleetDocumentSurfaces(queryClient);
+      if (variables.data.branchId !== undefined) {
+        invalidateBranchVehicleSurfaces(
+          queryClient,
+          previous?.branchId,
+          variables.data.branchId,
+          vehicle.data.branchId,
+        );
+      }
       callbacks?.onSuccess?.(vehicle);
     },
     onError: (error: Error) => {
@@ -381,6 +421,9 @@ export const useDeleteVehicle = (callbacks?: MutationCallbacks<void>) => {
       payload: DeactivateVehiclePayload;
     }) => vehiclesApi.delete(id, payload),
     onSuccess: (_result, { id }) => {
+      const previous = queryClient.getQueryData<Vehicle>(
+        vehicleQueryKeys.detail(id),
+      );
       queryClient.invalidateQueries({ queryKey: vehicleQueryKeys.lists() });
       queryClient.invalidateQueries({
         queryKey: vehicleQueryKeys.detail(id),
@@ -389,6 +432,8 @@ export const useDeleteVehicle = (callbacks?: MutationCallbacks<void>) => {
         queryKey: vehicleQueryKeys.assignable(),
       });
       invalidateNotificationsQueries(queryClient);
+      invalidateFleetDocumentSurfaces(queryClient);
+      invalidateBranchVehicleSurfaces(queryClient, previous?.branchId);
       callbacks?.onSuccess?.(undefined);
     },
     onError: (error: Error) => {
@@ -413,6 +458,13 @@ export const useRestoreVehicle = (
         queryKey: vehicleQueryKeys.assignable(),
       });
       invalidateNotificationsQueries(queryClient);
+      invalidateFleetDocumentSurfaces(queryClient);
+      const warningBranchIds = result.warnings.map((w) => w.previousBranchId);
+      invalidateBranchVehicleSurfaces(
+        queryClient,
+        result.vehicle.branchId,
+        ...warningBranchIds,
+      );
       callbacks?.onSuccess?.(result);
     },
     onError: (error: Error) => {

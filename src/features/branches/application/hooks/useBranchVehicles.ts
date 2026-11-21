@@ -3,7 +3,9 @@ import { type VehicleListItem } from "@features/vehicles/domain";
 import { vehiclesApi } from "@features/vehicles/infrastructure";
 
 export const branchVehicleQueryKeys = {
-  byBranch: (branchId: string) => ["branches", "vehicles", branchId] as const,
+  all: ["branches", "vehicles"] as const,
+  byBranch: (branchId: string) =>
+    [...branchVehicleQueryKeys.all, branchId] as const,
 };
 
 /**

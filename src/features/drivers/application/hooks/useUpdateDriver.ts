@@ -10,6 +10,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { invalidateFleetDocumentSurfaces } from "@features/fleet-documents/application";
 import { invalidateNotificationsQueries } from "@features/notifications/application/invalidateNotificationsQueries";
 import {
   type Driver,
@@ -90,6 +91,7 @@ export function useUpdateDriver(
       });
 
       invalidateNotificationsQueries(queryClient);
+      invalidateFleetDocumentSurfaces(queryClient);
 
       // Llamar callback personalizado inmediatamente
       options?.onSuccess?.(data, variables, onMutateResult, context);

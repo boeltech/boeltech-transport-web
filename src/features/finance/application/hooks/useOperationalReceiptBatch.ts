@@ -31,10 +31,13 @@ export async function invalidateOperationalReceiptBatchSurface(
   if (opts.clientId) {
     tasks.push(
       queryClient.invalidateQueries({
-        queryKey: [
-          ...clientQueryKeys.detail(opts.clientId),
-          "credit-summary",
-        ],
+        queryKey: clientQueryKeys.detail(opts.clientId),
+      }),
+    );
+  } else {
+    tasks.push(
+      queryClient.invalidateQueries({
+        queryKey: clientQueryKeys.details(),
       }),
     );
   }

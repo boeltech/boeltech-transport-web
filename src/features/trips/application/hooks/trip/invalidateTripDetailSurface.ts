@@ -4,10 +4,13 @@ import {
   invalidateFinanceAnalysisQueries,
   scheduleFinanceAnalysisRefresh,
 } from "@features/approvals/application/invalidateApprovalsQueries";
+import { clientQueryKeys } from "@features/clients/domain";
 import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
+import { driverQueryKeys } from "@features/drivers/domain";
 import {
   TripStatus,
   tripQueryKeys,
+  type Trip,
   type TripStatusType,
 } from "@features/trips/domain";
 
@@ -19,17 +22,70 @@ function statusNeedsTrackingTimeline(
   );
 }
 
+function collectKnownIds(
+  ...values: Array<string | null | undefined>
+): string[] {
+  const unique = new Set<string>();
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) {
+      unique.add(value);
+    }
+  }
+  return [...unique];
+}
+
+function invalidateDriverTripSurfaces(
+  queryClient: QueryClient,
+  driverIds: string[],
+): void {
+  for (const driverId of driverIds) {
+    void queryClient.invalidateQueries({
+      queryKey: driverQueryKeys.trips(driverId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: driverQueryKeys.stats(driverId),
+    });
+  }
+}
+
+function invalidateClientDetailSurfaces(
+  queryClient: QueryClient,
+  clientIds: string[],
+): void {
+  for (const clientId of clientIds) {
+    void queryClient.invalidateQueries({
+      queryKey: clientQueryKeys.detail(clientId),
+      refetchType: "active",
+    });
+  }
+}
+
+export type InvalidateTripDetailSurfaceOpts = {
+  status?: TripStatusType;
+  /** Operador actual / entrante cuando el caller lo conoce. */
+  driverId?: string | null;
+  /** Operador saliente (reasignación / cambio en PUT). */
+  previousDriverId?: string | null;
+  /** Cliente actual del viaje. */
+  clientId?: string | null;
+  /** Cliente anterior si cambió en la mutación. */
+  previousClientId?: string | null;
+};
+
 /**
  * Invalidación del surface del detalle de viaje tras mutaciones de lifecycle.
  * Purga timeline cacheado cuando el status ya no necesita contexto de tracking
  * (evita que data disabled envenene chrome/ruta).
- * También refresca `/dashboard` (Viajes de hoy, viajes en ruta, alertas).
+ * También refresca `/dashboard` (Viajes de hoy, viajes en ruta, alertas),
+ * viajes/stats del operador (H-U03-Q03) y ficha cliente (H-U04-Q02).
  */
 export async function invalidateTripDetailSurface(
   queryClient: QueryClient,
   tripId: string,
-  opts?: { status?: TripStatusType },
+  opts?: InvalidateTripDetailSurfaceOpts,
 ): Promise<void> {
+  const cached = queryClient.getQueryData<Trip>(tripQueryKeys.detail(tripId));
+
   await queryClient.invalidateQueries({
     queryKey: tripQueryKeys.detail(tripId),
   });
@@ -63,6 +119,26 @@ export async function invalidateTripDetailSurface(
   });
 
   invalidateDashboardLiveQueries(queryClient);
+
+  invalidateDriverTripSurfaces(
+    queryClient,
+    collectKnownIds(
+      opts?.driverId,
+      opts?.previousDriverId,
+      cached?.driverId,
+      cached?.driver?.id,
+    ),
+  );
+
+  invalidateClientDetailSurfaces(
+    queryClient,
+    collectKnownIds(
+      opts?.clientId,
+      opts?.previousClientId,
+      cached?.clientId,
+      cached?.client?.id,
+    ),
+  );
 
   // Q03: cierre / cancelación → Análisis inmediato + reinvalidación MV ~70 s.
   if (

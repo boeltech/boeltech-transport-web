@@ -10,6 +10,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { invalidateFleetDocumentSurfaces } from "@features/fleet-documents/application";
 import {
   type Driver,
   type UpdateDriverStatusDTO,
@@ -81,6 +82,7 @@ export function useUpdateDriverStatus(
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.lists() });
       // Invalidar lista de disponibles (el estado afecta disponibilidad)
       queryClient.invalidateQueries({ queryKey: driverQueryKeys.available() });
+      invalidateFleetDocumentSurfaces(queryClient);
       // Llamar callback personalizado
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },

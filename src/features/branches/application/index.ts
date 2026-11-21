@@ -8,4 +8,7 @@ export {
 } from "./hooks/useBranches";
 export { useExportBranches } from "./hooks/useExportBranches";
 export { useBranchEmployees } from "./hooks/useBranchEmployees";
-export { useBranchVehicles } from "./hooks/useBranchVehicles";
+export {
+  branchVehicleQueryKeys,
+  useBranchVehicles,
+} from "./hooks/useBranchVehicles";

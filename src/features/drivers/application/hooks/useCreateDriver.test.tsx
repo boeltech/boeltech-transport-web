@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
 import { employeeQueryKeys } from "@features/employees";
+import { fleetDocumentsQueryKeys } from "@features/fleet-documents/domain";
 import { driverQueryKeys, type Driver } from "../../domain";
 
 const invalidateQueries = vi.fn();
@@ -57,6 +59,12 @@ describe("useCreateDriver", () => {
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: employeeQueryKeys.availableForDriver(),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: fleetDocumentsQueryKeys.all,
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: dashboardQueryKeys.all,
     });
     expect(onSuccess).toHaveBeenCalledWith(
       driverStub,

@@ -51,7 +51,7 @@ describe("useRegisterFinancePayment cache (C5)", () => {
     queryDataStore.clear();
   });
 
-  it("invalidates credit-summary for client from open-ppd cache", () => {
+  it("invalidates client detail (Por cobrar + crédito) from open-ppd cache", () => {
     const clientId = "client-fin-1";
     const invoiceId = "inv-fin-1";
     queryDataStore.set(
@@ -99,7 +99,7 @@ describe("useRegisterFinancePayment cache (C5)", () => {
     );
 
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: [...clientQueryKeys.detail(clientId), "credit-summary"],
+      queryKey: clientQueryKeys.detail(clientId),
     });
     expect(onSuccessSpy).toHaveBeenCalled();
   });

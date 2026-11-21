@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { clientQueryKeys } from "@features/clients/domain";
 import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
 import { tripQueryKeys } from "@features/trips/domain";
 import { usePatchTripBaseRate } from "./usePatchTripBaseRate";
@@ -58,7 +59,7 @@ describe("usePatchTripBaseRate", () => {
     };
 
     await mutationConfig.onSuccess(
-      { id: tripId, baseRate: 12_500 },
+      { id: tripId, baseRate: 12_500, clientId: "client-rate-1" },
       12_500,
       undefined,
       undefined,
@@ -69,6 +70,10 @@ describe("usePatchTripBaseRate", () => {
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: tripQueryKeys.lists(),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: clientQueryKeys.detail("client-rate-1"),
+      refetchType: "active",
     });
     expect(invalidateFinanceAnalysisQueries).toHaveBeenCalledTimes(1);
     expect(scheduleFinanceAnalysisRefresh).toHaveBeenCalledTimes(1);

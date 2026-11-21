@@ -166,11 +166,13 @@ function InvalidMasterAlert({
   view,
   block,
   tripId,
+  tripCode,
   onReloadPreview,
 }: {
   view: TripFleetSnapshotView;
   block: TripFleetSnapshotBlock;
   tripId: string;
+  tripCode: string;
   onReloadPreview: () => void;
 }) {
   const issues = view.masterValidation?.[block] ?? [];
@@ -194,7 +196,10 @@ function InvalidMasterAlert({
         <div className="flex flex-wrap gap-2">
           {href ? (
             <Button type="button" size="sm" variant="outline" asChild>
-              <Link to={href} state={{ from: `/trips/${tripId}` }}>
+              <Link
+                to={href}
+                state={{ from: `/trips/${tripId}`, fromLabel: tripCode }}
+              >
                 {isVehicle ? copy.invalid.fixVehicle : copy.invalid.fixDriver}
               </Link>
             </Button>
@@ -515,6 +520,7 @@ function TripFleetSnapshotRefreshForm({
                 view={view}
                 block={block}
                 tripId={trip.id}
+                tripCode={trip.tripCode}
                 onReloadPreview={() => void reloadPreview()}
               />
             ))}

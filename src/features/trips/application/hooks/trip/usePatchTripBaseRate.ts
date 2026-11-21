@@ -7,6 +7,7 @@ import {
   invalidateFinanceAnalysisQueries,
   scheduleFinanceAnalysisRefresh,
 } from "@features/approvals/application/invalidateApprovalsQueries";
+import { clientQueryKeys } from "@features/clients/domain";
 import { tripQueryKeys, type Trip } from "@features/trips/domain";
 import { tripsApi } from "@features/trips/infrastructure/api/tripsApi";
 
@@ -47,6 +48,14 @@ export function usePatchTripBaseRate(
         queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
         refetchType: "active",
       });
+      // H-U04-Q02: ficha cliente (historial / summary) tras cambio de monto.
+      const clientId = trip.clientId ?? trip.client?.id;
+      if (clientId) {
+        await queryClient.invalidateQueries({
+          queryKey: clientQueryKeys.detail(clientId),
+          refetchType: "active",
+        });
+      }
       // Q03: tarifa base → Análisis inmediato + reinvalidación MV ~70 s.
       invalidateFinanceAnalysisQueries(queryClient);
       scheduleFinanceAnalysisRefresh(queryClient);

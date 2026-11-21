@@ -11,6 +11,7 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { employeeQueryKeys } from "@features/employees/application";
+import { invalidateFleetDocumentSurfaces } from "@features/fleet-documents/application";
 import {
   type Driver,
   type CreateDriverDTO,
@@ -71,6 +72,7 @@ export function useCreateDriver(
       queryClient.invalidateQueries({
         queryKey: employeeQueryKeys.availableForDriver(),
       });
+      invalidateFleetDocumentSurfaces(queryClient);
       options?.onSuccess?.(data, variables, onMutateResult, context);
     },
     onError: options?.onError,

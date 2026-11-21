@@ -711,7 +711,7 @@ describe("useRegisterPayment cache invalidation (C5)", () => {
     queryDataStore.clear();
   });
 
-  it("invalidates credit-summary for client resolved from invoice list cache", () => {
+  it("invalidates client detail (Por cobrar + crédito) from invoice list cache", () => {
     const invoiceId = "inv-pay-1";
     const clientId = "client-pay-1";
     queryDataStore.set(JSON.stringify(invoiceQueryKeys.list()), {
@@ -732,7 +732,7 @@ describe("useRegisterPayment cache invalidation (C5)", () => {
     mutationConfig.onSuccess({}, {}, {}, {});
 
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: [...clientQueryKeys.detail(clientId), "credit-summary"],
+      queryKey: clientQueryKeys.detail(clientId),
     });
     expect(onSuccessSpy).toHaveBeenCalled();
   });

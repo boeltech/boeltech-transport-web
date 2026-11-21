@@ -5,7 +5,9 @@ import {
   cancelFinanceAnalysisRefresh,
   FINANCE_ANALYSIS_REFRESH_DELAY_MS,
 } from "@features/approvals/application/invalidateApprovalsQueries";
+import { clientQueryKeys } from "@features/clients/domain";
 import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
+import { driverQueryKeys } from "@features/drivers/domain";
 import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
 import { TripStatus, tripQueryKeys } from "@features/trips/domain";
 
@@ -193,6 +195,62 @@ describe("invalidateTripDetailSurface", () => {
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: [...financeQueryKeys.all, "monthly-performance"],
+    });
+  });
+
+  it("invalidates driver trips/stats for previous and new operator (H-U03-Q03)", async () => {
+    const tripId = "trip-10";
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    queryClient.setQueryData(tripQueryKeys.detail(tripId), {
+      id: tripId,
+      driverId: "drv-cached",
+    });
+
+    await invalidateTripDetailSurface(queryClient, tripId, {
+      status: TripStatus.IN_PROGRESS,
+      driverId: "drv-new",
+      previousDriverId: "drv-old",
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: driverQueryKeys.trips("drv-new"),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: driverQueryKeys.stats("drv-new"),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: driverQueryKeys.trips("drv-old"),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: driverQueryKeys.trips("drv-cached"),
+    });
+  });
+
+  it("invalidates client detail for trip client (H-U04-Q02)", async () => {
+    const tripId = "trip-11";
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    queryClient.setQueryData(tripQueryKeys.detail(tripId), {
+      id: tripId,
+      clientId: "client-cached",
+    });
+
+    await invalidateTripDetailSurface(queryClient, tripId, {
+      status: TripStatus.COMPLETED,
+      clientId: "client-new",
+      previousClientId: "client-old",
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: clientQueryKeys.detail("client-new"),
+      refetchType: "active",
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: clientQueryKeys.detail("client-old"),
+      refetchType: "active",
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: clientQueryKeys.detail("client-cached"),
+      refetchType: "active",
     });
   });
 });

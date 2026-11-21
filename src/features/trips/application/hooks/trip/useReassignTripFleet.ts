@@ -3,6 +3,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import { driverQueryKeys } from "@features/drivers/domain";
 import {
   tripQueryKeys,
   type CreateTripWarning,
@@ -54,13 +55,18 @@ export function useReassignTripFleet(
       tripsApi.patchFleet(tripId, data),
     onSuccess: async (result, variables, onMutateResult, context) => {
       const trip = result.trip;
-      queryClient.setQueryData<Trip>(tripQueryKeys.detail(tripId), (previous) => {
-        if (!previous) return trip;
+      const previous = queryClient.getQueryData<Trip>(
+        tripQueryKeys.detail(tripId),
+      );
+      const previousDriverId =
+        previous?.driverId ?? previous?.driver?.id ?? null;
+      queryClient.setQueryData<Trip>(tripQueryKeys.detail(tripId), (prev) => {
+        if (!prev) return trip;
         return {
-          ...previous,
+          ...prev,
           ...trip,
           requiresFiscalAttention:
-            trip.requiresFiscalAttention ?? previous.requiresFiscalAttention,
+            trip.requiresFiscalAttention ?? prev.requiresFiscalAttention,
         };
       });
       await invalidateTripAssignmentResources(queryClient);
@@ -80,6 +86,21 @@ export function useReassignTripFleet(
       await queryClient.invalidateQueries({
         queryKey: tripQueryKeys.draftHoldAssignmentSoft(),
       });
+      // H-U03-Q03: ficha del operador anterior / nuevo (viajes + stats).
+      if (variables.driverId !== undefined) {
+        const driverIds = new Set<string>();
+        if (previousDriverId) driverIds.add(previousDriverId);
+        if (trip.driverId) driverIds.add(trip.driverId);
+        if (variables.driverId) driverIds.add(variables.driverId);
+        for (const driverId of driverIds) {
+          void queryClient.invalidateQueries({
+            queryKey: driverQueryKeys.trips(driverId),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: driverQueryKeys.stats(driverId),
+          });
+        }
+      }
       await userOnSuccess?.(result, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {

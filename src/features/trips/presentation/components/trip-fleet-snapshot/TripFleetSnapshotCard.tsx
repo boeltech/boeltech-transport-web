@@ -322,7 +322,10 @@ function EmptySnapshotState({
 }) {
   const vehicleId = trip.vehicle?.id ?? trip.vehicleId;
   const driverId = trip.driver?.id ?? trip.driverId;
-  const linkState = { from: `/trips/${trip.id}` };
+  const linkState = {
+    from: `/trips/${trip.id}`,
+    fromLabel: trip.tripCode,
+  };
   return (
     <div className="space-y-2 rounded-md border border-dashed bg-muted/20 px-3 py-3 text-sm">
       <p className="font-medium">{copy.empty.title}</p>

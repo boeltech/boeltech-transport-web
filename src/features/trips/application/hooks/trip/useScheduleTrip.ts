@@ -100,6 +100,8 @@ export function useScheduleTrip(
       });
       await invalidateTripDetailSurface(queryClient, tripId, {
         status: TripStatus.SCHEDULED,
+        driverId: trip.driverId,
+        clientId: trip.clientId,
       });
       await invalidateTripAssignmentResources(queryClient);
       await userOnSuccess?.(result, tripId, onMutateResult, context);
