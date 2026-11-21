@@ -5,7 +5,7 @@ description: Design system del ERP-T. App shell (sidebar, header, navegación, t
 
 # Design System — boeltech-transport-web
 
-**SoT de producto Tlamx:** `D:\cowork\boeltech\erp-transport\design\tlamx\`
+**SoT de producto Tlamx:** `D:\cowork\boeltech\productos\tlamx\design\tlamx\`
 
 | Qué | Documento SoT |
 |-----|---------------|
@@ -968,7 +968,7 @@ README: `src/shared/ui/location/README.md` · Guía: `docs/direcciones/patron-lo
 
 | Documento | Ruta |
 |---|---|
-| Principios y decisiones de diseño (SoT) | `D:\cowork\boeltech\erp-transport\design\tlamx\design.md` · `...\platforms\web\design.md` |
+| Principios y decisiones de diseño (SoT) | `D:\cowork\boeltech\productos\tlamx\design\tlamx\design.md` · `...\platforms\web\design.md` |
 | Roles de color → tokens (SoT) | `...\design\tlamx\platforms\web\token-map.md` |
 | Marca (SoT) | `...\design\tlamx\brand\` |
 | App shell (contrato) | `src/widgets/layout/README.md` |
@@ -980,8 +980,8 @@ README: `src/shared/ui/location/README.md` · Guía: `docs/direcciones/patron-lo
 | Tablas Operate (T1–T10, kinds + `share` / `summaryRow` / `moneyEditable`) | SoT `platforms/web/design.md` §7 · `@shared/ui/table` |
 | Encabezado y navegación local (NL1–NL8) | SoT `platforms/web/design.md` §8 · `@shared/ui/breadcrumbs` · tabs `count`/`signal` |
 | Location / direcciones | `src/shared/ui/location/README.md` · `src/shared/ui/address-input/README.md` |
-| Inbox notificaciones (usuario) | `D:\cowork\boeltech\erp-transport\docs\notificaciones\inbox-usuario.md` |
-| Charts (ADR-0045) | `D:\cowork\boeltech\erp-transport\design\adr\0045-charts-library-y-patron-chartcard.md` |
+| Inbox notificaciones (usuario) | `D:\cowork\boeltech\productos\tlamx\docs\notificaciones\inbox-usuario.md` |
+| Charts (ADR-0045) | `D:\cowork\boeltech\productos\tlamx\design\adr\0045-charts-library-y-patron-chartcard.md` |
 | Detail+Sheet+MD | `.agents/skills/detail-sheet-master-detail/SKILL.md` |
 | Tokens CSS (runtime) | `src/app/styles/index.css` |
 | Design system showcase | `src/pages/design-system/` |

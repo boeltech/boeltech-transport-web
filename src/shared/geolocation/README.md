@@ -1,7 +1,7 @@
 # Geolocalización y mapas (`@shared/geolocation`)
 
 Contrato de implementación para Mapbox y embeds de terceros. Intención (los mapas siguen el
-tema; colores desde tokens): SoT `D:\cowork\boeltech\erp-transport\design\tlamx\platforms\web\design.md` §5.
+tema; colores desde tokens): SoT `D:\cowork\boeltech\productos\tlamx\design\tlamx\platforms\web\design.md` §5.
 
 Demo viva: `/design-system` → **Mapas + embeds** (admin).
 

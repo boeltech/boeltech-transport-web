@@ -19,8 +19,8 @@
  * Platform usa PlatformPageShell (no SettingsPageShell).
  *
  * Guía wizards: ./README.md
- * ADR workbench: D:\cowork\boeltech\erp-transport\design\adr\0090-workbench-page-shell-taxonomia-pantallas.md
- * ADR builder:   D:\cowork\boeltech\erp-transport\design\adr\0091-taxonomia-superficies-hub-builder-workbench.md
+ * ADR workbench: D:\cowork\boeltech\productos\tlamx\design\adr\0090-workbench-page-shell-taxonomia-pantallas.md
+ * ADR builder:   D:\cowork\boeltech\productos\tlamx\design\adr\0091-taxonomia-superficies-hub-builder-workbench.md
  */
 
 export { ListPageShell } from "./ListPageShell";

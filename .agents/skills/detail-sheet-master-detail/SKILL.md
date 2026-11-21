@@ -17,7 +17,7 @@ Variante canónica de **`DetailPageShell`** cuando la entidad tiene **campos edi
 
 ### Clientes — padre en página completa (Opción A, 2026-05-23)
 
-**Decisión:** `D:\cowork\boeltech\erp-transport\docs\auditorias\clientes-ux-edicion-padre.md`
+**Decisión:** `D:\cowork\boeltech\productos\tlamx\docs\auditorias\clientes-ux-edicion-padre.md`
 
 | Capa | Implementación |
 |------|----------------|
@@ -76,7 +76,7 @@ Al pasar a **editar** desde la vista sin haber hecho click en la lista, asegurar
 - Detalle: [`ClientDetailPage.tsx`](../../../src/features/clients/presentation/pages/ClientDetailPage.tsx)
 - Edición padre: [`ClientEditPage.tsx`](../../../src/features/clients/presentation/pages/ClientEditPage.tsx)
 - Master-detail direcciones: [`ClientAddressMasterDetail.tsx`](../../../src/features/clients/presentation/components/ClientAddressMasterDetail.tsx)
-- Decisión UX: `D:\cowork\boeltech\erp-transport\docs\auditorias\clientes-ux-edicion-padre.md`
+- Decisión UX: `D:\cowork\boeltech\productos\tlamx\docs\auditorias\clientes-ux-edicion-padre.md`
 
 ## Toast y errores API desde el Sheet
 
@@ -105,7 +105,7 @@ Ver design-system skill § Overlays y [`src/shared/ui/toast/README.md`](../../..
 
 ## Seguimiento de viajes (operación, no edición en Sheet)
 
-El tab **Seguimiento** en `TripDetailPage` centraliza acciones operativas con transición explícita (ADR-0046 + enmienda 2026-07-29). **Un solo hub** escribe: cabecera «Qué sigue» + CTA de parada; el panel master-detail opera cargas y evidencia. No usar un Sheet maestro para operar paradas/cargas — ver [`docs/viajes/tracking-tab-pattern.md`](D:/cowork/boeltech/erp-transport/docs/viajes/tracking-tab-pattern.md) y `TripTrackingTab.tsx`.
+El tab **Seguimiento** en `TripDetailPage` centraliza acciones operativas con transición explícita (ADR-0046 + enmienda 2026-07-29). **Un solo hub** escribe: cabecera «Qué sigue» + CTA de parada; el panel master-detail opera cargas y evidencia. No usar un Sheet maestro para operar paradas/cargas — ver [`docs/viajes/tracking-tab-pattern.md`](D:/cowork/boeltech/productos/tlamx/docs/viajes/tracking-tab-pattern.md) y `TripTrackingTab.tsx`.
 
 ## Viajes `draft` — primer armado de ruta (ADR-0078)
 
@@ -119,4 +119,4 @@ Al **aceptar** ADR-0078 (hecho 2026-08-14), el alta deja de ser wizard en produc
 - Replanificación masiva: mismos tabs, no un segundo wizard.
 - Selección de fila: `resolvedViewId` con `useMemo`; **no** `useEffect` + `setState` para el primer ítem.
 
-Spec: `D:\cowork\boeltech\erp-transport\design\sdd\trip-canvas-intake\sdd.md` · addendum: `design/adr/0078-addendum-composer-esqueleto-ruta.md`.
+Spec: `D:\cowork\boeltech\productos\tlamx\design\sdd\trip-canvas-intake\sdd.md` · addendum: `design/adr/0078-addendum-composer-esqueleto-ruta.md`.

@@ -4,7 +4,7 @@ Esqueletos estándar para pantallas del ERP: contratos, anatomía y recetas. La 
 inline y el resumen de errores viven en `@shared/ui/form/README.md`.
 
 **Qué shell elegir y por qué** (job de pantalla, criterios Hub 3/5 · Workbench 4/7 ·
-Builder 4/6): SoT `D:\cowork\boeltech\erp-transport\design\tlamx\platforms\web\design.md` §4.
+Builder 4/6): SoT `D:\cowork\boeltech\productos\tlamx\design\tlamx\platforms\web\design.md` §4.
 
 ---
 

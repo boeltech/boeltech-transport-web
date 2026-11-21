@@ -18,7 +18,7 @@ Si el cambio afecta contrato API y formulario, primero el paquete y después ali
 
 ## Entry points públicos (no importar rutas internas `src/**`)
 
-Lista alineada a `package.json` v0.3+ y [`contributing-public-api.md`](D:\cowork\boeltech\erp-transport\docs\cfdi-domain\contributing-public-api.md):
+Lista alineada a `package.json` v0.3+ y [`contributing-public-api.md`](D:\cowork\boeltech\productos\tlamx\docs\cfdi-domain\contributing-public-api.md):
 
 - `@boeltech/cfdi-domain` — reglas, tipos, helpers (`reglas`, `MERCANCIA_CP31_DETAIL_KEYS`, `sortTrackingEventsForTimeline`, …)
 - `@boeltech/cfdi-domain/validadores/trips` — schemas Zod compartidos de viajes/paradas/carga
@@ -35,7 +35,7 @@ Lista alineada a `package.json` v0.3+ y [`contributing-public-api.md`](D:\cowork
 - `@boeltech/cfdi-domain/serializadores/carta-porte-31` — XML complemento Carta Porte 3.1 (API)
 - `@boeltech/cfdi-domain/serializadores/rep20` — XML complemento recepción de pagos 2.0 (API)
 
-Rollout domicilios v0.3+ (web): `D:\cowork\boeltech\erp-transport\docs\direcciones\address-cfdi-domain-v03-rollout-web.md` (índice unificado: `address-cfdi-domain-v03-rollout.md`).
+Rollout domicilios v0.3+ (web): `D:\cowork\boeltech\productos\tlamx\docs\direcciones\address-cfdi-domain-v03-rollout-web.md` (índice unificado: `address-cfdi-domain-v03-rollout.md`).
 
 ## Web
 
@@ -52,8 +52,8 @@ Rollout domicilios v0.3+ (web): `D:\cowork\boeltech\erp-transport\docs\direccion
 
 ## Rollout y pruebas
 
-- Activación gradual por tenant (`cfdi_domain_v1`) para viajes/carga: `D:\cowork\boeltech\erp-transport\docs\facturacion\cfdi-domain-v1-rollout-runbook.md`.
-- Rollout **direcciones SAT v0.3+**: `D:\cowork\boeltech\erp-transport\docs\direcciones\address-cfdi-domain-v03-rollout.md`.
+- Activación gradual por tenant (`cfdi_domain_v1`) para viajes/carga: `D:\cowork\boeltech\productos\tlamx\docs\facturacion\cfdi-domain-v1-rollout-runbook.md`.
+- Rollout **direcciones SAT v0.3+**: `D:\cowork\boeltech\productos\tlamx\docs\direcciones\address-cfdi-domain-v03-rollout.md`.
 - Tras cambios de contrato: contract tests web (`src/shared/cfdi/contract-address-validation.test.ts`) y regresión Trips (`npm run test:trips:regression`).
 
 ## Excepciones

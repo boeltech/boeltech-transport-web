@@ -4,7 +4,7 @@ Chrome global alrededor del `<Outlet />`: providers, sidebar, header, toasts. La
 viven dentro y usan **page shells** (`src/shared/ui/page-shells/README.md`), capa distinta.
 
 Intención y reglas visibles (header sólido, títulos solo en el page shell, toast vs alert vs
-badge vs campana): SoT `D:\cowork\boeltech\erp-transport\design\tlamx\platforms\web\design.md` §3 y §6.
+badge vs campana): SoT `D:\cowork\boeltech\productos\tlamx\design\tlamx\platforms\web\design.md` §3 y §6.
 Demo viva: `/design-system` → App Shell.
 
 ```

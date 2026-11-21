@@ -36,7 +36,7 @@ Patrón UX transversal **BUSCAR → ENCONTRAR → CONFIRMAR → USAR** sobre el 
 - Resolver Mapbox→SAT: `@shared/geolocation/addressResolver`
 - Anti-duplicados (warning): `@shared/location/detectPossibleDuplicates`
 - Precarga existente: `@shared/ui/address-picker` (`AddressPicker` se conserva)
-- Guía usuario: `D:\cowork\boeltech\erp-transport\docs\direcciones\patron-location-usuario.md`
+- Guía usuario: `D:\cowork\boeltech\productos\tlamx\docs\direcciones\patron-location-usuario.md`
 - Addendum calidad búsqueda (pegado Google): `design/adr/0092-addendum-calidad-busqueda-location-pegado.md`
 - Smoke: `npm run test:smoke:location-field`
 
