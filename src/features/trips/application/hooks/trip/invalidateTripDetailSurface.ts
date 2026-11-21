@@ -1,5 +1,9 @@
 import type { QueryClient } from "@tanstack/react-query";
 
+import {
+  invalidateFinanceAnalysisQueries,
+  scheduleFinanceAnalysisRefresh,
+} from "@features/approvals/application/invalidateApprovalsQueries";
 import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
 import {
   TripStatus,
@@ -59,4 +63,13 @@ export async function invalidateTripDetailSurface(
   });
 
   invalidateDashboardLiveQueries(queryClient);
+
+  // Q03: cierre / cancelación → Análisis inmediato + reinvalidación MV ~70 s.
+  if (
+    opts?.status === TripStatus.COMPLETED ||
+    opts?.status === TripStatus.CANCELLED
+  ) {
+    invalidateFinanceAnalysisQueries(queryClient);
+    scheduleFinanceAnalysisRefresh(queryClient);
+  }
 }

@@ -33,7 +33,7 @@ export const reportsCopy = {
           "Mes con mes: cuánto ingresó, cuánto se gastó y el margen, comparado con el mismo mes del año anterior.",
       },
       margin: {
-        title: "Rentabilidad y margen",
+        title: "Margen",
         description:
           "Qué clientes, rutas, unidades y operadores te dejan margen en el periodo que elijas (por defecto, los últimos 12 meses completos).",
       },

@@ -54,6 +54,52 @@ const U07_ARTICLES: HelpArticle[] = [
   }),
 ];
 
+/** U08 Finanzas: primario por ruta (ola 4 D; Tendencia 145 ante Margen 150). */
+const U08_ARTICLES: HelpArticle[] = [
+  article({
+    id: "revisar-cartera",
+    sortOrder: 110,
+    group: "finanzas",
+    screens: ["/finance"],
+  }),
+  article({
+    id: "cobrar-a-credito",
+    sortOrder: 100,
+    group: "cobranza",
+    screens: ["/finance/payments", "/finance/invoices", "/invoices/:id"],
+  }),
+  article({
+    id: "aprobar-cola",
+    sortOrder: 120,
+    group: "finanzas",
+    screens: ["/finance/approvals"],
+  }),
+  article({
+    id: "consultar-tendencia",
+    sortOrder: 145,
+    group: "finanzas",
+    screens: ["/finance/analysis"],
+  }),
+  article({
+    id: "ver-rentabilidad",
+    sortOrder: 150,
+    group: "finanzas",
+    screens: ["/finance/analysis"],
+  }),
+  article({
+    id: "revisar-gasto-viaje",
+    sortOrder: 170,
+    group: "finanzas",
+    screens: ["/finance/analysis"],
+  }),
+  article({
+    id: "consultar-reportes",
+    sortOrder: 160,
+    group: "finanzas",
+    screens: ["/reports"],
+  }),
+];
+
 function primaryForPath(
   pathname: string,
   catalog: readonly HelpArticle[] = U07_ARTICLES,
@@ -129,6 +175,36 @@ describe("selectPrimaryHelpArticle", () => {
       });
       expect(primaryForPath("/finance/operator-payments/advances", preD2)).toBe(
         "liquidar-viaje",
+      );
+    });
+  });
+
+  describe("U08 finance · ola4 D primario por ruta", () => {
+    it("/finance → revisar-cartera (sin ceder a cobrar-a-credito)", () => {
+      expect(primaryForPath("/finance", U08_ARTICLES)).toBe("revisar-cartera");
+    });
+
+    it("/finance/payments → cobrar-a-credito", () => {
+      expect(primaryForPath("/finance/payments", U08_ARTICLES)).toBe(
+        "cobrar-a-credito",
+      );
+    });
+
+    it("/finance/analysis → consultar-tendencia (sort 145)", () => {
+      expect(primaryForPath("/finance/analysis", U08_ARTICLES)).toBe(
+        "consultar-tendencia",
+      );
+    });
+
+    it("/finance/approvals → aprobar-cola", () => {
+      expect(primaryForPath("/finance/approvals", U08_ARTICLES)).toBe(
+        "aprobar-cola",
+      );
+    });
+
+    it("/reports → consultar-reportes", () => {
+      expect(primaryForPath("/reports", U08_ARTICLES)).toBe(
+        "consultar-reportes",
       );
     });
   });

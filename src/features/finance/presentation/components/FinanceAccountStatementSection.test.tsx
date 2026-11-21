@@ -1,9 +1,10 @@
 import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AccountStatementItem } from "@features/finance/domain";
+import { FINANCE_HUB_PATH } from "@features/finance/application";
 import { financeCopy } from "../copy";
 import { FinanceAccountStatementSection } from "./FinanceAccountStatementSection";
 
@@ -132,6 +133,45 @@ describe("FinanceAccountStatementSection", () => {
       expect.stringContaining("/finance/collections/new?"),
     );
     expect(collect.getAttribute("href")).toContain("channel=with_invoice");
+  });
+
+  it("pasa state.from=/finance y fromLabel=Cartera al abrir el cliente", async () => {
+    const user = userEvent.setup();
+    const clientId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const clientName = "INDUSTRIA ILUMINADORA DE ALMACENES";
+
+    function ClientProbe() {
+      const location = useLocation();
+      return <div>{JSON.stringify(location.state)}</div>;
+    }
+
+    render(
+      <MemoryRouter initialEntries={[FINANCE_HUB_PATH]}>
+        <Routes>
+          <Route
+            path={FINANCE_HUB_PATH}
+            element={
+              <FinanceAccountStatementSection
+                rows={[
+                  buildRow({
+                    clientId,
+                    openInvoiceCount: 1,
+                    balanceDue: 12_000,
+                  }),
+                ]}
+                isLoading={false}
+                showCollectAction
+              />
+            }
+          />
+          <Route path="/clients/:id" element={<ClientProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("link", { name: clientName }));
+    expect(screen.getByText(/"from":"\/finance"/)).toBeInTheDocument();
+    expect(screen.getByText(/"fromLabel":"Cartera"/)).toBeInTheDocument();
   });
 
   it("filtra por canal Con factura / Sin factura / Con vencido", async () => {

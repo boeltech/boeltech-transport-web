@@ -1,7 +1,12 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 
+import {
+  cancelFinanceAnalysisRefresh,
+  FINANCE_ANALYSIS_REFRESH_DELAY_MS,
+} from "@features/approvals/application/invalidateApprovalsQueries";
 import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
+import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
 import { TripStatus, tripQueryKeys } from "@features/trips/domain";
 
 import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";
@@ -10,9 +15,16 @@ describe("invalidateTripDetailSurface", () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    cancelFinanceAnalysisRefresh();
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
+  });
+
+  afterEach(() => {
+    cancelFinanceAnalysisRefresh();
+    vi.useRealTimers();
   });
 
   it("purges timeline when status is cancelled", async () => {
@@ -134,5 +146,53 @@ describe("invalidateTripDetailSurface", () => {
       queryClient.getQueryState(tripQueryKeys.invoiceableSummary("acme"))
         ?.isInvalidated,
     ).toBe(true);
+  });
+
+  it("invalidates Análisis keys immediately and schedules MV refresh (Q03)", async () => {
+    const tripId = "trip-8";
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await invalidateTripDetailSurface(queryClient, tripId, {
+      status: TripStatus.COMPLETED,
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...financeQueryKeys.all, "profitability-trips"],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...financeQueryKeys.all, "profitability-aggregate"],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...financeQueryKeys.all, "monthly-performance"],
+    });
+
+    invalidateSpy.mockClear();
+    vi.advanceTimersByTime(FINANCE_ANALYSIS_REFRESH_DELAY_MS);
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...financeQueryKeys.all, "profitability-trips"],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...financeQueryKeys.all, "profitability-aggregate"],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...financeQueryKeys.all, "monthly-performance"],
+    });
+  });
+
+  it("invalidates Análisis on cancel as well (Q03)", async () => {
+    const tripId = "trip-9";
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await invalidateTripDetailSurface(queryClient, tripId, {
+      status: TripStatus.CANCELLED,
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...financeQueryKeys.all, "profitability-trips"],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: [...financeQueryKeys.all, "monthly-performance"],
+    });
   });
 });

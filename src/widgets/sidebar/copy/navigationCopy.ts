@@ -58,7 +58,7 @@ export const navigationCopy = {
     financeDispatch: "Envíos",
     /** Ritual periódico: armar → revisar → mandar (Opción A). */
     financeDispatchPeriod: "Correo del periodo",
-    /** /finance/analysis: vistas Mes a mes (por defecto), Rentabilidad y Gastos. */
+    /** /finance/analysis: vistas Tendencia (por defecto), Margen y Gasto de viaje. */
     financeAnalysis: "Análisis",
     /** Listado de facturas (staff con invoices.read y portal client). */
     financeInvoices: "Facturas",

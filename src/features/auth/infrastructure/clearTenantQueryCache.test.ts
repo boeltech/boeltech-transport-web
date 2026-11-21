@@ -4,6 +4,13 @@ import {
   isPlatformQueryKey,
 } from "./clearTenantQueryCache";
 
+const cancelFinanceAnalysisRefresh = vi.fn();
+
+vi.mock("@features/approvals/application/invalidateApprovalsQueries", () => ({
+  cancelFinanceAnalysisRefresh: (...args: unknown[]) =>
+    cancelFinanceAnalysisRefresh(...args),
+}));
+
 describe("isPlatformQueryKey", () => {
   it("detects platform prefix", () => {
     expect(isPlatformQueryKey(["platform"])).toBe(true);
@@ -14,12 +21,14 @@ describe("isPlatformQueryKey", () => {
 });
 
 describe("clearTenantQueryCache", () => {
-  it("removes only non-platform queries", () => {
+  it("removes only non-platform queries and cancels delayed Análisis refresh", () => {
     const removeQueries = vi.fn();
     const queryClient = { removeQueries } as never;
+    cancelFinanceAnalysisRefresh.mockClear();
 
     clearTenantQueryCache(queryClient);
 
+    expect(cancelFinanceAnalysisRefresh).toHaveBeenCalledTimes(1);
     expect(removeQueries).toHaveBeenCalledTimes(1);
     const { predicate } = removeQueries.mock.calls[0][0] as {
       predicate: (q: { queryKey: unknown[] }) => boolean;

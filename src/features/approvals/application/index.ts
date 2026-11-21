@@ -1,5 +1,11 @@
 export { approvalsQueryKeys } from "./approvalsQueryKeys";
-export { invalidateApprovalsRelatedQueries } from "./invalidateApprovalsQueries";
+export {
+  cancelFinanceAnalysisRefresh,
+  FINANCE_ANALYSIS_REFRESH_DELAY_MS,
+  invalidateApprovalsRelatedQueries,
+  invalidateFinanceAnalysisQueries,
+  scheduleFinanceAnalysisRefresh,
+} from "./invalidateApprovalsQueries";
 export { useApprovals } from "./hooks/useApprovals";
 export {
   useApproveApprovable,

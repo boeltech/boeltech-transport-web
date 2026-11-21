@@ -48,6 +48,12 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
     );
     expect(isSafeTripReturnHref("/invoices/inv-1")).toBe(true);
     expect(isSafeTripReturnHref("/finance/invoices?page=2")).toBe(true);
+    expect(isSafeTripReturnHref("/finance/analysis")).toBe(true);
+    expect(
+      isSafeTripReturnHref(
+        "/finance/analysis?view=margin&from=2026-01-01&to=2026-12-31",
+      ),
+    ).toBe(true);
     expect(isSafeTripReturnHref("/invoices/new")).toBe(false);
     expect(isSafeTripReturnHref("/invoices/inv-1/edit")).toBe(false);
     expect(isSafeTripReturnHref("/dashboard")).toBe(false);
@@ -57,13 +63,16 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
   it("rechaza externos, traversal y rutas fuera del prefijo de pagos", () => {
     expect(isSafeTripReturnHref("//evil.com")).toBe(false);
     expect(isSafeTripReturnHref("https://evil.example/phish")).toBe(false);
+    expect(isSafeTripReturnHref("../finance/analysis")).toBe(false);
     expect(
       isSafeTripReturnHref("/finance/operator-payments/../../x"),
     ).toBe(false);
+    expect(isSafeTripReturnHref("/finance/analysis/../billing")).toBe(false);
     expect(isSafeTripReturnHref("/finance/billing")).toBe(false);
     expect(isSafeTripReturnHref("/finance/compensation")).toBe(false);
     expect(resolveTripBackHref("//evil.com")).toBe("/trips");
     expect(resolveTripBackHref("https://evil.example/phish")).toBe("/trips");
+    expect(resolveTripBackHref("../finance/analysis")).toBe("/trips");
     expect(
       resolveTripBackHref("/finance/operator-payments/../../x"),
     ).toBe("/trips");
@@ -74,6 +83,11 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
     expect(resolveTripBackHref("/finance/invoices?bucket=stamped")).toBe(
       "/finance/invoices?bucket=stamped",
     );
+    expect(
+      resolveTripBackHref(
+        "/finance/analysis?view=margin&from=2026-01-01",
+      ),
+    ).toBe("/finance/analysis?view=margin&from=2026-01-01");
     expect(
       resolveTripBackHref(
         "/finance/operator-payments/11111111-1111-4111-8111-111111111111",
@@ -140,6 +154,17 @@ describe("resolveTripWayfindingBackLabel", () => {
         "/finance/approvals?type=trip_expense&status=pending",
       ),
     ).toBe(shellCopy.state.backToApprovals);
+  });
+
+  it("label Volver al análisis desde Análisis", () => {
+    expect(resolveTripWayfindingBackLabel("/finance/analysis")).toBe(
+      shellCopy.state.backToAnalysis,
+    );
+    expect(
+      resolveTripWayfindingBackLabel(
+        "/finance/analysis?view=margin&from=2026-01-01&to=2026-12-31",
+      ),
+    ).toBe(shellCopy.state.backToAnalysis);
   });
 
   it("label Volver a Viajes en el listado", () => {

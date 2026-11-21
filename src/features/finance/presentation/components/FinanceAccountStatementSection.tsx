@@ -273,6 +273,10 @@ export function FinanceAccountStatementSection({
                             {row.clientId ? (
                               <Link
                                 to={`/clients/${row.clientId}`}
+                                state={{
+                                  from: FINANCE_HUB_PATH,
+                                  fromLabel: "Cartera",
+                                }}
                                 className="font-medium text-foreground hover:underline"
                               >
                                 {row.clientName}
@@ -389,6 +393,10 @@ export function FinanceAccountStatementSection({
                                       <DropdownMenuItem asChild>
                                         <Link
                                           to={`/clients/${row.clientId}`}
+                                          state={{
+                                            from: FINANCE_HUB_PATH,
+                                            fromLabel: "Cartera",
+                                          }}
                                           aria-label={copy.viewClientActionAria(
                                             row.clientName,
                                           )}

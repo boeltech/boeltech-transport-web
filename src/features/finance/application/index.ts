@@ -166,6 +166,7 @@ export {
   buildFinanceMarginMonthHref,
   resolveLegacyFinanceLocation,
   FINANCE_HUB_PATH,
+  FINANCE_ANALYSIS_PATH,
   FINANCE_INVOICEABLE_PATH,
   FINANCE_INVOICES_PATH,
   FINANCE_COBROS_PATH,

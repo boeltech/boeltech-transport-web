@@ -49,7 +49,7 @@ describe("ReportsPage", () => {
       "href",
       "/finance/analysis?view=performance",
     );
-    expect(screen.getByText("Rentabilidad y margen")).toBeInTheDocument();
+    expect(screen.getByText("Margen")).toBeInTheDocument();
     expect(screen.getByText("Cartera y cobranza")).toBeInTheDocument();
     expect(screen.getByText("Gastos por unidad, operador o ruta")).toBeInTheDocument();
     expect(screen.getByText("Operación y volumen de viajes")).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("ReportsPage", () => {
     expect(
       screen.queryByText("Comparativa mensual e interanual"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("Rentabilidad y margen")).not.toBeInTheDocument();
+    expect(screen.queryByText("Margen")).not.toBeInTheDocument();
     expect(screen.queryByText("Cartera y cobranza")).not.toBeInTheDocument();
     expect(screen.queryByText("Gastos por unidad, operador o ruta")).not.toBeInTheDocument();
     expect(screen.getByText("Operación y volumen de viajes")).toBeInTheDocument();

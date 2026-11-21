@@ -7,7 +7,7 @@
  */
 
 import { useMemo, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { Button } from "@shared/ui/button";
@@ -125,6 +125,7 @@ function buildDetailColumns(
   dimension: MarginAnalysisDimension,
   scope: ProfitabilityScope,
   operational: boolean,
+  tripReturnFrom: string,
 ): EntityListColumnDef<ProfitabilityTripItem>[] {
   const showPipelineColumn = scope === "pipeline";
   const showMarginColumns = scope !== "pipeline" && scope !== "cancelled";
@@ -146,6 +147,7 @@ function buildDetailColumns(
           primary: row.tripId ? (
             <Link
               to={`/trips/${row.tripId}`}
+              state={{ from: tripReturnFrom }}
               className="font-mono font-medium text-primary hover:underline"
               aria-label={financeCopy.profitability.masterDetail.viewTrip(
                 row.tripCode,
@@ -275,6 +277,8 @@ function ProfitabilityTripDetailPanel({
   lossOnly: boolean;
   queriesEnabled: boolean;
 }) {
+  const location = useLocation();
+  const tripReturnFrom = `${location.pathname}${location.search}`;
   const { data, isLoading } = useProfitabilityTrips(filters, {
     enabled: queriesEnabled,
   });
@@ -311,7 +315,12 @@ function ProfitabilityTripDetailPanel({
       <EntityListTable
         framed={false}
         density="compact"
-        columns={buildDetailColumns(dimension, scope, operational)}
+        columns={buildDetailColumns(
+          dimension,
+          scope,
+          operational,
+          tripReturnFrom,
+        )}
         rows={rows}
         getRowId={(row) => row.tripId || row.tripCode}
       />

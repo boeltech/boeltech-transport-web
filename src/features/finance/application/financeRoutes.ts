@@ -34,6 +34,9 @@ const LEGACY_TAB_ALIASES: Record<
 /** Hub Finanzas (Cartera / resumen). */
 export const FINANCE_HUB_PATH = "/finance";
 
+/** Análisis (Tendencia / Margen / Gasto de viaje). */
+export const FINANCE_ANALYSIS_PATH = "/finance/analysis";
+
 /** Cola Por facturar. */
 export const FINANCE_INVOICEABLE_PATH = "/finance/invoiceable";
 
@@ -192,7 +195,7 @@ const TAB_TO_PATH: Record<string, string> = {
   "dispatch-runs": FINANCE_DISPATCH_PERIOD_PATH,
   dispatch: FINANCE_DISPATCH_PATH,
   invoices: FINANCE_INVOICES_PATH,
-  analysis: "/finance/analysis",
+  analysis: FINANCE_ANALYSIS_PATH,
 };
 
 export function FINANCE_DISPATCH_DETAIL_PATH(id: string): string {
@@ -276,7 +279,7 @@ export function buildFinanceAnalysisHref(
   options?: { preserveFrom?: URLSearchParams },
 ): string {
   const params = buildFinanceAnalysisSearchParams(view, options);
-  return `/finance/analysis?${params.toString()}`;
+  return `${FINANCE_ANALYSIS_PATH}?${params.toString()}`;
 }
 
 /** Rentabilidad de un mes de negocio (`YYYY-MM`), p. ej. desde «Cifras por mes». */
@@ -287,5 +290,5 @@ export function buildFinanceMarginMonthHref(monthKey: string): string {
     from,
     to,
   });
-  return `/finance/analysis?${params.toString()}`;
+  return `${FINANCE_ANALYSIS_PATH}?${params.toString()}`;
 }

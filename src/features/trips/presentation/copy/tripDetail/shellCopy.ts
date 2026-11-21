@@ -189,6 +189,8 @@ export const shellCopy = {
     /** Desde listado Finanzas facturas. */
     backToInvoices: "Volver a facturas",
     backToApprovals: "Volver a aprobaciones",
+    /** Desde Análisis (`/finance/analysis`). */
+    backToAnalysis: "Volver al análisis",
     backToInvoiceable: "Volver a Por facturar",
     backToDispatch: "Volver a envíos",
     backToDispatchPeriod: "Volver a Correo del periodo",

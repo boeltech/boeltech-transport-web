@@ -1,5 +1,6 @@
 import { isApprovalsInboxHref } from "@features/approvals";
 import {
+  FINANCE_ANALYSIS_PATH,
   FINANCE_DISPATCH_PATH,
   FINANCE_INVOICEABLE_PATH,
   FINANCE_INVOICES_PATH,
@@ -95,6 +96,15 @@ function isFinanceDispatchHref(href: string): boolean {
   );
 }
 
+function isFinanceAnalysisHref(href: string): boolean {
+  const path = pathOnly(href);
+  if (hasUnsafePathSegments(path)) return false;
+  return (
+    path === FINANCE_ANALYSIS_PATH ||
+    path.startsWith(`${FINANCE_ANALYSIS_PATH}/`)
+  );
+}
+
 function isSettlementsHref(href: string): boolean {
   const path = pathOnly(href);
   return (
@@ -145,6 +155,7 @@ export function isSafeTripReturnHref(href: string): boolean {
   if (isSettlementsHref(href)) return true;
   if (isInvoiceDetailHref(href)) return true;
   if (isFinanceInvoicesHref(href)) return true;
+  if (isFinanceAnalysisHref(href)) return true;
   return false;
 }
 
@@ -198,6 +209,9 @@ export function resolveTripWayfindingBackLabel(href: string): string {
   }
   if (isApprovalsInboxHref(href)) {
     return shellCopy.state.backToApprovals;
+  }
+  if (isFinanceAnalysisHref(href)) {
+    return shellCopy.state.backToAnalysis;
   }
   const path = pathOnly(href);
   if (path === FINANCE_INVOICEABLE_PATH) {

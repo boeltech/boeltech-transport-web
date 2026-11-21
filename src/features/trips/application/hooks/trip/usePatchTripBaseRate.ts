@@ -3,6 +3,10 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
+import {
+  invalidateFinanceAnalysisQueries,
+  scheduleFinanceAnalysisRefresh,
+} from "@features/approvals/application/invalidateApprovalsQueries";
 import { tripQueryKeys, type Trip } from "@features/trips/domain";
 import { tripsApi } from "@features/trips/infrastructure/api/tripsApi";
 
@@ -43,6 +47,9 @@ export function usePatchTripBaseRate(
         queryKey: [...tripQueryKeys.all, "invoiceable-summary"],
         refetchType: "active",
       });
+      // Q03: tarifa base → Análisis inmediato + reinvalidación MV ~70 s.
+      invalidateFinanceAnalysisQueries(queryClient);
+      scheduleFinanceAnalysisRefresh(queryClient);
       await userOnSuccess?.(trip, baseRate, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
