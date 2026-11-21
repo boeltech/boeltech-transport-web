@@ -111,6 +111,46 @@ const U03_U04_ARTICLES: HelpArticle[] = [
   }),
 ];
 
+/** U09 Administración: primario por ruta (ola 6 D-A; activity/new ante :id). */
+const U09_ARTICLES: HelpArticle[] = [
+  article({
+    id: "abrir-sucursal",
+    sortOrder: 15,
+    group: "administracion",
+    screens: ["/branches/new", "/branches/:id/edit"],
+  }),
+  article({
+    id: "revisar-historial-usuarios",
+    sortOrder: 18,
+    group: "administracion",
+    screens: ["/users/activity"],
+  }),
+  article({
+    id: "alta-usuarios-rol",
+    sortOrder: 20,
+    group: "administracion",
+    screens: ["/users/new"],
+  }),
+  article({
+    id: "registrar-empleado",
+    sortOrder: 40,
+    group: "administracion",
+    screens: ["/employees", "/employees/new", "/employees/:id"],
+  }),
+  article({
+    id: "consultar-sucursales",
+    sortOrder: 60,
+    group: "administracion",
+    screens: ["/branches", "/branches/:id"],
+  }),
+  article({
+    id: "usuarios-configuracion",
+    sortOrder: 190,
+    group: "administracion",
+    screens: ["/users", "/users/:id"],
+  }),
+];
+
 /** U08 Finanzas: primario por ruta (ola 4 D; Tendencia 145 ante Margen 150). */
 const U08_ARTICLES: HelpArticle[] = [
   article({
@@ -310,6 +350,61 @@ describe("selectPrimaryHelpArticle", () => {
       expect(
         primaryForPath("/finance/operational-cash-pending", U03_U04_ARTICLES),
       ).toBe("efectivo-sin-factura");
+    });
+  });
+
+  describe("U09 admin · ola6 D-A primario por ruta", () => {
+    const uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+
+    it("/users · /users/:uuid → usuarios-configuracion (190)", () => {
+      expect(primaryForPath("/users", U09_ARTICLES)).toBe(
+        "usuarios-configuracion",
+      );
+      expect(primaryForPath(`/users/${uuid}`, U09_ARTICLES)).toBe(
+        "usuarios-configuracion",
+      );
+    });
+
+    it("/users/new → alta-usuarios-rol (20)", () => {
+      expect(primaryForPath("/users/new", U09_ARTICLES)).toBe(
+        "alta-usuarios-rol",
+      );
+    });
+
+    it("/users/activity → revisar-historial-usuarios (18)", () => {
+      expect(primaryForPath("/users/activity", U09_ARTICLES)).toBe(
+        "revisar-historial-usuarios",
+      );
+    });
+
+    it("/branches · /branches/:uuid → consultar-sucursales (60)", () => {
+      expect(primaryForPath("/branches", U09_ARTICLES)).toBe(
+        "consultar-sucursales",
+      );
+      expect(primaryForPath(`/branches/${uuid}`, U09_ARTICLES)).toBe(
+        "consultar-sucursales",
+      );
+    });
+
+    it("/branches/new · /branches/:uuid/edit → abrir-sucursal (15)", () => {
+      expect(primaryForPath("/branches/new", U09_ARTICLES)).toBe(
+        "abrir-sucursal",
+      );
+      expect(primaryForPath(`/branches/${uuid}/edit`, U09_ARTICLES)).toBe(
+        "abrir-sucursal",
+      );
+    });
+
+    it("/employees · /new · /:uuid → registrar-empleado (40)", () => {
+      expect(primaryForPath("/employees", U09_ARTICLES)).toBe(
+        "registrar-empleado",
+      );
+      expect(primaryForPath("/employees/new", U09_ARTICLES)).toBe(
+        "registrar-empleado",
+      );
+      expect(primaryForPath(`/employees/${uuid}`, U09_ARTICLES)).toBe(
+        "registrar-empleado",
+      );
     });
   });
 
