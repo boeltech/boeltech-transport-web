@@ -54,6 +54,63 @@ const U07_ARTICLES: HelpArticle[] = [
   }),
 ];
 
+/** U03 Flota + U04 Comercial: primario por ruta (ola 5 D; C4 hallazgos-u03-u04). */
+const U03_U04_ARTICLES: HelpArticle[] = [
+  article({
+    id: "cargar-flota-clientes",
+    sortOrder: 30,
+    group: "flota",
+    screens: [
+      "/vehicles",
+      "/vehicles/new",
+      "/trailers",
+      "/trailers/new",
+      "/drivers",
+      "/drivers/new",
+    ],
+  }),
+  article({
+    id: "documentos-por-vencer",
+    sortOrder: 35,
+    group: "flota",
+    screens: ["/fleet/documents"],
+  }),
+  article({
+    id: "corregir-ficha-flota",
+    sortOrder: 45,
+    group: "flota",
+    screens: [
+      "/vehicles/:id",
+      "/vehicles/:id/edit",
+      "/trailers/:id",
+      "/trailers/:id/edit",
+      "/drivers/:id",
+      "/drivers/:id/edit",
+    ],
+  }),
+  article({
+    id: "alta-cliente",
+    sortOrder: 70,
+    group: "comercial",
+    screens: ["/clients", "/clients/new"],
+  }),
+  article({
+    id: "ficha-cliente",
+    sortOrder: 75,
+    group: "comercial",
+    screens: ["/clients/:id", "/clients/:id/edit"],
+  }),
+  article({
+    id: "efectivo-sin-factura",
+    sortOrder: 105,
+    group: "cobranza",
+    screens: [
+      "/finance/operational-cash-pending",
+      "/clients/:id/operational-receipt-batches/new",
+    ],
+  }),
+];
+
 /** U08 Finanzas: primario por ruta (ola 4 D; Tendencia 145 ante Margen 150). */
 const U08_ARTICLES: HelpArticle[] = [
   article({
@@ -176,6 +233,83 @@ describe("selectPrimaryHelpArticle", () => {
       expect(primaryForPath("/finance/operator-payments/advances", preD2)).toBe(
         "liquidar-viaje",
       );
+    });
+  });
+
+  describe("U03/U04 fleet+clients · ola5 D primario por ruta", () => {
+    const uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+
+    it("/vehicles · /vehicles/new → cargar-flota-clientes (30)", () => {
+      expect(primaryForPath("/vehicles", U03_U04_ARTICLES)).toBe(
+        "cargar-flota-clientes",
+      );
+      expect(primaryForPath("/vehicles/new", U03_U04_ARTICLES)).toBe(
+        "cargar-flota-clientes",
+      );
+    });
+
+    it("/vehicles/:uuid · edit → corregir-ficha-flota (45)", () => {
+      expect(primaryForPath(`/vehicles/${uuid}`, U03_U04_ARTICLES)).toBe(
+        "corregir-ficha-flota",
+      );
+      expect(
+        primaryForPath(`/vehicles/${uuid}/edit`, U03_U04_ARTICLES),
+      ).toBe("corregir-ficha-flota");
+    });
+
+    it("/trailers · /new → cargar-flota-clientes", () => {
+      expect(primaryForPath("/trailers", U03_U04_ARTICLES)).toBe(
+        "cargar-flota-clientes",
+      );
+      expect(primaryForPath("/trailers/new", U03_U04_ARTICLES)).toBe(
+        "cargar-flota-clientes",
+      );
+    });
+
+    it("/drivers · /new → cargar-flota-clientes", () => {
+      expect(primaryForPath("/drivers", U03_U04_ARTICLES)).toBe(
+        "cargar-flota-clientes",
+      );
+      expect(primaryForPath("/drivers/new", U03_U04_ARTICLES)).toBe(
+        "cargar-flota-clientes",
+      );
+    });
+
+    it("/drivers/:uuid → corregir-ficha-flota", () => {
+      expect(primaryForPath(`/drivers/${uuid}`, U03_U04_ARTICLES)).toBe(
+        "corregir-ficha-flota",
+      );
+    });
+
+    it("/fleet/documents → documentos-por-vencer (35)", () => {
+      expect(primaryForPath("/fleet/documents", U03_U04_ARTICLES)).toBe(
+        "documentos-por-vencer",
+      );
+    });
+
+    it("/clients · /new → alta-cliente (70)", () => {
+      expect(primaryForPath("/clients", U03_U04_ARTICLES)).toBe("alta-cliente");
+      expect(primaryForPath("/clients/new", U03_U04_ARTICLES)).toBe(
+        "alta-cliente",
+      );
+    });
+
+    it("/clients/:uuid → ficha-cliente (75)", () => {
+      expect(primaryForPath(`/clients/${uuid}`, U03_U04_ARTICLES)).toBe(
+        "ficha-cliente",
+      );
+    });
+
+    it("/clients/:id/operational-receipt-batches/new → efectivo-sin-factura", () => {
+      expect(
+        primaryForPath(
+          `/clients/${uuid}/operational-receipt-batches/new`,
+          U03_U04_ARTICLES,
+        ),
+      ).toBe("efectivo-sin-factura");
+      expect(
+        primaryForPath("/finance/operational-cash-pending", U03_U04_ARTICLES),
+      ).toBe("efectivo-sin-factura");
     });
   });
 
