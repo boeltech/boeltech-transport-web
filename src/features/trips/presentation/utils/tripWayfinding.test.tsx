@@ -36,6 +36,16 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
       isSafeTripReturnHref("/finance/approvals?type=trip_expense"),
     ).toBe(true);
     expect(isSafeTripReturnHref("/finance/settlements/new")).toBe(true);
+    expect(isSafeTripReturnHref("/finance/operator-payments")).toBe(true);
+    expect(isSafeTripReturnHref("/finance/operator-payments/new")).toBe(true);
+    expect(
+      isSafeTripReturnHref(
+        "/finance/operator-payments/11111111-1111-4111-8111-111111111111",
+      ),
+    ).toBe(true);
+    expect(isSafeTripReturnHref("/finance/operator-payments/advances")).toBe(
+      true,
+    );
     expect(isSafeTripReturnHref("/invoices/inv-1")).toBe(true);
     expect(isSafeTripReturnHref("/finance/invoices?page=2")).toBe(true);
     expect(isSafeTripReturnHref("/invoices/new")).toBe(false);
@@ -44,11 +54,31 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
     expect(isSafeTripReturnHref("/settings")).toBe(false);
   });
 
+  it("rechaza externos, traversal y rutas fuera del prefijo de pagos", () => {
+    expect(isSafeTripReturnHref("//evil.com")).toBe(false);
+    expect(isSafeTripReturnHref("https://evil.example/phish")).toBe(false);
+    expect(
+      isSafeTripReturnHref("/finance/operator-payments/../../x"),
+    ).toBe(false);
+    expect(isSafeTripReturnHref("/finance/billing")).toBe(false);
+    expect(isSafeTripReturnHref("/finance/compensation")).toBe(false);
+    expect(resolveTripBackHref("//evil.com")).toBe("/trips");
+    expect(resolveTripBackHref("https://evil.example/phish")).toBe("/trips");
+    expect(
+      resolveTripBackHref("/finance/operator-payments/../../x"),
+    ).toBe("/trips");
+  });
+
   it("resolveTripBackHref acepta allowlist y cae en /trips", () => {
     expect(resolveTripBackHref("/invoices/inv-9")).toBe("/invoices/inv-9");
     expect(resolveTripBackHref("/finance/invoices?bucket=stamped")).toBe(
       "/finance/invoices?bucket=stamped",
     );
+    expect(
+      resolveTripBackHref(
+        "/finance/operator-payments/11111111-1111-4111-8111-111111111111",
+      ),
+    ).toBe("/finance/operator-payments/11111111-1111-4111-8111-111111111111");
     expect(resolveTripBackHref("https://evil.example/phish")).toBe("/trips");
     expect(resolveTripBackHref("//evil.example/path")).toBe("/trips");
     expect(resolveTripBackHref("/dashboard")).toBe("/trips");
@@ -136,7 +166,7 @@ describe("resolveTripWayfindingBackLabel", () => {
     ).toBe(shellCopy.state.backToDispatchPeriod);
   });
 
-  it("label Volver al pago desde liquidaciones", () => {
+  it("label Volver al pago desde liquidaciones (legado y canónico)", () => {
     expect(
       resolveTripWayfindingBackLabel(
         "/finance/settlements/new?employeeId=emp-1&periodStart=2026-08-01&periodEnd=2026-08-15",
@@ -149,6 +179,22 @@ describe("resolveTripWayfindingBackLabel", () => {
     ).toBe(shellCopy.state.backToSettlementPayment);
     expect(
       resolveTripWayfindingBackLabel("/finance/settlements/pending-approval"),
+    ).toBe(shellCopy.state.backToList);
+    expect(
+      resolveTripWayfindingBackLabel("/finance/operator-payments"),
+    ).toBe(shellCopy.state.backToSettlementPayment);
+    expect(
+      resolveTripWayfindingBackLabel(
+        "/finance/operator-payments/new?employeeId=emp-1",
+      ),
+    ).toBe(shellCopy.state.backToSettlementPayment);
+    expect(
+      resolveTripWayfindingBackLabel(
+        "/finance/operator-payments/11111111-1111-4111-8111-111111111111",
+      ),
+    ).toBe(shellCopy.state.backToSettlementPayment);
+    expect(
+      resolveTripWayfindingBackLabel("/finance/operator-payments/advances"),
     ).toBe(shellCopy.state.backToList);
   });
 });

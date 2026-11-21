@@ -5,16 +5,22 @@ import {
 } from "./helpDisplayGroup";
 
 describe("resolveHelpDisplayGroup (P-V1 A)", () => {
-  it("remaps the five article ids from the V5 handoff", () => {
+  it("no remapea ids U07 (group viene de datos)", () => {
     expect(resolveHelpDisplayGroup("liquidar-viaje", "finanzas")).toBe(
-      "pagos_operadores",
+      "finanzas",
     );
     expect(
       resolveHelpDisplayGroup("registrar-anticipo-operador", "finanzas"),
-    ).toBe("pagos_operadores");
+    ).toBe("finanzas");
     expect(resolveHelpDisplayGroup("esquema-compensacion", "finanzas")).toBe(
-      "pagos_operadores",
+      "finanzas",
     );
+    expect(
+      resolveHelpDisplayGroup("liquidar-viaje", "pagos_operadores"),
+    ).toBe("pagos_operadores");
+  });
+
+  it("remaps article ids de otras unidades", () => {
     expect(resolveHelpDisplayGroup("comparar-sucursales", "reportes")).toBe(
       "administracion",
     );

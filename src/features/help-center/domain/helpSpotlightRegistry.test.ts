@@ -29,4 +29,13 @@ describe("helpSpotlightRegistry", () => {
     expect(getHelpSpotlightTargets("no-existe")).toEqual([]);
     expect(getPrimaryHelpSpotlightTarget("no-existe")).toBeNull();
   });
+
+  it("liquidar-viaje usa rutas canónicas de Pagos a operadores", () => {
+    const primary = getPrimaryHelpSpotlightTarget("liquidar-viaje");
+    expect(primary?.screens).toEqual([
+      "/finance/operator-payments",
+      "/finance/operator-payments/new",
+      "/finance/operator-payments/:id",
+    ]);
+  });
 });

@@ -40,9 +40,9 @@ export const helpSpotlightRegistry: HelpSpotlightRegistry = {
       anchorId: "stl-liquidar-periodo",
       stepLabel: "Liquidar período / Armar pago",
       screens: [
-        "/finance/settlements",
-        "/finance/settlements/new",
-        "/finance/settlements/:id",
+        "/finance/operator-payments",
+        "/finance/operator-payments/new",
+        "/finance/operator-payments/:id",
       ],
     },
   ],

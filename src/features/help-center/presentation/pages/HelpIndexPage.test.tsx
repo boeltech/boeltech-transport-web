@@ -111,7 +111,8 @@ describe("HelpIndexPage (F1)", () => {
         {
           id: "liquidar-viaje",
           title: "Liquidar un viaje",
-          group: "finanzas",
+          // group canónico en datos (fase D); ya no se remapea en web
+          group: "pagos_operadores",
           screens: [],
           roles: [],
           phrase: "Cierras el corte del operador.",

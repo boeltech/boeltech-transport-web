@@ -4,6 +4,25 @@ import { compensationQueryKeys } from "../compensationQueryKeys";
 import { fetchAllCorridorTariffs } from "../utils/fetchAllCorridorTariffs";
 import type { CreateCorridorTariffPayload } from "../../domain/entities";
 
+/** Prefijos settlements (evitar import circular del barrel). */
+const SETTLEMENTS_PREVIEW_KEY = ["settlements", "preview"] as const;
+const SETTLEMENTS_CUT_PREVIEW_KEY = ["settlements", "cut-preview"] as const;
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
+
+function invalidateAfterCorridorChange(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  queryClient.invalidateQueries({ queryKey: compensationQueryKeys.corridors() });
+  queryClient.invalidateQueries({
+    queryKey: compensationQueryKeys.corridorsDuplicateCatalog(),
+  });
+  queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
+  // Comp→Set: montos corridor_match afectan preview, cut-preview y workbench
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_PREVIEW_KEY });
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_CUT_PREVIEW_KEY });
+  queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+}
+
 export function useCorridorTariffs(params?: {
   search?: string;
   isActive?: boolean;
@@ -29,11 +48,7 @@ export function useCreateCorridorTariff() {
   return useMutation({
     mutationFn: (payload: CreateCorridorTariffPayload) =>
       compensationApi.createCorridor(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.corridors() });
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.corridorsDuplicateCatalog() });
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
-    },
+    onSuccess: () => invalidateAfterCorridorChange(queryClient),
   });
 }
 
@@ -47,11 +62,7 @@ export function useUpdateCorridorTariff() {
       id: string;
       payload: Partial<CreateCorridorTariffPayload>;
     }) => compensationApi.updateCorridor(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.corridors() });
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.corridorsDuplicateCatalog() });
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
-    },
+    onSuccess: () => invalidateAfterCorridorChange(queryClient),
   });
 }
 
@@ -59,10 +70,6 @@ export function useDeleteCorridorTariff() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => compensationApi.deleteCorridor(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.corridors() });
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.corridorsDuplicateCatalog() });
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.templates() });
-    },
+    onSuccess: () => invalidateAfterCorridorChange(queryClient),
   });
 }

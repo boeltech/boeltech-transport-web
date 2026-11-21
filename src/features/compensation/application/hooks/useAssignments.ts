@@ -203,7 +203,14 @@ export function useUpsertFixedAllowanceOverride() {
     mutationFn: (payload: UpsertFixedAllowanceOverridePayload) =>
       compensationApi.upsertFixedAllowanceOverride(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: compensationQueryKeys.allowanceOverrides() });
+      queryClient.invalidateQueries({
+        queryKey: compensationQueryKeys.allowanceOverrides(),
+      });
+      // Misma Comp→Set que assign/activate: preview, cut-preview, workbench, Operadores
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_PREVIEW_KEY });
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_CUT_PREVIEW_KEY });
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_OPERATORS_KEY });
     },
   });
 }

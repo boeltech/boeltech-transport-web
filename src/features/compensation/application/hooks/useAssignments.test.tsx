@@ -10,9 +10,12 @@ import {
   useBatchCreateTemplateAssignments,
   useDeleteTemplateAssignment,
   useUpdateTemplateAssignment,
+  useUpsertFixedAllowanceOverride,
 } from "./useAssignments";
 
+const SETTLEMENTS_PREVIEW_KEY = ["settlements", "preview"] as const;
 const SETTLEMENTS_CUT_PREVIEW_KEY = ["settlements", "cut-preview"] as const;
+const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
 const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"] as const;
 
 const { mockApi } = vi.hoisted(() => ({
@@ -21,6 +24,7 @@ const { mockApi } = vi.hoisted(() => ({
     deleteAssignment: vi.fn(),
     batchCreateAssignments: vi.fn(),
     previewBatchAssignments: vi.fn(),
+    upsertFixedAllowanceOverride: vi.fn(),
   },
 }));
 
@@ -144,6 +148,56 @@ describe("useUpdate/DeleteTemplateAssignment — invalidación (api#63 C15)", ()
 
     expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(false);
     expect(queryClient.getQueryState(templatesKey)?.isInvalidated).toBe(false);
+  });
+});
+
+describe("useUpsertFixedAllowanceOverride — Comp→Set (H-U07-Q02)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("upsert invalida preview, cut-preview, workbench y Operadores", async () => {
+    mockApi.upsertFixedAllowanceOverride.mockResolvedValue({ id: "ovr-1" });
+    const { queryClient, wrapper } = createWrapper();
+    queryClient.setQueryData(SETTLEMENTS_PREVIEW_KEY, { data: [] });
+    queryClient.setQueryData(SETTLEMENTS_CUT_PREVIEW_KEY, { data: [] });
+    queryClient.setQueryData(SETTLEMENTS_WORKBENCH_KEY, { data: [] });
+    queryClient.setQueryData(SETTLEMENTS_OPERATORS_KEY, { data: [] });
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    const { result } = renderHook(() => useUpsertFixedAllowanceOverride(), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        employeeId: "emp-1",
+        allowanceId: "all-1",
+        periodStart: "2026-09-01",
+        periodEnd: "2026-09-15",
+        isSuspended: true,
+      });
+    });
+
+    expect(queryClient.getQueryState(SETTLEMENTS_PREVIEW_KEY)?.isInvalidated).toBe(
+      true,
+    );
+    expect(
+      queryClient.getQueryState(SETTLEMENTS_CUT_PREVIEW_KEY)?.isInvalidated,
+    ).toBe(true);
+    expect(queryClient.getQueryState(SETTLEMENTS_WORKBENCH_KEY)?.isInvalidated).toBe(
+      true,
+    );
+    expect(queryClient.getQueryState(SETTLEMENTS_OPERATORS_KEY)?.isInvalidated).toBe(
+      true,
+    );
+    expect(
+      invalidateSpy.mock.calls.some(
+        ([filters]) =>
+          Array.isArray(filters?.queryKey) &&
+          filters.queryKey[0] === "settlements" &&
+          filters.queryKey[1] === "cut-preview",
+      ),
+    ).toBe(true);
   });
 });
 

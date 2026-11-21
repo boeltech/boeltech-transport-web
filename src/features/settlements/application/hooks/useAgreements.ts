@@ -44,11 +44,17 @@ function invalidateAgreementQueries(
       queryKey: settlementsQueryKeys.agreementsList(employeeId),
     });
   }
+  // Comp→Set: preview, cut-preview, workbench y Operadores
   queryClient.invalidateQueries({
     queryKey: [...settlementsQueryKeys.all, "preview"],
   });
-  // F6: cambio de acuerdo afecta readiness del workbench
+  queryClient.invalidateQueries({
+    queryKey: [...settlementsQueryKeys.all, "cut-preview"],
+  });
   queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+  queryClient.invalidateQueries({
+    queryKey: settlementsQueryKeys.operators(),
+  });
 }
 
 export function useUpdateCompensationAgreement() {

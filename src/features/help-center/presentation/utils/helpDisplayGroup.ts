@@ -3,11 +3,12 @@
  * Claves = ids de artículo o group legacy → group de menú / Tu cuenta.
  */
 
-/** Artículo → group display (5 ids del handoff V5). */
+/**
+ * Artículo → group display (otras unidades).
+ * U07 (`liquidar-viaje`, `registrar-anticipo-operador`, `esquema-compensacion`)
+ * ya no se remapean aquí: el `group` llega de datos (fase D / migración).
+ */
 export const HELP_ARTICLE_GROUP_REMAP: Readonly<Record<string, string>> = {
-  "liquidar-viaje": "pagos_operadores",
-  "registrar-anticipo-operador": "pagos_operadores",
-  "esquema-compensacion": "pagos_operadores",
   "comparar-sucursales": "administracion",
   "cuenta-seguridad": "tu_cuenta",
 };

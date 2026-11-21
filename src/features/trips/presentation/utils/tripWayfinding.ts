@@ -4,14 +4,41 @@ import {
   FINANCE_INVOICEABLE_PATH,
   FINANCE_INVOICES_PATH,
 } from "@features/finance/application";
+import {
+  LEGACY_FINANCE_SETTLEMENTS_PATH,
+  OPERATOR_PAYMENTS_BASE_PATH,
+  SETTLEMENTS_ADVANCES_PATH,
+  SETTLEMENTS_CREATE_PATH,
+  SETTLEMENTS_OPERATORS_PATH,
+} from "@features/settlements/application";
 import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { shellCopy } from "../copy/tripDetail/shellCopy";
 
 const TRIPS_LIST_FALLBACK = "/trips";
-const SETTLEMENTS_PATH_PREFIX = "/finance/settlements";
+/** Subrutas canónicas que no son «Volver al pago» (lista / new / detalle). */
+const OPERATOR_PAYMENTS_NON_PAYMENT_EXACT = new Set([
+  SETTLEMENTS_ADVANCES_PATH,
+  SETTLEMENTS_OPERATORS_PATH,
+  `${OPERATOR_PAYMENTS_BASE_PATH}/cuts/new`,
+]);
+const LEGACY_SETTLEMENTS_NON_PAYMENT_EXACT = new Set([
+  `${LEGACY_FINANCE_SETTLEMENTS_PATH}/pending-approval`,
+  `${LEGACY_FINANCE_SETTLEMENTS_PATH}/registry`,
+  `${LEGACY_FINANCE_SETTLEMENTS_PATH}/advances`,
+]);
 
 function pathOnly(href: string): string {
   return href.split("?")[0] ?? href;
+}
+
+/** Rechaza `..` / `.` en segmentos (p. ej. `/finance/operator-payments/../../x`). */
+function hasUnsafePathSegments(path: string): boolean {
+  return path.split("/").some((segment) => segment === ".." || segment === ".");
+}
+
+function isUnderPathPrefix(path: string, prefix: string): boolean {
+  if (hasUnsafePathSegments(path)) return false;
+  return path === prefix || path.startsWith(`${prefix}/`);
 }
 
 /**
@@ -71,9 +98,39 @@ function isFinanceDispatchHref(href: string): boolean {
 function isSettlementsHref(href: string): boolean {
   const path = pathOnly(href);
   return (
-    path === SETTLEMENTS_PATH_PREFIX ||
-    path.startsWith(`${SETTLEMENTS_PATH_PREFIX}/`)
+    isUnderPathPrefix(path, OPERATOR_PAYMENTS_BASE_PATH) ||
+    isUnderPathPrefix(path, LEGACY_FINANCE_SETTLEMENTS_PATH)
   );
+}
+
+/**
+ * Lista / new / detalle de pago (canónico o legado) → label «Volver al pago».
+ * Excluye Anticipos, Operadores, cortes y colas del hub legado.
+ */
+function isSettlementPaymentReturnHref(href: string): boolean {
+  const path = pathOnly(href);
+  if (hasUnsafePathSegments(path)) return false;
+
+  if (
+    path === OPERATOR_PAYMENTS_BASE_PATH ||
+    path === SETTLEMENTS_CREATE_PATH
+  ) {
+    return true;
+  }
+  if (isUnderPathPrefix(path, OPERATOR_PAYMENTS_BASE_PATH)) {
+    if (OPERATOR_PAYMENTS_NON_PAYMENT_EXACT.has(path)) return false;
+    if (path.startsWith(`${OPERATOR_PAYMENTS_BASE_PATH}/cuts/`)) return false;
+    const rest = path.slice(`${OPERATOR_PAYMENTS_BASE_PATH}/`.length);
+    return Boolean(rest) && !rest.includes("/");
+  }
+
+  if (path === `${LEGACY_FINANCE_SETTLEMENTS_PATH}/new`) return true;
+  if (isUnderPathPrefix(path, LEGACY_FINANCE_SETTLEMENTS_PATH)) {
+    if (LEGACY_SETTLEMENTS_NON_PAYMENT_EXACT.has(path)) return false;
+    const rest = path.slice(`${LEGACY_FINANCE_SETTLEMENTS_PATH}/`.length);
+    return Boolean(rest) && !rest.includes("/");
+  }
+  return false;
 }
 
 /**
@@ -155,15 +212,7 @@ export function resolveTripWayfindingBackLabel(href: string): string {
   if (path.startsWith(`${FINANCE_DISPATCH_PATH}/`)) {
     return shellCopy.state.backToDispatchRun;
   }
-  if (path === "/finance/settlements/new") {
-    return shellCopy.state.backToSettlementPayment;
-  }
-  if (
-    path.startsWith("/finance/settlements/") &&
-    path !== "/finance/settlements/pending-approval" &&
-    path !== "/finance/settlements/registry" &&
-    path !== "/finance/settlements/advances"
-  ) {
+  if (isSettlementPaymentReturnHref(href)) {
     return shellCopy.state.backToSettlementPayment;
   }
   return shellCopy.state.backToList;
