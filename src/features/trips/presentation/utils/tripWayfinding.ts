@@ -72,6 +72,13 @@ function isTripAppHref(href: string): boolean {
   );
 }
 
+/** Inicio (`/dashboard` + query); sin subrutas ni traversal. */
+function isDashboardHref(href: string): boolean {
+  const path = pathOnly(href);
+  if (hasUnsafePathSegments(path)) return false;
+  return path === "/dashboard";
+}
+
 function isFinanceInvoicesHref(href: string): boolean {
   const path = pathOnly(href);
   return (
@@ -149,6 +156,7 @@ function isSettlementPaymentReturnHref(href: string): boolean {
  */
 export function isSafeTripReturnHref(href: string): boolean {
   if (isTripAppHref(href)) return true;
+  if (isDashboardHref(href)) return true;
   if (isFinanceInvoiceableHref(href)) return true;
   if (isFinanceDispatchHref(href)) return true;
   if (isApprovalsInboxHref(href)) return true;
@@ -157,6 +165,18 @@ export function isSafeTripReturnHref(href: string): boolean {
   if (isFinanceInvoicesHref(href)) return true;
   if (isFinanceAnalysisHref(href)) return true;
   return false;
+}
+
+/**
+ * Volver del canvas de alta (`/trips/new`): solo listado `/trips` o Inicio.
+ * Más estrecho que `isSafeTripReturnHref` (no detalle ni colas financieras).
+ */
+export function resolveTripCanvasBackHref(from: string | undefined): string {
+  const candidate = resolveInternalAppHref(from, TRIPS_LIST_FALLBACK);
+  const path = pathOnly(candidate);
+  if (hasUnsafePathSegments(path)) return TRIPS_LIST_FALLBACK;
+  if (path === "/trips" || path === "/dashboard") return candidate;
+  return TRIPS_LIST_FALLBACK;
 }
 
 /**
@@ -192,15 +212,16 @@ export function resolveTripReturnHrefFromInvoiceCreate(
 }
 
 /**
- * Label del chevron al salir del detalle de viaje.
- * Factura → Volver a la factura; listado facturas → Volver a facturas;
- * Bandeja de aprobaciones → Volver a aprobaciones;
- * Por facturar → Volver a Por facturar;
- * envío de facturas → Volver al envío / a envíos;
- * pago a operador → Volver al pago;
+ * Label del chevron al salir del detalle de viaje (y Volver del canvas).
+ * Inicio → Volver a Inicio; factura → Volver a la factura; listado facturas →
+ * Volver a facturas; bandeja → Volver a aprobaciones; Por facturar → Volver a
+ * Por facturar; envío → Volver al envío / a envíos; pago → Volver al pago;
  * resto → Volver a Viajes.
  */
 export function resolveTripWayfindingBackLabel(href: string): string {
+  if (isDashboardHref(href)) {
+    return shellCopy.state.backToDashboard;
+  }
   if (isInvoiceDetailHref(href)) {
     return shellCopy.state.backToInvoice;
   }

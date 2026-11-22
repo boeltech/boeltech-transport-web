@@ -4,7 +4,6 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarPlus, ChevronDown, ClipboardList, Truck } from "lucide-react";
@@ -68,6 +67,10 @@ import {
   formatTripApiValidationForUser,
   validateCreateTripApiPayload,
 } from "./validateTripApiPayload";
+import {
+  resolveTripCanvasBackHref,
+  resolveTripWayfindingBackLabel,
+} from "../../utils/tripWayfinding";
 
 const copy = canvasCopy;
 
@@ -78,14 +81,6 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
     return () => window.clearTimeout(id);
   }, [value, delayMs]);
   return debounced;
-}
-
-function resolveTripCanvasBackHref(from: string | undefined): string {
-  const fallback = "/trips";
-  const candidate = resolveInternalAppHref(from, fallback);
-  const path = candidate.split("?")[0] ?? candidate;
-  /** Solo listado `/trips` (+ query); no detalle ni otras rutas. */
-  return path === "/trips" ? candidate : fallback;
 }
 
 type StaleCorridorState = {
@@ -100,6 +95,7 @@ export function TripCanvasPage() {
   const listBackHref = resolveTripCanvasBackHref(
     location.state?.from as string | undefined,
   );
+  const listBackLabel = resolveTripWayfindingBackLabel(listBackHref);
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [confirmLaterOpen, setConfirmLaterOpen] = useState(false);
   const [selectedCorridor, setSelectedCorridor] =
@@ -383,7 +379,7 @@ export function TripCanvasPage() {
       isLoading={false}
       header={{
         backHref: listBackHref,
-        backLabel: copy.page.backLabel,
+        backLabel: listBackLabel,
         icon: <CalendarPlus className="h-5 w-5" />,
         title: copy.page.title,
         subtitle: copy.page.subtitle,

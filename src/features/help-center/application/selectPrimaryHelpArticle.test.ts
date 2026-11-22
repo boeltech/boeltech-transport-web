@@ -177,6 +177,34 @@ const U01_U10_ARTICLES: HelpArticle[] = [
   }),
 ];
 
+/** U10 Monitoreo: primario por ruta×rol (ola 7 D-B). */
+const U10_MONITOREO_ARTICLES: HelpArticle[] = [
+  article({
+    id: "ver-flota-mapa",
+    sortOrder: 36,
+    group: "monitoreo",
+    roles: ["admin", "manager", "dispatcher"],
+    screens: [
+      "/monitoring/fleet",
+      "/monitoring/fleet/history/:vehicleId",
+    ],
+  }),
+  article({
+    id: "revisar-alertas-gps",
+    sortOrder: 37,
+    group: "monitoreo",
+    roles: ["admin", "manager", "dispatcher"],
+    screens: ["/monitoring/alerts"],
+  }),
+  article({
+    id: "ajustar-alertas-gps",
+    sortOrder: 38,
+    group: "monitoreo",
+    roles: ["admin"],
+    screens: ["/monitoring/settings"],
+  }),
+];
+
 /** U08 Finanzas: primario por ruta (ola 4 D; Tendencia 145 ante Margen 150). */
 const U08_ARTICLES: HelpArticle[] = [
   article({
@@ -484,6 +512,79 @@ describe("selectPrimaryHelpArticle", () => {
       expect(
         primaryForPath("/account/security", U01_U10_ARTICLES, "client"),
       ).toBe("cuenta-seguridad");
+    });
+  });
+
+  describe("U10 monitoreo · ola7 D-B primario por ruta×rol", () => {
+    const gpsStaff = ["admin", "manager", "dispatcher"] as const;
+    const noGpsRoles = [
+      "accountant",
+      "operator",
+      "client",
+      "driver",
+    ] as const;
+    const vehicleId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+
+    it("/monitoring/fleet · history × admin|manager|dispatcher → ver-flota-mapa", () => {
+      for (const role of gpsStaff) {
+        expect(
+          primaryForPath("/monitoring/fleet", U10_MONITOREO_ARTICLES, role),
+        ).toBe("ver-flota-mapa");
+        expect(
+          primaryForPath(
+            `/monitoring/fleet/history/${vehicleId}`,
+            U10_MONITOREO_ARTICLES,
+            role,
+          ),
+        ).toBe("ver-flota-mapa");
+      }
+    });
+
+    it("/monitoring/alerts × admin|manager|dispatcher → revisar-alertas-gps", () => {
+      for (const role of gpsStaff) {
+        expect(
+          primaryForPath("/monitoring/alerts", U10_MONITOREO_ARTICLES, role),
+        ).toBe("revisar-alertas-gps");
+      }
+    });
+
+    it("/monitoring/settings × admin → ajustar-alertas-gps", () => {
+      expect(
+        primaryForPath("/monitoring/settings", U10_MONITOREO_ARTICLES, "admin"),
+      ).toBe("ajustar-alertas-gps");
+    });
+
+    it("/monitoring/settings × manager|dispatcher → null", () => {
+      expect(
+        primaryForPath(
+          "/monitoring/settings",
+          U10_MONITOREO_ARTICLES,
+          "manager",
+        ),
+      ).toBeNull();
+      expect(
+        primaryForPath(
+          "/monitoring/settings",
+          U10_MONITOREO_ARTICLES,
+          "dispatcher",
+        ),
+      ).toBeNull();
+    });
+
+    it("rutas monitoreo × roles sin gps / client|driver → null", () => {
+      const paths = [
+        "/monitoring/fleet",
+        `/monitoring/fleet/history/${vehicleId}`,
+        "/monitoring/alerts",
+        "/monitoring/settings",
+      ];
+      for (const role of noGpsRoles) {
+        for (const path of paths) {
+          expect(
+            primaryForPath(path, U10_MONITOREO_ARTICLES, role),
+          ).toBeNull();
+        }
+      }
     });
   });
 

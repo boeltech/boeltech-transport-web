@@ -4,6 +4,7 @@ import {
   isSafeTripReturnHref,
   resolveTripAccessDeniedCopy,
   resolveTripBackHref,
+  resolveTripCanvasBackHref,
   resolveTripReturnHrefFromInvoiceCreate,
   resolveTripWayfindingBackLabel,
   tripInvoiceNavState,
@@ -25,9 +26,11 @@ describe("tripInvoiceNavState", () => {
 });
 
 describe("isSafeTripReturnHref / resolveTripBackHref", () => {
-  it("allowlist trips, invoiceable, dispatch, approvals, settlements, factura y listado", () => {
+  it("allowlist trips, dashboard, invoiceable, dispatch, approvals, settlements, factura y listado", () => {
     expect(isSafeTripReturnHref("/trips?status=draft")).toBe(true);
     expect(isSafeTripReturnHref("/trips/abc-1")).toBe(true);
+    expect(isSafeTripReturnHref("/dashboard")).toBe(true);
+    expect(isSafeTripReturnHref("/dashboard?tab=ops")).toBe(true);
     expect(isSafeTripReturnHref("/finance/invoiceable?bucket=ready")).toBe(
       true,
     );
@@ -56,7 +59,6 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
     ).toBe(true);
     expect(isSafeTripReturnHref("/invoices/new")).toBe(false);
     expect(isSafeTripReturnHref("/invoices/inv-1/edit")).toBe(false);
-    expect(isSafeTripReturnHref("/dashboard")).toBe(false);
     expect(isSafeTripReturnHref("/settings")).toBe(false);
   });
 
@@ -93,10 +95,31 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
         "/finance/operator-payments/11111111-1111-4111-8111-111111111111",
       ),
     ).toBe("/finance/operator-payments/11111111-1111-4111-8111-111111111111");
+    expect(resolveTripBackHref("/dashboard")).toBe("/dashboard");
+    expect(resolveTripBackHref("/dashboard?tab=ops")).toBe(
+      "/dashboard?tab=ops",
+    );
     expect(resolveTripBackHref("https://evil.example/phish")).toBe("/trips");
     expect(resolveTripBackHref("//evil.example/path")).toBe("/trips");
-    expect(resolveTripBackHref("/dashboard")).toBe("/trips");
     expect(resolveTripBackHref(undefined)).toBe("/trips");
+  });
+
+  it("resolveTripCanvasBackHref acepta /trips e Inicio; rechaza externos", () => {
+    expect(resolveTripCanvasBackHref(undefined)).toBe("/trips");
+    expect(resolveTripCanvasBackHref("/trips?status=draft")).toBe(
+      "/trips?status=draft",
+    );
+    expect(resolveTripCanvasBackHref("/dashboard")).toBe("/dashboard");
+    expect(resolveTripCanvasBackHref("/dashboard?tab=ops")).toBe(
+      "/dashboard?tab=ops",
+    );
+    expect(resolveTripCanvasBackHref("/trips/abc-1")).toBe("/trips");
+    expect(resolveTripCanvasBackHref("/settings")).toBe("/trips");
+    expect(resolveTripCanvasBackHref("//evil.com")).toBe("/trips");
+    expect(resolveTripCanvasBackHref("https://evil.example/phish")).toBe(
+      "/trips",
+    );
+    expect(resolveTripCanvasBackHref("../trips")).toBe("/trips");
   });
 
   it("resolveTripReturnHrefFromInvoiceCreate cae a Por facturar (nunca /invoices/new)", () => {
@@ -112,7 +135,7 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
     expect(
       resolveTripReturnHrefFromInvoiceCreate("/invoices/new?trip_id=1"),
     ).toBe("/finance/invoiceable");
-    expect(resolveTripReturnHrefFromInvoiceCreate("/dashboard")).toBe(
+    expect(resolveTripReturnHrefFromInvoiceCreate("/settings")).toBe(
       "/finance/invoiceable",
     );
     expect(
@@ -132,10 +155,23 @@ describe("isSafeTripReturnHref / resolveTripBackHref", () => {
     expect(
       resolveTripReturnHrefFromInvoiceCreate("/finance/invoices?page=2"),
     ).toBe("/finance/invoices?page=2");
+    expect(resolveTripReturnHrefFromInvoiceCreate("/dashboard")).toBe(
+      "/dashboard",
+    );
   });
 });
 
 describe("resolveTripWayfindingBackLabel", () => {
+  it("label Volver a Inicio desde /dashboard", () => {
+    expect(resolveTripWayfindingBackLabel("/dashboard")).toBe(
+      shellCopy.state.backToDashboard,
+    );
+    expect(resolveTripWayfindingBackLabel("/dashboard?tab=ops")).toBe(
+      shellCopy.state.backToDashboard,
+    );
+    expect(shellCopy.state.backToDashboard).toBe("Volver a Inicio");
+  });
+
   it("label Volver a la factura desde detalle de factura", () => {
     expect(resolveTripWayfindingBackLabel("/invoices/inv-1")).toBe(
       shellCopy.state.backToInvoice,
