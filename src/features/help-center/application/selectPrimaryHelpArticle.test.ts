@@ -229,6 +229,36 @@ const U11_PORTALES_ARTICLES: HelpArticle[] = [
   }),
 ];
 
+/** U02 Viajes: `reservar-viaje` (seed 201 / migr. 279; roles staff con reserva). */
+const U02_RESERVAR_VIAJE: HelpArticle = article({
+  id: "reservar-viaje",
+  sortOrder: 40,
+  group: "operacion",
+  roles: ["admin", "manager", "dispatcher", "operator"],
+  screens: ["/trips", "/trips/new"],
+});
+
+/**
+ * C7 (TC7-3): catálogo mínimo ruta×rol para fijar huecos «sin artículo»
+ * y positivos vecinos (dashboard / trips). Sin screens en notificaciones,
+ * ayuda ni forbidden.
+ */
+const C7_COVERAGE_ARTICLES: HelpArticle[] = [
+  ...U01_U10_ARTICLES,
+  ...U11_PORTALES_ARTICLES,
+  U02_RESERVAR_VIAJE,
+];
+
+const ALL_SEVEN_ROLES = [
+  "admin",
+  "manager",
+  "dispatcher",
+  "accountant",
+  "operator",
+  "driver",
+  "client",
+] as const;
+
 /** U08 Finanzas: primario por ruta (ola 4 D; Tendencia 145 ante Margen 150). */
 const U08_ARTICLES: HelpArticle[] = [
   article({
@@ -283,7 +313,8 @@ function primaryForPath(
   const matched = catalog.filter((a) => {
     if (!matchHelpScreen(pathname, a.screens)) return false;
     if (role == null) return true;
-    return a.roles.length === 0 || a.roles.includes(role);
+    // Paridad API `roles && ARRAY[$1]::text[]`: roles vacío no hace match.
+    return a.roles.includes(role);
   });
   return selectPrimaryHelpArticle(matched)?.id ?? null;
 }
@@ -663,6 +694,92 @@ describe("selectPrimaryHelpArticle", () => {
         ).toBeNull();
         expect(
           primaryForPath(`/trips/${tripId}`, U11_PORTALES_ARTICLES, role),
+        ).toBeNull();
+      }
+    });
+  });
+
+  /**
+   * C7 / TC7-3: fijar «sin artículo» en rutas×roles sin guía (triage CEO).
+   * Catálogo C7_COVERAGE_ARTICLES = inicio + portales + reservar-viaje.
+   */
+  describe("C7 cobertura · sin artículo (TC7-3) + positivos vecinos", () => {
+    const helpArticleId = "comparar-sucursales";
+    const ticketId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+
+    it("/dashboard × admin|manager → comparar-sucursales", () => {
+      expect(
+        primaryForPath("/dashboard", C7_COVERAGE_ARTICLES, "admin"),
+      ).toBe("comparar-sucursales");
+      expect(
+        primaryForPath("/dashboard", C7_COVERAGE_ARTICLES, "manager"),
+      ).toBe("comparar-sucursales");
+    });
+
+    it("/dashboard × driver|client → portales", () => {
+      expect(
+        primaryForPath("/dashboard", C7_COVERAGE_ARTICLES, "driver"),
+      ).toBe("portal-conductor");
+      expect(
+        primaryForPath("/dashboard", C7_COVERAGE_ARTICLES, "client"),
+      ).toBe("portal-cliente");
+    });
+
+    it("/dashboard × dispatcher|accountant|operator → null", () => {
+      for (const role of ["dispatcher", "accountant", "operator"] as const) {
+        expect(
+          primaryForPath("/dashboard", C7_COVERAGE_ARTICLES, role),
+        ).toBeNull();
+      }
+    });
+
+    it("/trips × admin|manager|dispatcher|operator → reservar-viaje", () => {
+      for (const role of [
+        "admin",
+        "manager",
+        "dispatcher",
+        "operator",
+      ] as const) {
+        expect(primaryForPath("/trips", C7_COVERAGE_ARTICLES, role)).toBe(
+          "reservar-viaje",
+        );
+      }
+    });
+
+    it("/trips × accountant → null", () => {
+      expect(
+        primaryForPath("/trips", C7_COVERAGE_ARTICLES, "accountant"),
+      ).toBeNull();
+    });
+
+    it("/notifications × 7 roles → null", () => {
+      for (const role of ALL_SEVEN_ROLES) {
+        expect(
+          primaryForPath("/notifications", C7_COVERAGE_ARTICLES, role),
+        ).toBeNull();
+      }
+    });
+
+    it("/ayuda · /ayuda/:id · tickets × 7 roles → null", () => {
+      const paths = [
+        "/ayuda",
+        `/ayuda/${helpArticleId}`,
+        "/ayuda/tickets",
+        `/ayuda/tickets/${ticketId}`,
+      ];
+      for (const role of ALL_SEVEN_ROLES) {
+        for (const path of paths) {
+          expect(
+            primaryForPath(path, C7_COVERAGE_ARTICLES, role),
+          ).toBeNull();
+        }
+      }
+    });
+
+    it("/forbidden × 7 roles → null", () => {
+      for (const role of ALL_SEVEN_ROLES) {
+        expect(
+          primaryForPath("/forbidden", C7_COVERAGE_ARTICLES, role),
         ).toBeNull();
       }
     });
