@@ -1,4 +1,4 @@
-export { invoiceQueryKeys } from "./invoiceQueryKeys";
+export { invoiceQueryKeys } from "@features/invoicing/domain";
 export { invalidateInvoiceQueries } from "./invalidateInvoiceQueries";
 export {
   buildInvoiceCreateHref,

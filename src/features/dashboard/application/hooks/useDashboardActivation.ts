@@ -5,7 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth";
 import { dashboardApi } from "../../infrastructure/dashboardApi";
-import { dashboardQueryKeys } from "../dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 
 export function useDashboardActivation(options?: { enabled?: boolean }) {
   const { isAuthenticated } = useAuth();

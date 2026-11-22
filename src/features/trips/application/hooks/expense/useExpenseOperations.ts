@@ -18,7 +18,7 @@ import {
 } from "@tanstack/react-query";
 import { invalidateApprovalsRelatedQueries } from "@features/approvals/application";
 import type { ApprovalGuards } from "@features/approvals/domain";
-import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 import {
   isExpenseNotMutableError,
   tripQueryKeys,

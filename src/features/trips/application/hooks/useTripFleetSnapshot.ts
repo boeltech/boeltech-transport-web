@@ -8,7 +8,7 @@ import {
   type UseMutationOptions,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import { invoiceQueryKeys } from "@features/invoicing/application";
+import { invoiceQueryKeys } from "@features/invoicing/domain";
 import {
   tripQueryKeys,
   type RefreshTripFleetSnapshotInput,

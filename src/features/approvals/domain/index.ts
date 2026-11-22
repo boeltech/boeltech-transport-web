@@ -84,3 +84,5 @@ export {
   APPROVAL_STATUS_LABELS,
   DEFAULT_APPROVAL_TYPE,
 } from "./enums";
+
+export { approvalsQueryKeys } from "./approvalsQueryKeys";

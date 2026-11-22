@@ -10,7 +10,7 @@ import type {
   ReceiptCollectionDetail,
 } from "@features/finance/domain/collectionDetail";
 import { tripQueryKeys } from "@features/trips/domain";
-import { financeQueryKeys } from "../financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 import { invalidateOperationalReceiptBatchSurface } from "./useOperationalReceiptBatch";
 
 /** Paridad con invoice keys (evita import circular finance ↔ invoicing). */

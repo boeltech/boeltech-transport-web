@@ -6,7 +6,7 @@ import type {
   InvoicesByStatusMonthFilters,
   ProfitabilityAggregateFilters,
   ProfitabilityTripsFilters,
-} from "@features/finance/domain";
+} from "./entities";
 
 /**
  * Query keys de finance — contrato de invalidación (approvals hub + invoicing).

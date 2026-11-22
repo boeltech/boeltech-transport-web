@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
-import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
-import { settlementsQueryKeys } from "@features/settlements/application";
-import { tripQueryKeys } from "@features/trips/application/tripsQueryKeys";
-import { approvalsQueryKeys } from "./approvalsQueryKeys";
+import { approvalsQueryKeys } from "@features/approvals/domain";
+import { financeQueryKeys } from "@features/finance/domain";
 import {
   cancelFinanceAnalysisRefresh,
   FINANCE_ANALYSIS_REFRESH_DELAY_MS,
-  invalidateApprovalsRelatedQueries,
   scheduleFinanceAnalysisRefresh,
-} from "./invalidateApprovalsQueries";
+} from "@features/finance/application/invalidateFinanceAnalysisQueries";
+import { settlementsQueryKeys } from "@features/settlements/application";
+import { tripQueryKeys } from "@features/trips/application/tripsQueryKeys";
+import { invalidateApprovalsRelatedQueries } from "./invalidateApprovalsQueries";
 
 const getUnreadCount = vi.fn().mockResolvedValue(0);
 

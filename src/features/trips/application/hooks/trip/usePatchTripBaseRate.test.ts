@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { clientQueryKeys } from "@features/clients/domain";
-import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 import { tripQueryKeys } from "@features/trips/domain";
 import { usePatchTripBaseRate } from "./usePatchTripBaseRate";
 
@@ -19,7 +19,7 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
-vi.mock("@features/approvals/application/invalidateApprovalsQueries", () => ({
+vi.mock("@features/finance/application/invalidateFinanceAnalysisQueries", () => ({
   invalidateFinanceAnalysisQueries: (...args: unknown[]) =>
     invalidateFinanceAnalysisQueries(...args),
   scheduleFinanceAnalysisRefresh: (...args: unknown[]) =>

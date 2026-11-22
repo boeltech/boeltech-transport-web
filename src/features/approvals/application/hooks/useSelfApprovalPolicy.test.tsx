@@ -5,7 +5,7 @@ import { setMockAuthUser } from "@/test/mocks/auth";
 import { grantPermissions } from "@/test/mocks/permissions";
 import { approvalsApi } from "../../infrastructure";
 import type { SelfApprovalPolicy } from "../../domain";
-import { approvalsQueryKeys } from "../approvalsQueryKeys";
+import { approvalsQueryKeys } from "@features/approvals/domain";
 import {
   SELF_APPROVAL_POLICY_STALE_TIME_MS,
   useSelfActionForbiddenHandler,

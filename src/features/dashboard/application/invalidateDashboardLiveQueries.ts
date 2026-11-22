@@ -5,7 +5,7 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 
-import { dashboardQueryKeys } from "./dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 
 export function invalidateDashboardLiveQueries(
   queryClient: QueryClient,

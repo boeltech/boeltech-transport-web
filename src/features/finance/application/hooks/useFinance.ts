@@ -8,7 +8,7 @@ import type {
   ProfitabilityAggregateFilters,
   ProfitabilityTripsFilters,
 } from "@features/finance/domain";
-import { financeQueryKeys } from "../financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 
 export { financeQueryKeys };
 

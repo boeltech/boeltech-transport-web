@@ -3,7 +3,7 @@
  * (`platformQueryKeys.all` → ["platform"]).
  */
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
-import { cancelFinanceAnalysisRefresh } from "@features/approvals/application/invalidateApprovalsQueries";
+import { cancelFinanceAnalysisRefresh } from "@features/finance/application/invalidateFinanceAnalysisQueries";
 
 export function isPlatformQueryKey(queryKey: QueryKey): boolean {
   return queryKey[0] === "platform";

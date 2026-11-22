@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { QueryClient } from "@tanstack/react-query";
-import { financeQueryKeys } from "./financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 import {
   consumeRepExceptionExits,
   invalidateRepExceptionLiveQueries,

@@ -38,7 +38,7 @@ import {
   approvalPoliciesCopy,
 } from "@features/approval-policies/presentation/copy/approvalPoliciesCopy";
 import { ApprovalPoliciesPage } from "@features/approval-policies/presentation/pages/ApprovalPoliciesPage";
-import { approvalsQueryKeys } from "@features/approvals/application/approvalsQueryKeys";
+import { approvalsQueryKeys } from "@features/approvals/domain";
 import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
 import { OperatorPaymentsHubLayout } from "@features/settlements/presentation/components/OperatorPaymentsHubLayout";
 import { settlementsCopy } from "@features/settlements/presentation/copy/settlementsCopy";

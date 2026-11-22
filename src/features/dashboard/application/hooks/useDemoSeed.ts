@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth";
 import { trackActivationEvent } from "../../domain/trackActivationEvent";
 import { demoSeedApi } from "../../infrastructure/demoSeedApi";
-import { dashboardQueryKeys } from "../dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 import { invalidateAfterDemoSeedChange } from "../invalidateAfterDemoSeedChange";
 
 export function useDemoSeedStatus(options?: { enabled?: boolean }) {

@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 import { branchQueryKeys, type BranchQueryParams } from "../../domain";
 import type { CreateBranchDTO, UpdateBranchDTO } from "../../domain";
 import { branchesApi } from "../../infrastructure";

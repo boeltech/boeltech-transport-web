@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { financeQueryKeys } from "@features/finance/application";
-import { invoiceQueryKeys } from "./invoiceQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
+import { invoiceQueryKeys } from "@features/invoicing/domain";
 
 /**
  * Invalidación canónica post-mutación de facturas.

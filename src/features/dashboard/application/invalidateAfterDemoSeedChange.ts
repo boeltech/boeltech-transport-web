@@ -10,7 +10,7 @@ import { employeeQueryKeys } from "@features/employees/application";
 import { tripQueryKeys } from "@features/trips/domain";
 import { vehicleQueryKeys } from "@features/vehicles/domain";
 
-import { dashboardQueryKeys } from "./dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 
 export function invalidateAfterDemoSeedChange(
   queryClient: QueryClient,

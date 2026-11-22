@@ -2,7 +2,7 @@ import type {
   DispatchDocumentsFilters,
   InvoiceBillingScope,
   InvoiceFilters,
-} from "@features/invoicing/domain";
+} from "./entities";
 
 /**
  * Query keys de facturación — contrato de invalidación (barrido T1).

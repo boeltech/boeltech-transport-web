@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { leftRepExceptionStatus } from "@features/finance/domain";
-import { financeQueryKeys } from "./financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 
 export type RepLiveStatusSnapshot = {
   readonly paymentId: string;

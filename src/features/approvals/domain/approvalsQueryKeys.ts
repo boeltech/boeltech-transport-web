@@ -1,4 +1,4 @@
-import type { ApprovalQueue, ListApprovalsFilters } from "../domain";
+import type { ApprovalQueue, ListApprovalsFilters } from "./entities";
 
 export const approvalsQueryKeys = {
   all: ["finance-approvals"] as const,

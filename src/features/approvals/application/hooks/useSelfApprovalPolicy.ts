@@ -15,7 +15,7 @@ import {
   type SelfApprovalConcept,
 } from "../../domain";
 import { approvalsApi } from "../../infrastructure";
-import { approvalsQueryKeys } from "../approvalsQueryKeys";
+import { approvalsQueryKeys } from "@features/approvals/domain";
 
 export const SELF_APPROVAL_POLICY_STALE_TIME_MS = 30_000;
 

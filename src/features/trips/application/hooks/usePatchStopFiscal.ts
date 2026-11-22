@@ -3,7 +3,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import { invoiceQueryKeys } from "@features/invoicing/application";
+import { invoiceQueryKeys } from "@features/invoicing/domain";
 import {
   tripQueryKeys,
   type PatchTripStopFiscalPayload,

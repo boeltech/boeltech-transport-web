@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 import { branchQueryKeys } from "../../domain";
 
 const invalidateQueries = vi.fn();

@@ -3,7 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import {
   invalidateFinanceAnalysisQueries,
   scheduleFinanceAnalysisRefresh,
-} from "@features/approvals/application/invalidateApprovalsQueries";
+} from "@features/finance/application/invalidateFinanceAnalysisQueries";
 import { clientQueryKeys } from "@features/clients/domain";
 import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
 import { driverQueryKeys } from "@features/drivers/domain";

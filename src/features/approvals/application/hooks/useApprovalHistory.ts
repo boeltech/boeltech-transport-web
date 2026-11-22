@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePermissions } from "@shared/permissions";
 import type { ApprovableType } from "../../domain";
 import { approvalsApi } from "../../infrastructure";
-import { approvalsQueryKeys } from "../approvalsQueryKeys";
+import { approvalsQueryKeys } from "@features/approvals/domain";
 
 /** ADR-0099 «Ver historial»: solo se pide al abrir el panel. */
 export function useApprovalHistory(

@@ -6,7 +6,7 @@ import {
 import {
   invalidateFinanceAnalysisQueries,
   scheduleFinanceAnalysisRefresh,
-} from "@features/approvals/application/invalidateApprovalsQueries";
+} from "@features/finance/application/invalidateFinanceAnalysisQueries";
 import { clientQueryKeys } from "@features/clients/domain";
 import { tripQueryKeys, type Trip } from "@features/trips/domain";
 import { tripsApi } from "@features/trips/infrastructure/api/tripsApi";

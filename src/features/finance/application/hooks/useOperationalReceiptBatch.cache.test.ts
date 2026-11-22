@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { clientQueryKeys } from "@features/clients/domain";
-import { financeQueryKeys } from "../financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 import { invalidateOperationalReceiptBatchSurface } from "./useOperationalReceiptBatch";
 
 describe("invalidateOperationalReceiptBatchSurface (ola5 C4)", () => {

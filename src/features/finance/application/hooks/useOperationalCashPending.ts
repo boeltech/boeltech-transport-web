@@ -4,7 +4,7 @@ import {
   type OperationalCashPendingQueryParams,
 } from "@features/finance/domain/operationalCashPending";
 import { operationalCashPendingApi } from "@features/finance/infrastructure/operationalCashPendingApi";
-import { financeQueryKeys } from "../financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 
 export function useOperationalCashPending(
   params: OperationalCashPendingQueryParams = {},

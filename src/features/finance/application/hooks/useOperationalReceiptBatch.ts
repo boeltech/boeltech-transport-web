@@ -14,7 +14,7 @@ import type {
 import { operationalReceiptBatchApi } from "@features/finance/infrastructure/operationalReceiptBatchApi";
 import { clientQueryKeys } from "@features/clients/domain";
 import { tripQueryKeys } from "@features/trips/domain";
-import { financeQueryKeys } from "../financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 
 export async function invalidateOperationalReceiptBatchSurface(
   queryClient: QueryClient,

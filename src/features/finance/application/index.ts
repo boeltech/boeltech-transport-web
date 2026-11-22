@@ -1,4 +1,10 @@
-export { financeQueryKeys } from "./financeQueryKeys";
+export { financeQueryKeys, billingDispatchRunKeys } from "@features/finance/domain";
+export {
+  cancelFinanceAnalysisRefresh,
+  FINANCE_ANALYSIS_REFRESH_DELAY_MS,
+  invalidateFinanceAnalysisQueries,
+  scheduleFinanceAnalysisRefresh,
+} from "./invalidateFinanceAnalysisQueries";
 export {
   consumeRepExceptionExits,
   invalidateRepExceptionLiveQueries,
@@ -87,7 +93,6 @@ export { useFinanceListingFilters } from "./hooks/useFinanceListingFilters";
 export { useAnalysisPeriod } from "./hooks/useAnalysisPeriod";
 export { OPERATIONAL_CASH_PENDING_PAGE_SIZE } from "../domain/operationalCashPending";
 export {
-  billingDispatchRunKeys,
   useBillingDispatchRuns,
   useBillingDispatchRun,
   useBillingDispatchPeriodPreview,

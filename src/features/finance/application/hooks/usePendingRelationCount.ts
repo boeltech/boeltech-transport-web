@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { financeApi } from "@features/finance/infrastructure";
-import { financeQueryKeys } from "../financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 
 /**
  * Conteo de la relación de pendientes de un RFC.

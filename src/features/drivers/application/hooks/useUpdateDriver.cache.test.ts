@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 import { fleetDocumentsQueryKeys } from "@features/fleet-documents/domain";
 import { driverQueryKeys, type Driver } from "../../domain";
 

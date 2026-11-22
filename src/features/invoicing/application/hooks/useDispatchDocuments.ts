@@ -5,7 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { DispatchDocumentsFilters } from "@features/invoicing/domain";
 import { invoicingApi } from "@features/invoicing/infrastructure";
-import { invoiceQueryKeys } from "../invoiceQueryKeys";
+import { invoiceQueryKeys } from "@features/invoicing/domain";
 
 export function useDispatchDocuments(
   filters: DispatchDocumentsFilters,

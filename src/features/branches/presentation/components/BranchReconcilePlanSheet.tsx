@@ -24,7 +24,7 @@ import {
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
 import { mapBackendError } from "@shared/utils/errorMapper";
-import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 import { employeeQueryKeys } from "@features/employees/application";
 import {
   branchEmployeeQueryKeys,

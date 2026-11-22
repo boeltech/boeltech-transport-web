@@ -4,6 +4,7 @@ import { isApiError } from "@shared/api/interceptors/error-handler";
 import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/utils/errorMapper";
 import { invalidateDispatchLists } from "@features/invoicing/application";
+import { billingDispatchRunKeys } from "@features/finance/domain";
 import type {
   ConfirmSendDispatchRunPayload,
   CreateBillingDispatchRunPayload,
@@ -42,20 +43,7 @@ function confirmSendErrorDescription(error: unknown): string {
   return getErrorMessage(error);
 }
 
-export const billingDispatchRunKeys = {
-  all: ["billing-dispatch-runs"] as const,
-  list: (params?: {
-    status?: DispatchRunStatus;
-    billingSchemeId?: string;
-    excludeEmptyScheduled?: boolean;
-    page?: number;
-    limit?: number;
-  }) => [...billingDispatchRunKeys.all, "list", params ?? {}] as const,
-  detail: (id: string) =>
-    [...billingDispatchRunKeys.all, "detail", id] as const,
-  periodPreview: (billingSchemeId: string) =>
-    [...billingDispatchRunKeys.all, "period-preview", billingSchemeId] as const,
-};
+export { billingDispatchRunKeys };
 
 export function useBillingDispatchRuns(params?: {
   status?: DispatchRunStatus;

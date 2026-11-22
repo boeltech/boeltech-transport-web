@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { tripQueryKeys } from "@features/trips/domain";
-import { financeQueryKeys } from "../financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 import {
   useRetryPaymentRep,
   useVoidOperationalCashReceiptFromCollection,

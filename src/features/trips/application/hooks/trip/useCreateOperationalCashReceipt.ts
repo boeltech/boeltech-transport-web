@@ -9,7 +9,7 @@ import {
   type OperationalCashReceipt,
 } from "@features/trips/domain";
 import { tripsApi } from "@features/trips/infrastructure/api/tripsApi";
-import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 
 export type CreateOperationalCashReceiptInput = {
   amount: number;

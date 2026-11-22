@@ -28,8 +28,8 @@ const dashboardApi = {
   },
 };
 
-export { dashboardQueryKeys } from "../dashboardQueryKeys";
-import { dashboardQueryKeys } from "../dashboardQueryKeys";
+export { dashboardQueryKeys } from "@features/dashboard/domain";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 
 // ============================================
 // Hook

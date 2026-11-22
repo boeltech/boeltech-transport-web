@@ -6,7 +6,7 @@ import {
 
 const cancelFinanceAnalysisRefresh = vi.fn();
 
-vi.mock("@features/approvals/application/invalidateApprovalsQueries", () => ({
+vi.mock("@features/finance/application/invalidateFinanceAnalysisQueries", () => ({
   cancelFinanceAnalysisRefresh: (...args: unknown[]) =>
     cancelFinanceAnalysisRefresh(...args),
 }));

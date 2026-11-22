@@ -27,11 +27,11 @@ export {
   resolveActivationChecklistMode,
 } from "./domain/activation";
 
+// Keys (domain)
+export { dashboardQueryKeys } from "./domain";
+
 // Hooks
-export {
-  useDashboard,
-  dashboardQueryKeys,
-} from "./application/hooks/useDashboard";
+export { useDashboard } from "./application/hooks/useDashboard";
 export { useDashboardActivation } from "./application/hooks/useDashboardActivation";
 export {
   useApplyDemoSeed,

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePermissions } from "@shared/permissions";
 import type { ListApprovalsFilters } from "../../domain";
 import { approvalsApi } from "../../infrastructure";
-import { approvalsQueryKeys } from "../approvalsQueryKeys";
+import { approvalsQueryKeys } from "@features/approvals/domain";
 
 export function useApprovals(filters: ListApprovalsFilters) {
   const { hasPermission } = usePermissions();

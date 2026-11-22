@@ -4,11 +4,11 @@ import { QueryClient } from "@tanstack/react-query";
 import {
   cancelFinanceAnalysisRefresh,
   FINANCE_ANALYSIS_REFRESH_DELAY_MS,
-} from "@features/approvals/application/invalidateApprovalsQueries";
+} from "@features/finance/application/invalidateFinanceAnalysisQueries";
 import { clientQueryKeys } from "@features/clients/domain";
-import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 import { driverQueryKeys } from "@features/drivers/domain";
-import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 import { TripStatus, tripQueryKeys } from "@features/trips/domain";
 
 import { invalidateTripDetailSurface } from "./invalidateTripDetailSurface";

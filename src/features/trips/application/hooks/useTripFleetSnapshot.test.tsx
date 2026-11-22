@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
-import { invoiceQueryKeys } from "@features/invoicing/application";
+import { invoiceQueryKeys } from "@features/invoicing/domain";
 import { tripQueryKeys, type RefreshTripFleetSnapshotInput } from "@features/trips/domain";
 import { fleetSnapshotViewFixture } from "@features/trips/test/tripFleetSnapshotFixture";
 import { createTestQueryClient } from "@/test/createTestQueryClient";

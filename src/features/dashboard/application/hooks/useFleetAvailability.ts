@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { usePermissions } from "@shared/permissions";
 import { dashboardApi } from "../../infrastructure/dashboardApi";
-import { dashboardQueryKeys } from "../dashboardQueryKeys";
+import { dashboardQueryKeys } from "@features/dashboard/domain";
 
 const STALE_TIME = 30_000;
 

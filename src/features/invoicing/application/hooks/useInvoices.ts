@@ -32,7 +32,8 @@ import type {
   SendInvoiceBatchResult,
 } from "@features/invoicing/domain";
 import { invoicingCopy } from "@features/invoicing/presentation/copy/invoicingCopy";
-import { invoiceQueryKeys } from "../invoiceQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
+import { invoiceQueryKeys } from "@features/invoicing/domain";
 import { invalidateFiscalCorrectionResources } from "../invalidateFiscalCorrectionResources";
 import { pollSendBatchUntilSettled } from "./sendBatchPoll";
 
@@ -50,15 +51,12 @@ export function evictInvoicePrefillQueries(
   queryClient.removeQueries({ queryKey: invoicePrefillQueriesKey });
 }
 
-/** Cross-feature invalidation key (finance module owns queries under this root). */
-const financeQueryRoot = ["finance"] as const;
-
 async function invalidateAndRefetchFinance(
   queryClient: ReturnType<typeof useQueryClient>,
 ): Promise<void> {
-  await queryClient.invalidateQueries({ queryKey: financeQueryRoot });
+  await queryClient.invalidateQueries({ queryKey: financeQueryKeys.all });
   await queryClient.refetchQueries({
-    queryKey: financeQueryRoot,
+    queryKey: financeQueryKeys.all,
     type: "active",
   });
 }
@@ -296,7 +294,7 @@ export function useCreateInvoice(
     ...options,
     onSuccess: async (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: financeQueryRoot });
+      queryClient.invalidateQueries({ queryKey: financeQueryKeys.all });
       if (data.trips?.length) {
         await invalidateInvoiceLinkedTripCaches(queryClient, data);
       } else if (variables.tripIds?.length) {
@@ -366,7 +364,7 @@ export function useDeleteInvoice(
         queryKey: invoiceQueryKeys.detail(variables),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: financeQueryRoot });
+      queryClient.invalidateQueries({ queryKey: financeQueryKeys.all });
       queryClient.invalidateQueries({ queryKey: invoicePrefillQueriesKey });
       // Delete returns void; use cached trips when present, else broad trips root.
       if (cached?.trips?.length) {
@@ -459,7 +457,7 @@ export function useRegisterPayment(
         queryKey: invoiceQueryKeys.detail(invoiceId),
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: financeQueryRoot });
+      queryClient.invalidateQueries({ queryKey: financeQueryKeys.all });
       invalidateCreditSummariesForInvoiceIds(queryClient, [invoiceId]);
       options?.onSuccess?.(data, variables, context, mutation);
     },
@@ -484,7 +482,7 @@ export function useRetryRepStamp(
       });
       queryClient.invalidateQueries({ queryKey: invoiceQueryKeys.lists() });
       // Cobros «Excepciones REP» + follow-through banner (#33 F2)
-      queryClient.invalidateQueries({ queryKey: financeQueryRoot });
+      queryClient.invalidateQueries({ queryKey: financeQueryKeys.all });
       options?.onSuccess?.(data, variables, context, mutation);
     },
   });

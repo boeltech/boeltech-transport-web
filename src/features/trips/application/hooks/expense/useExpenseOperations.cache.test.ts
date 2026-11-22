@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import { financeQueryKeys } from "@features/finance/application/financeQueryKeys";
+import { financeQueryKeys } from "@features/finance/domain";
 import { tripQueryKeys } from "@features/trips/domain";
 import {
   useAddExpense,
