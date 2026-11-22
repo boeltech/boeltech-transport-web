@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ListNotificationsFilters } from "../../domain";
 import { notificationsApi } from "../../infrastructure";
-import { notificationsQueryKeys } from "../notificationsQueryKeys";
+import { notificationsQueryKeys } from "../../domain";
 
 export function useNotificationsList(
   filters: ListNotificationsFilters,

@@ -143,6 +143,8 @@ export {
 
 export {
   MFA_STATUS_QUERY_KEY,
+  SESSIONS_QUERY_KEY,
+  authQueryKeys,
   type RequestEmailChangePayload,
   type EmailChangePendingResult,
 } from "./domain";

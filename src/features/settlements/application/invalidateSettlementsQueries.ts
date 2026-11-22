@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { invalidateApprovalsRelatedQueries } from "@features/approvals/application";
-import { settlementsQueryKeys } from "./settlementsQueryKeys";
+import { settlementsQueryKeys } from "../domain";
 
 /**
  * Liquidaciones, detalle, anticipos y bandeja.

@@ -1,9 +1,8 @@
 /**
- * Legacy entry — reexporta la fuente canónica en hooks/useEmployees
- * (única definición de employeeQueryKeys).
+ * Legacy entry — reexporta la fuente canónica en hooks/useEmployees.
+ * Keys: importar `employeeQueryKeys` desde `@features/employees/domain`.
  */
 export {
-  employeeQueryKeys,
   useAvailableEmployeesForDriver,
   useEmployeeBasic,
 } from "./hooks/useEmployees";

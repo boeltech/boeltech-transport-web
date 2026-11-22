@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { notificationsApi } from "../infrastructure";
-import { notificationsQueryKeys } from "./notificationsQueryKeys";
+import { notificationsQueryKeys } from "../domain";
 
 /**
  * Invalidates inbox lists and refreshes the unread badge with a forced

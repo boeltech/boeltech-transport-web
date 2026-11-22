@@ -7,7 +7,7 @@ import {
 import { isApiError } from "@shared/api/interceptors/error-handler";
 import { compensationApi } from "../../infrastructure/compensationApi";
 import { COMPENSATION_ERROR_CODES } from "../../domain/enums";
-import { compensationQueryKeys } from "../compensationQueryKeys";
+import { compensationQueryKeys } from "../../domain";
 import type {
   ActivateCompensationTemplatePayload,
   CompensationTemplateListQuery,

@@ -2,12 +2,12 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { employeeQueryKeys } from "@features/employees/application";
+import { employeeQueryKeys } from "@features/employees/domain";
 import {
   branchEmployeeQueryKeys,
+  branchQueryKeys,
   branchVehicleQueryKeys,
-} from "../../application";
-import { branchQueryKeys } from "../../domain";
+} from "../../domain";
 import { BranchReconcilePlanSheet } from "./BranchReconcilePlanSheet";
 import { branchesCopy } from "../copy/branchesCopy";
 import { buildBranchListMeta } from "../../test/branchTestFixtures";

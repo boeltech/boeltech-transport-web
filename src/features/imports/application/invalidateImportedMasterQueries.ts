@@ -5,7 +5,7 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 import { clientQueryKeys } from "@features/clients/domain";
-import { employeeQueryKeys } from "@features/employees/application";
+import { employeeQueryKeys } from "@features/employees/domain";
 import { vehicleQueryKeys } from "@features/vehicles/domain";
 import { driverQueryKeys } from "@features/drivers/domain";
 import type { ImportImplementedEntityType } from "../domain";

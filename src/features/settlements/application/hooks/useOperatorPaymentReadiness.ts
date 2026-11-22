@@ -3,7 +3,7 @@ import {
   settlementsApi,
   type ListOperatorsParams,
 } from "../../infrastructure/settlementsApi";
-import { settlementsQueryKeys } from "../settlementsQueryKeys";
+import { settlementsQueryKeys } from "../../domain";
 
 export function useOperatorPaymentReadiness(
   params: ListOperatorsParams & { enabled?: boolean } = {},

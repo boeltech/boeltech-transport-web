@@ -21,7 +21,7 @@ import {
 } from "@tanstack/react-query";
 import { isVehicleStartableStatus } from "@boeltech/cfdi-domain/reglas/trip-resource-sync";
 import { validateVehicleForCartaPorteStamp } from "@boeltech/cfdi-domain";
-import { branchVehicleQueryKeys } from "@features/branches/application";
+import { branchVehicleQueryKeys } from "@features/branches/domain";
 import { invalidateFleetDocumentSurfaces } from "@features/fleet-documents/application";
 import { invalidateNotificationsQueries } from "@features/notifications/application/invalidateNotificationsQueries";
 import { vehiclesApi } from "../../infrastructure";

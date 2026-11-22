@@ -1,4 +1,5 @@
 export * from "./entities";
+export { approvalPoliciesQueryKeys } from "./approvalPoliciesQueryKeys";
 export {
   getConceptCeilingRoles,
   isUnrestrictedStep,

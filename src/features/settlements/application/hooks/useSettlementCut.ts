@@ -5,7 +5,7 @@ import type {
   PreviewSettlementCutPayload,
 } from "../../domain/settlementCut";
 import { settlementsApi } from "../../infrastructure/settlementsApi";
-import { settlementsQueryKeys } from "../settlementsQueryKeys";
+import { settlementsQueryKeys } from "../../domain";
 
 export function useSettlementCutPreview(
   params: PreviewSettlementCutPayload | null,

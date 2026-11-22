@@ -14,7 +14,7 @@ import {
   type ListAdvancesParams,
   type UpdateDriverAdvancePayload,
 } from "../../infrastructure/settlementsApi";
-import { settlementsQueryKeys } from "../settlementsQueryKeys";
+import { settlementsQueryKeys } from "../../domain";
 import type { DriverAdvanceFormData } from "../../presentation/validation/settlementSchemas";
 
 /** Refresca anticipos, hub de liquidaciones y bandeja (también tras una guarda ADR-0099). */

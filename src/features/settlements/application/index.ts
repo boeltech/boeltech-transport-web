@@ -1,4 +1,4 @@
-export * from "./settlementsQueryKeys";
+export { settlementsQueryKeys } from "../domain";
 export * from "./settlementsRoutes";
 export * from "./settlementReturnHref";
 export * from "./invalidateSettlementsQueries";

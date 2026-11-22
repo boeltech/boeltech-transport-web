@@ -43,6 +43,7 @@ import { mapBackendError } from "@shared/utils/errorMapper";
 import {
   authApi,
   MFA_STATUS_QUERY_KEY,
+  SESSIONS_QUERY_KEY,
   useAuth,
   useRevokeOtherSessions,
   type AuthSessionItem,
@@ -60,8 +61,6 @@ import {
   sessionDeviceKind,
   sortSessionsCurrentFirst,
 } from "../lib/sessionDevice";
-
-const SESSIONS_QUERY_KEY = ["auth", "sessions"] as const;
 
 function SessionDeviceIcon({
   ua,

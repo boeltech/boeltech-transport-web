@@ -4,8 +4,7 @@ import { dashboardQueryKeys } from "@features/dashboard/domain";
 import { financeQueryKeys } from "@features/finance/domain";
 import { scheduleFinanceAnalysisRefresh } from "@features/finance/application/invalidateFinanceAnalysisQueries";
 import { invalidateNotificationsQueries } from "@features/notifications/application";
-// F3 ADR-0102: mover a módulo hoja (parte B)
-import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
+import { settlementsQueryKeys } from "@features/settlements/domain";
 import { tripQueryKeys } from "@features/trips/application/tripsQueryKeys";
 
 /**

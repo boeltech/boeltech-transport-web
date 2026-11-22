@@ -1,4 +1,4 @@
-export { helpCenterQueryKeys } from "./helpCenterQueryKeys";
+export { helpCenterQueryKeys } from "../domain";
 export { useHelpArticles } from "./useHelpArticles";
 export { useHelpArticle } from "./useHelpArticle";
 export { useHelpTickets } from "./useHelpTickets";

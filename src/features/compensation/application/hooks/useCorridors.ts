@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { compensationApi } from "../../infrastructure/compensationApi";
-import { compensationQueryKeys } from "../compensationQueryKeys";
+import { compensationQueryKeys } from "../../domain";
 import { fetchAllCorridorTariffs } from "../utils/fetchAllCorridorTariffs";
 import type { CreateCorridorTariffPayload } from "../../domain/entities";
 

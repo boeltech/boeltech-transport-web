@@ -4,7 +4,7 @@ import {
   settlementsApi,
   type ListWorkbenchParams,
 } from "../../infrastructure/settlementsApi";
-import { settlementsQueryKeys } from "../settlementsQueryKeys";
+import { settlementsQueryKeys } from "../../domain";
 
 export function useSettlementWorkbench(params: ListWorkbenchParams = {}) {
   const { hasPermission } = usePermissions();

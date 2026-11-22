@@ -4,7 +4,7 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
-import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
+import { settlementsQueryKeys } from "@features/settlements/domain";
 import { TripStatus, tripQueryKeys, type Trip } from "@features/trips/domain";
 import { tripRepository, trackingRepository } from "@features/trips/infrastructure";
 import { invalidateTripAssignmentResources } from "./invalidateTripAssignmentResources";

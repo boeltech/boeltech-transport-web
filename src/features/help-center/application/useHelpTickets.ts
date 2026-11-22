@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { helpCenterApi, type HelpTicketsFilters } from "../infrastructure";
-import { helpCenterQueryKeys } from "./helpCenterQueryKeys";
+import { helpCenterQueryKeys } from "../domain";
 
 export function useHelpTickets(filters: HelpTicketsFilters = {}) {
   return useQuery({

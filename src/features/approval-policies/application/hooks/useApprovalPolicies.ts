@@ -8,7 +8,7 @@ import type {
 } from "../../domain/entities";
 import { getPolicyOrphanGuardError } from "../../domain/policyErrors";
 import { approvalPoliciesApi, type SavePolicyInput } from "../../infrastructure/approvalPoliciesApi";
-import { approvalPoliciesQueryKeys } from "../approvalPoliciesQueryKeys";
+import { approvalPoliciesQueryKeys } from "../../domain";
 import { invalidateApprovalPoliciesQueries } from "../invalidateApprovalPoliciesQueries";
 
 export function useApprovalPolicies(options?: { enabled?: boolean }) {

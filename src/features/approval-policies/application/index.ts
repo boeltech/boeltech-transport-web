@@ -1,4 +1,4 @@
-export { approvalPoliciesQueryKeys } from "./approvalPoliciesQueryKeys";
+export { approvalPoliciesQueryKeys } from "../domain";
 export { invalidateApprovalPoliciesQueries } from "./invalidateApprovalPoliciesQueries";
 export { APPROVAL_POLICIES_PATH, approvalPoliciesPath } from "./approvalPoliciesRoutes";
 export {

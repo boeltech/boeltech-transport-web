@@ -1,4 +1,4 @@
-import type { ApprovalConcept } from "../domain/entities";
+import type { ApprovalConcept } from "./entities";
 
 export const approvalPoliciesQueryKeys = {
   all: ["approval-policies"] as const,

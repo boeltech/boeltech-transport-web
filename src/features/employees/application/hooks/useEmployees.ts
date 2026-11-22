@@ -30,7 +30,7 @@ import type {
   EmployeeSearchParams,
 } from "../../domain/entities";
 import type { MappedPaginatedResult, MappedSingleResult } from "@shared/api";
-import { employeeQueryKeys } from "../employeeQueryKeys";
+import { employeeQueryKeys } from "../../domain";
 
 export { employeeQueryKeys };
 

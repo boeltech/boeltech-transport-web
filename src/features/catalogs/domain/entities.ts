@@ -310,7 +310,12 @@ export const catalogQueryKeys = {
     [...catalogQueryKeys.all, typeCode, "search"] as const,
   searchQuery: (
     typeCode: string,
-    params: { query: string; parentCode?: string },
+    params: {
+      query: string;
+      parentCode?: string;
+      limit?: number;
+      offset?: number;
+    },
   ) => [...catalogQueryKeys.search(typeCode), params] as const,
 
   // Single item

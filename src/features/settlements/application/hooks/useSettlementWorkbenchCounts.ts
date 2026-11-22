@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { usePermissions } from "@shared/permissions";
 import { settlementsApi } from "../../infrastructure/settlementsApi";
-import { settlementsQueryKeys } from "../settlementsQueryKeys";
+import { settlementsQueryKeys } from "../../domain";
 import { OPEN_ADVANCE_STATUSES } from "../../presentation/config/settlementWorkbenchConfig";
 import type { SettlementWorkbenchSummary } from "../../domain/entities";
 import { useSettlementWorkbench } from "./useSettlementWorkbench";

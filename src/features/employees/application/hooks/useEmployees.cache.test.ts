@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { employeeQueryKeys } from "../employeeQueryKeys";
+import { employeeQueryKeys } from "../../domain";
 
 const invalidateQueries = vi.fn();
 const setQueryData = vi.fn();

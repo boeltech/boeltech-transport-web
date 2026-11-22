@@ -7,7 +7,7 @@ import {
   FINANCE_ANALYSIS_REFRESH_DELAY_MS,
   scheduleFinanceAnalysisRefresh,
 } from "@features/finance/application/invalidateFinanceAnalysisQueries";
-import { settlementsQueryKeys } from "@features/settlements/application";
+import { settlementsQueryKeys } from "@features/settlements/domain";
 import { tripQueryKeys } from "@features/trips/application/tripsQueryKeys";
 import { invalidateApprovalsRelatedQueries } from "./invalidateApprovalsQueries";
 

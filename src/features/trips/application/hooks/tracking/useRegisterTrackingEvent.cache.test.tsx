@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 
-import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
+import { settlementsQueryKeys } from "@features/settlements/domain";
 import { tripQueryKeys } from "@features/trips/domain";
 import { useRegisterTrackingEvent } from "./useRegisterTrackingEvent";
 

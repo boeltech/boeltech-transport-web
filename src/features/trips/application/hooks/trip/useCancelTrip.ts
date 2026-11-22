@@ -3,7 +3,7 @@ import {
   useQueryClient,
   type UseMutationOptions,
 } from "@tanstack/react-query";
-import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
+import { settlementsQueryKeys } from "@features/settlements/domain";
 import { TripStatus, type Trip } from "@features/trips/domain";
 import { createCancelTripUseCase } from "@features/trips/application";
 import { tripRepository } from "@features/trips/infrastructure";

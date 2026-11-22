@@ -1,12 +1,14 @@
-import type { HelpArticlesFilters } from "../infrastructure";
-
+/**
+ * Query keys del centro de ayuda.
+ * Filtros tipados de forma estructural (sin acoplar domain → infrastructure).
+ */
 export const helpCenterQueryKeys = {
   all: ["help-center"] as const,
-  articles: (filters?: HelpArticlesFilters) =>
+  articles: (filters?: unknown) =>
     [...helpCenterQueryKeys.all, "articles", filters ?? {}] as const,
   article: (id: string) =>
     [...helpCenterQueryKeys.all, "article", id] as const,
-  tickets: (filters?: Record<string, unknown>) =>
+  tickets: (filters?: unknown) =>
     [...helpCenterQueryKeys.all, "tickets", filters ?? {}] as const,
   /** Active open+in_progress count for «Mis tickets (N)» */
   ticketOpenCount: () =>

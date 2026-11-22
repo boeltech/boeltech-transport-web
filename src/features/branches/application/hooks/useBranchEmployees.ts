@@ -1,11 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { branchEmployeeQueryKeys } from "../../domain";
 import { branchEmployeesApi } from "../../infrastructure/branchEmployeesApi";
-
-export const branchEmployeeQueryKeys = {
-  all: ["branches", "employees"] as const,
-  byBranch: (branchId: string) =>
-    [...branchEmployeeQueryKeys.all, branchId] as const,
-};
 
 export function useBranchEmployees(branchId: string) {
   return useQuery({

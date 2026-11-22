@@ -1,4 +1,4 @@
-export { notificationsQueryKeys } from "./notificationsQueryKeys";
+export { notificationsQueryKeys } from "../domain";
 export { invalidateNotificationsQueries } from "./invalidateNotificationsQueries";
 export { useNotificationsList } from "./hooks/useNotificationsList";
 export { useUnreadNotificationsCount } from "./hooks/useUnreadNotificationsCount";

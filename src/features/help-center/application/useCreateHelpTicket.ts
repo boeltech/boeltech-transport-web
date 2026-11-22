@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { helpCenterApi } from "../infrastructure";
-import { helpCenterQueryKeys } from "./helpCenterQueryKeys";
+import { helpCenterQueryKeys } from "../domain";
 
 export function useCreateHelpTicket() {
   const queryClient = useQueryClient();

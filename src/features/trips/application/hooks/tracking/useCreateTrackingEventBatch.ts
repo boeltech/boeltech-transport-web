@@ -4,7 +4,7 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { invalidateDashboardLiveQueries } from "@features/dashboard/application/invalidateDashboardLiveQueries";
-import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
+import { settlementsQueryKeys } from "@features/settlements/domain";
 import {
   tripQueryKeys,
   type CreateTrackingEventInput,

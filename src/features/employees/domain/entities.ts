@@ -268,6 +268,14 @@ export interface EmployeeFilters {
   isActive?: boolean;
 }
 
+/** Params de listado GET /employees (paginación + filtros). Vive en domain para tipar keys. */
+export interface EmployeeListParams extends EmployeeFilters {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
 /**
  * Campos `sort_by` de GET /employees (`employeeQuerySchema` en API).
  * @see boeltech-transport-api `employee.validation.ts` — no incluye email, position, employment_type ni full_name.

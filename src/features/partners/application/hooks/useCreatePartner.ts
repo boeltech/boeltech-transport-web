@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { partnerQueryKeys } from "../../domain";
 import { createPartner } from "../../infrastructure/partnersApi";
 
 export function useCreatePartner() {
@@ -7,7 +8,9 @@ export function useCreatePartner() {
   return useMutation({
     mutationFn: createPartner,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["partners", "search"] });
+      await queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.search(),
+      });
     },
   });
 }

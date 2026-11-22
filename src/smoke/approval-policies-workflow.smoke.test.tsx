@@ -39,7 +39,7 @@ import {
 } from "@features/approval-policies/presentation/copy/approvalPoliciesCopy";
 import { ApprovalPoliciesPage } from "@features/approval-policies/presentation/pages/ApprovalPoliciesPage";
 import { approvalsQueryKeys } from "@features/approvals/domain";
-import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
+import { settlementsQueryKeys } from "@features/settlements/domain";
 import { OperatorPaymentsHubLayout } from "@features/settlements/presentation/components/OperatorPaymentsHubLayout";
 import { settlementsCopy } from "@features/settlements/presentation/copy/settlementsCopy";
 import { SettingsNavTabs } from "@features/settings/presentation/components/SettingsNavTabs";

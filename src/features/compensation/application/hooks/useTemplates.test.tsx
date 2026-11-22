@@ -4,7 +4,7 @@ import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 import type { CompensationTemplate } from "../../domain/entities";
-import { compensationQueryKeys } from "../compensationQueryKeys";
+import { compensationQueryKeys } from "../../domain";
 import {
   useActivateCompensationTemplate,
   useDeactivateCompensationTemplate,

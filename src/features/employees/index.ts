@@ -5,6 +5,7 @@ export type {
   EmployeeForSelection,
   ApiEmployeeForDriverSelection,
   EmployeeFilters,
+  EmployeeListParams,
   EmployeeSortOptions,
   EmployeeSearchParams,
   EmployeeStatus,

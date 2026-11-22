@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { approvalsQueryKeys } from "@features/approvals/domain";
-import { settlementsQueryKeys } from "@features/settlements/application/settlementsQueryKeys";
-import { approvalPoliciesQueryKeys } from "./approvalPoliciesQueryKeys";
+import { settlementsQueryKeys } from "@features/settlements/domain";
+import { approvalPoliciesQueryKeys } from "../domain";
 
 /**
  * Tras guardar / restablecer una regla: políticas, bandeja y settings de liquidaciones

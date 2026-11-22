@@ -4,7 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 import type { BatchTemplateAssignmentPayload } from "../../domain/entities";
-import { compensationQueryKeys } from "../compensationQueryKeys";
+import { compensationQueryKeys } from "../../domain";
 import {
   useBatchAssignmentPreview,
   useBatchCreateTemplateAssignments,

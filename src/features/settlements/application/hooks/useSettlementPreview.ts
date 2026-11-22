@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { settlementsApi } from "../../infrastructure/settlementsApi";
-import { settlementsQueryKeys } from "../settlementsQueryKeys";
+import { settlementsQueryKeys } from "../../domain";
 import type { PreviewSettlementQueryParams } from "../../presentation/validation/settlementSchemas";
 
 export function useSettlementPreview(

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
-import { settlementsQueryKeys } from "./settlementsQueryKeys";
+import { settlementsQueryKeys } from "../domain";
 import { invalidateSettlementQueries } from "./invalidateSettlementsQueries";
 
 vi.mock("@features/approvals/application", () => ({

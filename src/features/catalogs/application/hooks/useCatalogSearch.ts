@@ -75,7 +75,7 @@ export function useCatalogOptions(
   const { parentCode, enabled = true } = params;
 
   return useQuery({
-    queryKey: ["catalog-options", typeCode, parentCode],
+    queryKey: catalogQueryKeys.optionsFiltered(typeCode, parentCode),
     queryFn: async (): Promise<CatalogOption[]> => {
       const result = await catalogRepository.findAllAsOptions(
         typeCode,
@@ -143,7 +143,12 @@ export function useCatalogSearch(
   } = params;
 
   return useQuery({
-    queryKey: ["catalog-search", typeCode, query, parentCode, limit, offset],
+    queryKey: catalogQueryKeys.searchQuery(typeCode, {
+      query,
+      parentCode,
+      limit,
+      offset,
+    }),
     queryFn: async (): Promise<CatalogSearchResult> => {
       const result = await catalogRepository.search(typeCode, {
         query: query?.trim() || "",
@@ -186,7 +191,7 @@ export function useCatalogItem(
   code: string | undefined | null,
 ) {
   return useQuery({
-    queryKey: ["catalog-item", typeCode, code ?? ""],
+    queryKey: catalogQueryKeys.item(typeCode, code ?? ""),
     queryFn: async (): Promise<CatalogItem | null> => {
       if (code == null || code === "") return null;
       return catalogRepository.findByCode(typeCode, code);

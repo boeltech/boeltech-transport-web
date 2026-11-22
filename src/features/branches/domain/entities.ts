@@ -134,6 +134,18 @@ export const branchQueryKeys = {
   reconcilePreview: () => [...branchQueryKeys.all, "reconcile-preview"] as const,
 };
 
+export const branchEmployeeQueryKeys = {
+  all: ["branches", "employees"] as const,
+  byBranch: (branchId: string) =>
+    [...branchEmployeeQueryKeys.all, branchId] as const,
+};
+
+export const branchVehicleQueryKeys = {
+  all: ["branches", "vehicles"] as const,
+  byBranch: (branchId: string) =>
+    [...branchVehicleQueryKeys.all, branchId] as const,
+};
+
 /** Evento de historial mínimo (gestión de sucursales). */
 export interface BranchManagementEvent {
   readonly id: string;

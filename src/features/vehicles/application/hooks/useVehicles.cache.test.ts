@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { branchVehicleQueryKeys } from "@features/branches/application";
+import { branchVehicleQueryKeys } from "@features/branches/domain";
 import { dashboardQueryKeys } from "@features/dashboard/domain";
 import { fleetDocumentsQueryKeys } from "@features/fleet-documents/domain";
 import { vehicleQueryKeys, type Vehicle } from "@features/vehicles/domain";

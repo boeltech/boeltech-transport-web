@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
-import { notificationsQueryKeys } from "./notificationsQueryKeys";
+import { notificationsQueryKeys } from "../domain";
 import { invalidateNotificationsQueries } from "./invalidateNotificationsQueries";
 
 const getUnreadCount = vi.fn().mockResolvedValue(0);

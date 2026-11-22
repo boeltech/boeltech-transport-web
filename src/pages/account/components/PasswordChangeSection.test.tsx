@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { SESSIONS_QUERY_KEY } from "@features/auth";
 import { accountCopy } from "../accountCopy";
 import { PasswordChangeSection } from "./PasswordChangeSection";
 
@@ -77,7 +78,7 @@ describe("PasswordChangeSection", () => {
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: ["auth", "sessions"],
+      queryKey: SESSIONS_QUERY_KEY,
     });
   });
 });

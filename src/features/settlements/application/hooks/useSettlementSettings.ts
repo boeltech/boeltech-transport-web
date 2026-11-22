@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { settlementsApi } from "../../infrastructure/settlementsApi";
-import { settlementsQueryKeys } from "../settlementsQueryKeys";
+import { settlementsQueryKeys } from "../../domain";
 
 /**
  * Settings de liquidaciones (solo lectura): umbral VoBo de la regla vigente +

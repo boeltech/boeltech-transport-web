@@ -12,6 +12,7 @@ import {
   useAuth,
   useChangePassword,
   changePasswordFormSchema,
+  SESSIONS_QUERY_KEY,
   type ChangePasswordFormData,
 } from "@features/auth";
 import { userQueryKeys } from "@features/users";
@@ -159,9 +160,9 @@ export function PasswordChangeSection() {
       void queryClient.invalidateQueries({
         queryKey: userQueryKeys.activityRoot(user.id),
       });
-      // Misma key que useRevokeOtherSessions / SecuritySettingsPage (I-5 unifica).
+      // Misma key que useRevokeOtherSessions / SecuritySettingsPage (auth/domain).
       void queryClient.invalidateQueries({
-        queryKey: ["auth", "sessions"] as const,
+        queryKey: SESSIONS_QUERY_KEY,
       });
       setSheetOpen(false);
       toast({

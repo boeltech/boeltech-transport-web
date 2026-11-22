@@ -4,9 +4,8 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { SESSIONS_QUERY_KEY } from "../../domain";
 import { authApi } from "../../infrastructure/api/authApi";
-
-const SESSIONS_QUERY_KEY = ["auth", "sessions"] as const;
 
 export function useRevokeOtherSessions() {
   const queryClient = useQueryClient();

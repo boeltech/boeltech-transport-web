@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { compensationApi } from "../../infrastructure/compensationApi";
-import { compensationQueryKeys } from "../compensationQueryKeys";
+import { compensationQueryKeys } from "../../domain";
 
 export function useFrequentCityPairs(
   params?: { limit?: number; q?: string },

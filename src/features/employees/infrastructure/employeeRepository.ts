@@ -8,26 +8,21 @@ import type {
   ApiEmployeeListItem,
   ApiEmployeeResponse,
   ApiEmployeeForDriverSelection,
-  EmployeeFilters,
   CreateEmployeeDTO,
   UpdateEmployeeDTO,
   TerminateEmployeeDTO,
   EmployeeSearchParams,
+  EmployeeListParams,
 } from "../domain/entities";
 import type { ApiPaginatedResponse, ApiSingleResponse } from "@shared/api";
+
+export type { EmployeeListParams };
 
 const BASE = "/employees";
 
 // ============================================================================
 // LIST
 // ============================================================================
-
-export interface EmployeeListParams extends EmployeeFilters {
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-}
 
 export async function fetchEmployees(
   params: EmployeeListParams = {},

@@ -11,7 +11,7 @@ import {
   type UpdateSettlementPayload,
 } from "../../infrastructure/settlementsApi";
 import { invalidateSettlementQueries } from "../invalidateSettlementsQueries";
-import { settlementsQueryKeys } from "../settlementsQueryKeys";
+import { settlementsQueryKeys } from "../../domain";
 import type { SettlementStatus } from "../../domain/enums";
 import type {
   CreateSettlementFormData,

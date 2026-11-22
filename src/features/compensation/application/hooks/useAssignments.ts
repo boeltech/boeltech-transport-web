@@ -8,7 +8,7 @@ import {
 import { useDebounce } from "@shared/hooks";
 import { isApiError } from "@shared/api/interceptors/error-handler";
 import { compensationApi } from "../../infrastructure/compensationApi";
-import { compensationQueryKeys } from "../compensationQueryKeys";
+import { compensationQueryKeys } from "../../domain";
 import {
   BATCH_ASSIGNMENT_MAX_EMPLOYEES,
   COMPENSATION_ERROR_CODES,

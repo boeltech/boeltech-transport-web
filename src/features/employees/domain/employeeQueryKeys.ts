@@ -1,4 +1,4 @@
-import type { EmployeeListParams } from "../infrastructure/employeeRepository";
+import type { EmployeeListParams } from "./entities";
 
 /**
  * Única fuente de query keys de empleados (evitar duplicar en hooks legacy).

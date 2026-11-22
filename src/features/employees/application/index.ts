@@ -1,4 +1,4 @@
-export { employeeQueryKeys } from "./employeeQueryKeys";
+export { employeeQueryKeys } from "../domain";
 export {
   useEmployees,
   useEmployee,

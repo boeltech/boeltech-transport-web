@@ -49,3 +49,11 @@ export {
 
 /** Query key compartida MFA (tab Seguridad + tarjeta Datos). */
 export const MFA_STATUS_QUERY_KEY = ["auth", "mfa-status"] as const;
+
+/** Query key de sesiones activas (Mi cuenta / Seguridad / revoke-others). */
+export const SESSIONS_QUERY_KEY = ["auth", "sessions"] as const;
+
+export const authQueryKeys = {
+  mfaStatus: () => MFA_STATUS_QUERY_KEY,
+  sessions: () => SESSIONS_QUERY_KEY,
+} as const;
