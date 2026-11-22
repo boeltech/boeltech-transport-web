@@ -179,5 +179,11 @@ describe("BranchReconcilePlanSheet", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: branchVehicleQueryKeys.all,
     });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ["dashboard", "branch-kpis"],
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ["dashboard", "branch-kpis-trend"],
+    });
   });
 });

@@ -1,4 +1,8 @@
-import { useIncomingFrom } from "./listQueueFrom";
+import {
+  useIncomingFrom,
+  type WayfindingLocationState,
+} from "./listQueueFrom";
+import { resolveModuleNavLabel } from "./masterWayfinding";
 import { resolveInternalAppHref } from "./resolveInternalAppHref";
 
 export const REPORTS_HUB_PATH = "/reports";
@@ -9,6 +13,19 @@ export const DASHBOARD_PATH = "/dashboard";
 export const REPORTS_WAYFINDING_COPY = {
   backToReports: "Volver a reportes",
 } as const;
+
+/**
+ * `location.state` al salir de Inicio (A1/A2): `from` + `fromLabel`.
+ * Reenvía Reportes si se llegó desde el catálogo; si no, Inicio.
+ */
+export function buildDashboardOutgoingNavState(
+  fromHref: string = DASHBOARD_PATH,
+): WayfindingLocationState {
+  return {
+    from: fromHref,
+    fromLabel: resolveModuleNavLabel(fromHref) ?? "Inicio",
+  };
+}
 
 export function isReportsHubHref(href: string): boolean {
   const path = href.split("?")[0] ?? href;

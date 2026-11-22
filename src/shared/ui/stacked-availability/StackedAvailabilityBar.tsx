@@ -27,6 +27,8 @@ export interface StackedAvailabilityBarProps {
   freeCaption: string;
   href?: string;
   linkLabel?: string;
+  /** `location.state` del enlace de catálogo (p. ej. desde Inicio). */
+  state?: unknown;
   segments: readonly StackedAvailabilitySegment[];
   className?: string;
 }
@@ -43,6 +45,7 @@ export function StackedAvailabilityBar({
   freeCaption,
   href,
   linkLabel,
+  state,
   segments,
   className,
 }: StackedAvailabilityBarProps) {
@@ -58,6 +61,7 @@ export function StackedAvailabilityBar({
         {href && linkLabel ? (
           <Link
             to={href}
+            state={state}
             className="ml-auto text-xs font-medium text-primary-700 no-underline hover:underline"
           >
             {linkLabel}

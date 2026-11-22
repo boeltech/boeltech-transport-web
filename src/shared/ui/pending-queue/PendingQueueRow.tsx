@@ -24,6 +24,8 @@ export interface PendingQueueRowProps {
   valueHint?: ReactNode;
   ctaLabel: string;
   href: string;
+  /** `location.state` al navegar (p. ej. `from` + `fromLabel` desde Inicio). */
+  state?: unknown;
   urgency?: PendingQueueUrgency;
   className?: string;
 }
@@ -51,12 +53,14 @@ export function PendingQueueRow({
   valueHint,
   ctaLabel,
   href,
+  state,
   urgency = "info",
   className,
 }: PendingQueueRowProps) {
   return (
     <Link
       to={href}
+      state={state}
       className={cn(
         "grid grid-cols-[10px_minmax(0,1fr)_auto_auto] items-center gap-x-3.5 gap-y-0.5 border-b border-border px-5 py-3 text-inherit no-underline last:border-b-0",
         "transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",

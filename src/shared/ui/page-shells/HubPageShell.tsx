@@ -83,6 +83,8 @@ export interface HubPageShellAction {
   id: string;
   label: string;
   href?: string;
+  /** `location.state` al navegar (p. ej. `from` + `fromLabel` desde Inicio). */
+  state?: unknown;
   onClick?: () => void;
   variant?: "default" | "outline" | "ghost";
   icon?: ReactNode;
@@ -147,7 +149,11 @@ function HubActionButton({ action }: { action: HubPageShellAction }) {
   if (action.href) {
     return (
       <Button asChild variant={variant} size="sm">
-        <Link to={action.href} data-help-anchor={action.dataHelpAnchor}>
+        <Link
+          to={action.href}
+          state={action.state}
+          data-help-anchor={action.dataHelpAnchor}
+        >
           {content}
         </Link>
       </Button>

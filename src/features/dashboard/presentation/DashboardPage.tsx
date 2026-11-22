@@ -21,7 +21,10 @@ import { useAuth } from "@/features/auth";
 import { usePermissions } from "@shared/permissions";
 import { getGreeting } from "@/shared/lib/userHelpers";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { resolveDashboardOutgoingFrom } from "@shared/utils/reportsWayfinding";
+import {
+  buildDashboardOutgoingNavState,
+  resolveDashboardOutgoingFrom,
+} from "@shared/utils/reportsWayfinding";
 import { resolveDashboardJobAction } from "./utils/resolveDashboardJobAction";
 import { useDashboard } from "../application/hooks/useDashboard";
 import { useDashboardAttention } from "../application/hooks/useDashboardAttention";
@@ -58,6 +61,7 @@ function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const fromHref = resolveDashboardOutgoingFrom(useIncomingFrom());
+  const outgoingNavState = buildDashboardOutgoingNavState(fromHref);
   const isClientPortal = isClientPortalRole(user?.role);
   const isDriverPortal = isDriverPortalRole(user?.role);
   const isPortal = isClientPortal || isDriverPortal;
@@ -203,6 +207,7 @@ function DashboardPage() {
           id: jobAction.id,
           label: jobAction.label,
           href: jobAction.href,
+          state: jobAction.href ? outgoingNavState : undefined,
           onClick: jobAction.onClick,
           variant: "default" as const,
         },
@@ -347,11 +352,12 @@ function DashboardPage() {
                     role={user?.role}
                     rows={attentionRows}
                     isLoading={attentionLoading}
+                    navState={outgoingNavState}
                   />
                 </div>
                 {showOpsDayZones ? (
                   <div className="min-w-0 lg:col-span-4">
-                    <DashboardFleetAvailabilityZone />
+                    <DashboardFleetAvailabilityZone navState={outgoingNavState} />
                   </div>
                 ) : null}
               </div>
@@ -359,7 +365,9 @@ function DashboardPage() {
           </>
         ) : null}
 
-        {showOpsDayZones ? <DashboardOpsDayZone role={user?.role} /> : null}
+        {showOpsDayZones ? (
+          <DashboardOpsDayZone role={user?.role} navState={outgoingNavState} />
+        ) : null}
 
         {showK10 ? (
           <div className="min-w-0">
@@ -367,7 +375,9 @@ function DashboardPage() {
           </div>
         ) : null}
 
-        {showCollectionsWeek ? <DashboardCollectionsWeekZone /> : null}
+        {showCollectionsWeek ? (
+          <DashboardCollectionsWeekZone navState={outgoingNavState} />
+        ) : null}
 
         {isError ? (
           <DetailAlertCard

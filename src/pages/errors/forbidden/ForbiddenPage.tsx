@@ -49,7 +49,7 @@ const ForbiddenPage = () => {
         </Button>
         <Button onClick={() => navigate("/dashboard")}>
           <Home className="mr-2 h-4 w-4" />
-          Ir al Dashboard
+          Ir a Inicio
         </Button>
       </div>
 

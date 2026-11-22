@@ -12,6 +12,8 @@ export interface FilterCountStripItem {
   label: string;
   count: number;
   href: string;
+  /** `location.state` al navegar (p. ej. `from` + `fromLabel` desde Inicio). */
+  state?: unknown;
   /** Ámbar en número + dot (p. ej. Con retraso). */
   warn?: boolean;
 }
@@ -40,6 +42,7 @@ export function FilterCountStrip({
         <Link
           key={item.id}
           to={item.href}
+          state={item.state}
           className={cn(
             "flex flex-col gap-0.5 px-4 py-3 text-inherit no-underline transition-colors",
             "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",

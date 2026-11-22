@@ -24,6 +24,7 @@ import {
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
 import { mapBackendError } from "@shared/utils/errorMapper";
+import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
 import { employeeQueryKeys } from "@features/employees/application";
 import {
   branchEmployeeQueryKeys,
@@ -129,6 +130,13 @@ export function BranchReconcilePlanSheet({
       queryClient.invalidateQueries({ queryKey: employeeQueryKeys.details() });
       queryClient.invalidateQueries({ queryKey: branchEmployeeQueryKeys.all });
       queryClient.invalidateQueries({ queryKey: branchVehicleQueryKeys.all });
+      // H-U01-Q01 — KPIs de sucursal en Inicio
+      queryClient.invalidateQueries({
+        queryKey: [...dashboardQueryKeys.all, "branch-kpis"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [...dashboardQueryKeys.all, "branch-kpis-trend"],
+      });
       toast({
         title: branchesCopy.overQuota.reconcileSuccess,
         variant: "success",

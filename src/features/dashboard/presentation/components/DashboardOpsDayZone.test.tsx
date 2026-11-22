@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
 import { dashboardCopy } from "../copy/dashboardCopy";
 import { DashboardOpsDayZone } from "./DashboardOpsDayZone";
+
+const navState = { from: DASHBOARD_PATH, fromLabel: "Inicio" };
 
 const { mockUseTripOpsDaySummary } = vi.hoisted(() => ({
   mockUseTripOpsDaySummary: vi.fn(),
@@ -14,6 +18,13 @@ vi.mock("@features/trips/application", () => ({
   useTripOpsDaySummary: () => mockUseTripOpsDaySummary(),
 }));
 
+function DestinationProbe() {
+  const location = useLocation();
+  return (
+    <pre data-testid="dest-state">{JSON.stringify(location.state)}</pre>
+  );
+}
+
 function renderZone(role = "manager") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -21,7 +32,7 @@ function renderZone(role = "manager") {
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <DashboardOpsDayZone role={role} />
+        <DashboardOpsDayZone role={role} navState={navState} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -78,6 +89,49 @@ describe("DashboardOpsDayZone", () => {
     expect(
       screen.getByRole("link", { name: /Con retraso/ }),
     ).toHaveAttribute("href", "/trips?overdue=1");
+  });
+
+  it("pasa state.from y fromLabel al bucket Con retraso (H-U01-N01)", async () => {
+    const user = userEvent.setup();
+    mockUseTripOpsDaySummary.mockReturnValue({
+      data: {
+        counts: { departing: 1, inProgress: 0, overdue: 2, arrived: 0 },
+        overdueBreakdown: { departureLate: 1, arrivalLate: 1 },
+        items: [],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+      isFetching: false,
+    });
+
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[DASHBOARD_PATH]}>
+          <Routes>
+            <Route
+              path={DASHBOARD_PATH}
+              element={
+                <DashboardOpsDayZone role="manager" navState={navState} />
+              }
+            />
+            <Route path="/trips" element={<DestinationProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("link", { name: /Con retraso/ }));
+
+    expect(screen.getByTestId("dest-state")).toHaveTextContent(
+      '"from":"/dashboard"',
+    );
+    expect(screen.getByTestId("dest-state")).toHaveTextContent(
+      '"fromLabel":"Inicio"',
+    );
   });
 
   it("vacío + próximo viaje", () => {

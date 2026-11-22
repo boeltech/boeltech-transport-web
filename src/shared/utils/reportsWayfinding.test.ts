@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDashboardOutgoingNavState,
   DASHBOARD_PATH,
   isReportsHubHref,
   REPORTS_HUB_PATH,
@@ -31,5 +32,16 @@ describe("reportsWayfinding", () => {
     expect(resolveDashboardOutgoingFrom("/reports")).toBe("/reports");
     expect(resolveDashboardOutgoingFrom(undefined)).toBe(DASHBOARD_PATH);
     expect(resolveDashboardOutgoingFrom("/finance")).toBe(DASHBOARD_PATH);
+  });
+
+  it("buildDashboardOutgoingNavState añade fromLabel Inicio / Reportes", () => {
+    expect(buildDashboardOutgoingNavState()).toEqual({
+      from: DASHBOARD_PATH,
+      fromLabel: "Inicio",
+    });
+    expect(buildDashboardOutgoingNavState(REPORTS_HUB_PATH)).toEqual({
+      from: REPORTS_HUB_PATH,
+      fromLabel: "Reportes",
+    });
   });
 });

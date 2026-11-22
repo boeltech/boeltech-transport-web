@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
 import { dashboardCopy } from "./copy/dashboardCopy";
 import DashboardPage from "./DashboardPage";
 import { formatAttentionEyebrow } from "../domain/attentionQueue";
@@ -191,6 +193,53 @@ describe("DashboardPage — F1 encabezado I12", () => {
         name: dashboardCopy.customize.personalizeButton,
       }),
     ).toBeInTheDocument();
+  });
+
+  it("job CTA pasa state.from y fromLabel (H-U01-N02)", async () => {
+    const user = userEvent.setup();
+    mockHasPermission.mockImplementation(
+      (mod: string, action: string) =>
+        mod === "trips" && action === "create",
+    );
+    mockLayoutWidgets.mockReturnValue({
+      customizable: [{ id: "stub_a", visible: true, order: 0 }],
+      visible: [{ id: "stub_a", visible: true, order: 0 }],
+    });
+    mockUseAuth.mockReturnValue({
+      user: { role: "dispatcher", firstName: "Rodrigo" },
+    });
+
+    function DestinationProbe() {
+      const location = useLocation();
+      return (
+        <pre data-testid="dest-state">{JSON.stringify(location.state)}</pre>
+      );
+    }
+
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[DASHBOARD_PATH]}>
+          <Routes>
+            <Route path={DASHBOARD_PATH} element={<DashboardPage />} />
+            <Route path="/trips/new" element={<DestinationProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("link", { name: dashboardCopy.page.jobActions.newTrip }),
+    );
+
+    expect(screen.getByTestId("dest-state")).toHaveTextContent(
+      '"from":"/dashboard"',
+    );
+    expect(screen.getByTestId("dest-state")).toHaveTextContent(
+      '"fromLabel":"Inicio"',
+    );
   });
 
   it("accountant CTA Ir a Por facturar", () => {

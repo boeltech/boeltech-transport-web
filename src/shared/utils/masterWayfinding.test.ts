@@ -188,6 +188,29 @@ describe("resolveDetailCrumbs (Q1)", () => {
     ]);
   });
 
+  it("rechaza from externo (allowlist vía resolveInternalAppHref)", () => {
+    expect(
+      resolveDetailCrumbs({
+        from: "https://evil.example/dashboard",
+        module: { listPath: "/vehicles", label: "Vehículos" },
+        current: { label: "ECO-12", mono: true },
+      }),
+    ).toEqual([
+      { label: "Vehículos", to: "/vehicles" },
+      { label: "ECO-12", mono: true },
+    ]);
+    expect(
+      resolveDetailCrumbs({
+        from: "//evil.example/dashboard",
+        module: { listPath: "/vehicles", label: "Vehículos" },
+        current: { label: "ECO-12", mono: true },
+      }),
+    ).toEqual([
+      { label: "Vehículos", to: "/vehicles" },
+      { label: "ECO-12", mono: true },
+    ]);
+  });
+
   it("from desconocido interno sin match de módulo → jerarquía", () => {
     expect(
       resolveDetailCrumbs({

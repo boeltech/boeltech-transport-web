@@ -11,7 +11,14 @@ import { StackedAvailabilityBar } from "@shared/ui/stacked-availability";
 import { useFleetAvailability } from "../../application/hooks/useFleetAvailability";
 import { dashboardCopy } from "../copy/dashboardCopy";
 
-export function DashboardFleetAvailabilityZone() {
+export interface DashboardFleetAvailabilityZoneProps {
+  /** `location.state` al salir a catálogos (H-U01-N01). */
+  navState?: unknown;
+}
+
+export function DashboardFleetAvailabilityZone({
+  navState,
+}: DashboardFleetAvailabilityZoneProps = {}) {
   const { data, isLoading, isError, refetch, isFetching } =
     useFleetAvailability();
   const copy = dashboardCopy.fleetAvailability;
@@ -67,6 +74,7 @@ export function DashboardFleetAvailabilityZone() {
                   )}
                   href="/vehicles"
                   linkLabel={copy.vehiclesLink}
+                  state={navState}
                   segments={[
                     {
                       id: "v-free",
@@ -101,6 +109,7 @@ export function DashboardFleetAvailabilityZone() {
                   )}
                   href="/drivers"
                   linkLabel={copy.driversLink}
+                  state={navState}
                   segments={[
                     {
                       id: "d-free",

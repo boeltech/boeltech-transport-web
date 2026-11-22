@@ -31,6 +31,8 @@ import { dashboardCopy } from "../copy/dashboardCopy";
 
 export interface DashboardOpsDayZoneProps {
   role: string | undefined;
+  /** `location.state` al salir a Viajes (H-U01-N01). */
+  navState?: unknown;
 }
 
 function subtitleForRole(role: string | undefined): string {
@@ -44,7 +46,10 @@ function subtitleForRole(role: string | undefined): string {
   return copy.default;
 }
 
-export function DashboardOpsDayZone({ role }: DashboardOpsDayZoneProps) {
+export function DashboardOpsDayZone({
+  role,
+  navState,
+}: DashboardOpsDayZoneProps) {
   const today = getTodayString();
   const { data, isLoading, isError, refetch, isFetching } =
     useTripOpsDaySummary();
@@ -68,18 +73,21 @@ export function DashboardOpsDayZone({ role }: DashboardOpsDayZoneProps) {
         label: copy.strip.departing,
         count: c.departing,
         href: buildOpsDayBucketHref("departing", today),
+        state: navState,
       },
       {
         id: "in_progress",
         label: copy.strip.inProgress,
         count: c.inProgress,
         href: buildOpsDayBucketHref("in_progress", today),
+        state: navState,
       },
       {
         id: "overdue",
         label: copy.strip.overdue,
         count: c.overdue,
         href: buildOpsDayBucketHref("overdue", today),
+        state: navState,
         warn: c.overdue > 0,
       },
       {
@@ -87,9 +95,10 @@ export function DashboardOpsDayZone({ role }: DashboardOpsDayZoneProps) {
         label: copy.strip.arrived,
         count: c.arrived,
         href: buildOpsDayBucketHref("arrived", today),
+        state: navState,
       },
     ];
-  }, [counts, copy.strip, today]);
+  }, [counts, copy.strip, navState, today]);
 
   const columns = useMemo<EntityListColumnDef<TripOpsDayItem>[]>(
     () => [
@@ -185,6 +194,7 @@ export function DashboardOpsDayZone({ role }: DashboardOpsDayZoneProps) {
         {!isEmpty && total > 0 ? (
           <Link
             to={buildOpsDayAllHref(today)}
+            state={navState}
             className="ml-auto text-[13px] font-medium text-primary no-underline hover:underline"
           >
             {copy.viewAll(total)}
@@ -225,6 +235,7 @@ export function DashboardOpsDayZone({ role }: DashboardOpsDayZoneProps) {
               )}{" "}
               <Link
                 to={`/trips/${nextTrip.id}`}
+                state={navState}
                 className="font-medium text-primary no-underline hover:underline"
               >
                 {copy.nextTripCta}
@@ -247,6 +258,7 @@ export function DashboardOpsDayZone({ role }: DashboardOpsDayZoneProps) {
             getRowId={(row) => row.id}
             isLoading={isLoading}
             primaryTo={(row) => `/trips/${row.id}`}
+            primaryState={navState ? () => navState : undefined}
             footer={
               !isLoading && items.length > 0 ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted-foreground">

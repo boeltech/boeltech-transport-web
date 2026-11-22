@@ -159,6 +159,10 @@ export function PasswordChangeSection() {
       void queryClient.invalidateQueries({
         queryKey: userQueryKeys.activityRoot(user.id),
       });
+      // Misma key que useRevokeOtherSessions / SecuritySettingsPage (I-5 unifica).
+      void queryClient.invalidateQueries({
+        queryKey: ["auth", "sessions"] as const,
+      });
       setSheetOpen(false);
       toast({
         title: accountCopy.password.updatedTitle,

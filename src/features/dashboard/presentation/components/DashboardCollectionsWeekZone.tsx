@@ -42,7 +42,14 @@ function formatMxn(amount: number): string {
   }).format(amount);
 }
 
-export function DashboardCollectionsWeekZone() {
+export interface DashboardCollectionsWeekZoneProps {
+  /** `location.state` al salir a Cobros (H-U01-N01). */
+  navState?: unknown;
+}
+
+export function DashboardCollectionsWeekZone({
+  navState,
+}: DashboardCollectionsWeekZoneProps = {}) {
   const { data, isLoading, isError, refetch, isFetching } = useCollectionsWeek();
   const copy = dashboardCopy.collectionsWeek;
 
@@ -136,6 +143,7 @@ export function DashboardCollectionsWeekZone() {
             getRowId={(row) => row.date}
             isLoading={isLoading}
             primaryTo={(row) => buildFinanceCobrosDayPath(row.date)}
+            primaryState={navState ? () => navState : undefined}
             footer={
               !isLoading ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted-foreground">

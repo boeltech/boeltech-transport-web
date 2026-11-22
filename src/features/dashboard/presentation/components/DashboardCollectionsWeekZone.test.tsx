@@ -1,10 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { DASHBOARD_PATH } from "@shared/utils/reportsWayfinding";
 import { dashboardCopy } from "../copy/dashboardCopy";
 import { DashboardCollectionsWeekZone } from "./DashboardCollectionsWeekZone";
+
+const navState = { from: DASHBOARD_PATH, fromLabel: "Inicio" };
 
 const { mockUseCollectionsWeek } = vi.hoisted(() => ({
   mockUseCollectionsWeek: vi.fn(),
@@ -18,6 +22,13 @@ vi.mock("@features/finance", async (importOriginal) => {
   };
 });
 
+function DestinationProbe() {
+  const location = useLocation();
+  return (
+    <pre data-testid="dest-state">{JSON.stringify(location.state)}</pre>
+  );
+}
+
 function renderZone() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -25,7 +36,7 @@ function renderZone() {
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <DashboardCollectionsWeekZone />
+        <DashboardCollectionsWeekZone navState={navState} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -79,5 +90,34 @@ describe("DashboardCollectionsWeekZone", () => {
     expect(
       screen.getByText(dashboardCopy.collectionsWeek.footer),
     ).toBeInTheDocument();
+  });
+
+  it("pasa state.from y fromLabel al día de Cobros (H-U01-N01)", async () => {
+    const user = userEvent.setup();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[DASHBOARD_PATH]}>
+          <Routes>
+            <Route
+              path={DASHBOARD_PATH}
+              element={<DashboardCollectionsWeekZone navState={navState} />}
+            />
+            <Route path="/finance/payments" element={<DestinationProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("link", { name: /16/i }));
+
+    expect(screen.getByTestId("dest-state")).toHaveTextContent(
+      '"from":"/dashboard"',
+    );
+    expect(screen.getByTestId("dest-state")).toHaveTextContent(
+      '"fromLabel":"Inicio"',
+    );
   });
 });

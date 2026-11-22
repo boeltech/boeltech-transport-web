@@ -1,7 +1,23 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+import { dashboardQueryKeys } from "@features/dashboard/application/dashboardQueryKeys";
 import { branchQueryKeys, type BranchQueryParams } from "../../domain";
 import type { CreateBranchDTO, UpdateBranchDTO } from "../../domain";
 import { branchesApi } from "../../infrastructure";
+
+/** H-U01-Q01 — KPIs de sucursal en Inicio tras mutaciones de branches. */
+function invalidateDashboardBranchKpis(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({
+    queryKey: [...dashboardQueryKeys.all, "branch-kpis"],
+  });
+  void queryClient.invalidateQueries({
+    queryKey: [...dashboardQueryKeys.all, "branch-kpis-trend"],
+  });
+}
 
 interface MutationCallbacks<TData = unknown, TError = Error> {
   onSuccess?: (data: TData) => void;
@@ -42,6 +58,7 @@ export const useCreateBranch = (
     mutationFn: (payload: CreateBranchDTO) => branchesApi.create(payload),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: branchQueryKeys.lists() });
+      invalidateDashboardBranchKpis(queryClient);
       callbacks?.onSuccess?.({
         id: result.data.id,
         code: result.data.code,
@@ -62,6 +79,7 @@ export const useUpdateBranch = (callbacks?: MutationCallbacks) => {
       queryClient.invalidateQueries({
         queryKey: branchQueryKeys.detail(result.data.id),
       });
+      invalidateDashboardBranchKpis(queryClient);
       callbacks?.onSuccess?.(result);
     },
     onError: (error: Error) => callbacks?.onError?.(error),
@@ -74,6 +92,7 @@ export const useDeleteBranch = (callbacks?: MutationCallbacks<void>) => {
     mutationFn: (id: string) => branchesApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: branchQueryKeys.lists() });
+      invalidateDashboardBranchKpis(queryClient);
       callbacks?.onSuccess?.(undefined);
     },
     onError: (error: Error) => callbacks?.onError?.(error),
@@ -89,6 +108,7 @@ export const useRestoreBranch = (callbacks?: MutationCallbacks<{ id: string }>) 
       queryClient.invalidateQueries({
         queryKey: branchQueryKeys.detail(result.data.id),
       });
+      invalidateDashboardBranchKpis(queryClient);
       callbacks?.onSuccess?.({ id: result.data.id });
     },
     onError: (error: Error) => callbacks?.onError?.(error),

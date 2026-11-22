@@ -19,6 +19,8 @@ export interface DashboardAttentionZoneProps {
   isLoading: boolean;
   /** Cuando true, la checklist de activación ocupa la zona. */
   occupiedByActivation?: boolean;
+  /** `location.state` al salir a bandejas (H-U01-N01). */
+  navState?: unknown;
 }
 
 function subtitleForRole(role: string | undefined): string {
@@ -36,6 +38,7 @@ export function DashboardAttentionZone({
   rows,
   isLoading,
   occupiedByActivation = false,
+  navState,
 }: DashboardAttentionZoneProps) {
   if (occupiedByActivation) return null;
 
@@ -108,6 +111,7 @@ export function DashboardAttentionZone({
               valueHint={row.valueHint}
               ctaLabel={row.ctaLabel}
               href={row.href}
+              state={navState}
               urgency={row.urgency}
             />
           ))}
