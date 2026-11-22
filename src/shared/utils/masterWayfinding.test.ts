@@ -5,10 +5,19 @@ import {
   resolveDetailCrumbs,
   resolveMasterBackHref,
   resolveMasterBackLabel,
+  resolveModuleNavLabel,
 } from "./masterWayfinding";
 import { buildListHref } from "./listQueueFrom";
 
 describe("masterWayfinding", () => {
+  it("resolveModuleNavLabel mapea listado y detalle", () => {
+    expect(resolveModuleNavLabel("/users")).toBe("Usuarios");
+    expect(resolveModuleNavLabel("/users?create=1")).toBe("Usuarios");
+    expect(resolveModuleNavLabel("/branches/br-1")).toBe("Sucursales");
+    expect(resolveModuleNavLabel("/dashboard")).toBe("Inicio");
+    expect(resolveModuleNavLabel("/no-existe")).toBeUndefined();
+  });
+
   it("buildListHref conserva filtros", () => {
     const params = new URLSearchParams("status=inactive&page=2");
     expect(buildListHref("/branches", params)).toBe(

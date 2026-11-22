@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { usePermissions } from "@shared/permissions";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { vehiclesCopy } from "../copy";
 
 type VehicleBillingPolicyKind = "create" | "remove";
@@ -18,6 +19,7 @@ export function VehicleBillingPolicyNote({
   className,
 }: VehicleBillingPolicyNoteProps) {
   const { hasPermission } = usePermissions();
+  const { from } = useListQueueFromState();
   const copy = vehiclesCopy.billingPolicy;
   const text = kind === "create" ? copy.create : copy.remove;
   const showLink = hasPermission("billing", "read");
@@ -30,6 +32,7 @@ export function VehicleBillingPolicyNote({
           {" "}
           <Link
             to={copy.subscriptionHref}
+            state={{ from, fromLabel: "Vehículos" }}
             className="font-medium underline underline-offset-2"
           >
             {copy.link}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { usersCopy } from "../copy/usersCopy";
 import { resolveUserPlanCapacity } from "../helpers/userPlanCapacity";
 import { UserCapacityBanner } from "./UserCapacityBanner";
@@ -36,7 +37,7 @@ describe("UserCapacityBanner", () => {
 describe("UserPlanLimitNotice", () => {
   it("avisa al llegar al tope con action Ver Tu plan (D5)", () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/users"]}>
         <UserPlanLimitNotice capacity={resolveUserPlanCapacity(3, 3)} />
       </MemoryRouter>,
     );
@@ -53,6 +54,49 @@ describe("UserPlanLimitNotice", () => {
     expect(billingLink).toHaveAttribute("href", "/settings/subscription");
     // Slot action de DetailAlertCard (no children suelto).
     expect(billingLink.closest(".mt-2.flex.flex-wrap.gap-2")).toBeTruthy();
+  });
+
+  it("navega a Tu plan con state.from y fromLabel (H-U09-N02)", async () => {
+    const user = userEvent.setup();
+
+    function SubscriptionProbe() {
+      const location = useLocation();
+      return (
+        <pre data-testid="subscription-state">
+          {JSON.stringify(location.state)}
+        </pre>
+      );
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/users"]}>
+        <Routes>
+          <Route
+            path="/users"
+            element={
+              <UserPlanLimitNotice capacity={resolveUserPlanCapacity(3, 3)} />
+            }
+          />
+          <Route
+            path="/settings/subscription"
+            element={<SubscriptionProbe />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("link", {
+        name: usersCopy.list.limitNotice.billingCta,
+      }),
+    );
+
+    expect(screen.getByTestId("subscription-state")).toHaveTextContent(
+      '"from":"/users"',
+    );
+    expect(screen.getByTestId("subscription-state")).toHaveTextContent(
+      '"fromLabel":"Usuarios"',
+    );
   });
 
   it("no se muestra con plazas libres", () => {

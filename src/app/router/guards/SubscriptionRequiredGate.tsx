@@ -7,6 +7,7 @@ import {
   isSubscriptionPaywallExemptRole,
   type UserRole,
 } from "@shared/constants/roles";
+import { resolveModuleNavLabel } from "@shared/utils/masterWayfinding";
 
 const OPERATIONAL_STATUSES = new Set(["trialing", "active", "past_due"]);
 
@@ -27,6 +28,24 @@ export function isOperationalSubscriptionStatus(
   status: string | null | undefined,
 ): boolean {
   return status != null && OPERATIONAL_STATUSES.has(status);
+}
+
+/** State de wayfinding al redirigir al paywall de Tu plan (H-U09-N02). */
+export function buildSubscriptionRequiredNavState(location: {
+  pathname: string;
+  search: string;
+}): {
+  from: string;
+  fromLabel?: string;
+  subscriptionRequired: true;
+} {
+  const from = `${location.pathname}${location.search}`;
+  const fromLabel = resolveModuleNavLabel(from);
+  return {
+    from,
+    ...(fromLabel ? { fromLabel } : {}),
+    subscriptionRequired: true,
+  };
 }
 
 /**
@@ -90,7 +109,7 @@ export function SubscriptionRequiredGate({ children }: { children: ReactNode }) 
     <Navigate
       to="/settings/subscription"
       replace
-      state={{ from: location, subscriptionRequired: true }}
+      state={buildSubscriptionRequiredNavState(location)}
     />
   );
 }

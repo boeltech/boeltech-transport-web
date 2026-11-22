@@ -14,6 +14,7 @@ import { EntitlementBadge } from "@shared/ui/entitlement-badge";
 import { Button } from "@shared/ui/button";
 import { Card, CardContent } from "@shared/ui/card";
 import { cn } from "@shared/lib/utils/cn";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { monitoringCopy } from "../copy/monitoringCopy";
 
 const SUBSCRIPTION_PATH = "/settings/subscription";
@@ -22,6 +23,7 @@ export function GpsAddonPresentationPage() {
   const copy = monitoringCopy.presentation;
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
+  const { from } = useListQueueFromState();
   const canRequest = hasPermission("billing", "update");
 
   const companyQuery = useCompanySettings({
@@ -101,6 +103,7 @@ export function GpsAddonPresentationPage() {
                   </Button>
                   <Link
                     to={SUBSCRIPTION_PATH}
+                    state={{ from, fromLabel: "Mapa de flota" }}
                     className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
                     data-testid="gps-addon-view-complements"
                   >

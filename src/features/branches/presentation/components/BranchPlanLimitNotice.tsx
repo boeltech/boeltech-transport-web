@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import type { BranchListMeta } from "../../domain";
 import { branchesCopy } from "../copy/branchesCopy";
 
@@ -13,6 +14,8 @@ interface BranchPlanLimitNoticeProps {
  * El sobrecupo sigue en `BranchOverQuotaBanner` (con reconcile).
  */
 export function BranchPlanLimitNotice({ meta }: BranchPlanLimitNoticeProps) {
+  const { from } = useListQueueFromState();
+
   if (
     !meta ||
     !meta.limitReached ||
@@ -29,7 +32,12 @@ export function BranchPlanLimitNotice({ meta }: BranchPlanLimitNoticeProps) {
       <div className="space-y-3">
         <p>{copy.descriptionWithLimit(meta.maxBranches)}</p>
         <Button type="button" size="sm" variant="outline" asChild>
-          <Link to="/settings/subscription">{copy.billingCta}</Link>
+          <Link
+            to="/settings/subscription"
+            state={{ from, fromLabel: "Sucursales" }}
+          >
+            {copy.billingCta}
+          </Link>
         </Button>
       </div>
     </AlertWithIcon>

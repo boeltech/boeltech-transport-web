@@ -4,6 +4,8 @@ export const billingCopy = {
     title: "Tu plan",
     description:
       "Cobro por motriz, bolsa del mes y saldo pendiente, si hay.",
+    /** Regreso contextual desde avisos / paywall (`state.from` + `fromLabel`). */
+    backTo: (fromLabel: string) => `Volver a ${fromLabel}`,
   },
   /** Secciones colapsables bajo el resumen (D4). */
   sections: {
@@ -53,6 +55,15 @@ export const billingCopy = {
       title: "No puedes ver tu plan",
       description:
         "Tu usuario no tiene permiso para consultar el plan de la empresa. Si necesitas ese acceso, pide ayuda a un administrador.",
+    },
+    /**
+     * Soft-gate sin `billing.read` (p. ej. Gerente por URL): estado operativo
+     * vía `/billing/access`, sin cobro ni detalle comercial.
+     */
+    noCommercialAccess: {
+      title: "Sin acceso al detalle del plan",
+      description:
+        "Tu usuario no puede consultar cobros, métodos de pago ni el detalle comercial. Si necesitas ese acceso, pide ayuda a un administrador.",
     },
     blocked: {
       title: "Tu plan está pausado o cancelado",

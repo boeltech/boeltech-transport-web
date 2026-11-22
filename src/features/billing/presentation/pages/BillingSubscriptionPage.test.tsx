@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { PermissionProvider } from "@app/providers/PermissionProvider";
 import { TooltipProvider } from "@shared/ui/tooltip";
 import type {
@@ -20,6 +20,16 @@ const mockGetUsage = vi.fn();
 const mockGetEntitlements = vi.fn();
 const mockGetArrears = vi.fn();
 const mockListPaymentMethods = vi.fn();
+
+const authState = vi.hoisted(() => ({
+  user: {
+    id: "u1",
+    role: "admin" as string,
+    tenantId: "t1",
+    email: "admin@example.com",
+    fullName: "Admin",
+  },
+}));
 
 vi.mock("../../infrastructure/billingApi", () => ({
   billingApi: {
@@ -45,13 +55,7 @@ vi.mock("@features/auth", async (importOriginal) => {
   return {
     ...actual,
     useAuth: () => ({
-      user: {
-        id: "u1",
-        role: "admin",
-        tenantId: "t1",
-        email: "admin@example.com",
-        fullName: "Admin",
-      },
+      user: authState.user,
       isAuthenticated: true,
     }),
   };
@@ -154,7 +158,13 @@ const DEFAULT_PM = {
   updatedAt: "2026-08-01T16:00:00.000Z",
 };
 
-function TestProviders({ children }: { children: ReactNode }) {
+function TestProviders({
+  children,
+  initialEntries,
+}: {
+  children: ReactNode;
+  initialEntries?: string[] | { pathname: string; state?: unknown }[];
+}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -162,7 +172,9 @@ function TestProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <PermissionProvider>
         <TooltipProvider delayDuration={0}>
-          <MemoryRouter>{children}</MemoryRouter>
+          <MemoryRouter initialEntries={initialEntries ?? ["/settings/subscription"]}>
+            {children}
+          </MemoryRouter>
         </TooltipProvider>
       </PermissionProvider>
     </QueryClientProvider>
@@ -172,6 +184,13 @@ function TestProviders({ children }: { children: ReactNode }) {
 describe("BillingSubscriptionPage layout (F1–F3)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.user = {
+      id: "u1",
+      role: "admin",
+      tenantId: "t1",
+      email: "admin@example.com",
+      fullName: "Admin",
+    };
     mockGetAccess.mockResolvedValue({
       subscriptionStatus: "active",
       isOperational: true,
@@ -295,5 +314,124 @@ describe("BillingSubscriptionPage layout (F1–F3)", () => {
     expect(
       screen.queryByText(billingCopy.modules.title),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("BillingSubscriptionPage · H-U09-N01 soft-gate sin billing.read", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authState.user = {
+      id: "mgr-1",
+      role: "manager",
+      tenantId: "t1",
+      email: "gerente@example.com",
+      fullName: "Gerente",
+    };
+    mockGetAccess.mockResolvedValue({
+      subscriptionStatus: "active",
+      isOperational: true,
+      trialEndsAt: null,
+      planName: "Operación Esencial",
+      effectiveModuleCodes: [],
+    });
+  });
+
+  it("muestra aviso sin acceso comercial y no monta CTAs de cobro", async () => {
+    render(
+      <TestProviders>
+        <BillingSubscriptionPage />
+      </TestProviders>,
+    );
+
+    expect(
+      await screen.findByTestId("billing-no-commercial-access"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.notices.noCommercialAccess.title),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(billingCopy.notices.noCommercialAccess.description),
+    ).toBeInTheDocument();
+
+    expect(mockGetSubscription).not.toHaveBeenCalled();
+    expect(mockGetUsage).not.toHaveBeenCalled();
+    expect(mockListPaymentMethods).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(billingCopy.sections.paymentMethod.title),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(billingCopy.paymentMethods.addCard),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(billingCopy.planSummary.estimatedLabel),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("BillingSubscriptionPage · H-U09-N02 wayfinding", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authState.user = {
+      id: "u1",
+      role: "admin",
+      tenantId: "t1",
+      email: "admin@example.com",
+      fullName: "Admin",
+    };
+    mockGetAccess.mockResolvedValue({
+      subscriptionStatus: "active",
+      isOperational: true,
+      trialEndsAt: null,
+      planName: "Operación Esencial",
+      effectiveModuleCodes: [],
+    });
+    mockGetSubscription.mockResolvedValue(SUB);
+    mockGetUsage.mockResolvedValue(USAGE);
+    mockGetEntitlements.mockResolvedValue(ENTITLEMENTS);
+    mockGetArrears.mockResolvedValue({
+      currency: "MXN",
+      openCount: 0,
+      totalOpenCents: 0,
+      oldestDueDate: null,
+      maxDaysOverdue: 0,
+      invoices: [],
+    });
+    mockListPaymentMethods.mockResolvedValue([DEFAULT_PM]);
+  });
+
+  it("muestra Volver con from/fromLabel del aviso de plan", async () => {
+    function UsersProbe() {
+      const location = useLocation();
+      return (
+        <pre data-testid="users-location">
+          {location.pathname}
+          {JSON.stringify(location.state)}
+        </pre>
+      );
+    }
+
+    render(
+      <TestProviders
+        initialEntries={[
+          {
+            pathname: "/settings/subscription",
+            state: { from: "/users", fromLabel: "Usuarios" },
+          },
+        ]}
+      >
+        <Routes>
+          <Route path="/settings/subscription" element={<BillingSubscriptionPage />} />
+          <Route path="/users" element={<UsersProbe />} />
+        </Routes>
+      </TestProviders>,
+    );
+
+    const back = await screen.findByRole("link", {
+      name: billingCopy.page.backTo("Usuarios"),
+    });
+    expect(back).toHaveAttribute("href", "/users");
+
+    await userEvent.click(back);
+    expect(screen.getByTestId("users-location")).toHaveTextContent("/users");
   });
 });

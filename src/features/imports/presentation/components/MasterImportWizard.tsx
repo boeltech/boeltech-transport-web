@@ -517,6 +517,7 @@ function MasterImportWizardContent({
                 {" "}
                 <Link
                   to={copy.options.subscriptionHref}
+                  state={{ from: "/settings/imports", fromLabel: "Importar padrón" }}
                   className="font-medium underline underline-offset-2"
                 >
                   {copy.options.subscriptionLink}

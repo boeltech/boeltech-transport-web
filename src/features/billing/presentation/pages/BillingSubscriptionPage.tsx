@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@features/auth";
 import { useBranches } from "@features/branches";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
@@ -7,8 +8,17 @@ import { isSubscriptionPaywallExemptRole } from "@shared/constants/roles";
 import { useToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
 import { AlertWithIcon } from "@shared/ui/alert";
+import { Button } from "@shared/ui/button";
 import { SettingsPageShell } from "@shared/ui/page-shells/SettingsPageShell";
 import { formatDate } from "@shared/utils/dateUtils";
+import {
+  useIncomingFrom,
+  useIncomingFromLabel,
+} from "@shared/utils/listQueueFrom";
+import {
+  resolveModuleNavLabel,
+} from "@shared/utils/masterWayfinding";
+import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
 import {
   useBillingAccess,
   useBillingArrears,
@@ -45,6 +55,31 @@ import { resolveBillingNotice } from "../utils/billingNotice";
 import { computeStampUsagePercent } from "../utils/stampUsageThresholds";
 import { resolveAutoChargeChargedLabel } from "../utils/autoChargeChargedLabel";
 import { formatBillingPeriodKey } from "../utils/billingFormatters";
+
+function BillingSubscriptionReturnLink() {
+  const copy = billingCopy;
+  const incomingFrom = useIncomingFrom();
+  const incomingFromLabel = useIncomingFromLabel();
+  const returnHref = incomingFrom
+    ? resolveInternalAppHref(incomingFrom, "")
+    : "";
+  if (!returnHref) return null;
+
+  const returnLabel =
+    incomingFromLabel?.trim() || resolveModuleNavLabel(returnHref);
+  if (!returnLabel) return null;
+
+  return (
+    <div className="mb-4">
+      <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
+        <Link to={returnHref}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
+          {copy.page.backTo(returnLabel)}
+        </Link>
+      </Button>
+    </div>
+  );
+}
 
 export function BillingSubscriptionPage() {
   const copy = billingCopy;
@@ -150,6 +185,7 @@ export function BillingSubscriptionPage() {
           title={copy.page.title}
           description={copy.page.description}
         >
+          <BillingSubscriptionReturnLink />
           <AlertWithIcon
             variant="destructive"
             title={copy.notices.accessDenied.title}
@@ -176,7 +212,15 @@ export function BillingSubscriptionPage() {
         title={copy.page.title}
         description={copy.page.description}
       >
+        <BillingSubscriptionReturnLink />
         <div className="space-y-6">
+          <AlertWithIcon
+            variant="info"
+            title={copy.notices.noCommercialAccess.title}
+            data-testid="billing-no-commercial-access"
+          >
+            <p>{copy.notices.noCommercialAccess.description}</p>
+          </AlertWithIcon>
           <BillingStatusNotice
             notice={notice}
             includedStamps={0}
@@ -258,6 +302,7 @@ export function BillingSubscriptionPage() {
       title={copy.page.title}
       description={copy.page.description}
     >
+      <BillingSubscriptionReturnLink />
       <div className="space-y-6">
         {subscription.isError ? (
           <AlertWithIcon

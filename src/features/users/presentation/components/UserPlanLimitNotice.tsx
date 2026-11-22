@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@shared/ui/button";
 import { DetailAlertCard } from "@shared/ui/data-display";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { usersCopy } from "../copy/usersCopy";
 import type { UserPlanCapacity } from "../helpers/userPlanCapacity";
 
@@ -15,6 +16,8 @@ interface UserPlanLimitNoticeProps {
 }
 
 export function UserPlanLimitNotice({ capacity }: UserPlanLimitNoticeProps) {
+  const { from } = useListQueueFromState();
+
   if (
     (!capacity.limitReached && !capacity.overQuota) ||
     typeof capacity.maxUsers !== "number"
@@ -37,7 +40,12 @@ export function UserPlanLimitNotice({ capacity }: UserPlanLimitNoticeProps) {
       title={title}
       action={
         <Button type="button" size="sm" variant="outline" asChild>
-          <Link to="/settings/subscription">{copy.billingCta}</Link>
+          <Link
+            to="/settings/subscription"
+            state={{ from, fromLabel: "Usuarios" }}
+          >
+            {copy.billingCta}
+          </Link>
         </Button>
       }
     >

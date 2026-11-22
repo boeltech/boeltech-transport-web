@@ -75,6 +75,11 @@ const SORTED_LIST_PATHS = Object.keys(MODULE_LIST_PATH_LABELS).sort(
   (a, b) => b.length - a.length,
 );
 
+/** Etiqueta de módulo para `fromLabel` / «Volver a …» a partir de un href interno. */
+export function resolveModuleNavLabel(href: string): string | undefined {
+  return matchModuleNav(hrefPath(href))?.label;
+}
+
 function matchModuleNav(pathname: string): ModuleNavMatch | null {
   for (const [aliasRoot, listPath] of Object.entries(
     MODULE_DETAIL_PATH_ALIASES,

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { AlertWithIcon } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
+import { useListQueueFromState } from "@shared/utils/listQueueFrom";
 import type { BranchListMeta } from "../../domain";
 import { branchesCopy } from "../copy/branchesCopy";
 
@@ -18,6 +19,8 @@ export function BranchOverQuotaBanner({
   onReconcile,
   hideBillingLink = false,
 }: BranchOverQuotaBannerProps) {
+  const { from } = useListQueueFromState();
+
   if (!meta?.overQuota || meta.maxBranches === null) {
     return null;
   }
@@ -41,7 +44,12 @@ export function BranchOverQuotaBanner({
           ) : null}
           {hideBillingLink ? null : (
             <Button type="button" size="sm" variant="outline" asChild>
-              <Link to="/settings/subscription">{copy.billingHint}</Link>
+              <Link
+                to="/settings/subscription"
+                state={{ from, fromLabel: "Sucursales" }}
+              >
+                {copy.billingHint}
+              </Link>
             </Button>
           )}
         </div>

@@ -1,11 +1,35 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSubscriptionRequiredNavState,
   isAllowedWithoutOperationalSubscription,
   isOperationalSubscriptionStatus,
   shouldRedirectToSubscriptionPaywall,
 } from "./SubscriptionRequiredGate";
 
 describe("SubscriptionRequiredGate rules", () => {
+  it("buildSubscriptionRequiredNavState pasa from string + fromLabel (H-U09-N02)", () => {
+    expect(
+      buildSubscriptionRequiredNavState({
+        pathname: "/dashboard",
+        search: "",
+      }),
+    ).toEqual({
+      from: "/dashboard",
+      fromLabel: "Inicio",
+      subscriptionRequired: true,
+    });
+    expect(
+      buildSubscriptionRequiredNavState({
+        pathname: "/trips",
+        search: "?status=in_progress",
+      }),
+    ).toEqual({
+      from: "/trips?status=in_progress",
+      fromLabel: "Viajes",
+      subscriptionRequired: true,
+    });
+  });
+
   it("allows billing and account paths without operational sub", () => {
     expect(isAllowedWithoutOperationalSubscription("/settings/subscription")).toBe(
       true,
