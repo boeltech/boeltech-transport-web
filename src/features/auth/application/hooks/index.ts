@@ -115,3 +115,7 @@ export function useAuthLoading(): boolean {
 
 export { useUpdateMyProfile } from "./useUpdateMyProfile";
 export { useChangePassword } from "./useChangePassword";
+export { useRequestEmailChange } from "./useRequestEmailChange";
+export { useCancelEmailChange } from "./useCancelEmailChange";
+export { useResendEmailChange } from "./useResendEmailChange";
+export { useRevokeOtherSessions } from "./useRevokeOtherSessions";

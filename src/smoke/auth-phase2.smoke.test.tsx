@@ -15,6 +15,7 @@ const mockSetupMfa = vi.fn();
 const mockConfirmMfa = vi.fn();
 const mockDisableMfa = vi.fn();
 const mockRevokeSession = vi.fn();
+const mockRevokeOtherSessions = vi.fn();
 
 vi.mock("@features/auth/infrastructure/api/authApi", () => ({
   authApi: {
@@ -24,6 +25,8 @@ vi.mock("@features/auth/infrastructure/api/authApi", () => ({
     confirmMfa: (...args: unknown[]) => mockConfirmMfa(...args),
     disableMfa: (...args: unknown[]) => mockDisableMfa(...args),
     revokeSession: (...args: unknown[]) => mockRevokeSession(...args),
+    revokeOtherSessions: (...args: unknown[]) =>
+      mockRevokeOtherSessions(...args),
   },
 }));
 
@@ -65,6 +68,8 @@ vi.mock("@features/auth", async (importOriginal) => {
       confirmMfa: (...args: unknown[]) => mockConfirmMfa(...args),
       disableMfa: (...args: unknown[]) => mockDisableMfa(...args),
       revokeSession: (...args: unknown[]) => mockRevokeSession(...args),
+      revokeOtherSessions: (...args: unknown[]) =>
+        mockRevokeOtherSessions(...args),
     },
   };
 });
@@ -165,7 +170,8 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
         createdAt: "2026-07-23T10:00:00.000Z",
         lastUsedAt: "2026-07-23T12:00:00.000Z",
         expiresAt: "2026-08-01T00:00:00.000Z",
-        userAgent: "Mozilla/5.0 TestBrowser",
+        userAgent:
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         ip: "127.0.0.1",
         label: null,
         current: true,
@@ -175,7 +181,8 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
         createdAt: "2026-07-22T10:00:00.000Z",
         lastUsedAt: null,
         expiresAt: "2026-08-01T00:00:00.000Z",
-        userAgent: "Other Device",
+        userAgent:
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
         ip: "10.0.0.2",
         label: null,
         current: false,
@@ -195,13 +202,15 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/activa la autenticación en dos pasos/i),
+        screen.getByText(/recomendado para administradores/i),
       ).toBeInTheDocument();
     });
 
     expect(screen.getByRole("button", { name: /^activar$/i })).toBeInTheDocument();
     expect(await screen.findByText(/esta sesión/i)).toBeInTheDocument();
-    expect(screen.getByText(/other device/i)).toBeInTheDocument();
+    expect(screen.getByText("Chrome · Windows")).toBeInTheDocument();
+    expect(screen.getByText("Safari · iOS")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /cerrar las demás/i })).toBeInTheDocument();
   });
 
   it("exposes activate MFA action when MFA is off", async () => {
@@ -231,6 +240,7 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/¿no puedes escanear/i)).toBeInTheDocument();
     expect(screen.getByText("JBSWY3DPEHPK3PXP")).toBeInTheDocument();
+    expect(screen.getByLabelText(/código de 6 dígitos/i)).toBeInTheDocument();
   });
 
   it("revokes a non-current session", async () => {
@@ -239,7 +249,7 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
     render(wrap(<UserSecuritySettings />));
 
     const closeButtons = await screen.findAllByRole("button", {
-      name: /cerrar sesión/i,
+      name: /^cerrar$/i,
     });
     expect(closeButtons.length).toBeGreaterThan(0);
     await user.click(closeButtons[0]!);
@@ -247,5 +257,23 @@ describe("smoke auth-phase2 — SecuritySettings MFA + sessions", () => {
     await waitFor(() => {
       expect(mockRevokeSession).toHaveBeenCalledWith("sess-2");
     });
+  });
+
+  it("revokes other sessions via confirm dialog without closing current", async () => {
+    const user = userEvent.setup();
+    mockRevokeOtherSessions.mockResolvedValue({ revoked: 1 });
+    render(wrap(<UserSecuritySettings />));
+
+    await user.click(
+      await screen.findByRole("button", { name: /cerrar las demás/i }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /cerrar 1 sesión/i }),
+    );
+
+    await waitFor(() => {
+      expect(mockRevokeOtherSessions).toHaveBeenCalled();
+    });
+    expect(mockRevokeSession).not.toHaveBeenCalled();
   });
 });

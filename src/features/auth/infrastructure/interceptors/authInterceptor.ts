@@ -118,6 +118,7 @@ function isPublicAuthPath(requestConfig: InternalAxiosRequestConfig): boolean {
     url.includes("/auth/reset-password") ||
     url.includes("/auth/verify-reset-token") ||
     url.includes("/auth/verify-email") ||
+    url.includes("/auth/email-change/confirm") ||
     url.includes("/auth/mfa/verify") ||
     url.includes("/onboarding/") ||
     url.includes("/platform/auth/login") ||

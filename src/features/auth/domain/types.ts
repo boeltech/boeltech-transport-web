@@ -65,6 +65,8 @@ export interface UserApi {
   permissions?: string[];
   onboarding_completed_at?: string | null;
   email_verified_at?: string | null;
+  pending_email?: string | null;
+  pending_email_expires_at?: string | null;
 }
 
 export interface LoginApiData {
@@ -175,7 +177,18 @@ export class AuthException extends Error {
 export interface UpdateMyProfilePayload {
   firstName: string;
   lastName: string;
-  email: string;
+}
+
+/** POST /auth/email-change */
+export interface RequestEmailChangePayload {
+  newEmail: string;
+  currentPassword: string;
+}
+
+/** Respuesta de request/resend email-change. */
+export interface EmailChangePendingResult {
+  pendingEmail: string;
+  expiresAt: string;
 }
 
 /** Respuesta de PATCH /auth/profile: usuario + access token opcional (claims renovados). */

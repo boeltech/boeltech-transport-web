@@ -92,6 +92,9 @@ const LoginPage = lazyWithRetry(() => import("@/pages/auth/login"));
 const ForgotPasswordPage = lazyWithRetry(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage = lazyWithRetry(() => import("@/pages/auth/reset-password"));
 const VerifyEmailPage = lazyWithRetry(() => import("@/pages/auth/verify-email"));
+const VerifyEmailChangePage = lazyWithRetry(
+  () => import("@/pages/auth/verify-email-change"),
+);
 const RegisterPage = lazyWithRetry(() => import("@/pages/auth/register"));
 const AcceptInvitationPage = lazyWithRetry(() =>
   import("@features/invitations").then((m) => ({
@@ -662,6 +665,10 @@ export const router = createBrowserRouter([
       {
         path: "/verify-email",
         element: withSuspense(VerifyEmailPage),
+      },
+      {
+        path: "/verify-email-change",
+        element: withSuspense(VerifyEmailChangePage),
       },
       {
         path: "/register",

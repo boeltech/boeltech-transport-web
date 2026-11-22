@@ -182,13 +182,22 @@ export const myProfileSchema = z.object({
     .string()
     .min(1, "El apellido es requerido")
     .max(100, "Máximo 100 caracteres"),
-  email: z
-    .string()
-    .min(1, "El correo es requerido")
-    .email("Ingresa un correo electrónico válido"),
 });
 
 export type MyProfileFormData = z.infer<typeof myProfileSchema>;
+
+/** Sheet «Cambiar correo» — POST /auth/email-change */
+export const emailChangeRequestSchema = z.object({
+  newEmail: z
+    .string()
+    .min(1, "El correo es requerido")
+    .email("Ingresa un correo electrónico válido"),
+  currentPassword: z.string().min(1, "Ingresa tu contraseña actual"),
+});
+
+export type EmailChangeRequestFormData = z.infer<
+  typeof emailChangeRequestSchema
+>;
 
 // ============================================
 // CHANGE PASSWORD (sesión activa)

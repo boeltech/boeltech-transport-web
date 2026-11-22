@@ -6,7 +6,7 @@ import { useCallback, useState } from "react";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Loader2, Lock, Sparkles, Check, Circle } from "lucide-react";
+import { Eye, EyeOff, Loader2, Check, Circle } from "lucide-react";
 
 import {
   useAuth,
@@ -17,13 +17,6 @@ import {
 import { userQueryKeys } from "@features/users";
 import { accountCopy } from "../accountCopy";
 import { Button } from "@shared/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@shared/ui/card";
 import {
   Form,
   FormField,
@@ -209,20 +202,33 @@ export function PasswordChangeSection() {
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock className="h-4 w-4" aria-hidden />
-            {accountCopy.password.title}
-          </CardTitle>
-          <CardDescription>{accountCopy.password.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button type="button" onClick={() => setSheetOpen(true)}>
+      <section
+        className="rounded-xl border bg-card"
+        aria-labelledby="security-password-heading"
+      >
+        <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <h2
+              id="security-password-heading"
+              className="text-base font-semibold tracking-tight"
+            >
+              {accountCopy.password.title}
+            </h2>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {accountCopy.password.description}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => setSheetOpen(true)}
+          >
             {accountCopy.password.changeCta}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       <Sheet open={sheetOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent
@@ -341,19 +347,18 @@ export function PasswordChangeSection() {
                     }}
                   />
 
-                  <PasswordRequirementsList password={newPasswordValue} />
-
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="link"
                     size="sm"
-                    className="w-full sm:w-auto"
+                    className="h-auto px-0"
                     disabled={isPasswordSaving}
                     onClick={handleGenerateNewPassword}
                   >
-                    <Sparkles className="mr-2 h-4 w-4" />
                     {accountCopy.password.suggest}
                   </Button>
+
+                  <PasswordRequirementsList password={newPasswordValue} />
                 </div>
 
                 <FormField

@@ -12,11 +12,13 @@ export {
   resetPasswordSchema,
   registerSchema,
   myProfileSchema,
+  emailChangeRequestSchema,
   changePasswordFormSchema,
   type LoginFormData,
   type ForgotPasswordFormData,
   type ResetPasswordFormData,
   type RegisterFormData,
   type MyProfileFormData,
+  type EmailChangeRequestFormData,
   type ChangePasswordFormData,
 } from "./validation";

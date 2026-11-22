@@ -25,6 +25,8 @@ import type {
   MfaStatus,
   RefreshApiData,
   RefreshResponse,
+  EmailChangePendingResult,
+  RequestEmailChangePayload,
   UpdateMyProfilePayload,
   UpdateProfileResult,
   UserApi,
@@ -47,6 +49,69 @@ const mapUserApiToJson = (user: UserApi): UserJSON => ({
       : undefined,
   emailVerifiedAt:
     user.email_verified_at !== undefined ? user.email_verified_at : undefined,
+  pendingEmail:
+    user.pending_email !== undefined ? user.pending_email : undefined,
+  pendingEmailExpiresAt:
+    user.pending_email_expires_at !== undefined
+      ? user.pending_email_expires_at
+      : undefined,
+});
+
+type UserCamelPartial = {
+  id: string;
+  email: string;
+  firstName?: string;
+  first_name?: string;
+  lastName?: string;
+  last_name?: string;
+  role: UserJSON["role"];
+  tenant: UserJSON["tenant"];
+  lastLogin?: string;
+  last_login?: string;
+  permissions?: string[];
+  onboardingCompletedAt?: string | null;
+  onboarding_completed_at?: string | null;
+  emailVerifiedAt?: string | null;
+  email_verified_at?: string | null;
+  pendingEmail?: string | null;
+  pending_email?: string | null;
+  pendingEmailExpiresAt?: string | null;
+  pending_email_expires_at?: string | null;
+};
+
+const mapUserCamelToJson = (data: UserCamelPartial): UserJSON => ({
+  id: data.id,
+  email: data.email,
+  firstName: data.firstName ?? data.first_name!,
+  lastName: data.lastName ?? data.last_name!,
+  role: data.role,
+  tenant: data.tenant,
+  lastLogin: data.lastLogin ?? data.last_login,
+  permissions: data.permissions,
+  onboardingCompletedAt:
+    data.onboardingCompletedAt !== undefined
+      ? data.onboardingCompletedAt
+      : data.onboarding_completed_at,
+  emailVerifiedAt:
+    data.emailVerifiedAt !== undefined
+      ? data.emailVerifiedAt
+      : data.email_verified_at,
+  pendingEmail:
+    data.pendingEmail !== undefined ? data.pendingEmail : data.pending_email,
+  pendingEmailExpiresAt:
+    data.pendingEmailExpiresAt !== undefined
+      ? data.pendingEmailExpiresAt
+      : data.pending_email_expires_at,
+});
+
+const mapEmailChangePending = (data: {
+  pendingEmail?: string;
+  pending_email?: string;
+  expiresAt?: string;
+  expires_at?: string;
+}): EmailChangePendingResult => ({
+  pendingEmail: data.pendingEmail ?? data.pending_email!,
+  expiresAt: data.expiresAt ?? data.expires_at!,
 });
 
 function mapLoginPayload(data: LoginApiPayload): LoginResult {
@@ -191,6 +256,63 @@ export const authApi = {
     await apiClient.delete(`/auth/sessions/${sessionId}`);
   },
 
+  /** POST /auth/sessions/revoke-others — preparado para F3. */
+  revokeOtherSessions: async (): Promise<{ revoked: number }> => {
+    const refreshToken = tokenStorage.getRefreshToken();
+    const raw = await apiClient.post<
+      ApiSingleResponse<{ revoked: number }>
+    >(
+      "/auth/sessions/revoke-others",
+      {},
+      refreshToken
+        ? { headers: { "X-Refresh-Token": refreshToken } }
+        : undefined,
+    );
+    const { data } = mapSingleResponse(raw);
+    return { revoked: Number(data.revoked ?? 0) };
+  },
+
+  requestEmailChange: async (
+    payload: RequestEmailChangePayload,
+  ): Promise<EmailChangePendingResult> => {
+    const raw = await apiClient.post<
+      ApiSingleResponse<{
+        pending_email: string;
+        expires_at: string;
+      }>
+    >("/auth/email-change", {
+      newEmail: payload.newEmail,
+      currentPassword: payload.currentPassword,
+    });
+    const { data } = mapSingleResponse(raw);
+    return mapEmailChangePending(data);
+  },
+
+  cancelEmailChange: async (): Promise<void> => {
+    await apiClient.delete("/auth/email-change");
+  },
+
+  resendEmailChange: async (): Promise<EmailChangePendingResult> => {
+    const raw = await apiClient.post<
+      ApiSingleResponse<{
+        pending_email: string;
+        expires_at: string;
+      }>
+    >("/auth/email-change/resend");
+    const { data } = mapSingleResponse(raw);
+    return mapEmailChangePending(data);
+  },
+
+  confirmEmailChange: async (
+    token: string,
+  ): Promise<{ email: string }> => {
+    const raw = await apiClient.post<
+      ApiSingleResponse<{ email: string }>
+    >("/auth/email-change/confirm", { token });
+    const { data } = mapSingleResponse(raw);
+    return { email: data.email };
+  },
+
   refresh: async (refreshToken: string): Promise<RefreshResponse> => {
     const response = await apiClient.post<ApiEnvelope<RefreshApiData>>(
       "/auth/refresh",
@@ -263,27 +385,14 @@ export const authApi = {
     payload: UpdateMyProfilePayload,
   ): Promise<UpdateProfileResult> => {
     const raw = await apiClient.patch<
-      ApiSingleResponse<UserApi> & { access_token?: string }
-    >("/auth/profile", payload);
+      ApiSingleResponse<UserCamelPartial> & { access_token?: string }
+    >("/auth/profile", {
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+    });
     const { data } = mapSingleResponse(raw);
-    const user: UserJSON = {
-      id: data.id,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      role: data.role,
-      tenant: {
-        id: data.tenant.id,
-        name: data.tenant.name,
-        subdomain: data.tenant.subdomain,
-      },
-      lastLogin: data.lastLogin,
-      permissions: data.permissions,
-      onboardingCompletedAt: data.onboardingCompletedAt,
-      emailVerifiedAt: data.emailVerifiedAt,
-    };
     return {
-      user,
+      user: mapUserCamelToJson(data),
       ...(raw.access_token ? { accessToken: raw.access_token } : {}),
     };
   },

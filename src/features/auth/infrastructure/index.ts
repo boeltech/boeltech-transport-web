@@ -47,4 +47,8 @@ export {
   useAuthLoading,
   useUpdateMyProfile,
   useChangePassword,
+  useRequestEmailChange,
+  useCancelEmailChange,
+  useResendEmailChange,
+  useRevokeOtherSessions,
 } from "../application/hooks";

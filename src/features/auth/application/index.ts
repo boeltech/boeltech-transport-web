@@ -14,6 +14,10 @@ export {
   useIsAuthenticated,
   useUpdateMyProfile,
   useChangePassword,
+  useRequestEmailChange,
+  useCancelEmailChange,
+  useResendEmailChange,
+  useRevokeOtherSessions,
 } from "./hooks";
 
 // Use Cases

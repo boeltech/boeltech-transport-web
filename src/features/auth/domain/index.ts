@@ -41,6 +41,11 @@ export {
   type ITokenStorage,
   type UpdateMyProfilePayload,
   type UpdateProfileResult,
+  type RequestEmailChangePayload,
+  type EmailChangePendingResult,
   type ChangePasswordPayload,
   type ChangePasswordResult,
 } from "./types";
+
+/** Query key compartida MFA (tab Seguridad + tarjeta Datos). */
+export const MFA_STATUS_QUERY_KEY = ["auth", "mfa-status"] as const;

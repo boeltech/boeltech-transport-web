@@ -135,7 +135,17 @@ export {
   useAuthLoading,
   useUpdateMyProfile,
   useChangePassword,
+  useRequestEmailChange,
+  useCancelEmailChange,
+  useResendEmailChange,
+  useRevokeOtherSessions,
 } from "./infrastructure";
+
+export {
+  MFA_STATUS_QUERY_KEY,
+  type RequestEmailChangePayload,
+  type EmailChangePendingResult,
+} from "./domain";
 
 // ============================================================================
 // UI - Provider & Schemas
@@ -158,7 +168,9 @@ export {
   type ResetPasswordFormData,
   type RegisterFormData,
   myProfileSchema,
+  emailChangeRequestSchema,
   changePasswordFormSchema,
   type MyProfileFormData,
+  type EmailChangeRequestFormData,
   type ChangePasswordFormData,
 } from "./presentation/ui";

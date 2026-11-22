@@ -118,6 +118,10 @@ export interface UserData {
   onboardingCompletedAt?: string | Date | null;
   /** ISO desde API; null = correo no verificado (AUTH-HARDEN soft-gate) */
   emailVerifiedAt?: string | Date | null;
+  /** Correo nuevo pendiente de confirmación (cambio de email); null = sin solicitud viva */
+  pendingEmail?: string | null;
+  /** ISO de vencimiento del enlace de cambio; null = sin solicitud viva */
+  pendingEmailExpiresAt?: string | Date | null;
 }
 
 /**
@@ -134,6 +138,8 @@ export interface UserJSON {
   permissions?: string[];
   onboardingCompletedAt?: string | null;
   emailVerifiedAt?: string | null;
+  pendingEmail?: string | null;
+  pendingEmailExpiresAt?: string | null;
 }
 
 /**
@@ -158,6 +164,10 @@ export class User {
   public readonly onboardingCompletedAt?: Date | null;
   /** undefined = no cargado; null = sin verificar */
   public readonly emailVerifiedAt?: Date | null;
+  /** undefined = no cargado; null = sin solicitud viva */
+  public readonly pendingEmail?: string | null;
+  /** undefined = no cargado; null = sin solicitud viva */
+  public readonly pendingEmailExpiresAt?: Date | null;
 
   private constructor(
     data: UserData & {
@@ -165,6 +175,8 @@ export class User {
       lastLogin?: Date;
       onboardingCompletedAt?: Date | null;
       emailVerifiedAt?: Date | null;
+      pendingEmail?: string | null;
+      pendingEmailExpiresAt?: Date | null;
     },
   ) {
     this.id = data.id;
@@ -177,6 +189,8 @@ export class User {
     this.permissions = data.permissions;
     this.onboardingCompletedAt = data.onboardingCompletedAt;
     this.emailVerifiedAt = data.emailVerifiedAt;
+    this.pendingEmail = data.pendingEmail;
+    this.pendingEmailExpiresAt = data.pendingEmailExpiresAt;
     this.validate();
   }
 
@@ -221,12 +235,27 @@ export class User {
           : data.emailVerifiedAt;
     }
 
+    let pendingEmailExpiresDate: Date | null | undefined;
+    if (data.pendingEmailExpiresAt === undefined) {
+      pendingEmailExpiresDate = undefined;
+    } else if (data.pendingEmailExpiresAt === null) {
+      pendingEmailExpiresDate = null;
+    } else {
+      pendingEmailExpiresDate =
+        typeof data.pendingEmailExpiresAt === "string"
+          ? new Date(data.pendingEmailExpiresAt)
+          : data.pendingEmailExpiresAt;
+    }
+
     return new User({
       ...data,
       tenant,
       lastLogin: lastLoginDate,
       onboardingCompletedAt: onboardingDate,
       emailVerifiedAt: emailVerifiedDate,
+      pendingEmail:
+        data.pendingEmail === undefined ? undefined : data.pendingEmail,
+      pendingEmailExpiresAt: pendingEmailExpiresDate,
     });
   }
 
@@ -250,6 +279,14 @@ export class User {
           : json.emailVerifiedAt === null
             ? null
             : new Date(json.emailVerifiedAt),
+      pendingEmail:
+        json.pendingEmail === undefined ? undefined : json.pendingEmail,
+      pendingEmailExpiresAt:
+        json.pendingEmailExpiresAt === undefined
+          ? undefined
+          : json.pendingEmailExpiresAt === null
+            ? null
+            : new Date(json.pendingEmailExpiresAt),
     });
   }
 
@@ -350,6 +387,14 @@ export class User {
           : this.emailVerifiedAt === null
             ? null
             : this.emailVerifiedAt.toISOString(),
+      pendingEmail:
+        this.pendingEmail === undefined ? undefined : this.pendingEmail,
+      pendingEmailExpiresAt:
+        this.pendingEmailExpiresAt === undefined
+          ? undefined
+          : this.pendingEmailExpiresAt === null
+            ? null
+            : this.pendingEmailExpiresAt.toISOString(),
     };
   }
 
