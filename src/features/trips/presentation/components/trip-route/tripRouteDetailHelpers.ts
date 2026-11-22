@@ -451,7 +451,116 @@ export type RouteMasterRow = {
   displayOrder: number;
   /** ADR-0093 E1 — fila locked en composer pending-only. */
   locked?: boolean;
+  /**
+   * Overlay de rol en UI (p. ej. «Retorno» R7). No altera `category` ni `stopType`.
+   */
+  roleLabelOverride?: string | null;
 };
+
+/**
+ * Master rows = secuencia completa (`ordered`).
+ * Display: último `destination` → Destino; destinations previos → Escala (solo UI).
+ * Slots draft origen/destino cuando faltan extremos; drafts de escala antes del destino final.
+ */
+export function buildRouteMasterRowsFromOrdered(params: {
+  ordered: readonly TripStop[];
+  originDraftLabel?: string | null;
+  destinationDraftLabel?: string | null;
+  originCityHint?: string | null;
+  destinationCityHint?: string | null;
+  waypointDraftIds?: readonly string[];
+}): RouteMasterRow[] {
+  const {
+    ordered: unordered,
+    originDraftLabel,
+    destinationDraftLabel,
+    originCityHint,
+    destinationCityHint,
+    waypointDraftIds = [],
+  } = params;
+
+  const ordered = [...unordered].sort(
+    (a, b) => a.sequenceOrder - b.sequenceOrder,
+  );
+
+  let lastDestinationIndex = -1;
+  for (let i = 0; i < ordered.length; i += 1) {
+    if (getRouteStopCategory(ordered[i]!) === "destination") {
+      lastDestinationIndex = i;
+    }
+  }
+
+  const hasOrigin = ordered.some(
+    (stop) => getRouteStopCategory(stop) === "origin",
+  );
+  const hasDestination = lastDestinationIndex >= 0;
+
+  const rows: RouteMasterRow[] = [];
+  let order = 1;
+  let draftsInserted = false;
+
+  const pushWaypointDrafts = () => {
+    if (draftsInserted) return;
+    draftsInserted = true;
+    for (const draftId of waypointDraftIds) {
+      rows.push({
+        id: draftId,
+        category: "waypoint",
+        displayOrder: order++,
+      });
+    }
+  };
+
+  if (!hasOrigin) {
+    rows.push({
+      id: ROUTE_SLOT_ORIGIN_ID,
+      category: "origin",
+      draftLabel: originDraftLabel ?? null,
+      cityHint: originCityHint ?? null,
+      displayOrder: order++,
+    });
+  }
+
+  for (let i = 0; i < ordered.length; i += 1) {
+    const stop = ordered[i]!;
+    const rawCategory = getRouteStopCategory(stop);
+
+    if (rawCategory === "destination" && i === lastDestinationIndex) {
+      pushWaypointDrafts();
+      rows.push({
+        id: stop.id,
+        category: "destination",
+        stop,
+        displayOrder: order++,
+      });
+      continue;
+    }
+
+    // Destinations previos al cierre → Escala solo en display (no muta stopType).
+    const displayCategory: RouteStopCategory =
+      rawCategory === "destination" ? "waypoint" : rawCategory;
+
+    rows.push({
+      id: stop.id,
+      category: displayCategory,
+      stop,
+      displayOrder: order++,
+    });
+  }
+
+  if (!hasDestination) {
+    pushWaypointDrafts();
+    rows.push({
+      id: ROUTE_SLOT_DESTINATION_ID,
+      category: "destination",
+      draftLabel: destinationDraftLabel ?? null,
+      cityHint: destinationCityHint ?? null,
+      displayOrder: order++,
+    });
+  }
+
+  return rows;
+}
 
 export function buildRouteMasterRows(params: {
   origin?: TripStop;
@@ -474,45 +583,19 @@ export function buildRouteMasterRows(params: {
     waypointDraftIds = [],
   } = params;
 
-  const rows: RouteMasterRow[] = [];
-  let order = 1;
+  const ordered: TripStop[] = [];
+  if (origin) ordered.push(origin);
+  ordered.push(...waypoints);
+  if (destination) ordered.push(destination);
 
-  rows.push({
-    id: origin?.id ?? ROUTE_SLOT_ORIGIN_ID,
-    category: "origin",
-    stop: origin,
-    draftLabel: origin ? null : (originDraftLabel ?? null),
-    cityHint: origin ? null : (originCityHint ?? null),
-    displayOrder: order++,
+  return buildRouteMasterRowsFromOrdered({
+    ordered,
+    originDraftLabel,
+    destinationDraftLabel,
+    originCityHint,
+    destinationCityHint,
+    waypointDraftIds,
   });
-
-  for (const stop of waypoints) {
-    rows.push({
-      id: stop.id,
-      category: "waypoint",
-      stop,
-      displayOrder: order++,
-    });
-  }
-
-  for (const draftId of waypointDraftIds) {
-    rows.push({
-      id: draftId,
-      category: "waypoint",
-      displayOrder: order++,
-    });
-  }
-
-  rows.push({
-    id: destination?.id ?? ROUTE_SLOT_DESTINATION_ID,
-    category: "destination",
-    stop: destination,
-    draftLabel: destination ? null : (destinationDraftLabel ?? null),
-    cityHint: destination ? null : (destinationCityHint ?? null),
-    displayOrder: order++,
-  });
-
-  return rows;
 }
 
 /** Selección de fila master: id explícito o primer ítem; sin `useEffect`. */

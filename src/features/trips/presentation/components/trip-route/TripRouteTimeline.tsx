@@ -32,7 +32,11 @@ import {
 const copy = tripDetailCopy.route;
 const stopStatusCopy = trackingCopy.label.stopStatus;
 
-function roleLabel(category: RouteStopCategory): string {
+function roleLabel(
+  category: RouteStopCategory,
+  override?: string | null,
+): string {
+  if (override?.trim()) return override.trim();
   if (category === "origin") return copy.section.origin;
   if (category === "destination") return copy.section.destination;
   return copy.composer.waypointSlot;
@@ -314,7 +318,7 @@ function TripRouteTimelineStop({
             type="button"
             onClick={() => onSelect(row.id)}
             aria-pressed={selected}
-            aria-label={`${roleLabel(category)}. ${stopTitle(row)}${
+            aria-label={`${roleLabel(category, row.roleLabelOverride)}. ${stopTitle(row)}${
               locked ? `. ${copy.composer.lockedStop}` : ""
             }`}
             className={cn(
@@ -341,7 +345,7 @@ function TripRouteTimelineStop({
         <div className="min-w-0 flex-1 space-y-1.5 pb-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {roleLabel(category)}
+              {roleLabel(category, row.roleLabelOverride)}
             </span>
             <span className="text-sm font-semibold text-foreground">
               {stopTitle(row)}

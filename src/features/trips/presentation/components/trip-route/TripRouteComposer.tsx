@@ -44,7 +44,11 @@ import {
 
 const copy = tripDetailCopy.route;
 
-function slotTitle(category: RouteStopCategory): string {
+function slotTitle(
+  category: RouteStopCategory,
+  override?: string | null,
+): string {
+  if (override?.trim()) return override.trim();
   if (category === "origin") return copy.composer.originSlot;
   if (category === "destination") return copy.composer.destinationSlot;
   return copy.composer.waypointSlot;
@@ -80,7 +84,7 @@ export function TripRouteMasterRow({
   onChoosePlace,
   choosePlaceDisabled = false,
 }: TripRouteMasterRowProps) {
-  const title = slotTitle(row.category);
+  const title = slotTitle(row.category, row.roleLabelOverride);
   const persistedLabel =
     row.stop?.locationName?.trim() ||
     row.stop?.city?.trim() ||

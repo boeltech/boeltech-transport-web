@@ -70,7 +70,7 @@ import {
 import { isTripStopImmutableMidTrip } from "./isStopImmutableMidTrip";
 import {
   buildRouteDistanceSegments,
-  buildRouteMasterRows,
+  buildRouteMasterRowsFromOrdered,
   countFillableMissingSegmentDistances,
   countStopsMissingDomicilio,
   countStopsMissingSegmentDistance,
@@ -105,7 +105,9 @@ import {
   stopFormDataToComposerEndpointPick,
   upsertComposerStop,
 } from "./buildReplaceStopsPayload";
+import { resolveReturnStopLabelMap } from "../trip-tracking/planReturnHelpers";
 import { tripDetailCopy } from "../../copy";
+import { trackingCopy } from "../../copy/tripDetail/trackingCopy";
 
 const copy = tripDetailCopy.route;
 const operationCopy = tripDetailCopy.operation;
@@ -362,10 +364,11 @@ export function TripDetailRouteTab({
       ? pickerItemLabel(endpointDraft.destination)
       : null;
 
-  const masterRows = buildRouteMasterRows({
-    origin,
-    destination,
-    waypoints,
+  const returnLabelMap = resolveReturnStopLabelMap(cargos ?? [], ordered);
+  const returnRoleLabel = trackingCopy.planReturnSheet.stopReturnLabel;
+
+  const masterRows = buildRouteMasterRowsFromOrdered({
+    ordered,
     originDraftLabel: composerOriginLabel,
     destinationDraftLabel: composerDestinationLabel,
     originCityHint: originCityHint || null,
@@ -377,6 +380,10 @@ export function TripDetailRouteTab({
       showMidTripReplan &&
       row.stop != null &&
       isTripStopImmutableMidTrip(row.stop),
+    roleLabelOverride:
+      row.stop != null && returnLabelMap.has(row.stop.id)
+        ? returnRoleLabel
+        : null,
   }));
   const masterRowIds = masterRows.map((row) => row.id).join("|");
   /** D-R1/D-R3 — Operate solo con ambos extremos; composer si falta origen o destino. */

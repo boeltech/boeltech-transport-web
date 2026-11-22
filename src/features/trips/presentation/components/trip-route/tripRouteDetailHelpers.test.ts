@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { StopStatus, StopType, TripStatus, type TripCargo, type TripStop } from "@features/trips/domain";
+import {
+  CargoStatus,
+  StopStatus,
+  StopType,
+  TripStatus,
+  type TripCargo,
+  type TripStop,
+} from "@features/trips/domain";
 
 import { progressCopy } from "../../copy/tripDetail/progressCopy";
+import { trackingCopy } from "../../copy/tripDetail/trackingCopy";
+import { resolveReturnStopLabelMap } from "../trip-tracking/planReturnHelpers";
 
 import {
   countOperativelyCompleteStops,
@@ -23,6 +32,7 @@ import {
   isStopWaypointOperationComplete,
   buildRouteDistanceSegments,
   buildRouteMasterRows,
+  buildRouteMasterRowsFromOrdered,
   resolveRouteMasterRowId,
   routeStopShortLabel,
   ROUTE_SLOT_DESTINATION_ID,
@@ -517,6 +527,111 @@ describe("tripRouteDetailHelpers", () => {
     });
     const rows = buildRouteMasterRows({ origin, waypoints: [] });
     expect(resolveRouteMasterRowId(rows, ROUTE_SLOT_ORIGIN_ID)).toBe("stop-origin");
+  });
+
+  it("F4e: dual destination keeps 3 master rows; last=destination; Retorno overlay", () => {
+    const origin = stop({
+      id: "stop-origin",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN, StopType.PICKUP],
+      status: StopStatus.COMPLETED,
+      locationName: "CEDIS Tec",
+      city: "Querétaro",
+      latitude: 20.59,
+      longitude: -100.39,
+      sourceAddressId: "addr-tec",
+    });
+    const operatedDestination = stop({
+      id: "stop-antea",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      status: StopStatus.COMPLETED,
+      locationName: "Antea",
+      city: "Querétaro",
+      latitude: 20.67,
+      longitude: -100.43,
+    });
+    const returnPending = stop({
+      id: "stop-return",
+      sequenceOrder: 3,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      status: StopStatus.PENDING,
+      locationName: "CEDIS Tec",
+      city: "Querétaro",
+      latitude: 20.59,
+      longitude: -100.39,
+      sourceAddressId: "addr-tec",
+    });
+    const ordered = [origin, operatedDestination, returnPending];
+
+    // groupStops sigue eligiendo el primer destination (escritura intacta).
+    const grouped = groupStopsForRouteDetail(ordered);
+    expect(grouped.destination?.id).toBe("stop-antea");
+    expect(grouped.ordered).toHaveLength(3);
+
+    const rows = buildRouteMasterRowsFromOrdered({ ordered });
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => row.id)).toEqual([
+      "stop-origin",
+      "stop-antea",
+      "stop-return",
+    ]);
+    expect(rows.map((row) => row.category)).toEqual([
+      "origin",
+      "waypoint",
+      "destination",
+    ]);
+    // stopType del ex-destino no se demueve.
+    expect(operatedDestination.stopType).toEqual([
+      StopType.DESTINATION,
+      StopType.DELIVERY,
+    ]);
+
+    const returnedCargo = {
+      id: "cargo-returned",
+      status: CargoStatus.RETURNED,
+      movements: [
+        {
+          stopId: "stop-origin",
+          stopIndex: 0,
+          movementType: "pickup" as const,
+          weight: null,
+          units: null,
+          completedAt: new Date("2026-11-22T10:00:00.000Z"),
+          notes: null,
+        },
+      ],
+    } as TripCargo;
+
+    const returnLabelMap = resolveReturnStopLabelMap([returnedCargo], ordered);
+    expect(returnLabelMap.has("stop-return")).toBe(true);
+
+    const withOverlay = rows.map((row) => ({
+      ...row,
+      roleLabelOverride:
+        row.stop != null && returnLabelMap.has(row.stop.id)
+          ? trackingCopy.planReturnSheet.stopReturnLabel
+          : null,
+    }));
+    expect(withOverlay[2]?.roleLabelOverride).toBe(
+      trackingCopy.planReturnSheet.stopReturnLabel,
+    );
+    expect(withOverlay[1]?.roleLabelOverride).toBeNull();
+  });
+
+  it("F4e: empty ordered keeps origin/destination draft slots (canvas vacío)", () => {
+    const rows = buildRouteMasterRowsFromOrdered({
+      ordered: [],
+      originCityHint: "León",
+      destinationCityHint: "Silao",
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.id).toBe(ROUTE_SLOT_ORIGIN_ID);
+    expect(rows[0]?.category).toBe("origin");
+    expect(rows[0]?.cityHint).toBe("León");
+    expect(rows[1]?.id).toBe(ROUTE_SLOT_DESTINATION_ID);
+    expect(rows[1]?.category).toBe("destination");
+    expect(rows[1]?.cityHint).toBe("Silao");
   });
 });
 
