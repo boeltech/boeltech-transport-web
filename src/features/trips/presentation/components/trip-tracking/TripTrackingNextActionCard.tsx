@@ -4,6 +4,7 @@ import {
   MapPin,
   Navigation,
   Package,
+  RotateCcw,
   Send,
   type LucideIcon,
 } from "lucide-react";
@@ -45,7 +46,7 @@ const ACTION_ICONS: Record<TrackingPrimaryActionKind, LucideIcon> = {
   close: CheckCircle2,
   cargo_blocked: Package,
   origin_outcome: Ban,
-  plan_return: Navigation,
+  plan_return: RotateCcw,
   idle: MapPin,
   none: MapPin,
 };

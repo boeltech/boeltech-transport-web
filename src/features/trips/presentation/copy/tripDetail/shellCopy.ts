@@ -39,6 +39,10 @@ export const shellCopy = {
   journeyStrip: {
     ariaLabel: "Estado y datos clave del viaje",
   },
+  /** F4b R10 — badge outline junto a «Con factura». */
+  badge: {
+    withReturn: "Con retorno",
+  },
   stat: {
     cargo: "Cargas",
     distance: "Distancia",
@@ -184,6 +188,8 @@ export const shellCopy = {
     backToList: "Volver a Viajes",
     backToListDriver: "Volver a Mis viajes",
     backToListClient: "Volver a Mis envíos",
+    /** Desde Inicio (`/dashboard`) — léxico del menú. */
+    backToDashboard: "Volver a Inicio",
     /** Desde detalle de factura (`/invoices/:id`). */
     backToInvoice: "Volver a la factura",
     /** Desde listado Finanzas facturas. */
@@ -316,7 +322,7 @@ export const shellCopy = {
     descriptionOriginOutcome:
       "Elige: cobrar el desplazamiento (viaje en falso) o cancelar el viaje.",
     descriptionReturnReplan:
-      "Hay mercancía devuelta. Planea el retorno en Ruta antes de cerrar el viaje.",
+      "Hay mercancía devuelta. Planea el retorno antes de cerrar el viaje.",
     /** D3: Qué falta abierto en Reserva / Programado. */
     whatMissing: "Qué falta",
 

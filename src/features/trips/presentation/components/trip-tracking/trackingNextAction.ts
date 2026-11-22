@@ -1,6 +1,7 @@
 import type { TripCargo, TripStatusType, TripStop } from "@features/trips/domain";
-import { TripStatus } from "@features/trips/domain";
+import { CargoStatus, TripStatus } from "@features/trips/domain";
 import { getCargoBlockAtStop } from "../../utils/trackingCargoGating";
+import { formatRouteStopPlaceLabel } from "../../helpers/routeStopPlaceLabel";
 
 import {
   formatArrivalButtonLabel,
@@ -53,6 +54,32 @@ export type ResolveTrackingPrimaryActionOptions = {
   /** GET aditivo — bloquea cierre hasta replan de retorno. */
   returnReplanRequired?: boolean;
 };
+
+function resolvePlanReturnPrimaryAction(
+  ordered: readonly TripStop[],
+  cargos: readonly TripCargo[] | undefined,
+): TrackingPrimaryAction {
+  const returned = (cargos ?? []).filter(
+    (c) => c.status === CargoStatus.RETURNED,
+  );
+  const cargo = returned[returned.length - 1];
+  const cargoName = cargo?.description?.trim() || "la carga";
+  let stopLabel = "la parada";
+  if (cargo) {
+    const delivery = cargo.movements.find((m) => m.movementType === "delivery");
+    const stop =
+      (delivery?.stopId
+        ? ordered.find((s) => s.id === delivery.stopId)
+        : undefined) ??
+      (delivery ? ordered[delivery.stopIndex] : undefined);
+    if (stop) stopLabel = formatRouteStopPlaceLabel(stop);
+  }
+  return {
+    kind: "plan_return",
+    title: trackingCopy.planReturn.nextTitle(cargoName),
+    transitionText: trackingCopy.planReturn.nextBody(stopLabel),
+  };
+}
 
 function formatStopLabel(
   stop: TripStop | undefined,
@@ -174,11 +201,7 @@ export function resolveTrackingPrimaryAction(
 
   if (next === "close_at_destination") {
     if (returnReplanRequired) {
-      return {
-        kind: "plan_return",
-        title: trackingCopy.action.planReturn,
-        transitionText: trackingCopy.hint.planReturnBlockedClose,
-      };
+      return resolvePlanReturnPrimaryAction(ordered, cargos);
     }
     const stop = findDestinationAwaitingTripArrival(ordered);
     const displayOrder = stop
@@ -194,11 +217,7 @@ export function resolveTrackingPrimaryAction(
   }
 
   if (returnReplanRequired) {
-    return {
-      kind: "plan_return",
-      title: trackingCopy.action.planReturn,
-      transitionText: trackingCopy.hint.planReturnBlockedClose,
-    };
+    return resolvePlanReturnPrimaryAction(ordered, cargos);
   }
 
   return {

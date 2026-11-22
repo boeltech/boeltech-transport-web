@@ -8,6 +8,7 @@ import {
   Navigation,
   Package,
   Phone,
+  RotateCcw,
   Send,
   AlertTriangle,
   StickyNote,
@@ -159,7 +160,7 @@ function hubActionIcon(kind: TrackingPrimaryActionKind) {
     case "origin_outcome":
       return Ban;
     case "plan_return":
-      return Navigation;
+      return RotateCcw;
     default:
       return MapPin;
   }
@@ -533,9 +534,9 @@ export function TripTrackingObjectiveHub({
                 <p className="text-xs text-muted-foreground">{clientHub.body}</p>
               ) : null}
               {primary.transitionText &&
-              !showsOperableCta &&
               !isClientPortal &&
-              !compact ? (
+              !compact &&
+              (primary.kind === "plan_return" || !showsOperableCta) ? (
                 <p className="text-xs text-muted-foreground">
                   {primary.transitionText}
                 </p>
@@ -587,7 +588,7 @@ export function TripTrackingObjectiveHub({
                   onClick={() => (onPlanReturn ?? onGoToRouteTab)?.()}
                   data-tracking-section="plan-return-hub"
                 >
-                  <Navigation className="mr-2 h-4 w-4 shrink-0" />
+                  <RotateCcw className="mr-2 h-4 w-4 shrink-0" />
                   <span className="font-medium">
                     {trackingCopy.action.planReturn}
                   </span>

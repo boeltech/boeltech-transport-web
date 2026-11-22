@@ -323,7 +323,7 @@ describe("resolveTripNextStepActions", () => {
       canInvoice: false,
       returnReplanRequired: true,
     });
-    expect(plan?.primary).toEqual({ id: "plan_return", tab: "route" });
+    expect(plan?.primary).toEqual({ id: "plan_return", tab: "tracking" });
     expect(plan?.secondaries).toEqual([{ id: "register_note" }]);
   });
 });

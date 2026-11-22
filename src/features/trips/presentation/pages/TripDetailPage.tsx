@@ -101,6 +101,8 @@ import { TripJourneyStrip } from "../components/trip-shell/TripJourneyStrip";
 import { TripShellAlertsStack } from "../components/trip-shell/TripShellAlertsStack";
 import { TripPhaseOperateSheets } from "../components/trip-shell/TripPhaseOperateSheets";
 import { RegisterTrackingNoteSheet } from "../components/trip-tracking/RegisterTrackingNoteSheet";
+import { PlanReturnSheet } from "../components/trip-tracking/PlanReturnSheet";
+import { tripHasInferredReturnStop } from "../components/trip-tracking/planReturnHelpers";
 import { buildRegisterCollectionPath } from "@features/finance/application";
 import { tripFiscalCopy } from "../copy/tripFiscalCopy";
 import { buildTripJourneyStripModel } from "../helpers/buildTripJourneyStripModel";
@@ -246,6 +248,8 @@ export function TripDetailPage() {
   const canApproveTripExpenses = hasPermission("finance_approvals", "update");
   const canReadInvoices = hasPermission("invoices", "read");
   const canCreateInvoices = hasPermission("invoices", "create");
+  /** Q-R3 — casilla tarifa del Sheet Planear retorno. */
+  const canReadFinance = hasPermission("finance", "read");
   const canSubstituteFiscal = canShowFiscalSubstituteCta({
     canAdminManagerFiscal:
       role === ROLES.ADMIN || role === ROLES.MANAGER,
@@ -472,6 +476,8 @@ export function TripDetailPage() {
   const [openCancelSignal, setOpenCancelSignal] = useState(0);
   /** F3d-4: Nota desde Qué sigue (chrome), sin montar el tab Seguimiento. */
   const [chromeNoteSheetOpen, setChromeNoteSheetOpen] = useState(false);
+  /** F4b — Sheet Planear retorno (Seguimiento; no deep-link a Ruta). */
+  const [planReturnSheetOpen, setPlanReturnSheetOpen] = useState(false);
   /** D44 — edición local en tab Ruta (drafts / sheet parada). */
   const [routeEditing, setRouteEditing] = useState(false);
   useEffect(() => {
@@ -1379,8 +1385,22 @@ export function TripDetailPage() {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
+        next.set("tab", "tracking");
+        next.delete("intent");
+        return next;
+      },
+      { replace: true },
+    );
+    setPlanReturnSheetOpen(true);
+  };
+
+  const handlePlanReturnEditInRoute = () => {
+    setPlanReturnSheetOpen(false);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
         next.set("tab", "route");
-        next.set("intent", "plan_return");
+        next.delete("intent");
         return next;
       },
       { replace: true },
@@ -1635,6 +1655,19 @@ export function TripDetailPage() {
                   {trip.cfdiEmissionIntent === "sin_cfdi_efectivo"
                     ? cfdiEmissionIntentCopy.chip.sinCfdi
                     : cfdiEmissionIntentCopy.chip.conCfdi}
+                </Badge>
+              </>
+            ) : null}
+            {!isLeanTripPortal &&
+            tripHasInferredReturnStop(cargos, orderedStops) ? (
+              <>
+                <span aria-hidden>·</span>
+                <Badge
+                  variant="outline"
+                  className="text-xs"
+                  data-testid="trip-header-with-return-badge"
+                >
+                  {shell.badge.withReturn}
                 </Badge>
               </>
             ) : null}
@@ -2024,6 +2057,27 @@ export function TripDetailPage() {
           tripId={trip.id}
           open={chromeNoteSheetOpen}
           onOpenChange={setChromeNoteSheetOpen}
+        />
+      ) : null}
+      {!isLeanTripPortal && trip ? (
+        <PlanReturnSheet
+          trip={trip}
+          cargos={cargos}
+          orderedStops={orderedStops}
+          canAdjustRate={canReadFinance && canEditBaseRate}
+          vehicleLabel={
+            trip.vehicle
+              ? [trip.vehicle.unitNumber, trip.vehicle.licensePlate]
+                  .filter(Boolean)
+                  .join(" · ")
+              : null
+          }
+          open={planReturnSheetOpen}
+          onOpenChange={setPlanReturnSheetOpen}
+          onEditInRoute={handlePlanReturnEditInRoute}
+          onSuccess={() => {
+            void refetchTrip();
+          }}
         />
       ) : null}
     </>

@@ -237,6 +237,7 @@ describe("trackingNextAction", () => {
       { returnReplanRequired: true },
     );
     expect(action.kind).toBe("plan_return");
+    expect(action.title).toMatch(/Planear el retorno/i);
     expect(resolveTrackingPrimaryCtaLabel(action)).toBe(
       trackingCopy.action.planReturn,
     );

@@ -30,7 +30,7 @@ export type TripNextStepActionId =
   | "declare_false_trip"
   /** F3b desenlaces: cancelar viaje (mismo dialog del shell). */
   | "cancel_trip"
-  /** F3b desenlaces: deep-link a Ruta mid-trip (`intent=plan_return`). */
+  /** F4b: abre Sheet Planear retorno en Seguimiento (ya no deep-link a Ruta). */
   | "plan_return";
 
 export type TripNextStepTab = "route" | "cargo" | "tracking";
@@ -181,7 +181,7 @@ export function resolveTripNextStepActions(
       if (phase === "in_progress" && input.returnReplanRequired === true) {
         return {
           phase,
-          primary: { id: "plan_return", tab: "route" },
+          primary: { id: "plan_return", tab: "tracking" },
           secondaries: takeSecondaries([{ id: "register_note" }]),
         };
       }

@@ -36,8 +36,17 @@ import {
   canOperateCargoAtStop,
   getCargoBlockAtStop,
 } from "../../utils/trackingCargoGating";
-import { hasStopType } from "../trip-route/tripRouteDetailHelpers";
+import {
+  getRouteStopCategory,
+  hasStopType,
+} from "../trip-route/tripRouteDetailHelpers";
 import { CargoActionInline } from "./CargoActionInline";
+import { PlanReturnDestinationLock } from "./PlanReturnSheet";
+import {
+  resolveReturnedCargoBadge,
+  resolveReturnStopLabelMap,
+  resolvePlanReturnTargetCargo,
+} from "./planReturnHelpers";
 import {
   TrackingStopStatusBadgeRow,
   trackingStopStatusForBadge,
@@ -280,6 +289,17 @@ function TripTrackingStopsTimelineItem({
     : { blocked: false, descriptions: [] as string[] };
   const cargoActionsEnabled =
     tripInProgress && stopActive && canMutateCargo && onCargoAction != null;
+  const returnLabelMap = resolveReturnStopLabelMap(cargos, orderedStops);
+  const returnMeta = returnLabelMap.get(row.stop.id);
+  const isDestinationStop = getRouteStopCategory(row.stop) === "destination";
+  const planReturnTarget = returnReplanRequired
+    ? resolvePlanReturnTargetCargo(cargos)
+    : null;
+  const showReturnLock =
+    returnReplanRequired &&
+    isDestinationStop &&
+    planReturnTarget != null &&
+    !returnMeta;
 
   return (
     <li className="relative">
@@ -358,6 +378,11 @@ function TripTrackingStopsTimelineItem({
                 {getStopTypeConfig(StopType.DELIVERY).label}
               </span>
             ) : null}
+            {returnMeta ? (
+              <Badge variant="info" tone="soft" className="text-[10px] font-normal">
+                {trackingCopy.planReturnSheet.stopReturnLabel}
+              </Badge>
+            ) : null}
             <TrackingStopStatusBadgeRow
               status={stopStatus}
               isActive={row.isActionTarget && showHints}
@@ -372,6 +397,22 @@ function TripTrackingStopsTimelineItem({
               </Badge>
             ) : null}
           </div>
+          {returnMeta ? (
+            <p className="text-xs text-muted-foreground">
+              {trackingCopy.planReturnSheet.stopReceives(
+                returnMeta.cargo.description,
+                trackingCopy.format.cargoFacts(
+                  returnMeta.cargo.weightInKg ?? returnMeta.cargo.weight,
+                  returnMeta.cargo.units,
+                ) ?? "",
+              )}
+            </p>
+          ) : null}
+          {showReturnLock ? (
+            <PlanReturnDestinationLock
+              cargoName={planReturnTarget.description}
+            />
+          ) : null}
 
           {row.planRealLines.length > 0 ? (
             <ul className="space-y-0.5 text-xs tabular-nums text-muted-foreground">
@@ -451,24 +492,45 @@ function TripTrackingStopsTimelineItem({
                               >
                                 {link.cargo.description}
                               </p>
+                              {cargoFacts ? (
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                  {cargoFacts}
+                                </p>
+                              ) : null}
                               <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                                <Badge
-                                  variant={getCargoStatusVariant(
-                                    link.cargo.status,
-                                  )}
-                                  className="text-[10px] font-normal"
-                                >
-                                  {CARGO_STATUS_LABELS[link.cargo.status] ??
-                                    link.cargo.status}
-                                </Badge>
+                                {(() => {
+                                  const returnedBadge =
+                                    resolveReturnedCargoBadge({
+                                      cargo: link.cargo,
+                                      returnReplanRequired,
+                                      orderedStops,
+                                    });
+                                  if (returnedBadge) {
+                                    return (
+                                      <Badge
+                                        variant={returnedBadge.variant}
+                                        tone={returnedBadge.tone}
+                                        className="text-[10px] font-normal"
+                                      >
+                                        {returnedBadge.label}
+                                      </Badge>
+                                    );
+                                  }
+                                  return (
+                                    <Badge
+                                      variant={getCargoStatusVariant(
+                                        link.cargo.status,
+                                      )}
+                                      className="text-[10px] font-normal"
+                                    >
+                                      {CARGO_STATUS_LABELS[link.cargo.status] ??
+                                        link.cargo.status}
+                                    </Badge>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
-                          {cargoFacts ? (
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              {cargoFacts}
-                            </p>
-                          ) : null}
                         </div>
                         {showCargoActions || showPlanReturnCta ? (
                           <div

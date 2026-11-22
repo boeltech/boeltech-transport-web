@@ -442,12 +442,6 @@ export const trackingCopy = {
       "Elige: cobrar el desplazamiento (viaje en falso) o cancelar el viaje.",
     /** F3b CA-08 — blocker de cierre con retorno pendiente. */
     planReturnBlockedClose: "Planea el retorno antes de cerrar",
-    /** F3b CA-10 — multi-carga: no forzar Cambiar destino global. */
-    planReturnMultiCargoHint:
-      "Si quedan entregas de otras cargas, agrega una escala o reasigna. Cambia el destino solo si todas van al mismo punto de retorno.",
-    /** F3b — banner en tab Ruta con intent=plan_return. */
-    planReturnRouteBanner:
-      "Planear retorno: cambia el destino o agrega una escala pendiente. No se crea sola al devolver.",
     objectiveGuide: "La siguiente operación y el botón para registrarla.",
     readOnlyGuide:
       "Este viaje ya no admite operaciones de seguimiento. Consulta paradas, historial y mapa abajo.",
@@ -549,6 +543,83 @@ export const trackingCopy = {
       }
       return parts.length > 0 ? parts.join(" · ") : null;
     },
+  },
+  /**
+   * F4b — Sheet «Planear retorno» + badges/candado/Qué sigue (PRD V3).
+   * Retirados: planReturnRouteBanner / planReturnMultiCargoHint (banner Ruta F3b).
+   */
+  planReturn: {
+    nextTitle: (cargo: string) => `Planear el retorno de ${cargo}`,
+    nextBody: (stop: string) =>
+      `El cliente la rechazó en ${stop} y va a bordo. Indica a dónde regresa: sin retorno no se puede finalizar el viaje.`,
+    lockDestination: (cargo: string) =>
+      `Para finalizar el viaje, planea el retorno de ${cargo}.`,
+    badgeOnBoard: "Devuelta · a bordo",
+    badgeGoesTo: (lugar: string) => `Devuelta · regresa a ${lugar}`,
+    bitacora: (lugar: string, when: string) =>
+      `Retorno planeado · ${lugar} ${when}`,
+    bitacoraWhenAtEnd: "al final del recorrido",
+    bitacoraWhenBefore: "antes de seguir",
+    bitacoraMeta: (km: string, user: string) => `+${km} km · ${user}`,
+    afterSaveNextHint: (lugar: string, when: string, next: string) =>
+      `Retorno planeado a ${lugar} ${when}. Sigue a ${next}.`,
+    toastSaved: "Retorno planeado",
+  },
+  planReturnSheet: {
+    title: "Planear retorno",
+    cargoLine: (nombre: string, cantidad: string, peso: string) => {
+      const parts = [nombre, cantidad, peso].filter((p) => p.trim().length > 0);
+      return parts.join(" · ");
+    },
+    rejectedSubtitle: (parada: string, hora: string, unidad: string) =>
+      `Rechazada en ${parada} a las ${hora}. Va a bordo de ${unidad}.`,
+    whereSection: "¿A dónde regresa?",
+    wherePickedUpBadge: "Donde se recogió",
+    whereOther: "Otro lugar",
+    whereOtherHint: "Busca en el catálogo o crea una ubicación.",
+    whenSection: "¿Cuándo?",
+    whenAtEnd: "Al final del recorrido",
+    whenAtEndEffect: (
+      cargaPendiente: string,
+      siguienteParada: string,
+      lugarRetorno: string,
+    ) =>
+      `Primero entrega ${cargaPendiente} en ${siguienteParada}. ${lugarRetorno} pasa a ser el destino.`,
+    whenBeforeNext: (siguienteParada: string) =>
+      `Antes de seguir a ${siguienteParada}`,
+    whenBeforeNextEffect: (lugarRetorno: string, siguienteParada: string) =>
+      `Regresa ahora a ${lugarRetorno} y después continúa a ${siguienteParada}.`,
+    noPendingTitle: "Ya no quedan entregas",
+    noPendingEffectDestination: (lugar: string) =>
+      `${lugar} pasa a ser el destino del viaje.`,
+    noPendingEffectRejected: (paradaRechazo: string) =>
+      `${paradaRechazo} queda como escala visitada.`,
+    noPendingEffectClose: (lugar: string) =>
+      `Al llegar a ${lugar}, el viaje se cierra con normalidad.`,
+    impactDistance: "Recorrido",
+    impactArrival: (lugar: string) => `Llega a ${lugar}`,
+    impactStops: "Paradas",
+    impactStopsBefore: (n: number) => `antes ${n}`,
+    impactEstimatedHint: "Estimado",
+    routePreviewTitle: "Así queda la ruta",
+    stopReturnLabel: "Retorno",
+    stopReceives: (carga: string, cantidad: string) =>
+      `Recibe de vuelta ${carga}${cantidad ? ` · ${cantidad}` : ""}`,
+    stopReceivesShort: (carga: string) => `recibe ${carga}`,
+    adjustRate: "Ajustar la tarifa del viaje",
+    adjustRateHint: "Solo si el retorno cambia lo acordado con el cliente.",
+    adjustRateCurrent: (monto: string) => `Actual ${monto}`,
+    rateField: "Tarifa del viaje",
+    rateBefore: (monto: string) =>
+      `Antes ${monto}. Es la que usará la factura sustituta.`,
+    fiscalStamped: (folio: string) =>
+      `La factura ${folio} ya está timbrada. Al guardar, el viaje queda en atención fiscal y la factura se sustituye después. No detiene el retorno.`,
+    footerEditRoute: "Editar en Ruta",
+    footerCancel: "Cancelar",
+    footerSave: "Guardar retorno",
+    missingDestination: "Elige a dónde regresa la carga.",
+    missingPickup: "No se encontró el lugar de recogida de esta carga.",
+    saveError: "No se pudo guardar el retorno. Intenta de nuevo.",
   },
   error: {
     startRequiresScheduled: "Requiere estado Programado.",

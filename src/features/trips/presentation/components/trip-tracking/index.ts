@@ -12,8 +12,17 @@ export { RegisterTripArrivalSheet } from "./RegisterTripArrivalSheet";
 export type { RegisterTripArrivalSheetProps } from "./RegisterTripArrivalSheet";
 export { QuickCloseTripSheet } from "./QuickCloseTripSheet";
 export type { QuickCloseTripSheetProps } from "./QuickCloseTripSheet";
+export { PlanReturnSheet } from "./PlanReturnSheet";
+export type { PlanReturnSheetProps } from "./PlanReturnSheet";
 export { DeclareFalseTripSheet } from "./DeclareFalseTripSheet";
 export type { DeclareFalseTripSheetProps } from "./DeclareFalseTripSheet";
+export {
+  buildPlanReturnPendingStops,
+  resolvePlanReturnTargetCargo,
+  resolveReturnedCargoBadge,
+  resolveReturnStopLabelMap,
+  tripHasInferredReturnStop,
+} from "./planReturnHelpers";
 export { canDeclareFalseTrip } from "./canDeclareFalseTrip";
 export { canQuickCloseTrip } from "./canQuickCloseTrip";
 export { RegisterStopTrackingEventSheet } from "./RegisterStopTrackingEventSheet";

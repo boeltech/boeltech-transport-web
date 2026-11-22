@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { AlertCircle, Navigation } from "lucide-react";
 
 import { Badge } from "@shared/ui/badge";
@@ -11,7 +11,6 @@ import {
   useUpdateTrip,
 } from "@features/trips/application";
 import {
-  CargoStatus,
   shouldFlagFiscalAttentionAfterTripMutation,
   type ClientCorridor,
   type CreateStopInput,
@@ -110,7 +109,6 @@ import { tripDetailCopy } from "../../copy";
 
 const copy = tripDetailCopy.route;
 const operationCopy = tripDetailCopy.operation;
-const trackingCopy = tripDetailCopy.tracking;
 
 type RemoveWaypointDialog =
   | { kind: "confirm"; stopId: string }
@@ -179,7 +177,10 @@ export interface TripDetailRouteTabProps {
    */
   canAppendStops?: boolean;
   cargos?: TripCargo[];
-  /** F3b — banner Planear retorno + hint multi-carga. */
+  /**
+   * @deprecated F4b — el Sheet de retorno vive en Seguimiento; ya no hay banner.
+   * Se conserva en props para no romper callers; se ignora.
+   */
   returnReplanRequired?: boolean;
   legacyRoute?: {
     originCity?: string | null;
@@ -269,36 +270,16 @@ export function TripDetailRouteTab({
   canEditStructural,
   canReplanPendingStops = false,
   cargos,
-  returnReplanRequired = false,
+  returnReplanRequired: _returnReplanRequired = false,
   legacyRoute,
   onEditingChange,
 }: TripDetailRouteTabProps) {
+  void _returnReplanRequired;
   const { toast } = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
   const replaceStops = useReplaceTripStops(trip.id);
   const replanStops = useReplanTripStops(trip.id);
   const updateTrip = useUpdateTrip();
   const showMidTripReplan = canReplanPendingStops && !canEditStructural;
-  const planReturnIntent = searchParams.get("intent") === "plan_return";
-  const showPlanReturnBanner = planReturnIntent || returnReplanRequired;
-  const hasOtherPendingDeliveries = (cargos ?? []).some(
-    (cargo) =>
-      cargo.status === CargoStatus.IN_TRANSIT ||
-      cargo.status === CargoStatus.PENDING,
-  );
-
-  useEffect(() => {
-    if (!planReturnIntent) return;
-    // Consume intent once shown; keep banner via returnReplanRequired.
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("intent");
-        return next;
-      },
-      { replace: true },
-    );
-  }, [planReturnIntent, setSearchParams]);
   const canMutateRoute = canEditStructural || showMidTripReplan;
   const corridorsQuery = useClientCorridors(
     canEditStructural && orderedStops.length === 0
@@ -1630,17 +1611,6 @@ export function TripDetailRouteTab({
 
   return (
     <div className="space-y-6">
-      {showPlanReturnBanner ? (
-        <Alert variant="info" data-tracking-section="plan-return-route-banner">
-          <AlertTitle>{trackingCopy.action.planReturn}</AlertTitle>
-          <AlertDescription className="space-y-1">
-            <p>{trackingCopy.hint.planReturnRouteBanner}</p>
-            {hasOtherPendingDeliveries ? (
-              <p>{trackingCopy.hint.planReturnMultiCargoHint}</p>
-            ) : null}
-          </AlertDescription>
-        </Alert>
-      ) : null}
       {routeAlerts}
       {artboardLayout}
       {emptyComposerLayout}
