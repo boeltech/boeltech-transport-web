@@ -285,8 +285,21 @@ function stopMatchesPlace(
 }
 
 /**
+ * Candidata a R7: pending (planeada) o in_progress (visita activa).
+ * F4c: los CTAs anidados solo aparecen en at_stop; si la inferencia excluyera
+ * in_progress, el gate «cero CTAs sobre returned» no correría al llegar.
+ * Completadas / salidas no aplican (ya no es recepción pendiente).
+ */
+function isReturnStopVisitCandidate(stop: TripStop, pickupId: string): boolean {
+  if (stop.id === pickupId) return false;
+  const status = String(stop.status);
+  return status === "pending" || status === "in_progress";
+}
+
+/**
  * R7 — etiqueta «Retorno» por inferencia: carga returned → pickup →
- * parada pending cuya dirección coincide con el pickup (apareo cronológico).
+ * parada pending/in_progress cuya dirección coincide con el pickup
+ * (apareo cronológico). Sin FK (Q-R1).
  */
 export function resolveReturnStopForCargo(
   cargo: TripCargo,
@@ -298,14 +311,12 @@ export function resolveReturnStopForCargo(
   if (!pickup) return null;
 
   const place = mapStopToReplaceStopInput(pickup);
-  const pending = orderedStops.filter(
+  const candidates = orderedStops.filter(
     (s) =>
-      !claimedStopIds.has(s.id) &&
-      !isTripStopImmutableMidTrip(s) &&
-      s.id !== pickup.id,
+      !claimedStopIds.has(s.id) && isReturnStopVisitCandidate(s, pickup.id),
   );
 
-  const match = pending.find((s) => stopMatchesPlace(s, place));
+  const match = candidates.find((s) => stopMatchesPlace(s, place));
   return match ?? null;
 }
 

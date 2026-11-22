@@ -22,16 +22,12 @@ import {
 import { formatStopTimelineLabel } from "../../uiHelpers";
 import { tripDetailCopy } from "../../copy";
 import {
-  getCargoManualActionsForStop,
   isCargoTerminal,
   resolveCargoActionTransitionHint,
   resolveCargoCtaLayout,
   type CargoManualAction,
 } from "../../utils/cargoStatusActions";
-import {
-  getStopCargoLinks,
-  type StopCargoLink,
-} from "../../utils/stopCargoCorrelation";
+import { getStopCargoLinks } from "../../utils/stopCargoCorrelation";
 import {
   canOperateCargoAtStop,
   getCargoBlockAtStop,
@@ -41,6 +37,7 @@ import {
   hasStopType,
 } from "../trip-route/tripRouteDetailHelpers";
 import { CargoActionInline } from "./CargoActionInline";
+import { getCargoActionsForStopLink } from "./operateCargoActions";
 import { PlanReturnDestinationLock } from "./PlanReturnSheet";
 import {
   resolveReturnedCargoBadge,
@@ -60,29 +57,6 @@ import {
 import { trackingCopy } from "./trackingCopy";
 
 const cargoCopy = tripDetailCopy.cargo;
-
-function getCargoActionsForStopLink(
-  link: StopCargoLink,
-  tripInProgress: boolean,
-  stop: TripStop,
-): CargoManualAction[] {
-  if (!tripInProgress) return [];
-  const allActions = getCargoManualActionsForStop(
-    link.cargo.status,
-    tripInProgress,
-    stop,
-  );
-  const actions: CargoManualAction[] = [];
-  if (link.movementType === "pickup" && allActions.includes("pickup")) {
-    actions.push("pickup");
-  }
-  if (link.movementType === "delivery" && allActions.includes("deliver")) {
-    actions.push("deliver");
-  }
-  if (allActions.includes("return")) actions.push("return");
-  if (allActions.includes("cancel")) actions.push("cancel");
-  return actions;
-}
 
 export type TripTrackingStopsTimelineProps = {
   rows: readonly TrackingItineraryRow[];
@@ -441,6 +415,7 @@ function TripTrackingStopsTimelineItem({
                       link,
                       tripInProgress,
                       row.stop,
+                      { returnLabelMap },
                     );
                     const terminal = isCargoTerminal(link.cargo.status);
                     const showCargoActions =

@@ -9,10 +9,13 @@ import {
 } from "@features/trips/domain";
 
 import {
+  getCargoActionsForStopLink,
   listOperatePendingCargoActions,
   resolveOperateCargoCtaLabel,
 } from "./operateCargoActions";
+import { resolveReturnStopLabelMap } from "./planReturnHelpers";
 import { trackingCopy } from "./trackingCopy";
+import type { StopCargoLink } from "../../utils/stopCargoCorrelation";
 
 function stop(partial: Partial<TripStop> & Pick<TripStop, "id">): TripStop {
   return {
@@ -134,5 +137,169 @@ describe("resolveOperateCargoCtaLabel", () => {
         "Bodega QRO",
       ),
     ).toBe(trackingCopy.action.registerCargosAtStop("Bodega QRO"));
+  });
+});
+
+describe("getCargoActionsForStopLink (F4c R7)", () => {
+  const origin = stop({
+    id: "origin",
+    sequenceOrder: 1,
+    stopType: [StopType.ORIGIN, StopType.PICKUP],
+    status: "completed",
+    locationName: "CEDIS Monterrey",
+    city: "Monterrey",
+    sourceAddressId: "addr-mty",
+    latitude: 25.67,
+    longitude: -100.31,
+    actualArrival: new Date("2026-01-01T08:00:00Z"),
+    actualDeparture: new Date("2026-01-01T09:00:00Z"),
+  });
+  const unload = stop({
+    id: "unload",
+    sequenceOrder: 2,
+    stopType: [StopType.WAYPOINT, StopType.DELIVERY],
+    status: "completed",
+    locationName: "Cliente Saltillo",
+    actualArrival: new Date("2026-01-01T11:00:00Z"),
+    actualDeparture: new Date("2026-01-01T12:00:00Z"),
+  });
+  const returnStop = stop({
+    id: "return-mty",
+    sequenceOrder: 3,
+    stopType: [StopType.DESTINATION, StopType.DELIVERY],
+    status: "in_progress",
+    locationName: "CEDIS Monterrey",
+    city: "Monterrey",
+    sourceAddressId: "addr-mty",
+    latitude: 25.67,
+    longitude: -100.31,
+    actualArrival: new Date("2026-01-01T16:00:00Z"),
+  });
+
+  const returnedCargo = cargo({
+    id: "cargo-harina",
+    description: "Harina",
+    status: CargoStatus.RETURNED,
+    movements: [
+      {
+        id: "m-pick",
+        movementType: "pickup",
+        stopId: "origin",
+        stopIndex: 0,
+        completedAt: new Date("2026-01-01T09:00:00Z"),
+        weight: null,
+        units: null,
+        notes: null,
+      },
+      {
+        id: "m-del",
+        movementType: "delivery",
+        stopId: "return-mty",
+        stopIndex: 2,
+        completedAt: null,
+        weight: null,
+        units: null,
+        notes: null,
+      },
+    ],
+  });
+
+  const companion = cargo({
+    id: "cargo-abarrotes",
+    description: "Abarrotes",
+    status: CargoStatus.IN_TRANSIT,
+    movements: [
+      {
+        id: "m2-pick",
+        movementType: "pickup",
+        stopId: "origin",
+        stopIndex: 0,
+        completedAt: new Date("2026-01-01T09:00:00Z"),
+        weight: null,
+        units: null,
+        notes: null,
+      },
+      {
+        id: "m2-del",
+        movementType: "delivery",
+        stopId: "return-mty",
+        stopIndex: 2,
+        completedAt: null,
+        weight: null,
+        units: null,
+        notes: null,
+      },
+    ],
+  });
+
+  const ordered = [origin, unload, returnStop];
+
+  it("CA-R13: returned en R7 (también in_progress) → cero CTAs", () => {
+    const map = resolveReturnStopLabelMap([returnedCargo, companion], ordered);
+    expect(map.get("return-mty")?.cargo.id).toBe("cargo-harina");
+
+    const link: StopCargoLink = {
+      cargo: returnedCargo,
+      movementType: "delivery",
+      movement: returnedCargo.movements![1]!,
+    };
+    expect(
+      getCargoActionsForStopLink(link, true, returnStop, {
+        returnLabelMap: map,
+      }),
+    ).toEqual([]);
+  });
+
+  it("CA-R14: in_transit compañera en R7 → Entregar·Devolver·Cancelar", () => {
+    const map = resolveReturnStopLabelMap([returnedCargo, companion], ordered);
+    const link: StopCargoLink = {
+      cargo: companion,
+      movementType: "delivery",
+      movement: companion.movements![1]!,
+    };
+    expect(
+      getCargoActionsForStopLink(link, true, returnStop, {
+        returnLabelMap: map,
+      }),
+    ).toEqual(["deliver", "return", "cancel"]);
+  });
+
+  it("CA-R15: unload no-R7 in_transit → descarga normal intacta", () => {
+    const normalUnload = stop({
+      id: "s-normal",
+      sequenceOrder: 2,
+      stopType: [StopType.DELIVERY, StopType.DESTINATION],
+      status: "in_progress",
+      locationName: "Bodega Saltillo",
+      actualArrival: new Date("2026-01-01T13:00:00Z"),
+    });
+    const normalCargo = cargo({
+      id: "c-normal",
+      status: CargoStatus.IN_TRANSIT,
+      movements: [
+        {
+          id: "mn",
+          movementType: "delivery",
+          stopId: "s-normal",
+          stopIndex: 1,
+          completedAt: null,
+          weight: null,
+          units: null,
+          notes: null,
+        },
+      ],
+    });
+    const link: StopCargoLink = {
+      cargo: normalCargo,
+      movementType: "delivery",
+      movement: normalCargo.movements![0]!,
+    };
+    const map = resolveReturnStopLabelMap([normalCargo], [origin, normalUnload]);
+    expect(map.size).toBe(0);
+    expect(
+      getCargoActionsForStopLink(link, true, normalUnload, {
+        returnLabelMap: map,
+      }),
+    ).toEqual(["deliver", "return", "cancel"]);
   });
 });

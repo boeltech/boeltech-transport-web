@@ -11,11 +11,14 @@ import {
 } from "@features/trips/domain";
 
 import { CargoActionInline } from "./CargoActionInline";
+import { getCargoActionsForStopLink } from "./operateCargoActions";
+import { resolveReturnStopLabelMap } from "./planReturnHelpers";
 import { StopActionInline } from "./StopActionInline";
 import {
   CARGO_TRANSITION_COPY,
   STOP_TRANSITION_COPY,
 } from "./transitionCopy";
+import type { StopCargoLink } from "../../utils/stopCargoCorrelation";
 import {
   resolveTrackingPrimaryAction,
   resolveTrackingPrimaryCtaLabel,
@@ -398,6 +401,109 @@ describe("CargoActionInline", () => {
     expect(screen.getByRole("button", { name: /Recoger/i }).className).not.toMatch(
       /bg-primary/,
     );
+  });
+
+  it("F4c: label de entrega sigue «Entregar» (no «Recibir»)", () => {
+    render(<CargoActionInline action="deliver" onClick={() => undefined} />);
+    expect(screen.getByRole("button", { name: /^Entregar$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Recibir/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("F4c CTAs parada R7 (trackingRedesign)", () => {
+  const origin = stop({
+    id: "origin",
+    sequenceOrder: 1,
+    stopType: [StopType.ORIGIN, StopType.PICKUP],
+    locationName: "CEDIS Monterrey",
+    city: "Monterrey",
+    sourceAddressId: "addr-mty",
+    latitude: 25.67,
+    longitude: -100.31,
+    status: "completed",
+    actualArrival: new Date("2026-11-12T11:40:00.000Z"),
+    actualDeparture: new Date("2026-11-12T12:10:00.000Z"),
+  });
+  const returnAtStop = stop({
+    id: "return-mty",
+    sequenceOrder: 2,
+    stopType: [StopType.DESTINATION, StopType.DELIVERY],
+    locationName: "CEDIS Monterrey",
+    city: "Monterrey",
+    sourceAddressId: "addr-mty",
+    latitude: 25.67,
+    longitude: -100.31,
+    status: "in_progress",
+    actualArrival: new Date("2026-11-12T16:00:00.000Z"),
+  });
+
+  it("returned en R7 → cero CTAs; in_transit compañera → descarga normal", () => {
+    const returned = cargo({
+      id: "c-returned",
+      description: "Harina",
+      status: CargoStatus.RETURNED,
+      movements: [
+        {
+          id: "mov-pick",
+          stopId: "origin",
+          stopIndex: 0,
+          movementType: "pickup",
+          weight: 100,
+          units: 1,
+          completedAt: new Date("2026-11-12T12:00:00.000Z"),
+          notes: null,
+        },
+        {
+          id: "mov-ret",
+          stopId: "return-mty",
+          stopIndex: 1,
+          movementType: "delivery",
+          weight: 100,
+          units: 1,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    });
+    const companion = cargo({
+      id: "c-companion",
+      description: "Abarrotes",
+      status: CargoStatus.IN_TRANSIT,
+      movements: [
+        {
+          id: "mov-c-del",
+          stopId: "return-mty",
+          stopIndex: 1,
+          movementType: "delivery",
+          weight: 50,
+          units: 2,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    });
+    const ordered = [origin, returnAtStop];
+    const map = resolveReturnStopLabelMap([returned, companion], ordered);
+    const returnedLink: StopCargoLink = {
+      cargo: returned,
+      movementType: "delivery",
+      movement: returned.movements![1]!,
+    };
+    const companionLink: StopCargoLink = {
+      cargo: companion,
+      movementType: "delivery",
+      movement: companion.movements![0]!,
+    };
+    expect(
+      getCargoActionsForStopLink(returnedLink, true, returnAtStop, {
+        returnLabelMap: map,
+      }),
+    ).toEqual([]);
+    expect(
+      getCargoActionsForStopLink(companionLink, true, returnAtStop, {
+        returnLabelMap: map,
+      }),
+    ).toEqual(["deliver", "return", "cancel"]);
   });
 });
 

@@ -323,4 +323,26 @@ describe("planReturnHelpers", () => {
       ),
     ).toBe(true);
   });
+
+  it("F4c: R7 inferencia también con return stop in_progress (at_stop)", () => {
+    const returnStop = makeStop({
+      id: "return-mty",
+      sequenceOrder: 4,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      status: StopStatus.IN_PROGRESS,
+      actualArrival: new Date("2026-01-01T16:00:00Z"),
+      locationName: "CEDIS Monterrey",
+      city: "Monterrey",
+      sourceAddressId: "addr-mty",
+      latitude: 25.67,
+      longitude: -100.31,
+    });
+    const found = resolveReturnStopForCargo(returnedCargo, [
+      origin,
+      saltillo,
+      torreon,
+      returnStop,
+    ]);
+    expect(found?.id).toBe("return-mty");
+  });
 });

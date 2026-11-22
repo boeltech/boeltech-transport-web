@@ -18,7 +18,6 @@ import { cn } from "@shared/lib/utils/cn";
 import { formatStopTimelineLabel } from "../../uiHelpers";
 import { tripDetailCopy } from "../../copy";
 import {
-  getCargoManualActionsForStop,
   isCargoTerminal,
   resolveCargoActionTransitionHint,
   resolveCargoCtaLayout,
@@ -27,7 +26,6 @@ import {
 import {
   getStopCargoLinks,
   isUnloadStop,
-  type StopCargoLink,
 } from "../../utils/stopCargoCorrelation";
 import {
   canOperateCargoAtStop,
@@ -35,6 +33,8 @@ import {
 } from "../../utils/trackingCargoGating";
 import { isCargoHazmat } from "../trip-cargos/tripCargoDetailHelpers";
 import { CargoActionInline } from "./CargoActionInline";
+import { getCargoActionsForStopLink } from "./operateCargoActions";
+import { resolveReturnStopLabelMap } from "./planReturnHelpers";
 import { TrackingEvidenceActions } from "./TrackingEvidenceActions";
 import type { TrackingItineraryRow } from "./trackingOperationalHelpers";
 import {
@@ -44,34 +44,6 @@ import {
 import { trackingCopy } from "./trackingCopy";
 
 const cargoCopy = tripDetailCopy.cargo;
-
-function getCargoActionsForStopLink(
-  link: StopCargoLink,
-  tripInProgress: boolean,
-  stop: TripStop,
-  stopActive: boolean,
-): CargoManualAction[] {
-  void stopActive;
-  if (!tripInProgress) return [];
-
-  const allActions = getCargoManualActionsForStop(
-    link.cargo.status,
-    tripInProgress,
-    stop,
-  );
-  const actions: CargoManualAction[] = [];
-
-  if (link.movementType === "pickup" && allActions.includes("pickup")) {
-    actions.push("pickup");
-  }
-  if (link.movementType === "delivery" && allActions.includes("deliver")) {
-    actions.push("deliver");
-  }
-  if (allActions.includes("return")) actions.push("return");
-  if (allActions.includes("cancel")) actions.push("cancel");
-
-  return actions;
-}
 
 export type TripTrackingStopOperationDetailProps = {
   row: TrackingItineraryRow;
@@ -120,6 +92,7 @@ export function TripTrackingStopOperationDetail({
     row.stop.status as StopStatusValue | undefined,
   );
   const links = getStopCargoLinks(row.stop, cargos, orderedStops);
+  const returnLabelMap = resolveReturnStopLabelMap(cargos, orderedStops);
   const stopActive = canOperateCargoAtStop(row.stop, tripStatus);
   const cargoBlock = getCargoBlockAtStop(row.stop, cargos, orderedStops);
   const cargoActionsEnabled = tripInProgress && stopActive;
@@ -198,7 +171,7 @@ export function TripTrackingStopOperationDetail({
                 link,
                 tripInProgress,
                 row.stop,
-                stopActive,
+                { returnLabelMap },
               );
               const terminal = isCargoTerminal(link.cargo.status);
               const cargoFacts = trackingCopy.format.cargoFacts(

@@ -220,6 +220,187 @@ describe("TripTrackingStopsTimeline (F3c layout)", () => {
     expect(screen.queryByRole("button", { name: /Más acciones/i })).not.toBeInTheDocument();
   });
 
+  it("F4c CA-R13: returned en R7 at_stop → sin Entregar/Devolver/Cancelar", () => {
+    const pickup = stop({
+      id: "origin",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN, StopType.PICKUP],
+      locationName: "CEDIS Monterrey",
+      city: "Monterrey",
+      sourceAddressId: "addr-mty",
+      latitude: 25.67,
+      longitude: -100.31,
+      status: "completed",
+      actualArrival: new Date("2026-11-12T11:40:00.000Z"),
+      actualDeparture: new Date("2026-11-12T12:10:00.000Z"),
+    });
+    const returnAtStop = stop({
+      id: "return-mty",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "CEDIS Monterrey",
+      city: "Monterrey",
+      sourceAddressId: "addr-mty",
+      latitude: 25.67,
+      longitude: -100.31,
+      status: "in_progress",
+      actualArrival: new Date("2026-11-12T16:00:00.000Z"),
+    });
+    const returned = cargo({
+      id: "c-returned",
+      description: "Harina y productos de molinos",
+      status: CargoStatus.RETURNED,
+      movements: [
+        {
+          id: "mov-pick",
+          stopId: "origin",
+          stopIndex: 0,
+          movementType: "pickup",
+          weight: 12000,
+          units: 12,
+          completedAt: new Date("2026-11-12T12:00:00.000Z"),
+          notes: null,
+        },
+        {
+          id: "mov-ret",
+          stopId: "return-mty",
+          stopIndex: 1,
+          movementType: "delivery",
+          weight: 12000,
+          units: 12,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    });
+    const stops = [pickup, returnAtStop];
+    const cargos = [returned];
+    const rows = buildTrackingItineraryRows(stops, undefined, cargos);
+
+    render(
+      <TripTrackingStopsTimeline
+        rows={rows}
+        orderedStops={stops}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={cargos}
+        canMutateCargo
+        onCargoAction={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Retorno/i)).toBeInTheDocument();
+    expect(screen.getByText("Harina y productos de molinos")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Entregar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Devolver/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Cancelar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Recibir/i })).not.toBeInTheDocument();
+  });
+
+  it("F4c CA-R14: in_transit compañera en R7 → 3 CTAs · label Entregar", () => {
+    const pickup = stop({
+      id: "origin",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN, StopType.PICKUP],
+      locationName: "CEDIS Monterrey",
+      city: "Monterrey",
+      sourceAddressId: "addr-mty",
+      latitude: 25.67,
+      longitude: -100.31,
+      status: "completed",
+      actualArrival: new Date("2026-11-12T11:40:00.000Z"),
+      actualDeparture: new Date("2026-11-12T12:10:00.000Z"),
+    });
+    const returnAtStop = stop({
+      id: "return-mty",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      locationName: "CEDIS Monterrey",
+      city: "Monterrey",
+      sourceAddressId: "addr-mty",
+      latitude: 25.67,
+      longitude: -100.31,
+      status: "in_progress",
+      actualArrival: new Date("2026-11-12T16:00:00.000Z"),
+    });
+    const returned = cargo({
+      id: "c-returned",
+      description: "Harina",
+      status: CargoStatus.RETURNED,
+      movements: [
+        {
+          id: "mov-pick",
+          stopId: "origin",
+          stopIndex: 0,
+          movementType: "pickup",
+          weight: 100,
+          units: 1,
+          completedAt: new Date("2026-11-12T12:00:00.000Z"),
+          notes: null,
+        },
+        {
+          id: "mov-ret",
+          stopId: "return-mty",
+          stopIndex: 1,
+          movementType: "delivery",
+          weight: 100,
+          units: 1,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    });
+    const companion = cargo({
+      id: "c-companion",
+      description: "Abarrotes secos",
+      status: CargoStatus.IN_TRANSIT,
+      movements: [
+        {
+          id: "mov-c-pick",
+          stopId: "origin",
+          stopIndex: 0,
+          movementType: "pickup",
+          weight: 50,
+          units: 2,
+          completedAt: new Date("2026-11-12T12:00:00.000Z"),
+          notes: null,
+        },
+        {
+          id: "mov-c-del",
+          stopId: "return-mty",
+          stopIndex: 1,
+          movementType: "delivery",
+          weight: 50,
+          units: 2,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    });
+    const stops = [pickup, returnAtStop];
+    const cargos = [returned, companion];
+    const rows = buildTrackingItineraryRows(stops, undefined, cargos);
+
+    render(
+      <TripTrackingStopsTimeline
+        rows={rows}
+        orderedStops={stops}
+        tripStatus={TripStatus.IN_PROGRESS}
+        cargos={cargos}
+        canMutateCargo
+        onCargoAction={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Abarrotes secos")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Entregar$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Devolver/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Cancelar/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Recibir/i })).not.toBeInTheDocument();
+    // returned card presente sin CTAs propios (solo los 3 de la compañera)
+    expect(screen.getByText("Harina")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Entregar/i })).toHaveLength(1);
+  });
+
   it("R2: N=2 pendientes tienen separador por ítem (L-D7)", () => {
     const stops = [origin, active, dest];
     const cargos = [

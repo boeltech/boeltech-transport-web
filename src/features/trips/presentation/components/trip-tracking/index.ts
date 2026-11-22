@@ -103,10 +103,14 @@ export type {
   TrackingPrimaryActionKind,
 } from "./trackingNextAction";
 export {
+  getCargoActionsForStopLink,
   listOperatePendingCargoActions,
   resolveOperateCargoCtaLabel,
 } from "./operateCargoActions";
-export type { OperatePendingCargoAction } from "./operateCargoActions";
+export type {
+  OperatePendingCargoAction,
+  ReturnStopLabelMap,
+} from "./operateCargoActions";
 export {
   TRACKING_STOP_STATUS_CONFIG,
   TrackingStopStatusBadge,
