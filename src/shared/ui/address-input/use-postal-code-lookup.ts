@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@shared/api";
+import { addressInputQueryKeys } from "./addressInputQueryKeys";
 
 interface PostalLookupRowApi {
   code?: string;
@@ -93,7 +94,7 @@ export function usePostalCodeLookup(postalCode: string) {
   const isPostalCodeReady = /^\d{5}$/.test(normalizedPostalCode);
 
   return useQuery({
-    queryKey: ["address-postal-lookup", normalizedPostalCode],
+    queryKey: addressInputQueryKeys.postalLookup(normalizedPostalCode),
     queryFn: async (): Promise<PostalCodeLookupResult> => {
       try {
         const response = await apiClient.get<{ data: PostalLookupApi }>(

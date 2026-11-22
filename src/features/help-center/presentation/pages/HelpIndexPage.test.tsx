@@ -94,13 +94,13 @@ describe("HelpIndexPage (F1)", () => {
     expect(screen.getByTestId("article-detail")).toBeInTheDocument();
   });
 
-  it("remapea display P-V1 A: cuenta-seguridad → Tu cuenta (AY-H8)", () => {
+  it("agrupa por group de datos: cuenta-seguridad en Tu cuenta (AY-H8)", () => {
     mockUseHelpArticles.mockReturnValue({
       data: [
         {
           id: "cuenta-seguridad",
           title: "Cuidar tu acceso",
-          group: "administracion",
+          group: "tu_cuenta",
           screens: [],
           roles: [],
           phrase: "Cambias tu contraseña y cierras sesiones.",
@@ -111,7 +111,6 @@ describe("HelpIndexPage (F1)", () => {
         {
           id: "liquidar-viaje",
           title: "Liquidar un viaje",
-          // group canónico en datos (fase D); ya no se remapea en web
           group: "pagos_operadores",
           screens: [],
           roles: [],

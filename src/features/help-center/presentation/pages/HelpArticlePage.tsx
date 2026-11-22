@@ -19,7 +19,6 @@ import { useHelpArticle } from "../../application";
 import { trackHelpEvent } from "../../application/trackHelpEvent";
 import { markHelpArticleViewed } from "../../infrastructure/helpSessionFlags";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
-import { resolveHelpDisplayGroup } from "../utils/helpDisplayGroup";
 import { ArticleFeedback } from "../components/ArticleFeedback";
 import { CreateTicketSheet } from "../components/CreateTicketSheet";
 import { HelpProblemList } from "../components/HelpProblemList";
@@ -77,10 +76,7 @@ export function HelpArticlePage() {
       (!article && !isError));
 
   const groupLabel = article
-    ? (() => {
-        const displayGroup = resolveHelpDisplayGroup(article.id, article.group);
-        return helpCenterCopy.groups[displayGroup] ?? displayGroup;
-      })()
+    ? (helpCenterCopy.groups[article.group] ?? article.group)
     : "";
 
   const crumbs = resolveDetailCrumbs({

@@ -2,6 +2,7 @@
  * Fila de solo lectura del modo Sin factura en el resumen del tenant (D12).
  */
 import { useQuery } from "@tanstack/react-query";
+import { platformQueryKeys } from "../../domain/entities";
 import { platformApi } from "../../infrastructure/platformApi";
 import { OpsPanel, OpsPanelBody, OpsPanelHeader, OpsPanelTitle } from "./ui/OpsPanel";
 
@@ -13,7 +14,7 @@ const MODE_LABEL: Record<string, string> = {
 
 export function OpsTenantFiscalPolicyPanel({ tenantId }: { tenantId: string }) {
   const policy = useQuery({
-    queryKey: ["platform", "tenant", tenantId, "fiscal-policy"],
+    queryKey: platformQueryKeys.tenantFiscalPolicy(tenantId),
     queryFn: () => platformApi.getTenantFiscalPolicy(tenantId),
   });
 

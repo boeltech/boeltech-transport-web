@@ -10,10 +10,7 @@ import { useHelpArticles, useOpenTicketCount } from "../../application";
 import { trackHelpSearchPerformed } from "../../application/trackHelpEvent";
 import type { HelpArticle } from "../../domain";
 import { helpCenterCopy } from "../copy/helpCenterCopy";
-import {
-  resolveHelpDisplayGroup,
-  sortHelpGroupKeys,
-} from "../utils/helpDisplayGroup";
+import { sortHelpGroupKeys } from "../utils/helpDisplayGroup";
 
 const copy = helpCenterCopy.index;
 const groupLabels = helpCenterCopy.groups;
@@ -21,7 +18,7 @@ const groupLabels = helpCenterCopy.groups;
 function groupByDisplay(articles: HelpArticle[]): Record<string, HelpArticle[]> {
   const grouped: Record<string, HelpArticle[]> = {};
   for (const article of articles) {
-    const key = resolveHelpDisplayGroup(article.id, article.group);
+    const key = article.group;
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(article);
   }

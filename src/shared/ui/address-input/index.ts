@@ -1,4 +1,5 @@
 export { ADDRESS_INPUT_CONTAINER_CLASS, addressInputContainerClass } from "./addressInputContainer";
+export { addressInputQueryKeys } from "./addressInputQueryKeys";
 export { default as AddressInput } from "./AddressInput";
 export { default as AddressGeolocationPanel } from "./AddressGeolocationPanel";
 export type { GeolocationCandidateMarker } from "./AddressGeolocationMap";

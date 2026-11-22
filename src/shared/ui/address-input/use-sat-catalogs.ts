@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@shared/api";
+import { addressInputQueryKeys } from "./addressInputQueryKeys";
 
 interface CatalogOptionApi {
   code: string;
@@ -41,14 +42,14 @@ export function useSatCatalogs(stateCode?: string, postalCode?: string) {
   const normalizedPostalCode = postalCode?.trim() || "";
 
   const statesQuery = useQuery({
-    queryKey: ["address-sat-states"],
+    queryKey: addressInputQueryKeys.satStates(),
     queryFn: () => fetchCatalogOptions("sat_estado"),
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 60 * 60_000,
   });
 
   const municipalitiesQuery = useQuery({
-    queryKey: ["address-sat-municipalities", normalizedStateCode],
+    queryKey: addressInputQueryKeys.satMunicipalities(normalizedStateCode),
     queryFn: () => fetchCatalogOptions("sat_municipio", normalizedStateCode),
     enabled: Boolean(normalizedStateCode),
     staleTime: Number.POSITIVE_INFINITY,
@@ -56,7 +57,7 @@ export function useSatCatalogs(stateCode?: string, postalCode?: string) {
   });
 
   const neighborhoodsByPostalCodeQuery = useQuery({
-    queryKey: ["address-sat-neighborhoods", normalizedPostalCode],
+    queryKey: addressInputQueryKeys.satNeighborhoods(normalizedPostalCode),
     queryFn: () => fetchCatalogOptions("sat_colonia", normalizedPostalCode),
     enabled: /^\d{5}$/.test(normalizedPostalCode),
     staleTime: Number.POSITIVE_INFINITY,

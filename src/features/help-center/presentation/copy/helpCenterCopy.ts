@@ -80,9 +80,10 @@ export const helpCenterCopy = {
   /** Labels P-V1 A — alineados al menú lateral + «Tu cuenta». */
   groups: {
     facturacion: "Facturación",
-    /** Legacy API; display remapea a Operación vía helpDisplayGroup. */
+    /** Fallback si llega `viajes` antes de la migración de group en datos. */
     viajes: "Operación",
     operacion: "Operación",
+    monitoreo: "Monitoreo",
     flota: "Flota",
     comercial: "Comercial",
     finanzas: "Finanzas",

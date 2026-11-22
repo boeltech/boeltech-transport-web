@@ -52,7 +52,7 @@ vi.mock("../../infrastructure/helpSessionFlags", () => ({
 const sampleArticle = {
   id: "seguir-viaje",
   title: "Despachar y cerrar un viaje",
-  group: "viajes",
+  group: "operacion",
   screens: [],
   roles: ["admin", "manager", "dispatcher", "operator"],
   phrase: "Despachas el viaje Programado, operas cargas en cada parada y lo cierras en destino.",

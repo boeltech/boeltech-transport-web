@@ -935,6 +935,9 @@ export const platformQueryKeys = {
       tenantId,
       periodKey,
     ] as const,
+  /** Forma histórica: `['platform','tenant', id, 'fiscal-policy']` (singular). */
+  tenantFiscalPolicy: (tenantId: string) =>
+    [...platformQueryKeys.all, "tenant", tenantId, "fiscal-policy"] as const,
 } as const;
 
 export function isPlatformOwner(role: PlatformRoleType | undefined): boolean {

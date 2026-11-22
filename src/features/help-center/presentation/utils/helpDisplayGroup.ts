@@ -1,29 +1,11 @@
 /**
- * Remapeo display P-V1 A (hasta que TEC/barrido escriba `group` en BD).
- * Claves = ids de artículo o group legacy → group de menú / Tu cuenta.
- */
-
-/**
- * Artículo → group display (otras unidades).
- * U07 (`liquidar-viaje`, `registrar-anticipo-operador`, `esquema-compensacion`)
- * ya no se remapean aquí: el `group` llega de datos (fase D / migración).
- */
-export const HELP_ARTICLE_GROUP_REMAP: Readonly<Record<string, string>> = {
-  "comparar-sucursales": "administracion",
-  "cuenta-seguridad": "tu_cuenta",
-};
-
-/** Group legacy de API → group display (menú). */
-export const HELP_LEGACY_GROUP_REMAP: Readonly<Record<string, string>> = {
-  viajes: "operacion",
-};
-
-/**
  * Orden de secciones del índice = menú lateral + Tu cuenta al final.
  * Grupos no listados se listan después, orden alfabético por clave.
+ * Alineado a `navigationConfig` (operations → monitoring → … → admin) + portales + tu_cuenta.
  */
 export const HELP_INDEX_GROUP_ORDER: readonly string[] = [
   "operacion",
+  "monitoreo",
   "flota",
   "comercial",
   "facturacion",
@@ -32,21 +14,9 @@ export const HELP_INDEX_GROUP_ORDER: readonly string[] = [
   "finanzas",
   "administracion",
   "configuracion",
+  "portales",
   "tu_cuenta",
 ];
-
-export function resolveHelpDisplayGroup(
-  articleId: string,
-  apiGroup: string,
-): string {
-  if (HELP_ARTICLE_GROUP_REMAP[articleId]) {
-    return HELP_ARTICLE_GROUP_REMAP[articleId];
-  }
-  if (HELP_LEGACY_GROUP_REMAP[apiGroup]) {
-    return HELP_LEGACY_GROUP_REMAP[apiGroup];
-  }
-  return apiGroup;
-}
 
 export function sortHelpGroupKeys(keys: string[]): string[] {
   const orderIndex = new Map(
