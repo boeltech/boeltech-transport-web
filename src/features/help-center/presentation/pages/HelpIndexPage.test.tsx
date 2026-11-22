@@ -175,4 +175,12 @@ describe("HelpIndexPage (F1)", () => {
     expect(screen.queryByText(copy.emptyTitle)).not.toBeInTheDocument();
     expect(screen.queryByText(copy.searchNoResults)).not.toBeInTheDocument();
   });
+
+  it("inset de grupos dentro del frame (paridad Historial / no pegado a bordes)", () => {
+    const { container } = renderPage();
+    const inset = container.querySelector(".px-4.py-4");
+    expect(inset).toBeTruthy();
+    expect(inset?.querySelector("[data-help-index]")).toBeTruthy();
+    expect(inset?.querySelector("[data-help-group]")).toBeTruthy();
+  });
 });

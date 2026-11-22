@@ -127,28 +127,32 @@ export function HelpIndexPage() {
       }}
       renderTable={() =>
         showLoadError ? null : (
-          <div className="space-y-8" data-help-index="">
-            {groupKeys.map((group) => (
-              <section key={group} data-help-group={group}>
-                <h2 className="mb-3 text-lg font-semibold">
-                  {groupLabels[group] ?? group}
-                </h2>
-                {/* AY-H7: una superficie por grupo; filas, no EntityListCard anidados */}
-                <ul className="m-0 grid list-none grid-cols-1 overflow-hidden rounded-xl border bg-card p-0 shadow-sm sm:grid-cols-2">
-                  {grouped[group].map((article) => (
-                    <li
-                      key={article.id}
-                      className="border-b border-border last:border-b-0 sm:odd:border-r sm:[&:nth-last-child(-n+2)]:border-b-0"
-                    >
-                      <HelpArticleRow
-                        article={article}
-                        onOpen={() => navigate(`/ayuda/${article.id}`)}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
+          // ListingResultsFrame es edge-to-edge (tablas); grupos/cards necesitan inset
+          // (paridad con UserManagementActivityPage / Historial de usuarios).
+          <div className="px-4 py-4 sm:px-6">
+            <div className="space-y-8" data-help-index="">
+              {groupKeys.map((group) => (
+                <section key={group} data-help-group={group}>
+                  <h2 className="mb-3 text-lg font-semibold">
+                    {groupLabels[group] ?? group}
+                  </h2>
+                  {/* AY-H7: una superficie por grupo; filas, no EntityListCard anidados */}
+                  <ul className="m-0 grid list-none grid-cols-1 overflow-hidden rounded-xl border bg-card p-0 shadow-sm sm:grid-cols-2">
+                    {grouped[group].map((article) => (
+                      <li
+                        key={article.id}
+                        className="border-b border-border last:border-b-0 sm:odd:border-r sm:[&:nth-last-child(-n+2)]:border-b-0"
+                      >
+                        <HelpArticleRow
+                          article={article}
+                          onOpen={() => navigate(`/ayuda/${article.id}`)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
           </div>
         )
       }
