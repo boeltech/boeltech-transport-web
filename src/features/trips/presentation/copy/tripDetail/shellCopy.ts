@@ -138,6 +138,9 @@ export const shellCopy = {
     draftConfirmMissingTitle: "Falta para programar",
     draftConfirmFleetBlocked:
       "Asigna unidad y conductor antes de confirmar la reserva.",
+    /** F5d-c / PRD: gate Confirmar reserva con gap multi-unload. */
+    draftConfirmDeliveryBlocked:
+      "No se puede continuar: hay cargas sin entrega planificada.",
     draftConfirmTitle: "¿Confirmar esta reserva?",
     etaPassedTitle: "Tiempo de llegada estimado superado",
     etaPassedLabel: "Llegada estimada",

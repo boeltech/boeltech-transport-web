@@ -88,6 +88,8 @@ export const cargoCopy = {
         ? "1 carga no tiene parada de recogida."
         : `${count} cargas no tienen parada de recogida.`,
     noDeliveryTitle: "Falta entrega planificada",
+    /** F5d-c / PRD: banner con ≥2 unloads. */
+    noDeliveryTitleMultiUnload: "Falta indicar la entrega",
     noDeliveryBody: (count: number) =>
       count === 1
         ? "1 carga no tiene entrega planificada."
@@ -137,6 +139,8 @@ export const cargoCopy = {
     keepCargo: "Conservar",
     goToRoute: "Ir a Ruta",
     fixFirstCargo: "Corregir carga",
+    /** F5d-c / PRD: CTA del banner multi-unload. */
+    indicateDelivery: "Indicar entrega",
     retry: "Reintentar",
     actionDisabledNotAtStop: "Registra llegada en esta parada para operar",
     deliver: "Entregar",

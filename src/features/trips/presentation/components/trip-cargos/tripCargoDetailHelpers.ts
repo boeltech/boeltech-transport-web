@@ -15,6 +15,7 @@ import {
   computeCargoDeliveryCoverage,
   formatDeliveryRemainderLine,
 } from "../../utils/cargoDeliveryCoverage";
+import { countTripUnloadStops } from "../../utils/tripCargoDeliveryAssignment";
 import { resolveStopForMovement } from "../../utils/stopCargoCorrelation";
 import { hasStopType } from "../trip-route/tripRouteDetailHelpers";
 
@@ -69,8 +70,9 @@ export function listUnloadStops(
   return orderedStops.filter(isUnloadStopForCargo);
 }
 
+/** Delega en predicado del paquete (ADR-0043 / F5d-c). */
 export function countUnloadStops(orderedStops: readonly TripStop[]): number {
-  return listUnloadStops(orderedStops).length;
+  return countTripUnloadStops(orderedStops);
 }
 
 /**
@@ -139,7 +141,12 @@ export function resolveCargoMutationErrorMessage(
 }
 
 export type MissingDeliveryAlertModel = {
+  title: string;
   body: string;
+  /** Severidad del banner (warning con ≥2 unloads). */
+  severity: "warning" | "info";
+  /** Label del CTA de editar / indicar entrega. */
+  editActionLabel: string;
   /** Con ≥2 unload: editar puede «Agregar entrega». Con 1: no vender Editar. */
   showEditAction: boolean;
   showAddCargoAction: boolean;
@@ -147,7 +154,7 @@ export type MissingDeliveryAlertModel = {
 };
 
 /**
- * Alert «Falta entrega» coherente con gate ≥2 descargas (PRD D6 / F4)
+ * Alert «Falta entrega» coherente con gate ≥2 descargas (PRD D6 / F4 / F5d-c)
  * y con default delivery 1 unload (F5): solo se muestra si el listado
  * aún trae cargos sin movement delivery (p. ej. ensure no sanó).
  */
@@ -168,7 +175,10 @@ export function resolveMissingDeliveryAlert(args: {
 
   if (canAddDeliveryInEdit) {
     return {
+      title: cargoCopy.alert.noDeliveryTitleMultiUnload,
       body: cargoCopy.alert.noDeliveryBody(count),
+      severity: "warning",
+      editActionLabel: cargoCopy.action.indicateDelivery,
       showEditAction: canEditStructural && count > 0,
       showAddCargoAction: false,
       showGoToRouteAction: false,
@@ -176,7 +186,10 @@ export function resolveMissingDeliveryAlert(args: {
   }
 
   return {
+    title: cargoCopy.alert.noDeliveryTitle,
     body: cargoCopy.alert.noDeliveryBodySingleUnload(count),
+    severity: "info",
+    editActionLabel: cargoCopy.action.fixFirstCargo,
     showEditAction: false,
     showAddCargoAction: canAppendCargo,
     showGoToRouteAction: hasGoToRoute,

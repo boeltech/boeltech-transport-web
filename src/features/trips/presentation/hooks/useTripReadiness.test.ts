@@ -129,6 +129,42 @@ describe("computeTripReadiness", () => {
     expect(result.items.find((item) => item.id === "cargo")?.done).toBe(true);
   });
 
+  it("marks Cargas pending with ≥2 unload and cargo without delivery (F5d-c)", () => {
+    const result = computeTripReadiness(
+      {
+        ...READY_TRIP,
+        stops: [
+          { stopType: ["origin", "pickup"] },
+          { stopType: ["delivery"] },
+          { stopType: ["destination", "delivery"] },
+        ],
+      },
+      {
+        cargoCount: 1,
+        cargos: [
+          {
+            status: "pending",
+            movements: [{ stopIndex: 0, movementType: "pickup" }],
+          },
+        ],
+      },
+    );
+    expect(result.items.find((item) => item.id === "cargo")?.done).toBe(false);
+  });
+
+  it("keeps Cargas done with 1 unload even without delivery (F5a)", () => {
+    const result = computeTripReadiness(READY_TRIP, {
+      cargoCount: 1,
+      cargos: [
+        {
+          status: "pending",
+          movements: [{ stopIndex: 0, movementType: "pickup" }],
+        },
+      ],
+    });
+    expect(result.items.find((item) => item.id === "cargo")?.done).toBe(true);
+  });
+
   it("marks Tarifa pending when baseRate is 0", () => {
     const result = computeTripReadiness(
       { ...READY_TRIP, costs: { baseRate: 0 } },

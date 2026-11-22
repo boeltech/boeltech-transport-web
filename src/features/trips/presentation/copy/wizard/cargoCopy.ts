@@ -256,6 +256,9 @@ export const cargoCopy = {
         "Estos datos no son obligatorios para el producto elegido.",
       deliveries:
         "Indique en qué paradas se descarga esta mercancía. Si la entrega es parcial, capture el peso o la cantidad de cada punto y asigne el remanente a otra descarga.",
+      /** F5d-c / PRD: ≥2 descargas — tono obligatorio (sin «más adelante»). */
+      deliveriesMultiUnload:
+        "Con varias descargas, selecciona dónde se entrega esta mercancía. Si la entrega es parcial, captura el peso o la cantidad de cada punto.",
       deliveriesReadOnly:
         "Las entregas de esta mercancía no se pueden cambiar aquí. Defínalas al dar de alta la carga.",
       /**
@@ -280,6 +283,9 @@ export const cargoCopy = {
     state: {
       noDeliveries:
         "Sin entregas asignadas. Puede asignarlas ahora o más adelante.",
+      /** F5d-c: empty hard con ≥2 unloads (sin tono diferible). */
+      noDeliveriesMultiUnload:
+        "Con varias descargas, selecciona dónde se entrega esta mercancía.",
       /** Empty state cuando CTA oculto (1 unload): no pedirle al operador que asigne. */
       noDeliveriesSingleUnload:
         "La entrega se registrará en el destino al guardar.",
@@ -296,6 +302,9 @@ export const cargoCopy = {
     validation: {
       missingRequiredTitle: "Faltan datos para guardar la mercancía",
       deliveryStopRequired: "Selecciona la parada de cada entrega agregada",
+      /** F5d-c hard: ≥2 unloads sin ninguna entrega. */
+      deliveryAssignmentRequired:
+        "Con varias descargas, selecciona dónde se entrega esta mercancía.",
       deliveryWeightExceeded: (
         deliveryWeight: number,
         cargoWeight: number,

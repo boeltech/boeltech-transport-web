@@ -204,6 +204,7 @@ export function TripPhaseOperateSheets({
         cfdiEmissionIntent={cfdiEmissionIntent}
         pendingSinCfdiRequest={pendingSinCfdiRequest}
         cargos={cargos}
+        orderedStops={orderedStops}
         open={startOpen}
         onOpenChange={closeAll}
         isDriverPortal={isDriverPortal}

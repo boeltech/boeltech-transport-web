@@ -14,6 +14,7 @@ import {
 import { estimateRoadDistanceKm } from "@shared/utils/geoUtils";
 
 import { formatRouteStopPlaceLabel } from "../../helpers/routeStopPlaceLabel";
+import { tripHasMultiUnloadDeliveryGap } from "../../utils/tripCargoDeliveryAssignment";
 import { mapStopToReplaceStopInput } from "../trip-detail-patch/mapStopToCreateStopInput";
 import {
   resequenceStops,
@@ -201,6 +202,17 @@ export function destinationFromCreateInput(
       idUbicacion: undefined,
     },
   };
+}
+
+/**
+ * F5d-c: hay cargas activas (pending/in_transit) sin delivery con ≥2 unloads.
+ * Evita el empty «Ya no quedan entregas» mentiroso en Planear retorno.
+ */
+export function hasMultiUnloadActiveCargoWithoutDelivery(
+  cargos: readonly TripCargo[],
+  orderedStops: readonly TripStop[],
+): boolean {
+  return tripHasMultiUnloadDeliveryGap(orderedStops, cargos);
 }
 
 /**

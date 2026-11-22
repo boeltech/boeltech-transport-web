@@ -596,6 +596,11 @@ export const trackingCopy = {
       `${paradaRechazo} queda como escala visitada.`,
     noPendingEffectClose: (lugar: string) =>
       `Al llegar a ${lugar}, el viaje se cierra con normalidad.`,
+    /** F5d-c / PRD: empty mentiroso cuando hay gap multi-unload. */
+    missingDeliveryTitle: "Hay cargas sin entrega planificada",
+    missingDeliveryBody:
+      "Indica la entrega de cada carga activa en Cargas antes de planear el retorno.",
+    goToCargos: "Ir a Cargas",
     impactDistance: "Recorrido",
     impactArrival: (lugar: string) => `Llega a ${lugar}`,
     impactStops: "Paradas",

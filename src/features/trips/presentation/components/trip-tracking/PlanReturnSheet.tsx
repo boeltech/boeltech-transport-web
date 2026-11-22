@@ -41,6 +41,7 @@ import {
   destinationFromCreateInput,
   destinationFromPickupStop,
   estimatePlanReturnImpact,
+  hasMultiUnloadActiveCargoWithoutDelivery,
   listPendingDeliveriesForOtherCargos,
   resolveCargoPickupStop,
   resolvePlanReturnTargetCargo,
@@ -68,6 +69,8 @@ export type PlanReturnSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEditInRoute: () => void;
+  /** F5d-c: CTA cuando hay gap multi-unload (Ir a Cargas). */
+  onGoToCargos?: () => void;
   onSuccess?: () => void;
 };
 
@@ -94,6 +97,7 @@ function PlanReturnSheetBody({
   vehicleLabel,
   onOpenChange,
   onEditInRoute,
+  onGoToCargos,
   onSuccess,
 }: Omit<PlanReturnSheetProps, "open">) {
   const { toast } = useToast();
@@ -124,6 +128,10 @@ function PlanReturnSheetBody({
   );
   const hasPendingDeliveries = pendingDeliveries.length > 0;
   const nextPending = pendingDeliveries[0] ?? null;
+  const multiUnloadDeliveryGap = useMemo(
+    () => hasMultiUnloadActiveCargoWithoutDelivery(cargos, orderedStops),
+    [cargos, orderedStops],
+  );
 
   const [destination, setDestination] = useState<PlanReturnDestination | null>(
     () => (pickupStop ? destinationFromPickupStop(pickupStop) : null),
@@ -401,6 +409,29 @@ function PlanReturnSheetBody({
               </label>
             ))}
           </fieldset>
+        ) : multiUnloadDeliveryGap && destination ? (
+          <div className="space-y-3 rounded-lg border border-warning/40 bg-warning/5 p-3">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-foreground">
+                {copy.missingDeliveryTitle}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {copy.missingDeliveryBody}
+              </p>
+            </div>
+            {onGoToCargos ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isPending}
+                onClick={onGoToCargos}
+                data-tracking-section="plan-return-go-to-cargos"
+              >
+                {copy.goToCargos}
+              </Button>
+            ) : null}
+          </div>
         ) : destination ? (
           <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
             <p className="text-sm font-semibold text-foreground">

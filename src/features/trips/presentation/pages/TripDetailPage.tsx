@@ -496,10 +496,11 @@ export function TripDetailPage() {
       { ...trip, startMileage: trip.mileage.start },
       {
         cargoCount: cargos.length,
+        cargos,
         satConfigAutotransporteCode,
       },
     );
-  }, [trip, cargos.length, satConfigAutotransporteCode]);
+  }, [trip, cargos, satConfigAutotransporteCode]);
 
   /** Split legs para scopes Facturar + tab Facturación (F5). */
   const needsInvoiceScopeSplit =
@@ -1407,6 +1408,19 @@ export function TripDetailPage() {
     );
   };
 
+  const handlePlanReturnGoToCargos = () => {
+    setPlanReturnSheetOpen(false);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", "cargo");
+        next.delete("intent");
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
   const goToTrackingTab = () => {
     setSearchParams(
       (prev) => {
@@ -2075,6 +2089,7 @@ export function TripDetailPage() {
           open={planReturnSheetOpen}
           onOpenChange={setPlanReturnSheetOpen}
           onEditInRoute={handlePlanReturnEditInRoute}
+          onGoToCargos={handlePlanReturnGoToCargos}
           onSuccess={() => {
             void refetchTrip();
           }}

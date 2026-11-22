@@ -36,6 +36,7 @@ import { localInputToUtcIso, utcIsoToLocalInput } from "@shared/utils/dateUtils"
 import { parseStartMileageInput } from "../startTripMileage";
 import { tripDetailCopy, wizardCopy } from "../../copy";
 import { tripScheduleDateTimeFieldProps } from "../../scheduleDateTimeField";
+import { resolveCargoDeliveryStopApiErrorMessage } from "../../utils/tripCargoDeliveryAssignment";
 import { FleetAvailabilityConflictAlert } from "./FleetAvailabilityConflictAlert";
 
 const copy = tripDetailCopy.shell;
@@ -112,10 +113,12 @@ export function TripConfirmReserveButton({
       return;
     }
     setFleetConflicts(null);
+    const deliveryMessage = resolveCargoDeliveryStopApiErrorMessage(error);
     const message =
-      error instanceof Error
+      deliveryMessage ??
+      (error instanceof Error
         ? error.message
-        : copy.alert.draftConfirmMileageRequired;
+        : copy.alert.draftConfirmMileageRequired);
     setScheduleError(message);
     if (message.length <= LONG_ERROR_CHARS) {
       toast({

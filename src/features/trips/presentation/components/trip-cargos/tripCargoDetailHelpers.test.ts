@@ -281,8 +281,8 @@ describe("resolveCargoMutationErrorMessage (F4)", () => {
   });
 });
 
-describe("resolveMissingDeliveryAlert (F4/F5)", () => {
-  it("offers edit when ≥2 unload (CTA Agregar entrega applies)", () => {
+describe("resolveMissingDeliveryAlert (F4/F5/F5d-c)", () => {
+  it("offers Indicar entrega when ≥2 unload", () => {
     expect(
       resolveMissingDeliveryAlert({
         count: 1,
@@ -292,7 +292,10 @@ describe("resolveMissingDeliveryAlert (F4/F5)", () => {
         hasGoToRoute: true,
       }),
     ).toEqual({
+      title: copy.alert.noDeliveryTitleMultiUnload,
       body: copy.alert.noDeliveryBody(1),
+      severity: "warning",
+      editActionLabel: copy.action.indicateDelivery,
       showEditAction: true,
       showAddCargoAction: false,
       showGoToRouteAction: false,
@@ -309,7 +312,10 @@ describe("resolveMissingDeliveryAlert (F4/F5)", () => {
         hasGoToRoute: true,
       }),
     ).toEqual({
+      title: copy.alert.noDeliveryTitle,
       body: copy.alert.noDeliveryBodySingleUnload(2),
+      severity: "info",
+      editActionLabel: copy.action.fixFirstCargo,
       showEditAction: false,
       showAddCargoAction: true,
       showGoToRouteAction: true,

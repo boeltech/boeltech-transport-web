@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { configVehicularLikelyRequiresRemolques } from "@boeltech/cfdi-domain";
 
 import type { Trip, TripCargo, TripStop } from "@features/trips/domain";
+import { tripHasMultiUnloadDeliveryGap } from "../utils/tripCargoDeliveryAssignment";
 import { isTripRouteReadyForStartUi } from "../utils/tripStartRouteGating";
 
 export type TripReadinessGroup = "schedule" | "operate";
@@ -97,8 +98,21 @@ function isRouteReady(trip: TripReadinessTripInput): boolean {
   return isTripRouteReadyForStartUi(stops);
 }
 
-function isCargoReady(cargoCount: number): boolean {
-  return cargoCount >= 1;
+function isCargoReady(
+  cargoCount: number,
+  options?: {
+    stops?: readonly Pick<TripStop, "stopType">[] | null;
+    cargos?: readonly Pick<TripCargo, "status" | "movements">[] | null;
+  },
+): boolean {
+  if (cargoCount < 1) return false;
+  const stops = options?.stops ?? [];
+  const cargos = options?.cargos ?? [];
+  // F5d-c: espejo del 409 API — gap multi-unload deja Cargas pendiente.
+  if (stops.length > 0 && cargos.length > 0) {
+    if (tripHasMultiUnloadDeliveryGap(stops, cargos)) return false;
+  }
+  return true;
 }
 
 function isRateReady(trip: TripReadinessTripInput): boolean {
@@ -116,11 +130,14 @@ export function computeTripReadiness(
   trip: TripReadinessTripInput,
   options?: {
     cargoCount?: number;
+    /** F5d-c: cargos con movements para gate multi-unload. */
+    cargos?: readonly Pick<TripCargo, "status" | "movements">[] | null;
     satConfigAutotransporteCode?: string | null;
   },
 ): TripReadiness {
   const fleetReady = isFleetReady(trip, options?.satConfigAutotransporteCode);
   const routeReady = isRouteReady(trip);
+  const stops = (trip.stops ?? []).filter(hasStopType);
 
   const items: TripReadinessItem[] = [
     { id: "order", done: isOrderReady(trip), group: "schedule" },
@@ -157,7 +174,10 @@ export function computeTripReadiness(
     },
     {
       id: "cargo",
-      done: isCargoReady(options?.cargoCount ?? 0),
+      done: isCargoReady(options?.cargoCount ?? 0, {
+        stops,
+        cargos: options?.cargos ?? null,
+      }),
       group: "operate",
       tab: routeReady ? "cargo" : "route",
     },
@@ -203,9 +223,10 @@ export function useTripReadiness(
         },
         {
           cargoCount,
+          cargos,
           satConfigAutotransporteCode,
         },
       ),
-    [trip, cargoCount, satConfigAutotransporteCode],
+    [trip, cargoCount, cargos, satConfigAutotransporteCode],
   );
 }

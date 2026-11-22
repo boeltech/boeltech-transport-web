@@ -43,6 +43,11 @@ import {
 import { cfdiEmissionIntentCopy } from "../../copy/cfdiEmissionIntentCopy";
 import { trackingCopy } from "../../copy";
 import {
+  MULTI_UNLOAD_DELIVERY_GATE_MESSAGE,
+  multiUnloadDeliveryBlockReason,
+  resolveCargoDeliveryStopApiErrorMessage,
+} from "../../utils/tripCargoDeliveryAssignment";
+import {
   resolveSinCfdiCargoApiErrorMessage,
   sinCfdiCargoBlockReason,
 } from "../../utils/tripSinCfdiCargoGating";
@@ -102,6 +107,8 @@ export type StartTripSheetProps = {
   /** Si había solicitud abierta, el inicio la cancela y el viaje sigue Con factura. */
   pendingSinCfdiRequest?: boolean;
   cargos?: readonly TripCargo[];
+  /** F5d-c — paradas para gate multi-unload (espejo 409 API). */
+  orderedStops?: readonly TripStop[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (trip: Trip) => void;
@@ -122,6 +129,7 @@ function StartTripSheetBody({
   cfdiEmissionIntent,
   pendingSinCfdiRequest = false,
   cargos = [],
+  orderedStops = [],
   onOpenChange,
   onSuccess,
   isDriverPortal = false,
@@ -133,6 +141,7 @@ function StartTripSheetBody({
   const [mileageError, setMileageError] = useState<string | null>(null);
   const [intentError, setIntentError] = useState<string | null>(null);
   const [cargoGateAlert, setCargoGateAlert] = useState(false);
+  const [deliveryGateAlert, setDeliveryGateAlert] = useState(false);
 
   const suggestedIntent = useMemo(
     () =>
@@ -220,7 +229,9 @@ function StartTripSheetBody({
       toast({
         title: copy.toast.startFailed,
         description:
-          resolveSinCfdiCargoApiErrorMessage(error) ?? error.message,
+          resolveCargoDeliveryStopApiErrorMessage(error) ??
+          resolveSinCfdiCargoApiErrorMessage(error) ??
+          error.message,
         variant: "error",
       });
     },
@@ -239,11 +250,18 @@ function StartTripSheetBody({
       toast({
         title: copy.toast.startFailed,
         description:
-          resolveSinCfdiCargoApiErrorMessage(error) ?? error.message,
+          resolveCargoDeliveryStopApiErrorMessage(error) ??
+          resolveSinCfdiCargoApiErrorMessage(error) ??
+          error.message,
         variant: "error",
       });
     },
   });
+
+  const deliveryGapReason = useMemo(
+    () => multiUnloadDeliveryBlockReason(orderedStops, cargos),
+    [cargos, orderedStops],
+  );
 
   const handleConfirm = () => {
     if (!resourceStartCheck.canStart) return;
@@ -253,6 +271,12 @@ function StartTripSheetBody({
       return;
     }
     setCargoGateAlert(false);
+
+    if (deliveryGapReason) {
+      setDeliveryGateAlert(true);
+      return;
+    }
+    setDeliveryGateAlert(false);
 
     let hasError = false;
     const parsed = mileageField.parseValue();
@@ -320,7 +344,8 @@ function StartTripSheetBody({
   };
 
   const isPending = startMutation.isPending || batchMutation.isPending;
-  const startDisabled = isPending || !resourceStartCheck.canStart;
+  const startDisabled =
+    isPending || !resourceStartCheck.canStart || Boolean(deliveryGapReason);
   const showAssignment = Boolean(vehicleId || driverId);
   const isLoadingAssignment =
     (Boolean(vehicleId) && isLoadingVehicle) ||
@@ -353,6 +378,12 @@ function StartTripSheetBody({
           <DetailAlertCard
             severity="critical"
             title={cargoGateCopy.alertSheet}
+          />
+        ) : null}
+        {deliveryGateAlert || deliveryGapReason ? (
+          <DetailAlertCard
+            severity="critical"
+            title={MULTI_UNLOAD_DELIVERY_GATE_MESSAGE}
           />
         ) : null}
         {showAssignment ? (

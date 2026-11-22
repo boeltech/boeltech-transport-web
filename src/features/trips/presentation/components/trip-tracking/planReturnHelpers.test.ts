@@ -11,6 +11,7 @@ import {
 import {
   buildPlanReturnPendingStops,
   destinationFromPickupStop,
+  hasMultiUnloadActiveCargoWithoutDelivery,
   listPendingDeliveriesForOtherCargos,
   resolveCargoPickupStop,
   resolvePlanReturnTargetCargo,
@@ -216,6 +217,36 @@ describe("planReturnHelpers", () => {
     );
     expect(pending).toHaveLength(1);
     expect(pending[0]?.stop.id).toBe("torreon");
+  });
+
+  it("detects multi-unload gap when active cargo lacks delivery (F5d-c)", () => {
+    const gapCargo = makeCargo({
+      id: "cargo-gap",
+      status: CargoStatus.PENDING,
+      movements: [
+        {
+          stopIndex: 0,
+          movementType: "pickup",
+          weight: null,
+          units: null,
+          completedAt: null,
+          notes: null,
+          stopId: "origin",
+        },
+      ],
+    });
+    expect(
+      hasMultiUnloadActiveCargoWithoutDelivery(
+        [returnedCargo, gapCargo],
+        [origin, saltillo, torreon],
+      ),
+    ).toBe(true);
+    expect(
+      hasMultiUnloadActiveCargoWithoutDelivery(
+        [returnedCargo, pendingCargo],
+        [origin, saltillo, torreon],
+      ),
+    ).toBe(false);
   });
 
   it("badge ámbar mientras return_replan_required", () => {

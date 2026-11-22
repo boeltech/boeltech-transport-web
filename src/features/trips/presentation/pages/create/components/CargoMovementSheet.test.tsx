@@ -371,6 +371,55 @@ describe("CargoMovementSheet", () => {
     ).toBeInTheDocument();
   });
 
+  it("blocks save with ≥2 unload stops and 0 deliveries (F5d-c hard)", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const multiUnloadStops: CargoSheetDeliveryStop[] = [
+      deliveryStops[0]!,
+      {
+        index: 2,
+        address: "Cliente 2",
+        city: "Guadalupe",
+        locationName: "Descarga 2",
+      },
+    ];
+
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={multiUnloadStops}
+        initialValues={{
+          ...validCargo,
+          movements: [{ stopIndex: 0, movementType: "pickup" }],
+        }}
+        editingIndex={null}
+        allowAddDelivery
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={0}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(
+      screen.getByText(sheet.state.noDeliveriesMultiUnload),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(sheet.state.noDeliveries)).not.toBeInTheDocument();
+    expect(sheet.state.noDeliveriesMultiUnload).not.toMatch(/más adelante/i);
+
+    await user.click(screen.getByRole("button", { name: sheet.action.add }));
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(sheet.validation.deliveryAssignmentRequired)
+          .length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("shows FormValidationSummary when submit is invalid", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

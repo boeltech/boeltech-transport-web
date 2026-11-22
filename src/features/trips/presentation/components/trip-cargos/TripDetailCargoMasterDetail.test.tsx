@@ -267,7 +267,7 @@ describe("TripDetailCargoMasterDetail — Falta entrega alert (F4/F5)", () => {
     ).toBeInTheDocument();
   });
 
-  it("with ≥2 unload and no delivery offers Corregir carga (F3/F4 intact)", () => {
+  it("with ≥2 unload and no delivery offers Indicar entrega (F5d-c)", () => {
     render(
       <TripDetailCargoMasterDetail
         cargos={[cargo]}
@@ -283,14 +283,20 @@ describe("TripDetailCargoMasterDetail — Falta entrega alert (F4/F5)", () => {
     );
 
     expect(
+      screen.getByText(copy.alert.noDeliveryTitleMultiUnload),
+    ).toBeInTheDocument();
+    expect(
       screen.getByText(/1 carga no tiene entrega planificada/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByText(copy.alert.noDeliveryBodySingleUnload(1)),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: copy.action.fixFirstCargo }),
+      screen.getByRole("button", { name: copy.action.indicateDelivery }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: copy.action.fixFirstCargo }),
+    ).not.toBeInTheDocument();
   });
 });
 

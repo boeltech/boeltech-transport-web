@@ -84,6 +84,7 @@ import {
   computeCargoDeliveryCoverage,
   formatDeliveryRemainderLine,
 } from "../../../utils/cargoDeliveryCoverage";
+import { cargoRequiresExplicitDeliveryAssignment } from "../../../utils/tripCargoDeliveryAssignment";
 import {
   tripCargoSchema,
   type CargoMovementFormValues,
@@ -308,6 +309,8 @@ function CargoMovementSheetSession({
 }) {
   const allowAddDelivery =
     allowAddDeliveryProp ?? !deliveriesReadOnly;
+  /** F5d-c: ≥2 descargas disponibles → delivery obligatorio (F5a 1 unload intacto). */
+  const requiresDeliveryAssignment = availableDeliveryStops.length >= 2;
   const { error: showErrorToast, toast } = useToast();
   const { submissionError, showOverlayError, clearOverlayError } =
     useOverlayMutationFeedback({
@@ -770,6 +773,30 @@ function CargoMovementSheetSession({
     [deliveriesReadOnly, deliveryAssignments],
   );
 
+  /** Hard F5d-c: unload≥2 y 0 deliveries válidos (predicados del paquete). */
+  const hasMissingRequiredDelivery = useCallback(() => {
+    if (deliveriesReadOnly || !requiresDeliveryAssignment) return false;
+    const draftMovements = [
+      { stopIndex: pickupStopIndex, movementType: "pickup" as const },
+      ...deliveryAssignments
+        .filter((assignment) => assignment.stopIndex >= 0)
+        .map((assignment) => ({
+          stopIndex: assignment.stopIndex,
+          movementType: "delivery" as const,
+        })),
+    ];
+    return cargoRequiresExplicitDeliveryAssignment({
+      unloadCount: availableDeliveryStops.length,
+      cargo: { status: "pending", movements: draftMovements },
+    });
+  }, [
+    availableDeliveryStops.length,
+    deliveryAssignments,
+    deliveriesReadOnly,
+    pickupStopIndex,
+    requiresDeliveryAssignment,
+  ]);
+
   const buildResult = useCallback(
     (values: TripCargoFormValues): TripCargoFormValues => {
       const pickupMovement: CargoMovementFormValues = {
@@ -837,6 +864,11 @@ function CargoMovementSheetSession({
         setShowSummary(true);
         return;
       }
+      if (hasMissingRequiredDelivery()) {
+        setDeliveryStopError(sheet.validation.deliveryAssignmentRequired);
+        setShowSummary(true);
+        return;
+      }
       const overMessage = resolveOverAllocationMessage();
       if (overMessage) {
         setDeliveryCoverageError(overMessage);
@@ -875,6 +907,7 @@ function CargoMovementSheetSession({
       clearOverlayError,
       editingIndex,
       hasIncompleteDeliveries,
+      hasMissingRequiredDelivery,
       isSubmitting,
       onOpenChange,
       onSubmit,
@@ -886,16 +919,20 @@ function CargoMovementSheetSession({
     ],
   );
 
+  const applyDeliveryValidationOnInvalid = () => {
+    if (hasIncompleteDeliveries()) {
+      setDeliveryStopError(sheet.validation.deliveryStopRequired);
+    } else if (hasMissingRequiredDelivery()) {
+      setDeliveryStopError(sheet.validation.deliveryAssignmentRequired);
+    }
+    setShowSummary(true);
+  };
+
   const submitSheet = handleSubmit(
     async (values) => {
       await runValidatedSubmit(values);
     },
-    () => {
-      if (hasIncompleteDeliveries()) {
-        setDeliveryStopError(sheet.validation.deliveryStopRequired);
-      }
-      setShowSummary(true);
-    },
+    applyDeliveryValidationOnInvalid,
   );
 
   /** Guarda la mercancía y deja el sheet listo para la siguiente de la misma parada. */
@@ -904,12 +941,7 @@ function CargoMovementSheetSession({
       async (values) => {
         await runValidatedSubmit(values, { keepOpen: true });
       },
-      () => {
-        if (hasIncompleteDeliveries()) {
-          setDeliveryStopError(sheet.validation.deliveryStopRequired);
-        }
-        setShowSummary(true);
-      },
+      applyDeliveryValidationOnInvalid,
     )();
   };
 
@@ -1125,6 +1157,7 @@ function CargoMovementSheetSession({
               defaultOpen={
                 deliveriesReadOnly ||
                 !allowAddDelivery ||
+                requiresDeliveryAssignment ||
                 initialDeliveryAssignments(initialValues).length > 0
               }
             >
@@ -1132,9 +1165,11 @@ function CargoMovementSheetSession({
                 <p className="text-xs text-muted-foreground sm:max-w-md">
                   {deliveriesReadOnly
                     ? sheet.hint.deliveriesReadOnly
-                    : allowAddDelivery
-                      ? sheet.hint.deliveries
-                      : sheet.hint.deliveriesSingleUnload}
+                    : requiresDeliveryAssignment
+                      ? sheet.hint.deliveriesMultiUnload
+                      : allowAddDelivery
+                        ? sheet.hint.deliveries
+                        : sheet.hint.deliveriesSingleUnload}
                 </p>
                 {!deliveriesReadOnly && allowAddDelivery ? (
                   <Button
@@ -1174,9 +1209,11 @@ function CargoMovementSheetSession({
 
               {deliveryAssignments.length === 0 ? (
                 <div className="rounded-lg border border-dashed py-3 text-center text-xs text-muted-foreground">
-                  {allowAddDelivery
-                    ? sheet.state.noDeliveries
-                    : sheet.state.noDeliveriesSingleUnload}
+                  {requiresDeliveryAssignment
+                    ? sheet.state.noDeliveriesMultiUnload
+                    : allowAddDelivery
+                      ? sheet.state.noDeliveries
+                      : sheet.state.noDeliveriesSingleUnload}
                 </div>
               ) : deliveriesReadOnly ? (
                 <ul className="space-y-2">

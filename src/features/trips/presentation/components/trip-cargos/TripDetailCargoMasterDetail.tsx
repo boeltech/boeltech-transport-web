@@ -668,9 +668,9 @@ export function TripDetailCargoMasterDetail({
 
       {missingDeliveryAlert ? (
         <DetailAlertCard
-          severity="info"
+          severity={missingDeliveryAlert.severity}
           icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
-          title={copy.alert.noDeliveryTitle}
+          title={missingDeliveryAlert.title}
           items={[{ text: missingDeliveryAlert.body }]}
           action={
             missingDeliveryAlert.showEditAction ||
@@ -707,7 +707,7 @@ export function TripDetailCargoMasterDetail({
                       focusAndEditCargo(cargosWithoutDelivery[0]!.id)
                     }
                   >
-                    {copy.action.fixFirstCargo}
+                    {missingDeliveryAlert.editActionLabel}
                   </Button>
                 ) : null}
               </div>
