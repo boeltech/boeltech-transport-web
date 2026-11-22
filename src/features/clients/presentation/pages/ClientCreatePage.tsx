@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { Info, Users } from "lucide-react";
+import { Info } from "lucide-react";
 import {
   WizardPageShell,
   type WizardFormRef,
@@ -17,6 +17,7 @@ import { UnsavedChangesDialog } from "@shared/ui/form";
 import { cn } from "@shared/lib/utils/cn";
 import { useWizardFormRef } from "@shared/ui/page-shells/useWizardFormRef";
 import { useUnsavedChangesGuard } from "@shared/hooks";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 import {
   getErrorMessage,
   isApiError,
@@ -383,9 +384,14 @@ export function ClientCreatePage() {
 
   const shellHeader = useMemo(
     () => ({
-      backHref: "/clients",
-      backLabel: "Volver a la lista de clientes",
-      icon: <Users className="h-5 w-5" />,
+      crumbs: [
+        {
+          label: MODULE_LIST_PATH_LABELS["/clients"] ?? "Clientes",
+          to: "/clients",
+        },
+        { label: "Nuevo Cliente" },
+      ],
+      exitHref: "/clients",
       title: "Nuevo Cliente",
       subtitle: "Completa la información para crear un nuevo cliente",
     }),

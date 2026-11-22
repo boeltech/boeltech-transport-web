@@ -26,6 +26,7 @@ import {
 import { useClient } from "@features/clients/application";
 import {
   buildClientOperationalReceiptBatchHref,
+  FINANCE_EFECTIVO_POR_COBRAR_PATH,
   useCreateOperationalReceiptBatch,
   useOperationalReceiptBatchCandidates,
 } from "@features/finance/application";
@@ -68,7 +69,10 @@ import {
   formatDate,
 } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
+import {
+  MODULE_LIST_PATH_LABELS,
+  useMasterActionFrom,
+} from "@shared/utils/masterWayfinding";
 
 import { operationalReceiptBatchCopy } from "../copy/operationalReceiptBatchCopy";
 import { registerCollectionCopy } from "../copy/registerCollectionCopy";
@@ -202,6 +206,13 @@ export function WithoutInvoiceCollectionForm({
     from ?? undefined,
     clientId,
   );
+  const listLabel =
+    MODULE_LIST_PATH_LABELS[FINANCE_EFECTIVO_POR_COBRAR_PATH] ??
+    "Cobros sin factura";
+  const shellCrumbs = [
+    { label: listLabel, to: FINANCE_EFECTIVO_POR_COBRAR_PATH },
+    { label: copy.page.title },
+  ] as const;
   const clientQuery = useClient(clientId);
   const candidatesQuery = useOperationalReceiptBatchCandidates(clientId);
   const idempotencyKeyRef = useRef(
@@ -814,10 +825,9 @@ export function WithoutInvoiceCollectionForm({
           description: "No se pudo abrir el cobro por lote para este cliente.",
         }}
         header={{
-          backHref,
+          crumbs: shellCrumbs,
           title: copy.page.title,
           subtitle: clientName,
-          icon: <HandCoins className="h-5 w-5" />,
           trailing: (
             <Badge variant="secondary">
               {registerCollectionCopy.channelChip.without_invoice}

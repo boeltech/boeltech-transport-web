@@ -4,7 +4,6 @@ import {
   Check,
   Send,
   User,
-  Banknote,
   Route,
   Receipt,
   RotateCcw,
@@ -14,6 +13,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 import { Button } from "@shared/ui/button";
 import { Label } from "@shared/ui/label";
 import { Badge } from "@shared/ui/badge";
@@ -65,6 +65,7 @@ import {
   useSettlementSettings,
 } from "../../application/hooks";
 import {
+  SETTLEMENTS_LIST_PATH,
   settlementCreatePath,
   settlementDetailPath,
   settlementsAgreementsPath,
@@ -72,7 +73,6 @@ import {
 import { settlementsCopy } from "../copy/settlementsCopy";
 import {
   resolveSettlementBackHref,
-  resolveSettlementWayfindingBackLabel,
   useSettlementQueueFromState,
 } from "../utils/settlementWayfinding";
 import { shouldShowSupportParticipationBadge } from "../utils/settlementParticipationHelpers";
@@ -154,6 +154,9 @@ const createCopy = settlementsCopy.createPage;
 const governanceCopy = settlementsCopy.agreementGovernance;
 const capCopy = settlementsCopy.settlementFlow.deductionsCap;
 
+const SETTLEMENTS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[SETTLEMENTS_LIST_PATH] ?? "Pagos";
+
 const ZERO_REASON_BADGES: Partial<
   Record<ZeroCommissionReason, { variant: "warning" | "neutral"; label: string; title: string }>
 > = {
@@ -205,7 +208,6 @@ export function SettlementCreatePage() {
   const location = useLocation();
   const fromState = location.state?.from as string | undefined;
   const backHref = resolveSettlementBackHref(fromState);
-  const backLabel = resolveSettlementWayfindingBackLabel(backHref);
   /** Al salir a Tarifas / empleado: volver a este mismo alta (pathname + query). */
   const createReturnState = useSettlementQueueFromState();
   const [searchParams] = useSearchParams();
@@ -954,9 +956,10 @@ export function SettlementCreatePage() {
     <FormPageShell
       isLoading={false}
       header={{
-        backHref,
-        backLabel,
-        icon: <Banknote className="h-5 w-5" />,
+        crumbs: [
+          { label: SETTLEMENTS_MODULE_LABEL, to: SETTLEMENTS_LIST_PATH },
+          { label: createCopy.header.title },
+        ],
         title: createCopy.header.title,
         subtitle: createCopy.header.subtitle,
       }}

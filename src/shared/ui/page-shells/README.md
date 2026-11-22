@@ -12,8 +12,8 @@ Builder 4/6): SoT `D:\cowork\boeltech\productos\tlamx\design\tlamx\platforms\web
 
 | Shell | Uso | Ejemplos |
 |-------|-----|----------|
-| `WizardPageShell` | Alta por pasos (create) con navegación Siguiente/Anterior y revisión final | `DriverCreatePage`, `CreateVehiclePage`, `BranchCreatePage`, `ClientCreatePage`, `EmployeeFormPage`, `TripFormPage` (create/edit) |
-| `FormPageShell` | Edición en una sola vista (sin pasos) | `DriverEditPage`, `EmployeeEditPage`, `ClientEditPage`, `EditVehiclePage` |
+| `WizardPageShell` | Alta por pasos (create); header staff = migas + `exitHref` (NL2/NL4) | `DriverCreatePage`, `CreateVehiclePage`, `BranchCreatePage`, `ClientCreatePage`, `EmployeeFormPage`, `TripFormPage` (create/edit) |
+| `FormPageShell` | Edición / alta simple; header staff = migas (NL2/NL4) | `DriverEditPage`, `EmployeeEditPage`, `ClientEditPage`, `EditVehiclePage` |
 | `DetailPageShell` | Detalle de entidad: header, alerts, KPIs, tabs, metadata | `InvoiceDetailPage` (canónico), `TripDetailPage`, `VehicleDetailPage` |
 | `SettingsPageShell` | Configuración con sidebar de secciones (wrapper de `SettingsLayout`) | `GeneralSettingsPage` |
 | `ListPageShell` | CRUD / registry: búsqueda, filtros, tabla/cards; pie T8 (summary+pagination) en card de resultados | Vehículos, clientes, registry de liquidaciones |
@@ -191,6 +191,55 @@ header={{
 
 No usar `max-w-6xl` en un detalle si el listado hermano usa el `max-w-7xl` del `LayoutShell`.
 `isLoading` en `DetailPageShell` monta el skeleton internamente.
+
+---
+
+## `FormPageShell` / `WizardPageShell` — header NL2/NL4
+
+Misma unión visual que Detail (staff / portal) + brazo **legacy** (`backHref` + `icon`)
+hasta migrar consumers (pedido `conform-navegacion-local-y-tablas`).
+
+| Modo | Header | Render |
+|------|--------|--------|
+| **Staff** | `crumbs` (+ Wizard: `exitHref`) | `Breadcrumbs` encima del h1; **sin** flecha ni ícono de entidad |
+| **Portal** | `variant: "portal"`, `backHref`, `backLabel?`, `icon?` | Flecha «← Volver» (D10 / NL4) |
+| **Legacy** (deprecated) | `backHref` + `icon` | Flecha + ícono en recuadro; **se mantiene** tras B-U09-L — aún hay consumers staff (`SettlementCutWizardPage`, `SettlementReimbursementCreatePage`, `TripFormPage`) + tests smoke; portal/Invoice legacy aparte |
+
+```
+[migas]  Listado › Nueva|Editar …
+         TÍTULO (h1)
+         Subtítulo (sm, muted)
+```
+
+**Wizard staff:** Cancelar / `allowExit` navega a `exitHref` (no pinta flecha).
+`headerBackMode` / `onHeaderBack` solo aplican en portal/legacy.
+
+**Alta:** `{ label: MODULE_LIST_PATH_LABELS[list], to: listPath }` › `{ label: "Nueva|Nuevo …" }` (2 eslabones).  
+**Edición:** `resolveDetailCrumbs` — máx. 3.
+
+```tsx
+// Form staff
+header={{
+  crumbs: [
+    { label: "Vehículos", to: "/vehicles" },
+    { label: "Editar" },
+  ],
+  title: "Editar vehículo",
+}}
+
+// Wizard staff
+header={{
+  crumbs: [
+    { label: "Vehículos", to: "/vehicles" },
+    { label: "Nuevo vehículo" },
+  ],
+  exitHref: "/vehicles",
+  title: "Nuevo vehículo",
+}}
+```
+
+`InvoiceFormPageShell` acepta `crumbs` (staff, sin Receipt) o `backHref` (legacy).
+Tests: `FormPageShell.test.tsx`, `WizardPageShell.test.tsx` (bloques header).
 
 ---
 

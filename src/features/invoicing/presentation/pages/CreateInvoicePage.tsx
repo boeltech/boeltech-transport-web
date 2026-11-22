@@ -30,6 +30,11 @@ import { invoicingCopy } from "../copy/invoicingCopy";
 import { resolveTripReturnHrefFromInvoiceCreate } from "@features/trips/presentation/utils/tripWayfinding";
 import { resolveInvoiceBackHref } from "../utils/invoiceWayfinding";
 import {
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
+import type { Crumb } from "@shared/ui/breadcrumbs";
+import {
   defaultInvoiceFormValues,
   invoiceFormSchema,
   mapFormConceptToPayload,
@@ -82,6 +87,10 @@ import { isFalseTripPrefillBlockedError } from "../utils/falseTripCreatePrefillB
 import { findSplitShareLegAlreadyInvoiced } from "../utils/splitShareLegAlreadyInvoiced";
 
 const copy = invoicingCopy;
+
+const INVOICES_LIST_PATH = "/finance/invoices";
+const INVOICES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[INVOICES_LIST_PATH] ?? "Facturas";
 
 /** Ancla para llevar la vista a los conceptos cuando el error no es de un campo. */
 const CONCEPTS_SECTION_ID = "invoice-concepts-section";
@@ -142,6 +151,17 @@ export function CreateInvoicePage() {
         : isAccessoryScope
           ? copy.create.titleAccessory
           : copy.create.title;
+
+  const shellCrumbs: readonly Crumb[] = isEditMode
+    ? resolveDetailCrumbs({
+        from: fromState,
+        module: { listPath: INVOICES_LIST_PATH, label: INVOICES_MODULE_LABEL },
+        current: { label: "Editar" },
+      })
+    : [
+        { label: INVOICES_MODULE_LABEL, to: INVOICES_LIST_PATH },
+        { label: shellTitle },
+      ];
 
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [apiErrorMessages, setApiErrorMessages] = useState<string[]>([]);
@@ -700,7 +720,7 @@ export function CreateInvoicePage() {
     return (
       <InvoiceFormPageShell
         isLoading
-        backHref={shellBackHref}
+        crumbs={shellCrumbs}
         title={shellTitle}
       />
     );
@@ -710,7 +730,7 @@ export function CreateInvoicePage() {
     const isForbidden = editPageGate.errorState === "forbidden";
     return (
       <InvoiceFormPageShell
-        backHref="/finance/invoices"
+        crumbs={shellCrumbs}
         title={copy.edit.title}
         subtitle={copy.edit.loadErrorToast}
       >
@@ -753,7 +773,7 @@ export function CreateInvoicePage() {
   if (editPageGate?.kind === "notEditable") {
     return (
       <InvoiceFormPageShell
-        backHref="/finance/invoices"
+        crumbs={shellCrumbs}
         title={copy.edit.title}
         subtitle={copy.edit.notEditableHint}
       >
@@ -775,7 +795,7 @@ export function CreateInvoicePage() {
   if (!isEditMode && !hasTripContext) {
     return (
       <InvoiceFormPageShell
-        backHref="/finance/invoices"
+        crumbs={shellCrumbs}
         title={shellTitle}
         subtitle={FINANCE_INVOICE_FROM_TRIP_CTA.emptyDescription}
       >
@@ -809,7 +829,7 @@ export function CreateInvoicePage() {
     return (
       <InvoiceFormPageShell
         isLoading
-        backHref={shellBackHref}
+        crumbs={shellCrumbs}
         title={shellTitle}
       />
     );
@@ -818,7 +838,7 @@ export function CreateInvoicePage() {
   if (!isEditMode && isSplitShareMissingLegId) {
     return (
       <InvoiceFormPageShell
-        backHref={shellBackHref}
+        crumbs={shellCrumbs}
         title={shellTitle}
         subtitle={copy.create.blockedSubtitleSplitShare}
       >
@@ -849,7 +869,7 @@ export function CreateInvoicePage() {
   if (!isEditMode && isSplitShareLegAlreadyInvoiced && alreadyInvoicedSplitLeg) {
     return (
       <InvoiceFormPageShell
-        backHref={shellBackHref}
+        crumbs={shellCrumbs}
         title={shellTitle}
         subtitle={copy.create.blockedSubtitleSplitShare}
       >
@@ -911,7 +931,7 @@ export function CreateInvoicePage() {
 
     return (
       <InvoiceFormPageShell
-        backHref={shellBackHref}
+        crumbs={shellCrumbs}
         title={shellTitle}
         subtitle={
           isBlockedByActiveSplitWrongScope
@@ -992,7 +1012,7 @@ export function CreateInvoicePage() {
 
   return (
     <InvoiceFormPageShell
-      backHref={shellBackHref}
+      crumbs={shellCrumbs}
       title={shellTitle}
       subtitle={shellSubtitle}
       trailing={<InvoiceBillingScopeBadge scope={formBillingScope} />}

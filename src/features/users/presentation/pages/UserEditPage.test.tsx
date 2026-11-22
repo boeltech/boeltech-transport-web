@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { usersCopy } from "../copy/usersCopy";
 import { UserStatus, type User } from "../../domain";
 import { ROLES } from "@shared/constants/roles";
 import { TooltipProvider } from "@shared/ui/tooltip";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 
 const { mockUseUser, mockMutate } = vi.hoisted(() => ({
   mockUseUser: vi.fn(),
@@ -142,14 +143,38 @@ describe("UserEditPage F2 (D7/D8)", () => {
     ).toBeDisabled();
   });
 
-  it("W7-01: con state.from, Volver usa la misma cola que Cancelar", async () => {
+  it("usa migas staff (sin flecha Volver)", () => {
+    renderEditPage();
+    const crumbs = screen.getByRole("navigation", { name: "Migas" });
+    expect(within(crumbs).getByRole("list")).toBeInTheDocument();
+    expect(
+      within(crumbs).getByRole("link", {
+        name: MODULE_LIST_PATH_LABELS["/users"] ?? "Usuarios",
+      }),
+    ).toHaveAttribute("href", "/users");
+    expect(
+      within(crumbs).getByText("Editar").closest("[aria-current='page']"),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Volver/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("W7-01: Cancelar con state.from vuelve al detalle preservando cola", async () => {
     const user = userEvent.setup();
-    renderEditPage(
+    const { router } = renderEditPage(
       "/users/11111111-1111-4111-8111-111111111111/edit",
       { from: "/users?status=inactive" },
     );
 
-    await user.click(screen.getByRole("button", { name: /Volver/i }));
-    expect(screen.getByTestId("users-list")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: usersCopy.form.cancel }),
+    );
+    expect(router.state.location.pathname).toBe(
+      "/users/11111111-1111-4111-8111-111111111111",
+    );
+    expect(router.state.location.state).toEqual({
+      from: "/users?status=inactive",
+    });
   });
 });

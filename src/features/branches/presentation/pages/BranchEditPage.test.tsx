@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { branchesCopy } from "../copy/branchesCopy";
 import { BRANCH_EDIT_SECTION_IDS } from "../components/branchEditSections";
 import { buildBranch } from "../../test/branchTestFixtures";
 import { TooltipProvider } from "@shared/ui/tooltip";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 
 const { mockUseBranch, mockMutate } = vi.hoisted(() => ({
   mockUseBranch: vi.fn(),
@@ -109,14 +110,36 @@ describe("BranchEditPage F2 (D8 unsaved + rail)", () => {
     ).toBeDisabled();
   });
 
-  it("W7-01: con state.from, Volver y Cancelar usan la misma cola", async () => {
+  it("usa migas staff (sin flecha Volver)", () => {
+    renderEditPage();
+    const crumbs = screen.getByRole("navigation", { name: "Migas" });
+    expect(within(crumbs).getByRole("list")).toBeInTheDocument();
+    expect(
+      within(crumbs).getByRole("link", {
+        name: MODULE_LIST_PATH_LABELS["/branches"] ?? "Sucursales",
+      }),
+    ).toHaveAttribute("href", "/branches");
+    expect(
+      within(crumbs).getByText("Editar").closest("[aria-current='page']"),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Volver/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("W7-01: Cancelar con state.from vuelve al detalle preservando cola", async () => {
     const user = userEvent.setup();
-    renderEditPage(
+    const { router } = renderEditPage(
       "/branches/22222222-2222-4222-8222-222222222222/edit",
       { from: "/branches?status=inactive" },
     );
 
-    await user.click(screen.getByRole("button", { name: /Volver/i }));
-    expect(screen.getByTestId("branches-list")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Cancelar/i }));
+    expect(router.state.location.pathname).toBe(
+      "/branches/22222222-2222-4222-8222-222222222222",
+    );
+    expect(router.state.location.state).toEqual({
+      from: "/branches?status=inactive",
+    });
   });
 });

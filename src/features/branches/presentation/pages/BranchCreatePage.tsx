@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { BRANCHES_LIST_PATH } from "@shared/utils/masterWayfinding";
+import {
+  BRANCHES_LIST_PATH,
+  MODULE_LIST_PATH_LABELS,
+} from "@shared/utils/masterWayfinding";
 import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
-import { Building2 } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
 import type { WizardStepRenderHelpers } from "@shared/ui/page-shells/WizardPageShell";
 import { UnsavedChangesDialog } from "@shared/ui/form";
@@ -16,6 +18,9 @@ import { useCreateBranch } from "../../application";
 import { BranchForm, type BranchFormRef } from "../components";
 import { branchesCopy } from "../copy/branchesCopy";
 import { branchFormToCreateDTO, type BranchFormData } from "../validation/branchSchema";
+
+const BRANCHES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[BRANCHES_LIST_PATH] ?? "Sucursales";
 
 export function BranchCreatePage() {
   const navigate = useNavigate();
@@ -109,13 +114,15 @@ export function BranchCreatePage() {
 
   const shellHeader = useMemo(
     () => ({
-      backHref: cancelHref,
-      backLabel: branchesCopy.create.backLabel,
-      icon: <Building2 className="h-5 w-5" />,
+      crumbs: [
+        { label: BRANCHES_MODULE_LABEL, to: BRANCHES_LIST_PATH },
+        { label: branchesCopy.create.title },
+      ],
+      exitHref: BRANCHES_LIST_PATH,
       title: branchesCopy.create.title,
       subtitle: branchesCopy.create.subtitle,
     }),
-    [cancelHref],
+    [],
   );
 
   const isSubmitting = createMutation.isPending;
@@ -157,7 +164,6 @@ export function BranchCreatePage() {
         steps={[...branchesCopy.create.steps]}
         formRef={formRef}
         header={shellHeader}
-        headerBackMode="wizard"
         renderStep={renderStep}
         isSubmitting={isSubmitting}
         submitLabel={branchesCopy.create.submitLabel}

@@ -113,6 +113,11 @@ describe("FinanceDispatchPeriodPage", () => {
   it("sin frecuencias: empty con CTA Crear frecuencia y atajo a settings", () => {
     renderPage();
 
+    const crumbs = screen.getByRole("navigation", { name: "Migas" });
+    expect(crumbs).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Envíos" }),
+    ).toHaveAttribute("href", "/finance/dispatch");
     expect(
       screen.queryByRole("link", {
         name: dispatchRunsCopy.tab.backToWorkbench,
@@ -318,8 +323,15 @@ describe("FinanceDispatchPeriodPage", () => {
       state: { from: "/finance/dispatch?tab=sent" },
     });
 
+    expect(screen.getByRole("navigation", { name: "Migas" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Envíos" })).toHaveAttribute(
+      "href",
+      "/finance/dispatch?tab=sent",
+    );
     expect(
-      screen.getByRole("link", { name: dispatchRunsCopy.tab.backToWorkbench }),
-    ).toHaveAttribute("href", "/finance/dispatch?tab=sent");
+      screen.queryByRole("link", {
+        name: dispatchRunsCopy.tab.backToWorkbench,
+      }),
+    ).not.toBeInTheDocument();
   });
 });

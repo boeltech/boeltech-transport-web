@@ -4,10 +4,11 @@
  * Empty: sin frecuencias XOR auto vacío XOR virgin XOR recorte (D10).
  * Checklist Operate dismissible aparte. Atajo a frecuencias page-local.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowUpRight, History, Plus } from "lucide-react";
+import { ArrowUpRight, History, Plus } from "lucide-react";
 import { Button } from "@shared/ui/button";
+import { Breadcrumbs } from "@shared/ui/breadcrumbs";
 import { ListPageShell } from "@shared/ui/page-shells";
 import { useQueryErrorToast } from "@shared/hooks";
 import { usePermissions } from "@shared/permissions";
@@ -29,10 +30,14 @@ import { FinanceDispatchCreateRunDialog } from "../components/FinanceDispatchCre
 import { FinanceDispatchPeriodChecklist } from "../components/FinanceDispatchPeriodChecklist";
 import { FinanceDispatchPeriodFilters } from "../components/FinanceDispatchPeriodFilters";
 import { dispatchRunsCopy } from "../copy/dispatchRunsCopy";
-import { FINANCE_DISPATCH_DETAIL_PATH } from "../../application/financeRoutes";
+import {
+  FINANCE_DISPATCH_DETAIL_PATH,
+  FINANCE_DISPATCH_PATH,
+} from "../../application/financeRoutes";
 import { countDispatchPeriodPanelFilters } from "../utils/dispatchPeriodListFilters";
 import { useIncomingFrom, useListQueueFromState } from "@shared/utils/listQueueFrom";
 import { resolvePeriodListBackHref } from "../utils/dispatchWayfinding";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 
 const copy = dispatchRunsCopy.tab;
 const emptyCopy = dispatchRunsCopy.tab.empty;
@@ -52,6 +57,20 @@ export function FinanceDispatchPeriodPage() {
   const { from: returnTo } = useListQueueFromState();
   const incomingFrom = useIncomingFrom();
   const workbenchBackHref = resolvePeriodListBackHref(incomingFrom);
+  const periodCrumbs = useMemo(
+    () => [
+      {
+        label: MODULE_LIST_PATH_LABELS[FINANCE_DISPATCH_PATH] ?? "Envíos",
+        to: workbenchBackHref ?? FINANCE_DISPATCH_PATH,
+      },
+      {
+        label:
+          MODULE_LIST_PATH_LABELS["/finance/dispatch/period"] ??
+          copy.title,
+      },
+    ],
+    [workbenchBackHref],
+  );
   const { hasPermission } = usePermissions();
   const canExecute = hasPermission("invoices", "execute");
 
@@ -234,16 +253,7 @@ export function FinanceDispatchPeriodPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        {workbenchBackHref ? (
-          <Button variant="ghost" size="sm" className="-ml-2 h-8 px-2" asChild>
-            <Link to={workbenchBackHref}>
-              <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
-              {copy.backToWorkbench}
-            </Link>
-          </Button>
-        ) : (
-          <span className="hidden sm:block" aria-hidden />
-        )}
+        <Breadcrumbs crumbs={periodCrumbs} />
         <div className="min-w-0 sm:text-right">
           <Link
             to={copy.relatedConfig.href}

@@ -8,10 +8,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Truck } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
 import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import { UnsavedChangesDialog } from "@shared/ui/form";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 import {
   VehicleForm,
   type VehicleFormRef,
@@ -27,6 +27,10 @@ import {
 
 const copy = vehiclesCopy.form.create;
 const WIZARD_STEPS = [...copy.wizard.steps];
+
+const VEHICLES_LIST_PATH = "/vehicles";
+const VEHICLES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[VEHICLES_LIST_PATH] ?? "Vehículos";
 
 export function CreateVehiclePage() {
   const navigate = useNavigate();
@@ -117,9 +121,11 @@ export function CreateVehiclePage() {
         steps={WIZARD_STEPS}
         formRef={formRef}
         header={{
-          backHref: "/vehicles",
-          backLabel: copy.backLabel,
-          icon: <Truck className="h-5 w-5" />,
+          crumbs: [
+            { label: VEHICLES_MODULE_LABEL, to: VEHICLES_LIST_PATH },
+            { label: copy.title },
+          ],
+          exitHref: VEHICLES_LIST_PATH,
           title: copy.title,
           subtitle: copy.subtitle,
         }}
@@ -128,7 +134,7 @@ export function CreateVehiclePage() {
         submitLabel={copy.submit}
         submittingLabel={copy.submitting}
         stepsAriaLabel={copy.stepsAriaLabel}
-        onCancel={() => navigate("/vehicles")}
+        onCancel={() => navigate(VEHICLES_LIST_PATH)}
       />
       <UnsavedChangesDialog blocker={blocker} />
     </>

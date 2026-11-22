@@ -200,6 +200,36 @@ describe("SettlementCreatePage Component", () => {
     });
   });
 
+  it("usa migas staff al hub Pagos (sin flecha Volver)", () => {
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/finance/operator-payments/new"]}>
+          <SettlementCreatePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const crumbs = screen.getByRole("navigation", { name: "Migas" });
+    expect(within(crumbs).getByRole("list")).toBeInTheDocument();
+    expect(
+      within(crumbs).getByRole("link", { name: "Pagos" }),
+    ).toHaveAttribute("href", "/finance/operator-payments");
+    expect(
+      within(crumbs)
+        .getByText(settlementsCopy.createPage.header.title)
+        .closest("[aria-current='page']"),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Volver/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: settlementsCopy.createPage.header.title,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("renderiza el formulario inicial y carga el cálculo del pago cuando hay empleado seleccionado", async () => {
     const user = userEvent.setup();
     const queryClient = createTestQueryClient();

@@ -1,5 +1,5 @@
 import { createRef } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -143,5 +143,93 @@ describe("WizardPageShell", () => {
     await vi.waitFor(() => {
       expect(requestSubmit).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe("WizardPageShell header (NL2/NL4)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+  });
+
+  function renderHeader(
+    header: Parameters<typeof WizardPageShell>[0]["header"],
+  ) {
+    const formRef = createRef<WizardFormRef>();
+    formRef.current = {
+      triggerStepValidation: vi.fn().mockResolvedValue(true),
+      requestSubmit: vi.fn(),
+    };
+
+    render(
+      <MemoryRouter>
+        <WizardPageShell
+          steps={[
+            { id: "one", title: "Paso 1", description: "Datos" },
+            { id: "review", title: "Revisión", description: "Confirmar" },
+          ]}
+          formRef={formRef}
+          header={header}
+          renderStep={() => <div>paso</div>}
+          isSubmitting={false}
+          submitLabel="Guardar"
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it("staff: pinta migas, sin flecha ni ícono; Cancelar usa exitHref", () => {
+    renderHeader({
+      crumbs: [
+        { label: "Vehículos", to: "/vehicles" },
+        { label: "Nuevo vehículo" },
+      ],
+      exitHref: "/vehicles",
+      title: "Nuevo vehículo",
+    });
+
+    const crumbsNav = screen.getByRole("navigation", { name: "Migas" });
+    expect(crumbsNav).toBeInTheDocument();
+    expect(within(crumbsNav).getByRole("list")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vehículos" })).toHaveAttribute(
+      "href",
+      "/vehicles",
+    );
+    expect(
+      screen.queryByRole("button", { name: /volver/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /cancelar/i })).toBeInTheDocument();
+  });
+
+  it("portal: pinta flecha y no migas", () => {
+    renderHeader({
+      variant: "portal",
+      backHref: "/portal/trips",
+      backLabel: "Volver al listado",
+      title: "Nuevo viaje",
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Volver al listado" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Migas" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("legacy: flecha + ícono (smoke hasta migrar consumers)", () => {
+    renderHeader({
+      backHref: "/",
+      icon: <span data-testid="entity-icon">W</span>,
+      title: "Wizard legacy",
+    });
+
+    expect(
+      screen.getByRole("button", { name: /volver/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("entity-icon")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Migas" }),
+    ).not.toBeInTheDocument();
   });
 });

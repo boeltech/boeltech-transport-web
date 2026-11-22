@@ -4,10 +4,14 @@
  * Edición de vehículo existente (FormPageShell + VehicleForm).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
+import {
+  MODULE_LIST_PATH_LABELS,
+  navigatePreservingFrom,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
 import { Truck } from "lucide-react";
 import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
@@ -29,10 +33,15 @@ import {
 
 const copy = vehiclesCopy.form;
 
+const VEHICLES_LIST_PATH = "/vehicles";
+const VEHICLES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[VEHICLES_LIST_PATH] ?? "Vehículos";
+
 export function EditVehiclePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const incomingFrom = useIncomingFrom();
+  const incoming = useIncomingWayfinding();
+  const incomingFrom = incoming?.from;
   const { toast } = useToast();
   const vehicleId = id ?? "";
   const [isDirty, setIsDirty] = useState(false);
@@ -107,6 +116,26 @@ export function EditVehiclePage() {
     ? VEHICLE_TYPE_LABELS[vehicle.type as VehicleTypeValue] || vehicle.type
     : "";
 
+  const detailHref = vehicleId ? `/vehicles/${vehicleId}` : VEHICLES_LIST_PATH;
+  const crumbs = useMemo(
+    () =>
+      resolveDetailCrumbs({
+        from: incomingFrom ?? detailHref,
+        fromLabel: incoming?.fromLabel ?? vehicle?.unitNumber,
+        module: {
+          listPath: VEHICLES_LIST_PATH,
+          label: VEHICLES_MODULE_LABEL,
+        },
+        current: { label: "Editar" },
+      }),
+    [
+      detailHref,
+      incoming?.fromLabel,
+      incomingFrom,
+      vehicle?.unitNumber,
+    ],
+  );
+
   // Unidad dada de baja: solo lectura (la API responde 409 VEHICLE_INACTIVE_READONLY).
   if (vehicle && !vehicle.isActive) {
     return (
@@ -126,12 +155,11 @@ export function EditVehiclePage() {
         icon: <Truck />,
         title: copy.state.notFoundTitle,
         description: copy.state.notFoundDescription,
-        backHref: "/vehicles",
+        backHref: VEHICLES_LIST_PATH,
         backLabel: copy.state.backToList,
       }}
       header={{
-        backHref: `/vehicles/${vehicleId}`,
-        icon: <Truck className="h-5 w-5" />,
+        crumbs,
         title: copy.edit.title,
         subtitle: vehicle
           ? copy.edit.subtitle(

@@ -3,7 +3,7 @@
  * Una pantalla Pedido | Flota. Submit = POST /trips create_intent=reserve.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarPlus, ChevronDown, ClipboardList, Truck } from "lucide-react";
@@ -19,6 +19,7 @@ import {
 } from "@shared/ui/collapsible";
 import type { LocationValue } from "@shared/ui/location";
 import { collectFieldErrorMessages } from "@shared/utils/formErrors";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 import { useToast } from "@shared/hooks";
 import { cn } from "@shared/lib/utils/cn";
 
@@ -67,12 +68,12 @@ import {
   formatTripApiValidationForUser,
   validateCreateTripApiPayload,
 } from "./validateTripApiPayload";
-import {
-  resolveTripCanvasBackHref,
-  resolveTripWayfindingBackLabel,
-} from "../../utils/tripWayfinding";
 
 const copy = canvasCopy;
+
+const TRIPS_LIST_PATH = "/trips";
+const TRIPS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[TRIPS_LIST_PATH] ?? "Viajes";
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -90,12 +91,7 @@ type StaleCorridorState = {
 
 export function TripCanvasPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
-  const listBackHref = resolveTripCanvasBackHref(
-    location.state?.from as string | undefined,
-  );
-  const listBackLabel = resolveTripWayfindingBackLabel(listBackHref);
   const [showValidationSummary, setShowValidationSummary] = useState(false);
   const [confirmLaterOpen, setConfirmLaterOpen] = useState(false);
   const [selectedCorridor, setSelectedCorridor] =
@@ -378,9 +374,10 @@ export function TripCanvasPage() {
     <FormPageShell
       isLoading={false}
       header={{
-        backHref: listBackHref,
-        backLabel: listBackLabel,
-        icon: <CalendarPlus className="h-5 w-5" />,
+        crumbs: [
+          { label: TRIPS_MODULE_LABEL, to: TRIPS_LIST_PATH },
+          { label: copy.page.title },
+        ],
         title: copy.page.title,
         subtitle: copy.page.subtitle,
       }}

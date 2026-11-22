@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useWatch, type Control } from "react-hook-form";
 import { Alert, AlertDescription } from "@shared/ui/alert";
-import { cn } from "@shared/lib/utils/cn";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs";
 import type { CompensationTemplate } from "../../domain/entities";
 import { buildTemplateStructuredSummary } from "../utils/buildTemplateSummary";
 import { getTemplateCompleteness } from "../utils/getTemplateCompleteness";
@@ -12,8 +12,6 @@ import { BuilderHistoryPanel } from "./BuilderHistoryPanel";
 
 const copy = compensationCopy.builder;
 const simCopy = compensationCopy.simulation;
-
-type InspectorTab = "summary" | "simulation" | "history";
 
 interface BuilderInspectorPanelProps {
   control: Control<CompensationTemplateFormData>;
@@ -40,13 +38,12 @@ function formValuesToTemplate(
 }
 
 /**
- * Inspector: tabs Resumen ↔ Simulación ↔ Historial.
+ * Inspector: tabs Resumen ↔ Simulación ↔ Historial (Tabs canónico DS).
  */
 export function BuilderInspectorPanel({
   control,
   template,
 }: BuilderInspectorPanelProps) {
-  const [activeTab, setActiveTab] = useState<InspectorTab>("summary");
   const values = useWatch({ control });
 
   const snapshot = useMemo(
@@ -64,41 +61,16 @@ export function BuilderInspectorPanel({
   );
   const completeness = useMemo(() => getTemplateCompleteness(snapshot), [snapshot]);
 
-  const tabs: { id: InspectorTab; label: string }[] = [
-    { id: "summary", label: simCopy.summaryTabLabel },
-    { id: "simulation", label: simCopy.tabLabel },
-    { id: "history", label: copy.historyTabLabel },
-  ];
-
   return (
     <div className="space-y-4 text-sm">
-      <div
-        role="tablist"
-        aria-label="Inspector"
-        className="flex rounded-md border bg-muted/30 p-0.5"
-      >
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            tabIndex={activeTab === tab.id ? 0 : -1}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "flex-1 rounded-sm px-2 py-1.5 text-xs font-medium transition-colors",
-              activeTab === tab.id
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs defaultValue="summary">
+        <TabsList aria-label="Inspector" className="grid w-full grid-cols-3">
+          <TabsTrigger value="summary">{simCopy.summaryTabLabel}</TabsTrigger>
+          <TabsTrigger value="simulation">{simCopy.tabLabel}</TabsTrigger>
+          <TabsTrigger value="history">{copy.historyTabLabel}</TabsTrigger>
+        </TabsList>
 
-      {activeTab === "summary" ? (
-        <div className="space-y-5">
+        <TabsContent value="summary" className="space-y-5">
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {copy.inspectorLiveLabel}
@@ -136,14 +108,16 @@ export function BuilderInspectorPanel({
           ) : (
             <p className="text-xs text-success">{copy.completenessOk}</p>
           )}
-        </div>
-      ) : null}
+        </TabsContent>
 
-      {activeTab === "simulation" ? (
-        <BuilderSimulationPanel control={control} template={template} />
-      ) : null}
+        <TabsContent value="simulation">
+          <BuilderSimulationPanel control={control} template={template} />
+        </TabsContent>
 
-      {activeTab === "history" ? <BuilderHistoryPanel template={template} /> : null}
+        <TabsContent value="history">
+          <BuilderHistoryPanel template={template} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

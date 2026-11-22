@@ -5,13 +5,17 @@
  * Edición de conductor existente (FormPageShell + DriverForm).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
+import {
+  MODULE_LIST_PATH_LABELS,
+  navigatePreservingFrom,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { UnsavedChangesDialog } from "@shared/ui/form";
-import { UserCog, User } from "lucide-react";
+import { User } from "lucide-react";
 import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
 import {
   getErrorMessage,
@@ -36,10 +40,15 @@ import { driversCopy } from "../copy";
 
 const copy = driversCopy.form;
 
+const DRIVERS_LIST_PATH = "/drivers";
+const DRIVERS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[DRIVERS_LIST_PATH] ?? "Conductores";
+
 export function DriverEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const incomingFrom = useIncomingFrom();
+  const incoming = useIncomingWayfinding();
+  const incomingFrom = incoming?.from;
   const { toast } = useToast();
   const formRef = useRef<DriverFormRef>(null);
   const driverId = id || "";
@@ -129,6 +138,21 @@ export function DriverEditPage() {
     ? getDriverPrimaryLicenseNumber(driver)
     : "";
 
+  const detailHref = driverId ? `/drivers/${driverId}` : DRIVERS_LIST_PATH;
+  const crumbs = useMemo(
+    () =>
+      resolveDetailCrumbs({
+        from: incomingFrom ?? detailHref,
+        fromLabel: incoming?.fromLabel ?? (driver ? fullName : undefined),
+        module: {
+          listPath: DRIVERS_LIST_PATH,
+          label: DRIVERS_MODULE_LABEL,
+        },
+        current: { label: "Editar" },
+      }),
+    [detailHref, driver, fullName, incoming?.fromLabel, incomingFrom],
+  );
+
   return (
     <FormPageShell
       isLoading={isLoading}
@@ -137,12 +161,11 @@ export function DriverEditPage() {
         icon: <User />,
         title: copy.state.notFoundTitle,
         description: copy.state.notFoundDescription,
-        backHref: "/drivers",
+        backHref: DRIVERS_LIST_PATH,
         backLabel: copy.state.backToList,
       }}
       header={{
-        backHref: `/drivers/${driverId}`,
-        icon: <UserCog className="h-5 w-5" />,
+        crumbs,
         title: copy.edit.title,
         subtitle: driver
           ? copy.edit.subtitle(

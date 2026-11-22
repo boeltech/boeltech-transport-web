@@ -11,11 +11,15 @@
  * Ubicación: src/features/clients/presentation/pages/ClientEditPage.tsx
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { navigatePreservingFrom } from "@shared/utils/masterWayfinding";
-import { AlertCircle, Building2 } from "lucide-react";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
+import {
+  MODULE_LIST_PATH_LABELS,
+  navigatePreservingFrom,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
+import { AlertCircle } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { UnsavedChangesDialog } from "@shared/ui/form";
 import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
@@ -32,10 +36,15 @@ import {
   type ClientFormData,
 } from "../validation/clientSchema";
 
+const CLIENTS_LIST_PATH = "/clients";
+const CLIENTS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[CLIENTS_LIST_PATH] ?? "Clientes";
+
 export function ClientEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const incomingFrom = useIncomingFrom();
+  const incoming = useIncomingWayfinding();
+  const incomingFrom = incoming?.from;
   const { toast } = useToast();
   const formRef = useRef<ClientFormRef>(null);
   const clientId = id ?? "";
@@ -115,6 +124,22 @@ export function ClientEditPage() {
     navigatePreservingFrom(navigate, `/clients/${clientId}`, incomingFrom);
   }, [navigate, clientId, incomingFrom]);
 
+  const displayName = client ? getClientDisplayName(client) : undefined;
+  const detailHref = clientId ? `/clients/${clientId}` : CLIENTS_LIST_PATH;
+  const crumbs = useMemo(
+    () =>
+      resolveDetailCrumbs({
+        from: incomingFrom ?? detailHref,
+        fromLabel: incoming?.fromLabel ?? displayName,
+        module: {
+          listPath: CLIENTS_LIST_PATH,
+          label: CLIENTS_MODULE_LABEL,
+        },
+        current: { label: "Editar" },
+      }),
+    [detailHref, displayName, incoming?.fromLabel, incomingFrom],
+  );
+
   return (
     <FormPageShell
       isLoading={isLoading}
@@ -124,14 +149,13 @@ export function ClientEditPage() {
         title: "Cliente no disponible",
         description:
           "No se pudo cargar la información del cliente para edición.",
-        backHref: "/clients",
+        backHref: CLIENTS_LIST_PATH,
         backLabel: "Volver a clientes",
       }}
       header={{
-        backHref: clientId ? `/clients/${clientId}` : "/clients",
-        icon: <Building2 className="h-5 w-5" />,
+        crumbs,
         title: "Editar Cliente",
-        subtitle: client ? getClientDisplayName(client) : undefined,
+        subtitle: displayName,
       }}
       className="p-6"
     >

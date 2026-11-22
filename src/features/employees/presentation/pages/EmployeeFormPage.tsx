@@ -6,9 +6,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { EMPLOYEES_LIST_PATH } from "@shared/utils/masterWayfinding";
+import {
+  EMPLOYEES_LIST_PATH,
+  MODULE_LIST_PATH_LABELS,
+} from "@shared/utils/masterWayfinding";
 import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
-import { UserPlus } from "lucide-react";
 import {
   WizardPageShell,
   type WizardFormRef,
@@ -22,6 +24,8 @@ import { EMPLOYEE_WIZARD_STEPS } from "../components/employeeWizardSteps";
 import { employeesCopy } from "../copy";
 
 const fc = employeesCopy.form;
+const EMPLOYEES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[EMPLOYEES_LIST_PATH] ?? "Empleados";
 
 export function EmployeeFormPage() {
   const navigate = useNavigate();
@@ -53,13 +57,15 @@ export function EmployeeFormPage() {
 
   const shellHeader = useMemo(
     () => ({
-      backHref: cancelHref,
-      backLabel: fc.create.backLabel,
-      icon: <UserPlus className="h-5 w-5" />,
+      crumbs: [
+        { label: EMPLOYEES_MODULE_LABEL, to: EMPLOYEES_LIST_PATH },
+        { label: fc.create.title },
+      ],
+      exitHref: EMPLOYEES_LIST_PATH,
       title: fc.create.title,
       subtitle: fc.create.subtitle,
     }),
-    [cancelHref],
+    [],
   );
 
   const renderStep = useCallback(
@@ -91,7 +97,6 @@ export function EmployeeFormPage() {
         submittingLabel={fc.create.submittingLabel}
         stepsAriaLabel={fc.create.wizardAriaLabel}
         onCancel={handleCancel}
-        headerBackMode="wizard"
         className="pb-8"
       />
       <UnsavedChangesDialog blocker={blocker} />

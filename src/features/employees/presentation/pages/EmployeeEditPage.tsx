@@ -3,11 +3,16 @@
  * Edición de empleado — patrón DriverEditPage / EditVehiclePage.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useIncomingFrom } from "@shared/utils/listQueueFrom";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
+import {
+  EMPLOYEES_LIST_PATH,
+  MODULE_LIST_PATH_LABELS,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
 import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
-import { User, UserCog } from "lucide-react";
+import { User } from "lucide-react";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
 import { UnsavedChangesDialog } from "@shared/ui/form";
 import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
@@ -18,11 +23,14 @@ import { EmployeeStatusBadge } from "../config/employeeStatusConfig";
 import { employeesCopy } from "../copy";
 
 const copy = employeesCopy.form;
+const EMPLOYEES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[EMPLOYEES_LIST_PATH] ?? "Empleados";
 
 export function EmployeeEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const incomingFrom = useIncomingFrom();
+  const incoming = useIncomingWayfinding();
+  const incomingFrom = incoming?.from;
   const { toast } = useToast();
   const employeeId = id ?? "";
   const [isDirty, setIsDirty] = useState(false);
@@ -38,8 +46,11 @@ export function EmployeeEditPage() {
   );
   const employee = response?.data;
 
-  const detailFallback = employeeId ? `/employees/${employeeId}` : "/employees";
-  const backHref = resolveInternalAppHref(incomingFrom, detailFallback);
+  const detailFallback = employeeId
+    ? `${EMPLOYEES_LIST_PATH}/${employeeId}`
+    : EMPLOYEES_LIST_PATH;
+  // S5-01: Cancelar/guardar debe volver al origen (p. ej. alta de pago), no al detalle.
+  const exitHref = resolveInternalAppHref(incomingFrom, detailFallback);
 
   useEffect(() => {
     if (isSubmitting) {
@@ -53,8 +64,27 @@ export function EmployeeEditPage() {
   }, [isSubmitting, resetAllowLeave]);
 
   const handleCancel = useCallback(() => {
-    navigate(backHref);
-  }, [navigate, backHref]);
+    navigate(exitHref);
+  }, [navigate, exitHref]);
+
+  const crumbs = useMemo(
+    () =>
+      resolveDetailCrumbs({
+        from: incomingFrom ?? detailFallback,
+        fromLabel: incoming?.fromLabel ?? employee?.fullName,
+        module: {
+          listPath: EMPLOYEES_LIST_PATH,
+          label: EMPLOYEES_MODULE_LABEL,
+        },
+        current: { label: "Editar" },
+      }),
+    [
+      detailFallback,
+      employee?.fullName,
+      incoming?.fromLabel,
+      incomingFrom,
+    ],
+  );
 
   return (
     <FormPageShell
@@ -64,12 +94,11 @@ export function EmployeeEditPage() {
         icon: <User />,
         title: copy.state.notFoundTitle,
         description: copy.state.notFoundDescription,
-        backHref: "/employees",
+        backHref: EMPLOYEES_LIST_PATH,
         backLabel: copy.state.backToList,
       }}
       header={{
-        backHref,
-        icon: <UserCog className="h-5 w-5" />,
+        crumbs,
         title: copy.edit.title,
         subtitle: employee
           ? copy.edit.subtitle(
@@ -100,7 +129,7 @@ export function EmployeeEditPage() {
               description: copy.edit.toast.successDescription,
               variant: "success",
             });
-            navigate(backHref);
+            navigate(exitHref);
           }}
         />
       ) : null}

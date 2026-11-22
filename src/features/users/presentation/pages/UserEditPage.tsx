@@ -1,7 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
+import {
+  MODULE_LIST_PATH_LABELS,
+  navigatePreservingFrom,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
 import { usersCopy } from "../copy/usersCopy";
 import { USERS_LIST_PATH } from "../utils/userWayfinding";
 import { UserRound } from "lucide-react";
@@ -16,14 +20,17 @@ import { useUpdateUser, useUser } from "../../application";
 import { UserForm } from "../components/UserForm";
 import { userFormToUpdateDTO, type UserFormData } from "../validation/userSchema";
 
+const USERS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[USERS_LIST_PATH] ?? "Usuarios";
+
 export function UserEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const incomingFrom = useIncomingFrom();
+  const incoming = useIncomingWayfinding();
+  const incomingFrom = incoming?.from;
   const { toast } = useToast();
   const userId = id ?? "";
   const detailFallback = userId ? `/users/${userId}` : USERS_LIST_PATH;
-  const backHref = resolveInternalAppHref(incomingFrom, detailFallback);
   const [isDirty, setIsDirty] = useState(false);
   const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
     isDirty,
@@ -40,7 +47,7 @@ export function UserEditPage() {
         description: "Los cambios se guardaron correctamente",
         variant: "success",
       });
-      navigate(backHref);
+      navigatePreservingFrom(navigate, detailFallback, incomingFrom);
     },
     onError: (error, variables) => {
       const retry = () =>
@@ -81,8 +88,25 @@ export function UserEditPage() {
   );
 
   const handleCancel = useCallback(() => {
-    navigate(backHref);
-  }, [navigate, backHref]);
+    navigatePreservingFrom(navigate, detailFallback, incomingFrom);
+  }, [navigate, detailFallback, incomingFrom]);
+
+  const displayName = user
+    ? `${user.firstName} ${user.lastName}`.trim()
+    : undefined;
+  const crumbs = useMemo(
+    () =>
+      resolveDetailCrumbs({
+        from: incomingFrom ?? detailFallback,
+        fromLabel: incoming?.fromLabel ?? displayName,
+        module: {
+          listPath: USERS_LIST_PATH,
+          label: USERS_MODULE_LABEL,
+        },
+        current: { label: "Editar" },
+      }),
+    [detailFallback, displayName, incoming?.fromLabel, incomingFrom],
+  );
 
   return (
     <FormPageShell
@@ -96,8 +120,7 @@ export function UserEditPage() {
         backLabel: usersCopy.detail.backToList,
       }}
       header={{
-        backHref,
-        icon: <UserRound className="h-5 w-5" />,
+        crumbs,
         title: user ? `Editar ${user.firstName} ${user.lastName}` : "Editar usuario",
         subtitle: user?.email,
       }}

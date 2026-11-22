@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 vi.mock("@shared/hooks", () => ({
@@ -67,5 +67,27 @@ describe("TripCanvasPage", () => {
     expect(
       screen.getAllByRole("button", { name: canvasCopy.submit.label }),
     ).toHaveLength(1);
+  });
+
+  it("uses staff crumbs to trips list (no ArrowLeft)", () => {
+    render(
+      <MemoryRouter>
+        <TripCanvasPage />
+      </MemoryRouter>,
+    );
+
+    const crumbs = screen.getByRole("navigation", { name: "Migas" });
+    expect(within(crumbs).getByRole("list")).toBeInTheDocument();
+    expect(
+      within(crumbs).getByRole("link", { name: "Viajes" }),
+    ).toHaveAttribute("href", "/trips");
+    expect(
+      within(crumbs)
+        .getByText(canvasCopy.page.title)
+        .closest("[aria-current='page']"),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Volver/i }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useIncomingFrom } from "@shared/utils/listQueueFrom";
-import { BRANCHES_LIST_PATH } from "@shared/utils/masterWayfinding";
-import { resolveInternalAppHref } from "@shared/utils/resolveInternalAppHref";
+import { useIncomingWayfinding } from "@shared/utils/listQueueFrom";
+import {
+  BRANCHES_LIST_PATH,
+  MODULE_LIST_PATH_LABELS,
+  navigatePreservingFrom,
+  resolveDetailCrumbs,
+} from "@shared/utils/masterWayfinding";
 import { Building2 } from "lucide-react";
 import { Badge } from "@shared/ui/badge";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
@@ -12,23 +16,25 @@ import {
   getErrorMessage,
   isApiError,
 } from "@shared/api/interceptors/error-handler";
-import { BranchStatus } from "../../domain";
 import { useBranch, useUpdateBranch } from "../../application";
 import { BranchForm } from "../components";
 import { branchesCopy } from "../copy/branchesCopy";
 import { branchFormToUpdateDTO, type BranchFormData } from "../validation/branchSchema";
 import { getBranchMutationErrorToast } from "../utils/branchMutationErrors";
 
+const BRANCHES_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[BRANCHES_LIST_PATH] ?? "Sucursales";
+
 export function BranchEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const incomingFrom = useIncomingFrom();
+  const incoming = useIncomingWayfinding();
+  const incomingFrom = incoming?.from;
   const { toast } = useToast();
   const branchId = id ?? "";
   const detailFallback = branchId
     ? `${BRANCHES_LIST_PATH}/${branchId}`
     : BRANCHES_LIST_PATH;
-  const backHref = resolveInternalAppHref(incomingFrom, detailFallback);
   const [isDirty, setIsDirty] = useState(false);
   const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
     isDirty,
@@ -44,7 +50,7 @@ export function BranchEditPage() {
         description: branchesCopy.edit.toasts.successDescription,
         variant: "success",
       });
-      navigate(backHref);
+      navigatePreservingFrom(navigate, detailFallback, incomingFrom);
     },
     onError: (error) => {
       const known = getBranchMutationErrorToast(error);
@@ -91,8 +97,22 @@ export function BranchEditPage() {
   );
 
   const handleCancel = useCallback(() => {
-    navigate(backHref);
-  }, [navigate, backHref]);
+    navigatePreservingFrom(navigate, detailFallback, incomingFrom);
+  }, [navigate, detailFallback, incomingFrom]);
+
+  const crumbs = useMemo(
+    () =>
+      resolveDetailCrumbs({
+        from: incomingFrom ?? detailFallback,
+        fromLabel: incoming?.fromLabel ?? branch?.name,
+        module: {
+          listPath: BRANCHES_LIST_PATH,
+          label: BRANCHES_MODULE_LABEL,
+        },
+        current: { label: "Editar" },
+      }),
+    [branch?.name, detailFallback, incoming?.fromLabel, incomingFrom],
+  );
 
   return (
     <FormPageShell
@@ -107,14 +127,7 @@ export function BranchEditPage() {
         backLabel: branchesCopy.edit.notFound.backLabel,
       }}
       header={{
-        backHref,
-        backLabel: branchesCopy.edit.backLabel,
-        icon: <Building2 className="h-5 w-5" />,
-        iconVariant:
-          branch &&
-          (!branch.isActive || branch.status === BranchStatus.INACTIVE)
-            ? "muted"
-            : "primary",
+        crumbs,
         title: branch
           ? branchesCopy.edit.titleWithName(branch.name)
           : branchesCopy.edit.title,

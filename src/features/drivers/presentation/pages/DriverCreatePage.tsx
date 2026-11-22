@@ -7,10 +7,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { UserPlus } from "lucide-react";
 import { WizardPageShell } from "@shared/ui/page-shells/WizardPageShell";
 import { UnsavedChangesDialog } from "@shared/ui/form";
 import { useToast, useUnsavedChangesGuard } from "@shared/hooks";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 import { useCreateDriver } from "../../application";
 import {
   DriverForm,
@@ -28,6 +28,10 @@ import { driversCopy } from "../copy";
 
 const wizardStepsCopy = driversCopy.form.create.wizard.steps;
 const createCopy = driversCopy.form.create;
+
+const DRIVERS_LIST_PATH = "/drivers";
+const DRIVERS_MODULE_LABEL =
+  MODULE_LIST_PATH_LABELS[DRIVERS_LIST_PATH] ?? "Conductores";
 
 const WIZARD_STEPS = [
   {
@@ -121,7 +125,10 @@ export function DriverCreatePage() {
   );
 
   const isSubmitting = createMutation.isPending;
-  const handleCancel = useCallback(() => navigate("/drivers"), [navigate]);
+  const handleCancel = useCallback(
+    () => navigate(DRIVERS_LIST_PATH),
+    [navigate],
+  );
 
   const renderStep = useCallback(
     (currentStep: number) => (
@@ -148,9 +155,11 @@ export function DriverCreatePage() {
 
   const shellHeader = useMemo(
     () => ({
-      backHref: "/drivers",
-      backLabel: "Volver a la lista de conductores",
-      icon: <UserPlus className="h-5 w-5" />,
+      crumbs: [
+        { label: DRIVERS_MODULE_LABEL, to: DRIVERS_LIST_PATH },
+        { label: createCopy.title },
+      ],
+      exitHref: DRIVERS_LIST_PATH,
       title: createCopy.title,
       subtitle: createCopy.subtitle,
     }),

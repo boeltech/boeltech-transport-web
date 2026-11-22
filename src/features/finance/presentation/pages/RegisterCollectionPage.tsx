@@ -12,6 +12,7 @@ import {
 import { Button } from "@shared/ui/button";
 import { EmptyState } from "@shared/ui/feedback-states";
 import { FormPageShell } from "@shared/ui/page-shells/FormPageShell";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 
 import { WithInvoiceCollectionForm } from "../components/WithInvoiceCollectionForm";
 import { WithoutInvoiceCollectionForm } from "../components/WithoutInvoiceCollectionForm";
@@ -52,14 +53,21 @@ export function RegisterCollectionPage() {
     query.channel === "without_invoice"
       ? FINANCE_EFECTIVO_POR_COBRAR_PATH
       : FINANCE_COBROS_PATH;
+  const listLabel =
+    MODULE_LIST_PATH_LABELS[fallbackHref] ??
+    (query.channel === "without_invoice"
+      ? "Cobros sin factura"
+      : "Facturas a crédito");
 
   return (
     <FormPageShell
       isLoading={false}
       header={{
-        backHref: fallbackHref,
+        crumbs: [
+          { label: listLabel, to: fallbackHref },
+          { label: copy.title },
+        ],
         title: copy.title,
-        icon: <HandCoins className="h-5 w-5" />,
       }}
     >
       <EmptyState

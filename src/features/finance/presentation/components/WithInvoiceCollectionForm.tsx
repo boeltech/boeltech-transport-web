@@ -61,7 +61,10 @@ import {
 } from "@shared/ui/table";
 import { cn } from "@shared/lib/utils/cn";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
-import { useMasterActionFrom } from "@shared/utils/masterWayfinding";
+import {
+  MODULE_LIST_PATH_LABELS,
+  useMasterActionFrom,
+} from "@shared/utils/masterWayfinding";
 
 import {
   COBROS_PAYMENT_TIME_DEFAULT,
@@ -153,6 +156,12 @@ export function WithInvoiceCollectionForm({
       : clientId
         ? `/clients/${clientId}`
         : FINANCE_COBROS_PATH;
+  const listLabel =
+    MODULE_LIST_PATH_LABELS[FINANCE_COBROS_PATH] ?? "Facturas a crédito";
+  const shellCrumbs = [
+    { label: listLabel, to: FINANCE_COBROS_PATH },
+    { label: copy.title },
+  ] as const;
 
   const clientQuery = useClient(clientId ?? undefined);
   const invoicesQuery = useOpenPpdInvoices({
@@ -731,12 +740,11 @@ export function WithInvoiceCollectionForm({
           description: copy.missingClientDescription,
         }}
         header={{
-          backHref,
+          crumbs: shellCrumbs,
           title: copy.title,
           subtitle: resolvedRfc
             ? `${clientName} · ${resolvedRfc}`
             : clientName,
-          icon: <HandCoins className="h-5 w-5" />,
           trailing: (
             <Badge variant="secondary">
               {copy.channelChip.with_invoice}

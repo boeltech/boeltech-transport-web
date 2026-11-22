@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { forwardRef, useImperativeHandle } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -87,6 +87,23 @@ describe("CreateVehiclePage (F1 D2/D10)", () => {
     // WizardPageShell solo pinta el submit en el último paso; el copy es la SoT del CTA.
     expect(vehiclesCopy.form.create.submit).toBe("Registrar vehículo");
     expect(screen.getByRole("heading", { name: vehiclesCopy.form.create.title })).toBeInTheDocument();
+  });
+
+  it("usa migas staff al listado (sin flecha Volver)", () => {
+    renderPage();
+    const crumbs = screen.getByRole("navigation", { name: "Migas" });
+    expect(within(crumbs).getByRole("list")).toBeInTheDocument();
+    expect(
+      within(crumbs).getByRole("link", { name: "Vehículos" }),
+    ).toHaveAttribute("href", "/vehicles");
+    expect(
+      within(crumbs)
+        .getByText(vehiclesCopy.form.create.title)
+        .closest("[aria-current='page']"),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Volver/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("tras crear navega al detalle /vehicles/:id", () => {

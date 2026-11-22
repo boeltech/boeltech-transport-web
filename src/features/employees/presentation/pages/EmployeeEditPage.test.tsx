@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,6 +7,7 @@ import { EmployeeEditPage } from "./EmployeeEditPage";
 import { employeesCopy } from "../copy/employeesCopy";
 import type { Employee } from "../../domain/entities";
 import { TooltipProvider } from "@shared/ui/tooltip";
+import { MODULE_LIST_PATH_LABELS } from "@shared/utils/masterWayfinding";
 
 const { mockUseEmployee } = vi.hoisted(() => ({
   mockUseEmployee: vi.fn(),
@@ -161,7 +162,24 @@ describe("EmployeeEditPage F2 (D7/D8)", () => {
     ).toBeDisabled();
   });
 
-  it("S5-01: con state.from del alta, Volver regresa al mismo create", async () => {
+  it("usa migas staff (sin flecha Volver)", () => {
+    renderEditPage();
+    const crumbs = screen.getByRole("navigation", { name: "Migas" });
+    expect(within(crumbs).getByRole("list")).toBeInTheDocument();
+    expect(
+      within(crumbs).getByRole("link", {
+        name: MODULE_LIST_PATH_LABELS["/employees"] ?? "Empleados",
+      }),
+    ).toHaveAttribute("href", "/employees");
+    expect(
+      within(crumbs).getByText("Editar").closest("[aria-current='page']"),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Volver/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("S5-01: con state.from del alta, Cancelar regresa al mismo create", async () => {
     const user = userEvent.setup();
     const createHref =
       "/finance/settlements/new?employeeId=22222222-2222-4222-8222-222222222222&periodStart=2026-08-01&periodEnd=2026-08-15";
@@ -170,7 +188,9 @@ describe("EmployeeEditPage F2 (D7/D8)", () => {
       { from: createHref },
     );
 
-    await user.click(screen.getByRole("button", { name: /Volver/i }));
+    await user.click(
+      screen.getByRole("button", { name: employeesCopy.form.action.cancel }),
+    );
     expect(screen.getByTestId("settlement-create")).toBeInTheDocument();
   });
 });

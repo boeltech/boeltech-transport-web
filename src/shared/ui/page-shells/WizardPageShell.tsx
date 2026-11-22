@@ -13,6 +13,9 @@
  * - confirmación final (valida todos los pasos previos)
  * - deja el feedback de errores al formulario (inline + summary)
  *
+ * NL2/NL4: staff = migas + `exitHref` para Cancelar (sin flecha/ícono);
+ * portal = ← Volver; legacy (deprecated) = flecha + ícono hasta migrar.
+ *
  * El form debe exponer este ref para que el shell lo controle:
  *
  * ```ts
@@ -37,6 +40,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { Button } from "@shared/ui/button";
+import { Breadcrumbs, type Crumb } from "@shared/ui/breadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle } from "@shared/ui/card";
 import {
   WizardNavigationBar,
@@ -64,14 +68,32 @@ export interface WizardStepRenderHelpers {
   goToStep: (stepIndex: number) => void;
 }
 
-export interface WizardPageShellHeader {
-  backHref: string;
-  backLabel?: string;
-  icon: ReactNode;
-  iconVariant?: "primary" | "muted";
+type WizardHeaderBase = {
   title: string;
   subtitle?: string;
-}
+};
+
+export type WizardPageShellHeader =
+  | (WizardHeaderBase & {
+      variant?: "staff";
+      crumbs: readonly Crumb[];
+      /** Destino de Cancelar / allowExit (no pinta flecha en el header). */
+      exitHref: string;
+    })
+  | (WizardHeaderBase & {
+      variant: "portal";
+      backHref: string;
+      backLabel?: string;
+      icon?: ReactNode;
+      iconVariant?: "primary" | "muted";
+    })
+  /** @deprecated Prefer staff `crumbs` + `exitHref` (NL2/NL4). */
+  | (WizardHeaderBase & {
+      backHref: string;
+      backLabel?: string;
+      icon: ReactNode;
+      iconVariant?: "primary" | "muted";
+    });
 
 export interface WizardPageShellProps {
   // ── Pasos ─────────────────────────────────────────────────────────────────
@@ -98,7 +120,7 @@ export interface WizardPageShellProps {
   isSubmitting: boolean;
   submitLabel: string;
   submittingLabel?: string;
-  /** Llamado cuando se cancela. Por defecto navega a backHref. */
+  /** Llamado cuando se cancela. Por defecto navega a exitHref (staff) o backHref. */
   onCancel?: () => void;
   /**
    * Si false, oculta Cancelar y no permite salir por el header en el primer paso
@@ -107,13 +129,14 @@ export interface WizardPageShellProps {
   allowExit?: boolean;
 
   /**
-   * Comportamiento del botón atrás del header.
-   * - `exit` (defecto): siempre `navigate(header.backHref)`.
+   * Comportamiento del botón atrás del header (solo portal / legacy).
+   * - `exit` (defecto): siempre sale a `backHref`.
    * - `wizard`: si hay paso anterior, retrocede un paso; si no, sale a `backHref`
    *   (salvo `allowExit={false}`, donde el primer paso no sale).
+   * Staff no muestra flecha; Cancelar usa `exitHref`.
    */
   headerBackMode?: "exit" | "wizard";
-  /** Callback opcional para sobreescribir el back del header. */
+  /** Callback opcional para sobreescribir el back del header (portal / legacy). */
   onHeaderBack?: () => void;
 
   // ── ARIA / accesibilidad ──────────────────────────────────────────────────
@@ -187,10 +210,24 @@ export function clampWizardInitialStep(
   return Math.min(Math.max(Math.trunc(initialStep), 0), stepCount - 1);
 }
 
-const iconBgVariants: Record<
-  NonNullable<WizardPageShellHeader["iconVariant"]>,
-  string
-> = {
+function hasCrumbs(
+  header: WizardPageShellHeader,
+): header is WizardHeaderBase & {
+  crumbs: readonly Crumb[];
+  exitHref: string;
+} {
+  return (
+    "crumbs" in header &&
+    Array.isArray((header as { crumbs?: unknown }).crumbs)
+  );
+}
+
+function resolveExitHref(header: WizardPageShellHeader): string {
+  if (hasCrumbs(header)) return header.exitHref;
+  return (header as { backHref: string }).backHref;
+}
+
+const iconBgVariants: Record<"primary" | "muted", string> = {
   primary: "bg-primary/10 text-primary",
   muted: "bg-muted text-muted-foreground",
 };
@@ -218,6 +255,16 @@ export const WizardPageShell = memo(function WizardPageShell({
   resolveNavigation,
 }: WizardPageShellProps) {
   const navigate = useNavigate();
+  const staff = hasCrumbs(header);
+  const showHeaderBack = !staff;
+  const showIcon =
+    !staff && "icon" in header && header.icon != null;
+  const iconVariant =
+    !staff && "iconVariant" in header
+      ? (header.iconVariant ?? "primary")
+      : "primary";
+  const exitHref = resolveExitHref(header);
+
   const [currentStep, setCurrentStep] = useState(() =>
     clampWizardInitialStep(initialStep, steps.length),
   );
@@ -230,8 +277,7 @@ export const WizardPageShell = memo(function WizardPageShell({
   const isReview = currentStep === lastStepIndex;
   const navBusy = isSubmitting || isConfirming;
   const headerBackDisabled =
-    navBusy ||
-    (!allowExit && currentStep === 0 && !onHeaderBack);
+    navBusy || (!allowExit && currentStep === 0 && !onHeaderBack);
   const currentStepRef = useRef(currentStep);
   currentStepRef.current = currentStep;
   const lockBackwardRef = useRef(false);
@@ -252,7 +298,7 @@ export const WizardPageShell = memo(function WizardPageShell({
     }
     if (lockBackwardRef.current) {
       if (!allowExit) return;
-      navigate(header.backHref);
+      navigate(exitHref);
       return;
     }
     if (headerBackMode === "wizard" && currentStep > 0) {
@@ -260,21 +306,21 @@ export const WizardPageShell = memo(function WizardPageShell({
       return;
     }
     if (!allowExit) return;
-    navigate(header.backHref);
+    navigate(exitHref);
   }, [
     onHeaderBack,
     headerBackMode,
     currentStep,
     allowExit,
     navigate,
-    header.backHref,
+    exitHref,
   ]);
 
   const handleCancel = useCallback(() => {
     if (!allowExit) return;
     if (onCancel) onCancel();
-    else navigate(header.backHref);
-  }, [allowExit, onCancel, navigate, header.backHref]);
+    else navigate(exitHref);
+  }, [allowExit, onCancel, navigate, exitHref]);
 
   const validateCurrentStep = useCallback(async () => {
     if (currentStep >= lastStepIndex) return true;
@@ -364,8 +410,7 @@ export const WizardPageShell = memo(function WizardPageShell({
   const footerOnSubmit = navigationOverrides?.onSubmit ?? handleConfirm;
   const footerOnNext = navigationOverrides?.onNext ?? handleNext;
   const footerShowSubmitIcon = navigationOverrides?.showSubmitIcon !== false;
-  const footerShowCancel =
-    navigationOverrides?.showCancel ?? allowExit;
+  const footerShowCancel = navigationOverrides?.showCancel ?? allowExit;
   const footerHidePrevious = navigationOverrides?.hidePrevious === true;
 
   return (
@@ -379,33 +424,44 @@ export const WizardPageShell = memo(function WizardPageShell({
       {/* ====================================================================
        * Header
        * ================================================================== */}
-      <div className="flex items-center gap-4">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={handleHeaderBack}
-          disabled={headerBackDisabled}
-          aria-label={header.backLabel ?? "Volver"}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <div
-            className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-lg",
-              iconBgVariants[header.iconVariant ?? "primary"],
-            )}
-          >
-            {header.icon}
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {header.title}
-            </h1>
-            {header.subtitle ? (
-              <p className="text-sm text-muted-foreground">{header.subtitle}</p>
+      <div className="flex flex-col gap-1.5">
+        {staff ? <Breadcrumbs crumbs={header.crumbs} /> : null}
+        <div className="flex items-center gap-4">
+          {showHeaderBack ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleHeaderBack}
+              disabled={headerBackDisabled}
+              aria-label={
+                "backLabel" in header && header.backLabel
+                  ? header.backLabel
+                  : "Volver"
+              }
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          ) : null}
+          <div className="flex items-center gap-3">
+            {showIcon ? (
+              <div
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-lg",
+                  iconBgVariants[iconVariant],
+                )}
+              >
+                {header.icon}
+              </div>
             ) : null}
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                {header.title}
+              </h1>
+              {header.subtitle ? (
+                <p className="text-sm text-muted-foreground">{header.subtitle}</p>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
