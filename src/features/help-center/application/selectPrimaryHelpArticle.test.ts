@@ -151,6 +151,32 @@ const U09_ARTICLES: HelpArticle[] = [
   }),
 ];
 
+/** U01 Inicio + U10 Mi cuenta: primario por ruta×rol (ola 7 D-A). */
+const U01_U10_ARTICLES: HelpArticle[] = [
+  article({
+    id: "comparar-sucursales",
+    sortOrder: 25,
+    group: "operacion",
+    roles: ["admin", "manager"],
+    screens: ["/dashboard"],
+  }),
+  article({
+    id: "cuenta-seguridad",
+    sortOrder: 8,
+    group: "tu_cuenta",
+    roles: [
+      "admin",
+      "manager",
+      "dispatcher",
+      "accountant",
+      "operator",
+      "driver",
+      "client",
+    ],
+    screens: ["/account", "/account/security"],
+  }),
+];
+
 /** U08 Finanzas: primario por ruta (ola 4 D; Tendencia 145 ante Margen 150). */
 const U08_ARTICLES: HelpArticle[] = [
   article({
@@ -200,8 +226,13 @@ const U08_ARTICLES: HelpArticle[] = [
 function primaryForPath(
   pathname: string,
   catalog: readonly HelpArticle[] = U07_ARTICLES,
+  role?: string,
 ): string | null {
-  const matched = catalog.filter((a) => matchHelpScreen(pathname, a.screens));
+  const matched = catalog.filter((a) => {
+    if (!matchHelpScreen(pathname, a.screens)) return false;
+    if (role == null) return true;
+    return a.roles.length === 0 || a.roles.includes(role);
+  });
   return selectPrimaryHelpArticle(matched)?.id ?? null;
 }
 
@@ -405,6 +436,54 @@ describe("selectPrimaryHelpArticle", () => {
       expect(primaryForPath(`/employees/${uuid}`, U09_ARTICLES)).toBe(
         "registrar-empleado",
       );
+    });
+  });
+
+  describe("U01/U10 inicio+cuenta · ola7 D-A primario por ruta×rol", () => {
+    const staffWithAccount = [
+      "admin",
+      "manager",
+      "dispatcher",
+      "accountant",
+      "operator",
+    ] as const;
+
+    it("/dashboard × admin|manager → comparar-sucursales", () => {
+      expect(
+        primaryForPath("/dashboard", U01_U10_ARTICLES, "admin"),
+      ).toBe("comparar-sucursales");
+      expect(
+        primaryForPath("/dashboard", U01_U10_ARTICLES, "manager"),
+      ).toBe("comparar-sucursales");
+    });
+
+    it("/dashboard × dispatcher|accountant|operator → null (sin art)", () => {
+      expect(
+        primaryForPath("/dashboard", U01_U10_ARTICLES, "dispatcher"),
+      ).toBeNull();
+      expect(
+        primaryForPath("/dashboard", U01_U10_ARTICLES, "accountant"),
+      ).toBeNull();
+      expect(
+        primaryForPath("/dashboard", U01_U10_ARTICLES, "operator"),
+      ).toBeNull();
+    });
+
+    it("/account · /account/security × roles con cuenta → cuenta-seguridad", () => {
+      for (const role of staffWithAccount) {
+        expect(primaryForPath("/account", U01_U10_ARTICLES, role)).toBe(
+          "cuenta-seguridad",
+        );
+        expect(
+          primaryForPath("/account/security", U01_U10_ARTICLES, role),
+        ).toBe("cuenta-seguridad");
+      }
+      expect(primaryForPath("/account", U01_U10_ARTICLES, "driver")).toBe(
+        "cuenta-seguridad",
+      );
+      expect(
+        primaryForPath("/account/security", U01_U10_ARTICLES, "client"),
+      ).toBe("cuenta-seguridad");
     });
   });
 
