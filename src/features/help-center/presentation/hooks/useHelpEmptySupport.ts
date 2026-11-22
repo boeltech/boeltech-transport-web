@@ -15,12 +15,13 @@ export type HelpEmptySupport = {
 /**
  * Phrase + CTA «Ver ayuda» para empty states de producto (TEC §4.2).
  * Solo habilitar en empties «sin datos» (no filtros / error).
+ * `screen` = `pathname + search` cuando la vista depende de query (p. ej. Análisis).
  */
 export function useHelpEmptySupport(
-  pathname: string,
+  screen: string,
   enabled: boolean,
 ): HelpEmptySupport | null {
-  const help = useHelpPhraseForScreen(pathname, { enabled });
+  const help = useHelpPhraseForScreen(screen, { enabled });
   const { openHelpPanel } = useHelpPanelOptional();
 
   return useMemo(() => {

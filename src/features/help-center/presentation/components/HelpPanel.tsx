@@ -46,7 +46,8 @@ export const HelpPanel = memo(function HelpPanel({
 }: HelpPanelProps) {
   const location = useLocation();
   const { user } = useAuth();
-  const currentPath = location.pathname;
+  /** Runtime screen for API match: pathname + search (ADR-0100 addendum / corte A). */
+  const currentScreen = `${location.pathname}${location.search}`;
   const ticketsEnabled = config.help.ticketsEnabled;
 
   const [search, setSearch] = useState("");
@@ -70,8 +71,8 @@ export const HelpPanel = memo(function HelpPanel({
 
   useEffect(() => {
     if (!open || !isSearching) return;
-    trackHelpSearchPerformed(debouncedSearch, "panel", currentPath);
-  }, [open, isSearching, debouncedSearch, currentPath]);
+    trackHelpSearchPerformed(debouncedSearch, "panel", currentScreen);
+  }, [open, isSearching, debouncedSearch, currentScreen]);
 
   const handlePanelOpenChange = (next: boolean) => {
     if (!next) setSearch("");
@@ -79,8 +80,8 @@ export const HelpPanel = memo(function HelpPanel({
   };
 
   const screenFilters = useMemo(
-    () => ({ screen: currentPath }),
-    [currentPath],
+    () => ({ screen: currentScreen }),
+    [currentScreen],
   );
   const searchFilters = useMemo(
     () => (isSearching ? { q: debouncedSearch } : {}),
@@ -331,7 +332,7 @@ export const HelpPanel = memo(function HelpPanel({
         }}
         articleId={ticketArticle?.id}
         articleTitle={ticketArticle?.title}
-        route={currentPath}
+        route={currentScreen}
         tenantName={user?.tenant?.name}
       />
     ) : null}

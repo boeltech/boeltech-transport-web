@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HelpArticle } from "../domain";
-import { matchHelpScreen } from "../domain/matchHelpScreen";
+import { filterArticlesByMaxScreenScore } from "../domain/matchHelpScreen";
 import { selectPrimaryHelpArticle } from "./selectPrimaryHelpArticle";
 
 function article(
@@ -283,19 +283,19 @@ const U08_ARTICLES: HelpArticle[] = [
     id: "consultar-tendencia",
     sortOrder: 145,
     group: "finanzas",
-    screens: ["/finance/analysis"],
+    screens: ["/finance/analysis", "/finance/analysis?view=performance"],
   }),
   article({
     id: "ver-rentabilidad",
     sortOrder: 150,
     group: "finanzas",
-    screens: ["/finance/analysis"],
+    screens: ["/finance/analysis?view=margin"],
   }),
   article({
     id: "revisar-gasto-viaje",
     sortOrder: 170,
     group: "finanzas",
-    screens: ["/finance/analysis"],
+    screens: ["/finance/analysis?view=expenses"],
   }),
   article({
     id: "consultar-reportes",
@@ -305,18 +305,31 @@ const U08_ARTICLES: HelpArticle[] = [
   }),
 ];
 
+/**
+ * Simula API: filtro por max screen score, luego primario = min sortOrder.
+ * `screen` puede incluir query (`pathname + search`).
+ */
 function primaryForPath(
-  pathname: string,
+  screen: string,
   catalog: readonly HelpArticle[] = U07_ARTICLES,
   role?: string,
 ): string | null {
-  const matched = catalog.filter((a) => {
-    if (!matchHelpScreen(pathname, a.screens)) return false;
-    if (role == null) return true;
-    // Paridad API `roles && ARRAY[$1]::text[]`: roles vacío no hace match.
-    return a.roles.includes(role);
-  });
+  const roleFiltered =
+    role == null
+      ? catalog
+      : catalog.filter((a) => {
+          // Paridad API `roles && ARRAY[$1]::text[]`: roles vacío no hace match.
+          return a.roles.includes(role);
+        });
+  const matched = filterArticlesByMaxScreenScore(screen, roleFiltered);
   return selectPrimaryHelpArticle(matched)?.id ?? null;
+}
+
+function listForScreen(
+  screen: string,
+  catalog: readonly HelpArticle[],
+): string[] {
+  return filterArticlesByMaxScreenScore(screen, catalog).map((a) => a.id);
 }
 
 describe("selectPrimaryHelpArticle", () => {
@@ -376,17 +389,32 @@ describe("selectPrimaryHelpArticle", () => {
       ).toBe("esquema-compensacion");
     });
 
-    it("sin D2 (hermanas ≥ 130) liquidar gana en Anticipos por :id", () => {
-      const preD2 = U07_ARTICLES.map((a) => {
+    it("hermanas con sort ≥ 130 siguen ganando por especificidad (corte A)", () => {
+      const equalizedOrHigher = U07_ARTICLES.map((a) => {
         if (a.id === "registrar-anticipo-operador")
           return { ...a, sortOrder: 135 };
         if (a.id === "perfil-pago-operador") return { ...a, sortOrder: 138 };
         if (a.id === "esquema-compensacion") return { ...a, sortOrder: 140 };
         return a;
       });
-      expect(primaryForPath("/finance/operator-payments/advances", preD2)).toBe(
-        "liquidar-viaje",
-      );
+      expect(
+        primaryForPath(
+          "/finance/operator-payments/advances",
+          equalizedOrHigher,
+        ),
+      ).toBe("registrar-anticipo-operador");
+      expect(
+        primaryForPath(
+          "/finance/operator-payments/operators",
+          equalizedOrHigher,
+        ),
+      ).toBe("perfil-pago-operador");
+      expect(
+        primaryForPath(
+          "/finance/operator-payments/tariffs",
+          equalizedOrHigher,
+        ),
+      ).toBe("esquema-compensacion");
     });
   });
 
@@ -812,6 +840,202 @@ describe("selectPrimaryHelpArticle", () => {
       expect(primaryForPath("/reports", U08_ARTICLES)).toBe(
         "consultar-reportes",
       );
+    });
+  });
+
+  /**
+   * PRD corte A §H.1–§H.10 — sort_order igualados; filtro max score + selectPrimary.
+   * Paridad de match: mirror en domain/matchHelpScreen.test.ts (§H.10).
+   */
+  describe("corte A · §H.1–§H.10 sort igualados (R-SPEC / R-VIEW / R-LIST)", () => {
+    const uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+
+    const H_U07: HelpArticle[] = U07_ARTICLES.map((a) => ({
+      ...a,
+      sortOrder: 130,
+    }));
+
+    const H_U03_U04: HelpArticle[] = U03_U04_ARTICLES.map((a) => {
+      if (
+        a.id === "cargar-flota-clientes" ||
+        a.id === "corregir-ficha-flota"
+      ) {
+        return { ...a, sortOrder: 45 };
+      }
+      if (a.id === "alta-cliente" || a.id === "ficha-cliente") {
+        return { ...a, sortOrder: 70 };
+      }
+      return a;
+    });
+
+    const H_U09: HelpArticle[] = U09_ARTICLES.map((a) => {
+      if (
+        a.id === "abrir-sucursal" ||
+        a.id === "consultar-sucursales" ||
+        a.id === "alta-usuarios-rol" ||
+        a.id === "revisar-historial-usuarios" ||
+        a.id === "usuarios-configuracion"
+      ) {
+        return { ...a, sortOrder: 60 };
+      }
+      return a;
+    });
+
+    const H_U08: HelpArticle[] = U08_ARTICLES.map((a) => {
+      if (
+        a.id === "consultar-tendencia" ||
+        a.id === "ver-rentabilidad" ||
+        a.id === "revisar-gasto-viaje"
+      ) {
+        return { ...a, sortOrder: 145 };
+      }
+      return a;
+    });
+
+    const H_N1: HelpArticle[] = [
+      article({
+        id: "reservar-viaje",
+        sortOrder: 50,
+        group: "operacion",
+        screens: ["/trips", "/trips/new"],
+      }),
+      article({
+        id: "seguir-viaje",
+        sortOrder: 50,
+        group: "operacion",
+        screens: ["/trips/:id"],
+      }),
+      article({
+        id: "confirmar-reserva",
+        sortOrder: 50,
+        group: "operacion",
+        screens: ["/trips/:id"],
+      }),
+    ];
+
+    it("§H.1 A1: advances/operators/tariffs no ceden a liquidar con sort igualado", () => {
+      expect(primaryForPath("/finance/operator-payments/advances", H_U07)).toBe(
+        "registrar-anticipo-operador",
+      );
+      expect(
+        primaryForPath("/finance/operator-payments/operators", H_U07),
+      ).toBe("perfil-pago-operador");
+      expect(primaryForPath("/finance/operator-payments/tariffs", H_U07)).toBe(
+        "esquema-compensacion",
+      );
+    });
+
+    it("§H.2 A2: /vehicles/new vs UUID con sort 45 igualado", () => {
+      expect(primaryForPath("/vehicles/new", H_U03_U04)).toBe(
+        "cargar-flota-clientes",
+      );
+      expect(primaryForPath(`/vehicles/${uuid}`, H_U03_U04)).toBe(
+        "corregir-ficha-flota",
+      );
+    });
+
+    it("§H.3 A3: /clients/new vs UUID con sort 70 igualado", () => {
+      expect(primaryForPath("/clients/new", H_U03_U04)).toBe("alta-cliente");
+      expect(primaryForPath(`/clients/${uuid}`, H_U03_U04)).toBe(
+        "ficha-cliente",
+      );
+    });
+
+    it("§H.4 A4: users/new · activity · branches/new con sort igualado", () => {
+      expect(primaryForPath("/users/new", H_U09)).toBe("alta-usuarios-rol");
+      expect(primaryForPath("/users/activity", H_U09)).toBe(
+        "revisar-historial-usuarios",
+      );
+      expect(primaryForPath("/branches/new", H_U09)).toBe("abrir-sucursal");
+    });
+
+    it("§H.5 A5: Análisis por view con sort 145 igualado", () => {
+      expect(primaryForPath("/finance/analysis", H_U08)).toBe(
+        "consultar-tendencia",
+      );
+      expect(
+        primaryForPath("/finance/analysis?view=performance", H_U08),
+      ).toBe("consultar-tendencia");
+      expect(primaryForPath("/finance/analysis?view=yoy", H_U08)).toBe(
+        "consultar-tendencia",
+      );
+      expect(primaryForPath("/finance/analysis?view=margin", H_U08)).toBe(
+        "ver-rentabilidad",
+      );
+      expect(primaryForPath("/finance/analysis?view=expenses", H_U08)).toBe(
+        "revisar-gasto-viaje",
+      );
+    });
+
+    it("§H.6 N1: /trips/new → solo reservar-viaje en lista filtrada", () => {
+      expect(primaryForPath("/trips/new", H_N1)).toBe("reservar-viaje");
+      expect(listForScreen("/trips/new", H_N1)).toEqual(["reservar-viaje"]);
+    });
+
+    it("§H.7 R-LIST: ficha / liquidar / siblings analysis fuera de la lista", () => {
+      expect(listForScreen("/vehicles/new", H_U03_U04)).not.toContain(
+        "corregir-ficha-flota",
+      );
+      expect(
+        listForScreen("/finance/operator-payments/advances", H_U07),
+      ).not.toContain("liquidar-viaje");
+      expect(listForScreen("/finance/analysis?view=margin", H_U08)).toEqual([
+        "ver-rentabilidad",
+      ]);
+    });
+
+    it("§H.8 R-ROLE: A1–A5 invariantes; portal/roles vacíos siguen null", () => {
+      expect(
+        primaryForPath(
+          "/finance/operator-payments/advances",
+          H_U07,
+          "admin",
+        ),
+      ).toBeNull();
+      const withRoles = H_U07.map((a) => ({
+        ...a,
+        roles: ["admin", "manager", "accountant"],
+      }));
+      expect(
+        primaryForPath(
+          "/finance/operator-payments/advances",
+          withRoles,
+          "admin",
+        ),
+      ).toBe("registrar-anticipo-operador");
+      expect(
+        primaryForPath(
+          "/finance/operator-payments/advances",
+          withRoles,
+          "driver",
+        ),
+      ).toBeNull();
+    });
+
+    it("§H.9 UUID detalle abre ficha (no /new)", () => {
+      expect(primaryForPath(`/vehicles/${uuid}`, H_U03_U04)).toBe(
+        "corregir-ficha-flota",
+      );
+      expect(primaryForPath(`/clients/${uuid}`, H_U03_U04)).toBe(
+        "ficha-cliente",
+      );
+      expect(primaryForPath(`/users/${uuid}`, H_U09)).toBe(
+        "usuarios-configuracion",
+      );
+      expect(primaryForPath(`/branches/${uuid}`, H_U09)).toBe(
+        "consultar-sucursales",
+      );
+    });
+
+    it("§H.10 paridad: mismos winners que mirror matchHelpScreen §G", () => {
+      // Covered by domain/matchHelpScreen.test.ts table; smoke a subset here.
+      expect(listForScreen("/finance/analysis?view=margin", H_U08)).toEqual([
+        "ver-rentabilidad",
+      ]);
+      expect(listForScreen("/trips/new", H_N1)).toEqual(["reservar-viaje"]);
+      expect(
+        listForScreen("/finance/operator-payments/advances", H_U07),
+      ).toEqual(["registrar-anticipo-operador"]);
     });
   });
 });

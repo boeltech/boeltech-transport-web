@@ -9,16 +9,17 @@ export type HelpPhraseForScreen = {
 };
 
 /**
- * Phrase del artículo primario para la ruta actual (TEC Ola A §4.2).
+ * Phrase del artículo primario para la pantalla actual (TEC Ola A §4.2).
  * Fuente: `GET /help/articles?screen=` — no hardcodear phrase en features dueñas.
+ * `screen` = `pathname + search` cuando la vista depende de query (p. ej. Análisis `?view=`).
  */
 export function useHelpPhraseForScreen(
-  pathname: string,
+  screen: string,
   options?: { enabled?: boolean },
 ): HelpPhraseForScreen | null {
-  const enabled = options?.enabled ?? Boolean(pathname);
+  const enabled = options?.enabled ?? Boolean(screen);
   const { data: articles } = useHelpArticles(
-    { screen: pathname },
+    { screen },
     { enabled },
   );
 
