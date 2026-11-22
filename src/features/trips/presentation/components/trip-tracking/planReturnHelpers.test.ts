@@ -17,6 +17,7 @@ import {
   resolvePlanReturnTargetCargo,
   resolveReturnedCargoBadge,
   resolveReturnStopForCargo,
+  mapPlanReturnTimingToDomain,
   tripHasInferredReturnStop,
 } from "./planReturnHelpers";
 
@@ -344,5 +345,26 @@ describe("planReturnHelpers", () => {
       returnStop,
     ]);
     expect(found?.id).toBe("return-mty");
+  });
+
+  it("F4d-c: mapPlanReturnTimingToDomain UI → enum domain", () => {
+    expect(
+      mapPlanReturnTimingToDomain({
+        timing: "at_end",
+        hasPendingDeliveries: true,
+      }),
+    ).toBe("at_end");
+    expect(
+      mapPlanReturnTimingToDomain({
+        timing: "before_next",
+        hasPendingDeliveries: true,
+      }),
+    ).toBe("before_continuing");
+    expect(
+      mapPlanReturnTimingToDomain({
+        timing: "at_end",
+        hasPendingDeliveries: false,
+      }),
+    ).toBe("as_new_destination");
   });
 });

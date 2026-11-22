@@ -4,6 +4,8 @@ import type { TrackingEvent } from "@features/trips/domain";
 
 import {
   getFalseTripDeclaredTimelineMeta,
+  getReturnPlannedTimelineMeta,
+  getReturnPlannedTimelineTitle,
   getTrackingEventTimelineBody,
   getTrackingIncidentTimelineMeta,
   resolveLatestIncidentDetail,
@@ -145,5 +147,46 @@ describe("trackingEventDisplay", () => {
         }),
       ),
     ).toEqual([trackingCopy.hint.timelineCause("Sin carga")]);
+  });
+
+  it("F4d-c: return_planned title + meta Bitácora R10", () => {
+    const planned = event({
+      eventType: "return_planned",
+      capturedByName: "Ana Dispatcher",
+      payload: {
+        cargo_id: "11111111-1111-4111-8111-111111111111",
+        destination_label: "CEDIS Monterrey",
+        timing: "before_continuing",
+        estimated_extra_km: 42,
+      },
+    });
+    expect(getReturnPlannedTimelineTitle(planned)).toBe(
+      trackingCopy.planReturn.bitacora(
+        "CEDIS Monterrey",
+        trackingCopy.planReturn.bitacoraWhenBefore,
+      ),
+    );
+    expect(getReturnPlannedTimelineMeta(planned)).toEqual([
+      trackingCopy.planReturn.bitacoraMeta("42", "Ana Dispatcher"),
+    ]);
+  });
+
+  it("F4d-c: return_planned as_new_destination usa «al final del recorrido»", () => {
+    expect(
+      getReturnPlannedTimelineTitle(
+        event({
+          eventType: "return_planned",
+          payload: {
+            destination_label: "Bodega León",
+            timing: "as_new_destination",
+          },
+        }),
+      ),
+    ).toBe(
+      trackingCopy.planReturn.bitacora(
+        "Bodega León",
+        trackingCopy.planReturn.bitacoraWhenAtEnd,
+      ),
+    );
   });
 });

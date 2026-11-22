@@ -57,6 +57,8 @@ import {
   getTrackingEventTimelineBody,
   getTrackingIncidentTimelineMeta,
   getFalseTripDeclaredTimelineMeta,
+  getReturnPlannedTimelineTitle,
+  getReturnPlannedTimelineMeta,
   shouldShowIncidentClosedChip,
   TrackingStatesLegend,
   TripTrackingContactCard,
@@ -735,6 +737,14 @@ export function TripTrackingTab({
                             falseTripDeclaredBy,
                           )
                         : [];
+                    const returnPlannedTitle =
+                      event.eventType === "return_planned"
+                        ? getReturnPlannedTimelineTitle(event)
+                        : null;
+                    const returnPlannedMeta =
+                      event.eventType === "return_planned"
+                        ? getReturnPlannedTimelineMeta(event)
+                        : [];
                     const hasDetail =
                       Boolean(timelineBody) ||
                       incidentMeta.length > 0 ||
@@ -753,10 +763,11 @@ export function TripTrackingTab({
                         <div className="min-w-0 py-0.5">
                           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                             <p className="text-sm font-medium">
-                              {formatTrackingEventLabel(
-                                event.eventType,
-                                relatedStop,
-                              )}
+                              {returnPlannedTitle ??
+                                formatTrackingEventLabel(
+                                  event.eventType,
+                                  relatedStop,
+                                )}
                             </p>
                             {showIncidentClosedChip ? (
                               <Badge
@@ -772,6 +783,11 @@ export function TripTrackingTab({
                               )}
                             </p>
                           </div>
+                          {returnPlannedMeta.length > 0 ? (
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {returnPlannedMeta.join(" · ")}
+                            </p>
+                          ) : null}
                           {hasDetail ? (
                             <details className="mt-1">
                               <summary className="cursor-pointer text-xs text-muted-foreground">

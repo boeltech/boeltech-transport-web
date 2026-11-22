@@ -37,6 +37,8 @@ export function resolveTrackingEventIcon(
       return CheckCircle2;
     case "cargo_returned":
       return RotateCcw;
+    case "return_planned":
+      return RotateCcw;
     case "cargo_cancelled":
       return Ban;
     case "stop_arrived":

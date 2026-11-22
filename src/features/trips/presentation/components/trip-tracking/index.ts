@@ -18,6 +18,7 @@ export { DeclareFalseTripSheet } from "./DeclareFalseTripSheet";
 export type { DeclareFalseTripSheetProps } from "./DeclareFalseTripSheet";
 export {
   buildPlanReturnPendingStops,
+  mapPlanReturnTimingToDomain,
   resolvePlanReturnTargetCargo,
   resolveReturnedCargoBadge,
   resolveReturnStopLabelMap,
@@ -149,6 +150,8 @@ export {
   getTrackingEventTimelineBody,
   getTrackingIncidentTimelineMeta,
   getFalseTripDeclaredTimelineMeta,
+  getReturnPlannedTimelineTitle,
+  getReturnPlannedTimelineMeta,
   resolveLatestIncidentDetail,
   shouldShowIncidentClosedChip,
 } from "./trackingEventDisplay";

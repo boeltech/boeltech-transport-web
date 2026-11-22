@@ -57,6 +57,8 @@ export function formatTrackingEventLabel(
       return "Carga entregada";
     case "cargo_returned":
       return "Carga devuelta";
+    case "return_planned":
+      return "Retorno planeado";
     case "cargo_cancelled":
       return "Carga cancelada";
     default:

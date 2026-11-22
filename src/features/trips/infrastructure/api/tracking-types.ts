@@ -12,6 +12,7 @@ export type ApiTrackingEventType =
   | "cargo_picked_up"
   | "cargo_delivered"
   | "cargo_returned"
+  | "return_planned"
   | "cargo_cancelled";
 
 export type ApiTrackingEventCategory =

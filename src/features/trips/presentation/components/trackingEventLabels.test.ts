@@ -31,4 +31,8 @@ describe("formatTrackingEventLabel", () => {
     expect(formatTrackingEventLabel("cargo_picked_up")).toBe("Carga recogida");
     expect(formatTrackingEventLabel("cargo_delivered")).toBe("Carga entregada");
   });
+
+  it("etiqueta return_planned (fallback corto; título rico en display)", () => {
+    expect(formatTrackingEventLabel("return_planned")).toBe("Retorno planeado");
+  });
 });

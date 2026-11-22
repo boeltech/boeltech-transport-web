@@ -564,6 +564,10 @@ export const trackingCopy = {
     afterSaveNextHint: (lugar: string, when: string, next: string) =>
       `Retorno planeado a ${lugar} ${when}. Sigue a ${next}.`,
     toastSaved: "Retorno planeado",
+    /** Replan OK pero POST Bitácora falló (no revertir replan). */
+    toastBitacoraPending: "Retorno guardado; bitácora pendiente",
+    toastBitacoraPendingDescription:
+      "El replan se guardó. No se pudo registrar en Bitácora; revisa Seguimiento.",
   },
   planReturnSheet: {
     title: "Planear retorno",

@@ -28,6 +28,25 @@ import { isTripStopImmutableMidTrip } from "../trip-route/isStopImmutableMidTrip
 
 export type PlanReturnTiming = "at_end" | "before_next";
 
+/** Timing canónico domain/API (`return_planned.payload.timing`). */
+export type ReturnPlannedDomainTiming =
+  | "at_end"
+  | "before_continuing"
+  | "as_new_destination";
+
+/**
+ * UI (`at_end` | `before_next`) → enum domain.
+ * Sin entregas pendientes = Destino → `as_new_destination`.
+ */
+export function mapPlanReturnTimingToDomain(params: {
+  timing: PlanReturnTiming;
+  hasPendingDeliveries: boolean;
+}): ReturnPlannedDomainTiming {
+  if (!params.hasPendingDeliveries) return "as_new_destination";
+  if (params.timing === "before_next") return "before_continuing";
+  return "at_end";
+}
+
 export type PlanReturnDestinationSource = "pickup" | "other";
 
 export type PlanReturnDestination = {

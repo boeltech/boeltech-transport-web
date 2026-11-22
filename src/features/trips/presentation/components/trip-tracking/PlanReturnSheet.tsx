@@ -1,13 +1,16 @@
 /**
- * F4b — Sheet «Planear retorno» (~480 px, mismo shell que Finalizar en destino).
- * Guarda con stops:replan (+ patchBaseRate opcional). Sin FK de retorno (Q-R1).
+ * F4b / F4d-c — Sheet «Planear retorno» (~480 px, mismo shell que Finalizar en destino).
+ * Guarda con stops:replan (+ patchBaseRate opcional) + Bitácora `return_planned`.
+ * Sin FK de retorno (Q-R1).
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Lock, RotateCcw } from "lucide-react";
 
+import { useAuth } from "@features/auth";
 import {
   usePatchTripBaseRate,
+  useRegisterTrackingEvent,
   useReplanTripStops,
 } from "@features/trips/application";
 import type { CreateStopInput, Trip, TripCargo, TripStop } from "@features/trips/domain";
@@ -43,11 +46,14 @@ import {
   estimatePlanReturnImpact,
   hasMultiUnloadActiveCargoWithoutDelivery,
   listPendingDeliveriesForOtherCargos,
+  mapPlanReturnTimingToDomain,
   resolveCargoPickupStop,
   resolvePlanReturnTargetCargo,
+  resolveReturnStopForCargo,
   type PlanReturnDestination,
   type PlanReturnTiming,
 } from "./planReturnHelpers";
+import { createTrackingIdempotencyKey } from "./trackingIdempotency";
 import {
   TRACKING_SHEET_BODY_CLASS,
   TRACKING_SHEET_CONTENT_CLASS,
@@ -101,8 +107,11 @@ function PlanReturnSheetBody({
   onSuccess,
 }: Omit<PlanReturnSheetProps, "open">) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const replan = useReplanTripStops(trip.id);
   const patchRate = usePatchTripBaseRate(trip.id);
+  const registerEvent = useRegisterTrackingEvent();
+  const returnPreviewRef = useRef<HTMLLIElement | null>(null);
 
   const targetCargo = useMemo(
     () => resolvePlanReturnTargetCargo(cargos),
@@ -186,7 +195,16 @@ function PlanReturnSheetBody({
       : `F-${trip.invoicing.invoiceFolio}`
     : null;
 
-  const isPending = replan.isPending || patchRate.isPending;
+  const isPending =
+    replan.isPending || patchRate.isPending || registerEvent.isPending;
+
+  useEffect(() => {
+    if (!destination || !impact) return;
+    returnPreviewRef.current?.scrollIntoView({
+      block: "nearest",
+      behavior: "smooth",
+    });
+  }, [destination, timing, hasPendingDeliveries, impact]);
 
   const handleSelectPickup = () => {
     if (!pickupStop) {
@@ -212,34 +230,94 @@ function PlanReturnSheetBody({
       setDestinationError(copy.missingDestination);
       return;
     }
+    if (!targetCargo) {
+      setSubmitError(copy.missingPickup);
+      return;
+    }
     setSubmitError(null);
+    const uiTiming: PlanReturnTiming = hasPendingDeliveries
+      ? timing
+      : "at_end";
+    const domainTiming = mapPlanReturnTimingToDomain({
+      timing: uiTiming,
+      hasPendingDeliveries,
+    });
+    const whenLabel =
+      domainTiming === "before_continuing"
+        ? planCopy.bitacoraWhenBefore
+        : planCopy.bitacoraWhenAtEnd;
+    const actorName = user?.getFullName()?.trim() || "tú";
+    const deltaKm =
+      impact?.deltaKm != null && Number.isFinite(impact.deltaKm)
+        ? Math.max(0, impact.deltaKm)
+        : null;
+    const deltaLabel =
+      deltaKm != null && deltaKm > 0 ? String(deltaKm) : "0";
+
     try {
       const pending = buildPlanReturnPendingStops({
         orderedStops,
         returnDestination: destination,
-        timing: hasPendingDeliveries ? timing : "at_end",
+        timing: uiTiming,
         hasPendingDeliveries,
       });
-      await replan.mutateAsync(pending);
+      const updatedTrip = await replan.mutateAsync(pending);
       if (canAdjustRate && adjustRate) {
         const parsed = Number(rateDraft.replace(/,/g, ""));
         if (Number.isFinite(parsed) && parsed >= 0) {
           await patchRate.mutateAsync(parsed);
         }
       }
-      const whenLabel =
-        hasPendingDeliveries && timing === "before_next"
-          ? planCopy.bitacoraWhenBefore
-          : planCopy.bitacoraWhenAtEnd;
-      const delta =
-        impact?.deltaKm != null && impact.deltaKm > 0
-          ? String(impact.deltaKm)
-          : "0";
-      toast({
-        title: planCopy.toastSaved,
-        description: `${planCopy.bitacora(destination.locationName, whenLabel)} · ${planCopy.bitacoraMeta(delta, "tú")}`,
-        variant: "success",
-      });
+
+      const stopsAfter = updatedTrip.stops ?? orderedStops;
+      const returnStop = resolveReturnStopForCargo(
+        targetCargo,
+        stopsAfter,
+      );
+      let bitacoraOk = false;
+      try {
+        await registerEvent.mutateAsync({
+          tripId: trip.id,
+          event: {
+            eventType: "return_planned",
+            occurredAt: new Date().toISOString(),
+            capturedVia: "web",
+            idempotencyKey: createTrackingIdempotencyKey(),
+            ...(returnStop?.id ? { stopId: returnStop.id } : {}),
+            payload: {
+              cargo_id: targetCargo.id,
+              destination_label: destination.locationName,
+              timing: domainTiming,
+              ...(deltaKm != null
+                ? {
+                    estimated_extra_km: deltaKm,
+                    delta_km: deltaKm,
+                  }
+                : {}),
+              ...(returnStop?.id
+                ? { return_stop_id: returnStop.id }
+                : {}),
+            },
+          },
+        });
+        bitacoraOk = true;
+      } catch {
+        bitacoraOk = false;
+      }
+
+      if (bitacoraOk) {
+        toast({
+          title: planCopy.toastSaved,
+          description: `${planCopy.bitacora(destination.locationName, whenLabel)} · ${planCopy.bitacoraMeta(deltaLabel, actorName)}`,
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: planCopy.toastBitacoraPending,
+          description: planCopy.toastBitacoraPendingDescription,
+          variant: "warning",
+        });
+      }
       onOpenChange(false);
       onSuccess?.();
     } catch {
@@ -445,102 +523,11 @@ function PlanReturnSheetBody({
           </div>
         ) : null}
 
-        {impact && destination ? (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-2 rounded-lg border border-border p-3">
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {copy.impactDistance}
-                </p>
-                <p className="text-sm font-semibold tabular-nums">
-                  {impact.totalKm != null
-                    ? `${impact.totalKm.toLocaleString("es-MX")} km`
-                    : "—"}
-                </p>
-                {impact.deltaKm != null && impact.deltaKm !== 0 ? (
-                  <p className="text-[10px] text-muted-foreground">
-                    {impact.deltaKm > 0 ? "+" : ""}
-                    {impact.deltaKm.toLocaleString("es-MX")} km
-                  </p>
-                ) : null}
-              </div>
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {copy.impactArrival(destination.locationName)}
-                </p>
-                <p className="text-sm font-semibold tabular-nums">
-                  {impact.arrivalAtReturn
-                    ? formatDateTime(impact.arrivalAtReturn.toISOString())
-                    : "—"}
-                </p>
-                {impact.nextPendingPlaceLabel &&
-                impact.nextPendingArrival &&
-                timing === "at_end" ? (
-                  <p className="text-[10px] text-muted-foreground">
-                    {impact.nextPendingPlaceLabel}{" "}
-                    {formatDateTime(impact.nextPendingArrival.toISOString())}
-                  </p>
-                ) : null}
-              </div>
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {copy.impactStops}
-                </p>
-                <p className="text-sm font-semibold tabular-nums">
-                  {impact.nextStopCount}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {copy.impactStopsBefore(impact.previousStopCount)}
-                </p>
-              </div>
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              {copy.impactEstimatedHint}
-            </p>
-
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">{copy.routePreviewTitle}</p>
-              <ol className="space-y-2">
-                {impact.previewStops.map((stop, index) => (
-                  <li
-                    key={stop.key}
-                    className={cn(
-                      "flex gap-2 rounded-md px-2 py-1.5 text-sm",
-                      stop.isReturn && "bg-primary/5 ring-1 ring-primary/30",
-                    )}
-                  >
-                    <span className="w-4 shrink-0 text-xs text-muted-foreground tabular-nums">
-                      {index + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-medium">{stop.placeLabel}</span>
-                        {stop.isReturn ? (
-                          <Badge variant="info" tone="soft" className="text-[10px]">
-                            {copy.stopReturnLabel}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      {stop.isReturn ? (
-                        <p className="text-xs text-muted-foreground">
-                          {copy.stopReceivesShort(targetCargo.description)}
-                        </p>
-                      ) : null}
-                    </div>
-                    {stop.estimatedArrival ? (
-                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                        {formatTime(stop.estimatedArrival.toISOString())}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        ) : null}
-
         {canAdjustRate ? (
-          <div className="space-y-2 rounded-lg border border-border p-3">
+          <div
+            className="space-y-2 rounded-lg border border-border p-3"
+            data-testid="plan-return-adjust-rate"
+          >
             <label className="flex items-start gap-2 text-sm">
               <Checkbox
                 checked={adjustRate}
@@ -575,6 +562,110 @@ function PlanReturnSheetBody({
                 </p>
               </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {impact && destination ? (
+          <div className="space-y-2">
+            <div className="grid grid-cols-3 gap-2 rounded-lg border border-border p-2">
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {copy.impactDistance}
+                </p>
+                <p className="text-xs font-semibold tabular-nums">
+                  {impact.totalKm != null
+                    ? `${impact.totalKm.toLocaleString("es-MX")} km`
+                    : "—"}
+                </p>
+                {impact.deltaKm != null && impact.deltaKm !== 0 ? (
+                  <p className="text-[10px] text-muted-foreground">
+                    {impact.deltaKm > 0 ? "+" : ""}
+                    {impact.deltaKm.toLocaleString("es-MX")} km
+                  </p>
+                ) : null}
+              </div>
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {copy.impactArrival(destination.locationName)}
+                </p>
+                <p className="text-xs font-semibold tabular-nums">
+                  {impact.arrivalAtReturn
+                    ? formatDateTime(impact.arrivalAtReturn.toISOString())
+                    : "—"}
+                </p>
+                {impact.nextPendingPlaceLabel &&
+                impact.nextPendingArrival &&
+                timing === "at_end" ? (
+                  <p className="text-[10px] text-muted-foreground">
+                    {impact.nextPendingPlaceLabel}{" "}
+                    {formatDateTime(impact.nextPendingArrival.toISOString())}
+                  </p>
+                ) : null}
+              </div>
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {copy.impactStops}
+                </p>
+                <p className="text-xs font-semibold tabular-nums">
+                  {impact.nextStopCount}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {copy.impactStopsBefore(impact.previousStopCount)}
+                </p>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {copy.impactEstimatedHint}
+            </p>
+
+            <div className="space-y-1.5">
+              <p className="text-sm font-semibold">{copy.routePreviewTitle}</p>
+              <ol className="space-y-1">
+                {impact.previewStops.map((stop, index) => (
+                  <li
+                    key={stop.key}
+                    ref={stop.isReturn ? returnPreviewRef : undefined}
+                    data-testid={
+                      stop.isReturn ? "plan-return-preview-return-row" : undefined
+                    }
+                    className={cn(
+                      "flex gap-2 rounded-md px-1.5 py-1 text-xs",
+                      stop.isReturn && "bg-primary/5 ring-1 ring-primary/30",
+                    )}
+                  >
+                    <span className="w-4 shrink-0 text-[10px] text-muted-foreground tabular-nums">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="font-medium leading-snug">
+                          {stop.placeLabel}
+                        </span>
+                        {stop.isReturn ? (
+                          <Badge
+                            variant="info"
+                            tone="soft"
+                            className="text-[10px]"
+                          >
+                            {copy.stopReturnLabel}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {stop.isReturn ? (
+                        <p className="text-[10px] leading-snug text-muted-foreground">
+                          {copy.stopReceivesShort(targetCargo.description)}
+                        </p>
+                      ) : null}
+                    </div>
+                    {stop.estimatedArrival ? (
+                      <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                        {formatTime(stop.estimatedArrival.toISOString())}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            </div>
           </div>
         ) : null}
 

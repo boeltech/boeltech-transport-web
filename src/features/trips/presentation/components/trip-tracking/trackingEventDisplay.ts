@@ -132,3 +132,64 @@ export function getFalseTripDeclaredTimelineMeta(
   }
   return lines;
 }
+
+function returnPlannedWhenLabel(timing: string): string {
+  if (timing === "before_continuing") {
+    return trackingCopy.planReturn.bitacoraWhenBefore;
+  }
+  return trackingCopy.planReturn.bitacoraWhenAtEnd;
+}
+
+/**
+ * Título Bitácora R10: `Retorno planeado · {lugar} {cuándo}`.
+ * Fallback a etiqueta corta si falta payload.
+ */
+export function getReturnPlannedTimelineTitle(
+  event: Pick<TrackingEvent, "eventType" | "payload">,
+): string | null {
+  if (event.eventType !== "return_planned") return null;
+  const place =
+    readPayloadString(event.payload, "destination_label") ??
+    readPayloadString(event.payload, "place_label");
+  if (!place) return trackingCopy.planReturn.toastSaved;
+  const timingRaw = event.payload.timing;
+  const timing = typeof timingRaw === "string" ? timingRaw : "at_end";
+  return trackingCopy.planReturn.bitacora(place, returnPlannedWhenLabel(timing));
+}
+
+/**
+ * Meta Bitácora R10: `+{n} km · {nombreUsuario}` (parcial si falta un dato).
+ */
+export function getReturnPlannedTimelineMeta(
+  event: Pick<
+    TrackingEvent,
+    "eventType" | "payload" | "capturedBy" | "capturedByName"
+  >,
+): string[] {
+  if (event.eventType !== "return_planned") return [];
+
+  const kmRaw =
+    event.payload.estimated_extra_km ?? event.payload.delta_km ?? null;
+  const km =
+    typeof kmRaw === "number" && Number.isFinite(kmRaw) && kmRaw >= 0
+      ? kmRaw
+      : null;
+  const actor = displayTrackingActor(event.capturedByName, event.capturedBy);
+
+  if (km != null && actor) {
+    return [
+      trackingCopy.planReturn.bitacoraMeta(
+        km.toLocaleString("es-MX"),
+        actor,
+      ),
+    ];
+  }
+  const lines: string[] = [];
+  if (km != null) {
+    lines.push(`+${km.toLocaleString("es-MX")} km`);
+  }
+  if (actor) {
+    lines.push(actor);
+  }
+  return lines;
+}
