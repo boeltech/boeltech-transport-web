@@ -32,6 +32,9 @@ describe("tripsListCopy", () => {
     );
     expect(tripsListCopy.clientOrientation.body).toMatch(/envíos/i);
     expect(tripsListCopy.clientOrientation.body).toMatch(/Mis facturas/i);
+    expect(tripsListCopy.clientOrientation.invoicesLink).toBe(
+      "Ir a Mis facturas",
+    );
     expect(tripsListCopy.clientOrientation.body).not.toMatch(
       /Iniciar|Completar|Reservar|falso|Dinero del viaje|Costos/i,
     );

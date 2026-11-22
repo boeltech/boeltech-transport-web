@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Package } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
@@ -54,6 +55,9 @@ export function ClientPortalOrientationAlert({
       <AlertDescription>
         <p>{copy.body}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/finance/invoices">{copy.invoicesLink}</Link>
+          </Button>
           <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
             {copy.dismiss}
           </Button>

@@ -270,6 +270,20 @@ describe("DashboardPage — F1 encabezado I12", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("cliente: orientación con puente a Mis envíos y Mis facturas", () => {
+    renderDashboard("client");
+    expect(
+      screen.getByRole("link", {
+        name: dashboardCopy.page.tripsBridgeClientLink,
+      }),
+    ).toHaveAttribute("href", "/trips");
+    expect(
+      screen.getByRole("link", {
+        name: dashboardCopy.page.invoicesBridgeClientLink,
+      }),
+    ).toHaveAttribute("href", "/finance/invoices");
+  });
+
   it("gerente ve Viajes de hoy y Disponibles ahora", () => {
     renderDashboard("manager");
     expect(

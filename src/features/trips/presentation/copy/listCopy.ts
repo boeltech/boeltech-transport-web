@@ -233,6 +233,8 @@ export const tripsListCopy = {
   clientOrientation: {
     title: "Tus envíos y tus facturas",
     body: "Aquí ves el estado de tus envíos. Las facturas emitidas están en Mis facturas.",
+    /** Puente a `/finance/invoices` (léxico menú portal = Mis facturas). */
+    invoicesLink: "Ir a Mis facturas",
     dismiss: "Entendido",
   },
 

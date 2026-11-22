@@ -47,6 +47,25 @@ describe("HubPageShell", () => {
     expect(link).toHaveAttribute("href", "/finance/settlements/new");
   });
 
+  it("renders orientation additionalLinks after the primary link", () => {
+    renderHub({
+      orientation: {
+        text: "Consulta envíos y facturas.",
+        link: { label: "Ir a Mis envíos", href: "/trips" },
+        additionalLinks: [
+          { label: "Ir a Mis facturas", href: "/finance/invoices" },
+        ],
+      },
+    });
+
+    expect(
+      screen.getByRole("link", { name: "Ir a Mis envíos" }),
+    ).toHaveAttribute("href", "/trips");
+    expect(
+      screen.getByRole("link", { name: "Ir a Mis facturas" }),
+    ).toHaveAttribute("href", "/finance/invoices");
+  });
+
   it("renders nav tabs as links with active tab", () => {
     renderHub({
       activeNavId: "a",

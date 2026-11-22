@@ -287,6 +287,13 @@ function DashboardPage() {
           label: dashboardCopy.page.tripsBridgeClientLink,
           href: "/trips",
         },
+        // H-U11-N02: segundo puente a Mis facturas (HubOrientation.additionalLinks).
+        additionalLinks: [
+          {
+            label: dashboardCopy.page.invoicesBridgeClientLink,
+            href: "/finance/invoices",
+          },
+        ],
       }
     : isDriverPortal
       ? {

@@ -59,6 +59,8 @@ export interface HubNavItem {
 export interface HubOrientation {
   text: string;
   link?: { label: string; href: string };
+  /** Puentes extra tras el link primario (p. ej. portal cliente → Mis facturas). */
+  additionalLinks?: Array<{ label: string; href: string }>;
 }
 
 /** Puente operativo al pie del hub (mismo patrón que Workbench relatedConfig). */
@@ -420,6 +422,17 @@ export const HubPageShell = memo(function HubPageShell({
               </Link>
             </>
           ) : null}
+          {orientation.additionalLinks?.map((extra) => (
+            <span key={extra.href}>
+              {" · "}
+              <Link
+                to={extra.href}
+                className="text-primary hover:underline"
+              >
+                {extra.label}
+              </Link>
+            </span>
+          ))}
         </p>
       ) : null}
 

@@ -205,6 +205,30 @@ const U10_MONITOREO_ARTICLES: HelpArticle[] = [
   }),
 ];
 
+/** U11 Portales: primario por ruta×rol (ola 7 D-C; H-U11-N01 `/trips/:id` client). */
+const U11_PORTALES_ARTICLES: HelpArticle[] = [
+  article({
+    id: "portal-cliente",
+    sortOrder: 170,
+    group: "portales",
+    roles: ["client"],
+    screens: [
+      "/dashboard",
+      "/trips",
+      "/trips/:id",
+      "/finance/invoices",
+      "/invoices/:id",
+    ],
+  }),
+  article({
+    id: "portal-conductor",
+    sortOrder: 180,
+    group: "portales",
+    roles: ["driver"],
+    screens: ["/dashboard", "/trips", "/trips/:id"],
+  }),
+];
+
 /** U08 Finanzas: primario por ruta (ola 4 D; Tendencia 145 ante Margen 150). */
 const U08_ARTICLES: HelpArticle[] = [
   article({
@@ -584,6 +608,62 @@ describe("selectPrimaryHelpArticle", () => {
             primaryForPath(path, U10_MONITOREO_ARTICLES, role),
           ).toBeNull();
         }
+      }
+    });
+  });
+
+  describe("U11 portales · ola7 D-C primario por ruta×rol", () => {
+    const tripId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+    const invoiceId = "b2c3d4e5-f6a7-8901-bcde-f12345678901";
+
+    it("client · /dashboard · /trips · /trips/:id → portal-cliente (H-U11-N01)", () => {
+      expect(
+        primaryForPath("/dashboard", U11_PORTALES_ARTICLES, "client"),
+      ).toBe("portal-cliente");
+      expect(primaryForPath("/trips", U11_PORTALES_ARTICLES, "client")).toBe(
+        "portal-cliente",
+      );
+      expect(
+        primaryForPath(`/trips/${tripId}`, U11_PORTALES_ARTICLES, "client"),
+      ).toBe("portal-cliente");
+    });
+
+    it("client · /finance/invoices · /invoices/:id → portal-cliente", () => {
+      expect(
+        primaryForPath("/finance/invoices", U11_PORTALES_ARTICLES, "client"),
+      ).toBe("portal-cliente");
+      expect(
+        primaryForPath(
+          `/invoices/${invoiceId}`,
+          U11_PORTALES_ARTICLES,
+          "client",
+        ),
+      ).toBe("portal-cliente");
+    });
+
+    it("driver · /dashboard · /trips · /trips/:id → portal-conductor", () => {
+      expect(
+        primaryForPath("/dashboard", U11_PORTALES_ARTICLES, "driver"),
+      ).toBe("portal-conductor");
+      expect(primaryForPath("/trips", U11_PORTALES_ARTICLES, "driver")).toBe(
+        "portal-conductor",
+      );
+      expect(
+        primaryForPath(`/trips/${tripId}`, U11_PORTALES_ARTICLES, "driver"),
+      ).toBe("portal-conductor");
+    });
+
+    it("driver · facturas → null; staff × rutas portal → null", () => {
+      expect(
+        primaryForPath("/finance/invoices", U11_PORTALES_ARTICLES, "driver"),
+      ).toBeNull();
+      for (const role of ["admin", "manager", "dispatcher"] as const) {
+        expect(
+          primaryForPath("/dashboard", U11_PORTALES_ARTICLES, role),
+        ).toBeNull();
+        expect(
+          primaryForPath(`/trips/${tripId}`, U11_PORTALES_ARTICLES, role),
+        ).toBeNull();
       }
     });
   });
