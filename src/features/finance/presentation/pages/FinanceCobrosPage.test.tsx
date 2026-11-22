@@ -7,7 +7,6 @@ import type {
   FinanceOpenPpdSummary,
   FinanceRepExceptionItem,
 } from "@features/finance/domain";
-import { ApiError } from "@shared/api/interceptors/error-handler";
 import { renderWithTheme } from "@/test/renderWithTheme";
 import { FinanceCobrosPage } from "./FinanceCobrosPage";
 import {
@@ -445,7 +444,7 @@ describe("FinanceCobrosPage", () => {
     ).toHaveAttribute("href", "/invoices/inv-1#invoice-payments");
   });
 
-  it("dismisses the today tray and clears sessionStorage", async () => {
+  it("dismisses the today tray and clears with_invoice channel storage", async () => {
     const user = userEvent.setup();
     sessionStorage.setItem(
       COBROS_TODAY_TRAY_STORAGE_KEY,
@@ -472,7 +471,8 @@ describe("FinanceCobrosPage", () => {
     );
 
     expect(screen.queryByText("Cobros de hoy")).not.toBeInTheDocument();
-    expect(sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY)).toBeNull();
+    // Canal with_invoice vacío → writeCobrosTodayTray([]) (no removeItem global).
+    expect(sessionStorage.getItem(COBROS_TODAY_TRAY_STORAGE_KEY)).toBe("[]");
   });
 
   it("shows Ver excepciones in the today tray when a cobro needs action", async () => {

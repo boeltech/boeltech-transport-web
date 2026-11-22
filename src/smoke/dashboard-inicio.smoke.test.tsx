@@ -166,7 +166,7 @@ function grantRole(role: UserRole) {
 
 function baseLayoutApi(role: UserRole) {
   const showFinance = FINANCE_ROLES.has(role);
-  const labels = [dashboardCopy.customize.fixedZones.attention];
+  const labels: string[] = [dashboardCopy.customize.fixedZones.attention];
   if (role !== "accountant" && role !== "client" && role !== "driver") {
     labels.push(
       dashboardCopy.customize.fixedZones.opsDay,

@@ -41,7 +41,7 @@ describe("formatTripListDeparture / arrival", () => {
 
 describe("resolveTripListReserveGap", () => {
   const base = {
-    status: TripStatus.DRAFT as const,
+    status: TripStatus.DRAFT,
     vehicle: { id: "v1", unitNumber: "U-1", licensePlate: "X" },
     driver: { id: "d1", fullName: "Ana" },
     originCity: "Monterrey",

@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 import { CARGO_DELIVERY_STOP_REQUIRED_CODE } from "@boeltech/cfdi-domain";
 import { ApiError } from "@shared/api/interceptors/error-handler";
 
-import type { TripCargo, TripStop } from "@features/trips/domain";
+import type { TripStop } from "@features/trips/domain";
 
 import {
   cargoRequiresExplicitDeliveryAssignment,
   countTripUnloadStops,
+  type DeliveryAssignmentCargoLike,
   MULTI_UNLOAD_DELIVERY_GATE_MESSAGE,
   multiUnloadDeliveryBlockReason,
   resolveCargoDeliveryStopApiErrorMessage,
@@ -18,9 +19,7 @@ function stop(types: string[]): Pick<TripStop, "stopType"> {
   return { stopType: types as TripStop["stopType"] };
 }
 
-function cargo(
-  partial: Partial<TripCargo> & Pick<TripCargo, "status" | "movements">,
-): Pick<TripCargo, "status" | "movements"> {
+function cargo(partial: DeliveryAssignmentCargoLike): DeliveryAssignmentCargoLike {
   return partial;
 }
 

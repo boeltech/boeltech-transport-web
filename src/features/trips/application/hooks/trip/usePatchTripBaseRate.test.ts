@@ -51,7 +51,7 @@ describe("usePatchTripBaseRate", () => {
   it("invalidates Análisis keys and schedules MV refresh after base rate patch (Q03)", async () => {
     const mutationConfig = usePatchTripBaseRate(tripId) as unknown as {
       onSuccess: (
-        data: { id: string; baseRate: number },
+        data: { id: string; baseRate: number; clientId?: string | null },
         variables: number,
         onMutateResult: unknown,
         context: unknown,

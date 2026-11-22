@@ -144,7 +144,16 @@ describe("computeTripReadiness", () => {
         cargos: [
           {
             status: "pending",
-            movements: [{ stopIndex: 0, movementType: "pickup" }],
+            movements: [
+              {
+                stopIndex: 0,
+                movementType: "pickup",
+                weight: null,
+                units: null,
+                completedAt: null,
+                notes: null,
+              },
+            ],
           },
         ],
       },
@@ -158,7 +167,16 @@ describe("computeTripReadiness", () => {
       cargos: [
         {
           status: "pending",
-          movements: [{ stopIndex: 0, movementType: "pickup" }],
+          movements: [
+            {
+              stopIndex: 0,
+              movementType: "pickup",
+              weight: null,
+              units: null,
+              completedAt: null,
+              notes: null,
+            },
+          ],
         },
       ],
     });

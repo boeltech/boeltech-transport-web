@@ -8,7 +8,6 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import { TripStatus } from "@features/trips/domain/enums";
 import type { Trip } from "@features/trips/domain";
 import { cfdiEmissionIntentCopy } from "@features/trips/presentation/copy/cfdiEmissionIntentCopy";
 import {

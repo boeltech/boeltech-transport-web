@@ -27,12 +27,12 @@ vi.mock("@features/invoicing/application", () => ({
   },
 }));
 
-const useTripLinkedInvoicesMock = vi.fn(() => ({
+const useTripLinkedInvoicesMock = vi.fn((..._args: unknown[]) => ({
   data: [] as unknown[],
   isLoading: false,
 }));
 
-const useTripTimelineMock = vi.fn(() => ({
+const useTripTimelineMock = vi.fn((..._args: unknown[]) => ({
   data: undefined as
     | { events: Array<{
         eventType: string;
@@ -45,7 +45,7 @@ const useTripTimelineMock = vi.fn(() => ({
   isLoading: false,
 }));
 
-const useTripExpensesSummaryMock = vi.fn(() => ({
+const useTripExpensesSummaryMock = vi.fn((..._args: unknown[]) => ({
   data: undefined as { total: number } | undefined,
   isLoading: false,
 }));

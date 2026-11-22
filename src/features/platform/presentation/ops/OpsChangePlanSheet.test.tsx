@@ -66,6 +66,8 @@ const tenant: PlatformTenantListItem = {
   healthScore: null,
   lifecycleStage: "active",
   healthAsOf: null,
+  activeModuleCount: 0,
+  activeModuleCodes: [],
 };
 
 describe("OpsChangePlanSheet", () => {

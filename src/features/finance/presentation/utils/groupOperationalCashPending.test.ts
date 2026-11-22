@@ -24,6 +24,7 @@ function trip(
       pendingAmount: 1000,
       receiptCount: 0,
     },
+    lastActiveReceipt: null,
     ...partial,
   };
 }

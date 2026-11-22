@@ -178,28 +178,28 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
                 stopType: initialData?.stopType ??
                   (isOrigin ? ["origin", "pickup"] : ["destination", "delivery"]),
                 locationName:
-                  queuedItem?.locationName ||
-                  queuedValue?.locationName ||
-                  initialData?.locationName ||
+                  queuedItem?.locationName ??
+                  queuedValue?.locationName ??
+                  initialData?.locationName ??
                   "Patio norte",
                 cityName: isOrigin ? "Guadalajara" : "Monterrey",
                 satCountryCode: "MEX",
                 satStateCode:
-                  queuedItem?.satStateCode ||
+                  queuedItem?.satStateCode ??
                   (isOrigin ? "JAL" : "NLE"),
                 satMunicipalityCode:
-                  queuedItem?.satMunicipalityCode || "039",
+                  queuedItem?.satMunicipalityCode ?? "039",
                 postalCode:
-                  queuedItem?.postalCode ||
-                  queuedValue?.postalCode ||
+                  queuedItem?.postalCode ??
+                  queuedValue?.postalCode ??
                   (isOrigin ? "44100" : "64000"),
                 street:
-                  queuedItem?.street ||
-                  queuedValue?.street ||
+                  queuedItem?.street ??
+                  queuedValue?.street ??
                   "Calle Manual",
                 exteriorNumber:
-                  queuedItem?.exteriorNumber ||
-                  queuedValue?.exteriorNumber ||
+                  queuedItem?.exteriorNumber ??
+                  queuedValue?.exteriorNumber ??
                   "10",
                 latitude:
                   queuedItem?.latitude ??
@@ -215,15 +215,24 @@ vi.mock("./TripStopSearchConfirmSheet", () => ({
                   : {}),
                 ...(queuedItem
                   ? {
-                      locationName: queuedItem.locationName,
+                      locationName:
+                        queuedItem.locationName ?? "Patio norte",
                       sourceAddressId: queuedItem.id,
-                      street: queuedItem.street,
-                      exteriorNumber: queuedItem.exteriorNumber,
-                      postalCode: queuedItem.postalCode,
-                      satStateCode: queuedItem.satStateCode,
-                      satMunicipalityCode: queuedItem.satMunicipalityCode,
-                      latitude: queuedItem.latitude,
-                      longitude: queuedItem.longitude,
+                      street: queuedItem.street ?? "Calle Manual",
+                      exteriorNumber: queuedItem.exteriorNumber ?? "10",
+                      postalCode:
+                        queuedItem.postalCode ??
+                        (isOrigin ? "44100" : "64000"),
+                      satStateCode:
+                        queuedItem.satStateCode ??
+                        (isOrigin ? "JAL" : "NLE"),
+                      satMunicipalityCode:
+                        queuedItem.satMunicipalityCode ?? "039",
+                      latitude:
+                        queuedItem.latitude ?? (isOrigin ? 20.67 : 25.67),
+                      longitude:
+                        queuedItem.longitude ??
+                        (isOrigin ? -103.35 : -100.32),
                       rfcRemitenteDestinatario:
                         queuedItem.remitenteRfc ??
                         queuedItem.destinatarioRfc ??

@@ -15,7 +15,7 @@ const { mockUseAuth, mockCanReadTrips, mockLayoutWidgets, mockHasPermission } =
   vi.hoisted(() => ({
     mockUseAuth: vi.fn(),
     mockCanReadTrips: vi.fn(() => true),
-    mockHasPermission: vi.fn(() => false),
+    mockHasPermission: vi.fn((_mod?: string, _action?: string) => false),
     mockLayoutWidgets: vi.fn(
       (): { customizable: WidgetPrefStub[]; visible: WidgetPrefStub[] } => ({
         customizable: [],
@@ -177,7 +177,7 @@ describe("DashboardPage — F1 encabezado I12", () => {
 
   it("dispatcher CTA Nuevo viaje cuando puede crear", () => {
     mockHasPermission.mockImplementation(
-      (mod: string, action: string) =>
+      (mod?: string, action?: string) =>
         mod === "trips" && action === "create",
     );
     mockLayoutWidgets.mockReturnValue({
@@ -198,7 +198,7 @@ describe("DashboardPage — F1 encabezado I12", () => {
   it("job CTA pasa state.from y fromLabel (H-U01-N02)", async () => {
     const user = userEvent.setup();
     mockHasPermission.mockImplementation(
-      (mod: string, action: string) =>
+      (mod?: string, action?: string) =>
         mod === "trips" && action === "create",
     );
     mockLayoutWidgets.mockReturnValue({

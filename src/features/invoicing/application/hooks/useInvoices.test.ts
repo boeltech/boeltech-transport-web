@@ -222,7 +222,7 @@ describe("useUpdateInvoice cache invalidation", () => {
     };
 
     await mutationConfig.onSuccess(
-      { id: "inv-upd-empty", trips: [] } as Invoice,
+      { id: "inv-upd-empty", trips: [] } as unknown as Invoice,
       { id: "inv-upd-empty", payload: {} },
       {},
       {},
