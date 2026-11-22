@@ -619,6 +619,79 @@ describe("tripRouteDetailHelpers", () => {
     expect(withOverlay[1]?.roleLabelOverride).toBeNull();
   });
 
+  it("F4f / CA-RR02: Retorno overlay con return stop completed", () => {
+    const origin = stop({
+      id: "stop-origin",
+      sequenceOrder: 1,
+      stopType: [StopType.ORIGIN, StopType.PICKUP],
+      status: StopStatus.COMPLETED,
+      locationName: "CEDIS Tec",
+      city: "Querétaro",
+      latitude: 20.59,
+      longitude: -100.39,
+      sourceAddressId: "addr-tec",
+    });
+    const operatedDestination = stop({
+      id: "stop-antea",
+      sequenceOrder: 2,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      status: StopStatus.COMPLETED,
+      locationName: "Antea",
+      city: "Querétaro",
+      latitude: 20.67,
+      longitude: -100.43,
+    });
+    const returnCompleted = stop({
+      id: "stop-return",
+      sequenceOrder: 3,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      status: StopStatus.COMPLETED,
+      locationName: "CEDIS Tec",
+      city: "Querétaro",
+      latitude: 20.59,
+      longitude: -100.39,
+      sourceAddressId: "addr-tec",
+    });
+    const ordered = [origin, operatedDestination, returnCompleted];
+    const rows = buildRouteMasterRowsFromOrdered({ ordered });
+    expect(rows.map((row) => row.category)).toEqual([
+      "origin",
+      "waypoint",
+      "destination",
+    ]);
+
+    const returnedCargo = {
+      id: "cargo-returned",
+      status: CargoStatus.RETURNED,
+      movements: [
+        {
+          stopId: "stop-origin",
+          stopIndex: 0,
+          movementType: "pickup" as const,
+          weight: null,
+          units: null,
+          completedAt: new Date("2026-11-22T10:00:00.000Z"),
+          notes: null,
+        },
+      ],
+    } as TripCargo;
+
+    const returnLabelMap = resolveReturnStopLabelMap([returnedCargo], ordered);
+    expect(returnLabelMap.has("stop-return")).toBe(true);
+
+    const withOverlay = rows.map((row) => ({
+      ...row,
+      roleLabelOverride:
+        row.stop != null && returnLabelMap.has(row.stop.id)
+          ? trackingCopy.planReturnSheet.stopReturnLabel
+          : null,
+    }));
+    expect(withOverlay[2]?.roleLabelOverride).toBe(
+      trackingCopy.planReturnSheet.stopReturnLabel,
+    );
+    expect(withOverlay[1]?.roleLabelOverride).toBeNull();
+  });
+
   it("F4e: empty ordered keeps origin/destination draft slots (canvas vacío)", () => {
     const rows = buildRouteMasterRowsFromOrdered({
       ordered: [],

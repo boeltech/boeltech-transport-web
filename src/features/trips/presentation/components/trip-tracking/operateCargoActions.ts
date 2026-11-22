@@ -22,7 +22,7 @@ import {
   type StopCargoLink,
 } from "../../utils/stopCargoCorrelation";
 import { canOperateCargoAtStop } from "../../utils/trackingCargoGating";
-import { resolveReturnStopLabelMap } from "./planReturnHelpers";
+import { resolveReturnStopVisitMap } from "./planReturnHelpers";
 import { trackingCopy } from "./trackingCopy";
 
 export type OperatePendingCargoAction = {
@@ -31,7 +31,10 @@ export type OperatePendingCargoAction = {
   action: Extract<CargoManualAction, "pickup" | "deliver">;
 };
 
-export type ReturnStopLabelMap = ReturnType<typeof resolveReturnStopLabelMap>;
+/** Mapa visita R7 para gate F4c (`pending` | `in_progress`). */
+export type ReturnStopVisitMap = ReturnType<typeof resolveReturnStopVisitMap>;
+/** Alias de barrel: mismo shape que visit map (CTAs no usan label ampliado). */
+export type ReturnStopLabelMap = ReturnStopVisitMap;
 
 /**
  * CTAs Entregar/Devolver/Cancelar/Recoger por link carga↔parada.
@@ -39,18 +42,19 @@ export type ReturnStopLabelMap = ReturnType<typeof resolveReturnStopLabelMap>;
  * F4c / DOM ACEPTO: en parada inferida R7, la carga `returned` que «recibe de
  * vuelta» → cero CTAs. Otras `in_transit` en la misma R7 → descarga normal.
  * Unload no-R7 intacto. No inventa «Recibir» ni `returned→delivered`.
+ * Gate R7 = visit map (`pending` | `in_progress`), no label ampliado.
  */
 export function getCargoActionsForStopLink(
   link: StopCargoLink,
   tripInProgress: boolean,
   stop: TripStop,
   options?: {
-    returnLabelMap?: ReturnStopLabelMap;
+    returnVisitMap?: ReturnStopVisitMap;
   },
 ): CargoManualAction[] {
   if (!tripInProgress) return [];
 
-  const returnMeta = options?.returnLabelMap?.get(stop.id);
+  const returnMeta = options?.returnVisitMap?.get(stop.id);
   if (
     returnMeta != null &&
     returnMeta.cargo.id === link.cargo.id &&
@@ -93,14 +97,14 @@ export function listOperatePendingCargoActions(
   if (tripStatus !== TripStatus.IN_PROGRESS) return [];
   if (!canOperateCargoAtStop(stop, tripStatus)) return [];
 
-  const returnLabelMap = resolveReturnStopLabelMap(cargos, orderedStops);
+  const returnVisitMap = resolveReturnStopVisitMap(cargos, orderedStops);
   const links = getStopCargoLinks(stop, cargos, orderedStops);
   const items: OperatePendingCargoAction[] = [];
 
   for (const link of links) {
     if (link.movement.completedAt != null) continue;
     const available = getCargoActionsForStopLink(link, true, stop, {
-      returnLabelMap,
+      returnVisitMap,
     });
     if (link.movementType === "pickup" && available.includes("pickup")) {
       items.push({

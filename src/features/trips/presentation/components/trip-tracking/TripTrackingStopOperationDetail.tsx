@@ -34,7 +34,7 @@ import {
 import { isCargoHazmat } from "../trip-cargos/tripCargoDetailHelpers";
 import { CargoActionInline } from "./CargoActionInline";
 import { getCargoActionsForStopLink } from "./operateCargoActions";
-import { resolveReturnStopLabelMap } from "./planReturnHelpers";
+import { resolveReturnStopVisitMap } from "./planReturnHelpers";
 import { TrackingEvidenceActions } from "./TrackingEvidenceActions";
 import type { TrackingItineraryRow } from "./trackingOperationalHelpers";
 import {
@@ -92,7 +92,7 @@ export function TripTrackingStopOperationDetail({
     row.stop.status as StopStatusValue | undefined,
   );
   const links = getStopCargoLinks(row.stop, cargos, orderedStops);
-  const returnLabelMap = resolveReturnStopLabelMap(cargos, orderedStops);
+  const returnVisitMap = resolveReturnStopVisitMap(cargos, orderedStops);
   const stopActive = canOperateCargoAtStop(row.stop, tripStatus);
   const cargoBlock = getCargoBlockAtStop(row.stop, cargos, orderedStops);
   const cargoActionsEnabled = tripInProgress && stopActive;
@@ -171,7 +171,7 @@ export function TripTrackingStopOperationDetail({
                 link,
                 tripInProgress,
                 row.stop,
-                { returnLabelMap },
+                { returnVisitMap },
               );
               const terminal = isCargoTerminal(link.cargo.status);
               const cargoFacts = trackingCopy.format.cargoFacts(

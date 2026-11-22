@@ -12,7 +12,7 @@ import {
 
 import { CargoActionInline } from "./CargoActionInline";
 import { getCargoActionsForStopLink } from "./operateCargoActions";
-import { resolveReturnStopLabelMap } from "./planReturnHelpers";
+import { resolveReturnStopVisitMap } from "./planReturnHelpers";
 import { StopActionInline } from "./StopActionInline";
 import {
   CARGO_TRANSITION_COPY,
@@ -483,7 +483,7 @@ describe("F4c CTAs parada R7 (trackingRedesign)", () => {
       ],
     });
     const ordered = [origin, returnAtStop];
-    const map = resolveReturnStopLabelMap([returned, companion], ordered);
+    const map = resolveReturnStopVisitMap([returned, companion], ordered);
     const returnedLink: StopCargoLink = {
       cargo: returned,
       movementType: "delivery",
@@ -496,12 +496,12 @@ describe("F4c CTAs parada R7 (trackingRedesign)", () => {
     };
     expect(
       getCargoActionsForStopLink(returnedLink, true, returnAtStop, {
-        returnLabelMap: map,
+        returnVisitMap: map,
       }),
     ).toEqual([]);
     expect(
       getCargoActionsForStopLink(companionLink, true, returnAtStop, {
-        returnLabelMap: map,
+        returnVisitMap: map,
       }),
     ).toEqual(["deliver", "return", "cancel"]);
   });

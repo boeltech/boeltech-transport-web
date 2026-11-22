@@ -303,11 +303,12 @@ function stopMatchesPlace(
   return false;
 }
 
+export type ReturnStopResolveMode = "visit" | "label";
+
 /**
- * Candidata a R7: pending (planeada) o in_progress (visita activa).
- * F4c: los CTAs anidados solo aparecen en at_stop; si la inferencia excluyera
- * in_progress, el gate «cero CTAs sobre returned» no correría al llegar.
- * Completadas / salidas no aplican (ya no es recepción pendiente).
+ * Candidata a visita R7 (F4c CTAs / Sheet post-replan):
+ * pending (planeada) o in_progress (visita activa).
+ * Completadas / skipped no aplican (ya no es recepción pendiente).
  */
 function isReturnStopVisitCandidate(stop: TripStop, pickupId: string): boolean {
   if (stop.id === pickupId) return false;
@@ -316,14 +317,39 @@ function isReturnStopVisitCandidate(stop: TripStop, pickupId: string): boolean {
 }
 
 /**
- * R7 — etiqueta «Retorno» por inferencia: carga returned → pickup →
- * parada pending/in_progress cuya dirección coincide con el pickup
- * (apareo cronológico). Sin FK (Q-R1).
+ * Candidata a etiqueta R7 (rol «Retorno» durable):
+ * pending | in_progress | completed. Excluye skipped (D-RR02-2).
+ */
+function isReturnStopLabelCandidate(stop: TripStop, pickupId: string): boolean {
+  if (stop.id === pickupId) return false;
+  const status = String(stop.status);
+  return (
+    status === "pending" ||
+    status === "in_progress" ||
+    status === "completed"
+  );
+}
+
+function isReturnStopCandidate(
+  stop: TripStop,
+  pickupId: string,
+  mode: ReturnStopResolveMode,
+): boolean {
+  return mode === "label"
+    ? isReturnStopLabelCandidate(stop, pickupId)
+    : isReturnStopVisitCandidate(stop, pickupId);
+}
+
+/**
+ * R7 — inferencia: carga returned → pickup → parada candidata cuya
+ * dirección coincide con el pickup (apareo cronológico). Sin FK (Q-R1).
+ * `mode: 'visit'` (default) = F4c / Sheet; `mode: 'label'` = rol Retorno.
  */
 export function resolveReturnStopForCargo(
   cargo: TripCargo,
   orderedStops: readonly TripStop[],
   claimedStopIds: ReadonlySet<string> = new Set(),
+  mode: ReturnStopResolveMode = "visit",
 ): TripStop | null {
   if (cargo.status !== CargoStatus.RETURNED) return null;
   const pickup = resolveCargoPickupStop(cargo, orderedStops);
@@ -332,21 +358,29 @@ export function resolveReturnStopForCargo(
   const place = mapStopToReplaceStopInput(pickup);
   const candidates = orderedStops.filter(
     (s) =>
-      !claimedStopIds.has(s.id) && isReturnStopVisitCandidate(s, pickup.id),
+      !claimedStopIds.has(s.id) && isReturnStopCandidate(s, pickup.id, mode),
   );
 
   const match = candidates.find((s) => stopMatchesPlace(s, place));
   return match ?? null;
 }
 
-export function resolveReturnStopLabelMap(
+export type ReturnStopMeta = { cargo: TripCargo; placeLabel: string };
+
+function resolveReturnStopMap(
   cargos: readonly TripCargo[],
   orderedStops: readonly TripStop[],
-): Map<string, { cargo: TripCargo; placeLabel: string }> {
+  mode: ReturnStopResolveMode,
+): Map<string, ReturnStopMeta> {
   const claimed = new Set<string>();
-  const map = new Map<string, { cargo: TripCargo; placeLabel: string }>();
+  const map = new Map<string, ReturnStopMeta>();
   for (const cargo of listReturnedCargos(cargos)) {
-    const stop = resolveReturnStopForCargo(cargo, orderedStops, claimed);
+    const stop = resolveReturnStopForCargo(
+      cargo,
+      orderedStops,
+      claimed,
+      mode,
+    );
     if (!stop) continue;
     claimed.add(stop.id);
     map.set(stop.id, {
@@ -355,6 +389,22 @@ export function resolveReturnStopLabelMap(
     });
   }
   return map;
+}
+
+/** Rol «Retorno» (Ruta / Seguimiento / badge): incluye `completed`. */
+export function resolveReturnStopLabelMap(
+  cargos: readonly TripCargo[],
+  orderedStops: readonly TripStop[],
+): Map<string, ReturnStopMeta> {
+  return resolveReturnStopMap(cargos, orderedStops, "label");
+}
+
+/** Visita R7 para CTAs F4c: solo `pending` | `in_progress`. */
+export function resolveReturnStopVisitMap(
+  cargos: readonly TripCargo[],
+  orderedStops: readonly TripStop[],
+): Map<string, ReturnStopMeta> {
+  return resolveReturnStopMap(cargos, orderedStops, "visit");
 }
 
 /** True si hay al menos una parada inferida como retorno (badge «Con retorno»). */
@@ -393,6 +443,8 @@ export function resolveReturnedCargoBadge(params: {
       const stop = resolveReturnStopForCargo(
         params.cargo,
         params.orderedStops,
+        new Set(),
+        "label",
       );
       return stop ? formatRouteStopPlaceLabel(stop) : null;
     })();

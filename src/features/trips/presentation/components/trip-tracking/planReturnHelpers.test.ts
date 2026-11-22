@@ -17,6 +17,8 @@ import {
   resolvePlanReturnTargetCargo,
   resolveReturnedCargoBadge,
   resolveReturnStopForCargo,
+  resolveReturnStopLabelMap,
+  resolveReturnStopVisitMap,
   mapPlanReturnTimingToDomain,
   tripHasInferredReturnStop,
 } from "./planReturnHelpers";
@@ -338,13 +340,84 @@ describe("planReturnHelpers", () => {
       latitude: 25.67,
       longitude: -100.31,
     });
-    const found = resolveReturnStopForCargo(returnedCargo, [
-      origin,
-      saltillo,
-      torreon,
-      returnStop,
-    ]);
+    const ordered = [origin, saltillo, torreon, returnStop];
+    const found = resolveReturnStopForCargo(returnedCargo, ordered);
     expect(found?.id).toBe("return-mty");
+    expect(resolveReturnStopLabelMap([returnedCargo], ordered).has("return-mty")).toBe(
+      true,
+    );
+    expect(resolveReturnStopVisitMap([returnedCargo], ordered).has("return-mty")).toBe(
+      true,
+    );
+  });
+
+  it("F4f / CA-RR02: completed → label hit / visit miss; pending ambos", () => {
+    const returnCompleted = makeStop({
+      id: "return-mty",
+      sequenceOrder: 4,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      status: StopStatus.COMPLETED,
+      actualArrival: new Date("2026-01-01T16:00:00Z"),
+      actualDeparture: new Date("2026-01-01T17:00:00Z"),
+      locationName: "CEDIS Monterrey",
+      city: "Monterrey",
+      sourceAddressId: "addr-mty",
+      latitude: 25.67,
+      longitude: -100.31,
+    });
+    const orderedCompleted = [origin, saltillo, torreon, returnCompleted];
+    expect(
+      resolveReturnStopForCargo(
+        returnedCargo,
+        orderedCompleted,
+        new Set(),
+        "label",
+      )?.id,
+    ).toBe("return-mty");
+    expect(
+      resolveReturnStopForCargo(
+        returnedCargo,
+        orderedCompleted,
+        new Set(),
+        "visit",
+      ),
+    ).toBeNull();
+    expect(
+      resolveReturnStopLabelMap([returnedCargo], orderedCompleted).has(
+        "return-mty",
+      ),
+    ).toBe(true);
+    expect(
+      resolveReturnStopVisitMap([returnedCargo], orderedCompleted).has(
+        "return-mty",
+      ),
+    ).toBe(false);
+    expect(
+      tripHasInferredReturnStop([returnedCargo], orderedCompleted),
+    ).toBe(true);
+
+    const returnPending = makeStop({
+      id: "return-mty-pending",
+      sequenceOrder: 4,
+      stopType: [StopType.DESTINATION, StopType.DELIVERY],
+      status: StopStatus.PENDING,
+      locationName: "CEDIS Monterrey",
+      city: "Monterrey",
+      sourceAddressId: "addr-mty",
+      latitude: 25.67,
+      longitude: -100.31,
+    });
+    const orderedPending = [origin, saltillo, torreon, returnPending];
+    expect(
+      resolveReturnStopLabelMap([returnedCargo], orderedPending).has(
+        "return-mty-pending",
+      ),
+    ).toBe(true);
+    expect(
+      resolveReturnStopVisitMap([returnedCargo], orderedPending).has(
+        "return-mty-pending",
+      ),
+    ).toBe(true);
   });
 
   it("F4d-c: mapPlanReturnTimingToDomain UI → enum domain", () => {

@@ -13,7 +13,7 @@ import {
   listOperatePendingCargoActions,
   resolveOperateCargoCtaLabel,
 } from "./operateCargoActions";
-import { resolveReturnStopLabelMap } from "./planReturnHelpers";
+import { resolveReturnStopVisitMap } from "./planReturnHelpers";
 import { trackingCopy } from "./trackingCopy";
 import type { StopCargoLink } from "../../utils/stopCargoCorrelation";
 
@@ -235,7 +235,7 @@ describe("getCargoActionsForStopLink (F4c R7)", () => {
   const ordered = [origin, unload, returnStop];
 
   it("CA-R13: returned en R7 (también in_progress) → cero CTAs", () => {
-    const map = resolveReturnStopLabelMap([returnedCargo, companion], ordered);
+    const map = resolveReturnStopVisitMap([returnedCargo, companion], ordered);
     expect(map.get("return-mty")?.cargo.id).toBe("cargo-harina");
 
     const link: StopCargoLink = {
@@ -245,13 +245,13 @@ describe("getCargoActionsForStopLink (F4c R7)", () => {
     };
     expect(
       getCargoActionsForStopLink(link, true, returnStop, {
-        returnLabelMap: map,
+        returnVisitMap: map,
       }),
     ).toEqual([]);
   });
 
   it("CA-R14: in_transit compañera en R7 → Entregar·Devolver·Cancelar", () => {
-    const map = resolveReturnStopLabelMap([returnedCargo, companion], ordered);
+    const map = resolveReturnStopVisitMap([returnedCargo, companion], ordered);
     const link: StopCargoLink = {
       cargo: companion,
       movementType: "delivery",
@@ -259,7 +259,7 @@ describe("getCargoActionsForStopLink (F4c R7)", () => {
     };
     expect(
       getCargoActionsForStopLink(link, true, returnStop, {
-        returnLabelMap: map,
+        returnVisitMap: map,
       }),
     ).toEqual(["deliver", "return", "cancel"]);
   });
@@ -294,11 +294,11 @@ describe("getCargoActionsForStopLink (F4c R7)", () => {
       movementType: "delivery",
       movement: normalCargo.movements![0]!,
     };
-    const map = resolveReturnStopLabelMap([normalCargo], [origin, normalUnload]);
+    const map = resolveReturnStopVisitMap([normalCargo], [origin, normalUnload]);
     expect(map.size).toBe(0);
     expect(
       getCargoActionsForStopLink(link, true, normalUnload, {
-        returnLabelMap: map,
+        returnVisitMap: map,
       }),
     ).toEqual(["deliver", "return", "cancel"]);
   });

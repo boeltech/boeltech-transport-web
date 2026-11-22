@@ -42,6 +42,7 @@ import { PlanReturnDestinationLock } from "./PlanReturnSheet";
 import {
   resolveReturnedCargoBadge,
   resolveReturnStopLabelMap,
+  resolveReturnStopVisitMap,
   resolvePlanReturnTargetCargo,
 } from "./planReturnHelpers";
 import {
@@ -264,6 +265,7 @@ function TripTrackingStopsTimelineItem({
   const cargoActionsEnabled =
     tripInProgress && stopActive && canMutateCargo && onCargoAction != null;
   const returnLabelMap = resolveReturnStopLabelMap(cargos, orderedStops);
+  const returnVisitMap = resolveReturnStopVisitMap(cargos, orderedStops);
   const returnMeta = returnLabelMap.get(row.stop.id);
   const isDestinationStop = getRouteStopCategory(row.stop) === "destination";
   const planReturnTarget = returnReplanRequired
@@ -415,7 +417,7 @@ function TripTrackingStopsTimelineItem({
                       link,
                       tripInProgress,
                       row.stop,
-                      { returnLabelMap },
+                      { returnVisitMap },
                     );
                     const terminal = isCargoTerminal(link.cargo.status);
                     const showCargoActions =

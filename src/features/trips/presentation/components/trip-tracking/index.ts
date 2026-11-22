@@ -22,6 +22,7 @@ export {
   resolvePlanReturnTargetCargo,
   resolveReturnedCargoBadge,
   resolveReturnStopLabelMap,
+  resolveReturnStopVisitMap,
   tripHasInferredReturnStop,
 } from "./planReturnHelpers";
 export { canDeclareFalseTrip } from "./canDeclareFalseTrip";
@@ -111,6 +112,7 @@ export {
 export type {
   OperatePendingCargoAction,
   ReturnStopLabelMap,
+  ReturnStopVisitMap,
 } from "./operateCargoActions";
 export {
   TRACKING_STOP_STATUS_CONFIG,
