@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { compensationQueryKeys } from "@features/compensation/domain";
+import { settlementsQueryKeys } from "@features/settlements/domain";
 import { employeeQueryKeys } from "../../domain";
 
 const invalidateQueries = vi.fn();
@@ -36,10 +38,6 @@ vi.mock("../../infrastructure/mappers", () => ({
 
 import { useTerminateEmployee, useUpdateEmployee } from "./useEmployees";
 
-const COMPENSATION_ASSIGNMENTS_KEY = ["compensation", "assignments"];
-const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"];
-const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"];
-
 describe("useEmployees cache invalidation", () => {
   beforeEach(() => {
     useMutationMock.mockClear();
@@ -55,13 +53,13 @@ describe("useEmployees cache invalidation", () => {
     mutation.onSuccess?.({ data: { id: "emp-1" } });
 
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: COMPENSATION_ASSIGNMENTS_KEY,
+      queryKey: compensationQueryKeys.assignments(),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: SETTLEMENTS_WORKBENCH_KEY,
+      queryKey: settlementsQueryKeys.workbench(),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: SETTLEMENTS_OPERATORS_KEY,
+      queryKey: settlementsQueryKeys.operators(),
     });
   });
 
@@ -85,13 +83,13 @@ describe("useEmployees cache invalidation", () => {
       queryKey: employeeQueryKeys.availableForDriver(),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: COMPENSATION_ASSIGNMENTS_KEY,
+      queryKey: compensationQueryKeys.assignments(),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: SETTLEMENTS_WORKBENCH_KEY,
+      queryKey: settlementsQueryKeys.workbench(),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: SETTLEMENTS_OPERATORS_KEY,
+      queryKey: settlementsQueryKeys.operators(),
     });
   });
 });

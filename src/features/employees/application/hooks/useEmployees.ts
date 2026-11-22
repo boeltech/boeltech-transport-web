@@ -30,14 +30,11 @@ import type {
   EmployeeSearchParams,
 } from "../../domain/entities";
 import type { MappedPaginatedResult, MappedSingleResult } from "@shared/api";
+import { compensationQueryKeys } from "@features/compensation/domain";
+import { settlementsQueryKeys } from "@features/settlements/domain";
 import { employeeQueryKeys } from "../../domain";
 
 export { employeeQueryKeys };
-
-/** Prefijos de React Query cross-feature (evitar import circular del barrel). */
-const COMPENSATION_ASSIGNMENTS_KEY = ["compensation", "assignments"] as const;
-const SETTLEMENTS_WORKBENCH_KEY = ["settlements", "workbench"] as const;
-const SETTLEMENTS_OPERATORS_KEY = ["settlements", "operators"] as const;
 
 // ============================================================================
 // LIST HOOK
@@ -175,10 +172,16 @@ export function useUpdateEmployee(id: string) {
       // F1+F5: basic() alimenta create liquidación (salaryType, compensationFrequency)
       queryClient.invalidateQueries({ queryKey: employeeQueryKeys.basic(id) });
       // F4: salaryType/frequency afectan workbench y asignaciones vigentes
-      queryClient.invalidateQueries({ queryKey: COMPENSATION_ASSIGNMENTS_KEY });
-      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
+      queryClient.invalidateQueries({
+        queryKey: compensationQueryKeys.assignments(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: settlementsQueryKeys.workbench(),
+      });
       // F3 readiness: sueldo/CLABE/ritmo afectan Operadores (no_clabe / ready)
-      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_OPERATORS_KEY });
+      queryClient.invalidateQueries({
+        queryKey: settlementsQueryKeys.operators(),
+      });
     },
   });
 }
@@ -209,9 +212,15 @@ export function useTerminateEmployee() {
         queryKey: employeeQueryKeys.availableForDriver(),
       });
       // Paridad con update: baja afecta Operadores / workbench / asignaciones
-      queryClient.invalidateQueries({ queryKey: COMPENSATION_ASSIGNMENTS_KEY });
-      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_WORKBENCH_KEY });
-      queryClient.invalidateQueries({ queryKey: SETTLEMENTS_OPERATORS_KEY });
+      queryClient.invalidateQueries({
+        queryKey: compensationQueryKeys.assignments(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: settlementsQueryKeys.workbench(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: settlementsQueryKeys.operators(),
+      });
     },
   });
 }
