@@ -152,7 +152,7 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202609-0001").length).toBeGreaterThan(0);
     });
 
     expect(screen.getByRole("button", { name: /Autorizar/i })).toBeInTheDocument();
@@ -188,12 +188,11 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202609-0001").length).toBeGreaterThan(0);
     });
 
-    await user.click(
-      screen.getByRole("button", { name: "Volver a en autorización" }),
-    );
+    // NL2: staff detail uses crumbs; from=approval bucket → link «Pagos».
+    await user.click(screen.getByRole("link", { name: "Pagos" }));
     expect(screen.getByText("/finance/operator-payments?bucket=approval")).toBeInTheDocument();
   });
 
@@ -219,7 +218,7 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202609-0001").length).toBeGreaterThan(0);
     });
 
     expect(screen.getByText("Enviada por ti")).toBeInTheDocument();
@@ -245,7 +244,7 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202609-0001").length).toBeGreaterThan(0);
     });
 
     expect(screen.getByText("Elaboró")).toBeInTheDocument();
@@ -266,7 +265,7 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202609-0001").length).toBeGreaterThan(0);
     });
 
     expect(screen.queryByText("Ana Capataz")).not.toBeInTheDocument();
@@ -302,7 +301,7 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202609-0001").length).toBeGreaterThan(0);
     });
 
     expect(
@@ -336,7 +335,7 @@ describe("SettlementDetailPage self-approval (H9)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202609-0001").length).toBeGreaterThan(0);
     });
 
     expect(screen.queryByText("Autoaprobado")).not.toBeInTheDocument();
@@ -381,7 +380,7 @@ describe("SettlementDetailPage F6c (ADR-0085 E10)", () => {
     renderDetail();
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202609-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202609-0001").length).toBeGreaterThan(0);
     });
 
     expect(screen.getByRole("button", { name: /Autorizar/i })).toBeInTheDocument();
@@ -761,7 +760,7 @@ describe("SettlementDetailPage F4 fórmula 5 términos + Regla aplicada", () => 
     });
     renderDetail();
 
-    await screen.findByText("LIQ-202609-0001");
+    await screen.findAllByText("LIQ-202609-0001");
 
     const formula = screen.getByTestId("settlement-payment-formula");
     expect(formula).toHaveTextContent("Por viajes");

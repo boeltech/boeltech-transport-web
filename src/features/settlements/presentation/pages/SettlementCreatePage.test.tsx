@@ -247,7 +247,7 @@ describe("SettlementCreatePage Component", () => {
     });
 
     // Validar encabezado y resumen de acuerdo activo
-    expect(screen.getByText("Armar pago")).toBeInTheDocument();
+    expect(screen.getAllByText("Armar pago").length).toBeGreaterThan(0);
     expect(screen.getByText("Tarifa de pago aplicada:")).toBeInTheDocument();
     expect(screen.getByText(/^Operador estándar — /)).toBeInTheDocument();
     expect(screen.getByText(/Sueldo base semanal de \$3,500\.00/i)).toBeInTheDocument();
