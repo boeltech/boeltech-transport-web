@@ -256,9 +256,12 @@ export const shellCopy = {
     hintScheduled:
       "Origen y destino son necesarios para iniciar. Las cargas no bloquean iniciar.",
     scheduleGroup: "Para programar",
+    /** NS4 — Programado: Paradas, Flota, Kilometraje. */
+    startGroup: "Para iniciar",
     operateGroup: "Para completar",
-    operateHint: "No bloquea confirmar ni iniciar.",
-    operateHintScheduled: "Las cargas no bloquean iniciar.",
+    /** NS3 — sufijo muted (minúscula, sin punto). */
+    operateHint: "no bloquea confirmar ni iniciar",
+    operateHintScheduled: "las cargas no bloquean iniciar",
     goToTracking: "Ir a Seguimiento",
     order: "Pedido",
     fleet: "Flota",
@@ -283,11 +286,14 @@ export const shellCopy = {
     fallbackRoute: "ruta por confirmar",
   },
   /**
-   * Bloque next-step above-the-fold (D4 / F2 / F8 D15 / F9 D16–D20).
-   * Una primaria + ≤2 secundarias; readiness = «Qué falta» colapsado si next-step visible.
+   * Bloque next-step above-the-fold (D4 / F2 / F8 D15 / F9 D16–D20 · Enmienda NS).
+   * Una primaria + ≤2 secundarias; checklist de chips siempre visible en Reserva/Programado.
    */
   nextStep: {
+    /** NS8 — Programado / En ruta / Completado. */
     title: "Qué sigue",
+    /** NS8 — Reserva (draft_*). */
+    titleDraft: "Siguiente paso",
     /**
      * @deprecated F5c / D33 — usar `formatTripLateDelayChip` («Nh de retraso»).
      * Se mantiene solo por compat de imports; no renderizar como chip único.
@@ -303,6 +309,11 @@ export const shellCopy = {
     completeRouteCities: "Elegir el origen",
     completeCargo: "Completar cargas",
     confirmReserve: "Confirmar reserva",
+    /** NS7 — CTA flota (Sheet existente vía ?assignFleet=1). */
+    assignFleet: "Asignar flota",
+    titleAssignFleet: "Asigna unidad y conductor",
+    descriptionAssignFleet:
+      "Con flota asignada podrás confirmar la reserva. Llegada, tarifa y kilometraje se piden al confirmar.",
     /** HB-G2-CTA: abre StartTripSheet / sheets de parada. */
     openOperate: "Despachar…",
     goToTracking: "Ir a Seguimiento",
@@ -326,13 +337,19 @@ export const shellCopy = {
       "Elige: cobrar el desplazamiento (viaje en falso) o cancelar el viaje.",
     descriptionReturnReplan:
       "Hay mercancía devuelta. Planea el retorno antes de cerrar el viaje.",
-    /** D3: Qué falta abierto en Reserva / Programado. */
+    /**
+     * @deprecated NS2 — chips siempre visibles; no hay botón «Qué falta».
+     * Se mantiene por compat de imports / tests de copy.
+     */
     whatMissing: "Qué falta",
 
     descriptionDraftIncomplete:
       "Arma paradas y cargas en el detalle. Llegada, tarifa y kilometraje se piden al confirmar.",
     descriptionDraftReady:
       "Ruta y cargas listas. Confirma para pasar el viaje a Programado. Llegada, tarifa y kilometraje se piden al confirmar.",
+    /**
+     * @deprecated NS7 — sustituido por `descriptionAssignFleet` + acción `assign_fleet`.
+     */
     descriptionDraftReadyFleetBlocked:
       "Asigna unidad y conductor antes de confirmar. Llegada, tarifa y kilometraje se piden al confirmar.",
     descriptionScheduledCreate:
@@ -355,6 +372,12 @@ export const shellCopy = {
       `Se facturaron ${invoiced} de ${total} porciones. Sigue con las restantes o registra la parada en curso.`,
     descriptionCompletedSplitPartial: (invoiced: number, total: number) =>
       `Se facturaron ${invoiced} de ${total} porciones. Emite las restantes cuando corresponda.`,
+    /** NS9 — pie Completado. */
+    alsoPrefix: "También:",
+    expensesInReview: (count: number) =>
+      count === 1 ? "1 gasto en revisión" : `${count} gastos en revisión`,
+    lateExpensesUntil: (dateLabel: string) =>
+      `Puedes registrar gastos tardíos hasta el ${dateLabel}`,
   },
   /**
    * Sheet elección borradores N≥2 (F9b / D18′). Copy exacto PRD.

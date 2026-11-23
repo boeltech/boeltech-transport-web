@@ -485,8 +485,9 @@ export function TripDetailPage() {
   const [chromeNoteSheetOpen, setChromeNoteSheetOpen] = useState(false);
   /** F4b — Sheet Planear retorno (Seguimiento; no deep-link a Ruta). */
   const [planReturnSheetOpen, setPlanReturnSheetOpen] = useState(false);
-  /** D44 — edición local en tab Ruta (drafts / sheet parada). */
+  /** D44 — edición local en tab Ruta (drafts / sheet parada) o Sheet de carga. */
   const [routeEditing, setRouteEditing] = useState(false);
+  const [cargoEditing, setCargoEditing] = useState(false);
   useEffect(() => {
     const id = window.setInterval(() => {
       setComparisonNowMs(Date.now());
@@ -652,6 +653,7 @@ export function TripDetailPage() {
       status: displayStatus ?? trip.status,
       routeReady,
       cargoReady,
+      fleetReady: tripReadiness.fleetReady,
       draftRouteGap: routeReady
         ? null
         : resolveDraftRouteGap(trip.stops ?? []),
@@ -1518,20 +1520,58 @@ export function TripDetailPage() {
   const nextStepElevateInvoice =
     canInvoiceNextStep && !trip.requiresFiscalAttention;
 
+  const handleNextStepAssignFleet = () => {
+    setSearchParams(
+      (prev) => applyOpenAssignFleetSearchParams(prev),
+      { replace: true },
+    );
+  };
+
+  /** NS9 — pie Completado; omitir fecha si no hay `expenseWindowClosesAt`. */
+  const nextStepAlsoFooter =
+    nextStepPlan?.phase === "completed"
+      ? {
+          expensesInReviewCount: pendingExpenses,
+          lateExpensesUntilLabel:
+            expenseWindowOpen && expenseWindowClosesAt
+              ? expenseWindowClosesAt.toLocaleDateString("es-MX", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  timeZone: "America/Mexico_City",
+                })
+              : null,
+          onGoToCosts: () => {
+            setSearchParams(
+              (prev) => {
+                const next = new URLSearchParams(prev);
+                next.set("tab", "costs");
+                return next;
+              },
+              { replace: true },
+            );
+          },
+        }
+      : null;
+
   const nextStepAlerts = nextStepPlan ? (
     <TripNextStepBlock
       plan={nextStepPlan}
-      description={resolveTripNextStepDescription({
-        phase: nextStepPlan.phase,
-        fleetReady: tripReadiness?.fleetReady ?? true,
-        elevateInvoice:
-          (nextStepPlan.phase === "scheduled" ||
-            nextStepPlan.phase === "in_progress") &&
-          nextStepElevateInvoice,
-        linkedDraftCount: linkedDraftInvoiceIds.length,
-        splitLegsInvoiced: trip.invoicing.splitLegsInvoiced,
-        splitLegsTotal: trip.invoicing.splitLegsTotal,
-      })}
+      description={
+        nextStepPlan.primary.id === "assign_fleet"
+          ? shell.nextStep.descriptionAssignFleet
+          : resolveTripNextStepDescription({
+              phase: nextStepPlan.phase,
+              fleetReady: tripReadiness?.fleetReady ?? true,
+              elevateInvoice:
+                (nextStepPlan.phase === "scheduled" ||
+                  nextStepPlan.phase === "in_progress") &&
+                nextStepElevateInvoice,
+              linkedDraftCount: linkedDraftInvoiceIds.length,
+              splitLegsInvoiced: trip.invoicing.splitLegsInvoiced,
+              splitLegsTotal: trip.invoicing.splitLegsTotal,
+            })
+      }
       confirmReserveSlot={
         nextStepPlan.primary.id === "confirm_reserve"
           ? confirmReserveButton
@@ -1541,10 +1581,11 @@ export function TripDetailPage() {
       operateCtaLabel={operateCtaLabel}
       late={nextStepLate}
       lateDelayLabel={lateDelayLabel}
-      primaryDemoted={phaseOperateOpen || routeEditing}
+      primaryDemoted={phaseOperateOpen || routeEditing || cargoEditing}
       onNavigateTab={goToNextStepTab}
       onInvoice={handleNextStepInvoice}
       onOpenOperate={handleNextStepOpenOperate}
+      onAssignFleet={handleNextStepAssignFleet}
       onOpenDraft={handleNextStepOpenDraft}
       onViewInvoices={handleNextStepViewInvoices}
       onRegisterNote={handleNextStepRegisterNote}
@@ -1569,6 +1610,7 @@ export function TripDetailPage() {
           { replace: true },
         );
       }}
+      alsoFooter={nextStepAlsoFooter}
     />
   ) : null;
 
@@ -1939,6 +1981,7 @@ export function TripDetailPage() {
                   }
                   invoiceStatus={trip.invoicing.invoiceStatus}
                   vehicleId={trip.vehicleId}
+                  onEditingChange={setCargoEditing}
                   onRetry={() => refetchCargos()}
                 />
               </Suspense>

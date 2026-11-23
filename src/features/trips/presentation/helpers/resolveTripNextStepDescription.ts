@@ -10,7 +10,10 @@ const copy = tripDetailCopy.shell.nextStep;
 
 export type ResolveTripNextStepDescriptionInput = {
   readonly phase: TripNextStepPhase;
-  /** false → menciona Flota como bloqueo de Confirmar (draft_ready). */
+  /**
+   * @deprecated NS7 — `assign_fleet` + `descriptionAssignFleet` cubren flota;
+   * `draft_ready` solo ocurre con flota lista. Conservado por callers.
+   */
   readonly fleetReady?: boolean;
   /**
    * Elevate Facturar create (D10) — variante A Programado / En ruta.
@@ -42,7 +45,6 @@ export function resolveTripNextStepDescription(
 ): string {
   const {
     phase,
-    fleetReady = true,
     elevateInvoice = false,
     linkedDraftCount = 0,
     splitLegsInvoiced,
@@ -53,11 +55,10 @@ export function resolveTripNextStepDescription(
 
   switch (phase) {
     case "draft_incomplete":
+      // NS7: assign_fleet usa descriptionAssignFleet en el bloque; aquí incompleto genérico.
       return copy.descriptionDraftIncomplete;
     case "draft_ready":
-      return fleetReady
-        ? copy.descriptionDraftReady
-        : copy.descriptionDraftReadyFleetBlocked;
+      return copy.descriptionDraftReady;
     case "scheduled":
       // RP-3: Programado = operación; sin porciones en el cuerpo.
       if (elevateInvoice) return copy.descriptionScheduledCreate;

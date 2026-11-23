@@ -1,4 +1,4 @@
-import { Check, Circle } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { TripStatus, type TripStatusType } from "@features/trips/domain";
 import { Button } from "@shared/ui/button";
@@ -23,15 +23,28 @@ const READINESS_LABELS: Record<TripReadinessCheckId, string> = {
   cargo: copy.readiness.cargo,
 };
 
-const RAIL_IDS: readonly TripReadinessCheckId[] = [
+/** NS4 — Reserva: Para programar. */
+const DRAFT_SCHEDULE_IDS: readonly TripReadinessCheckId[] = [
+  "order",
   "fleet",
   "departure",
   "arrival",
   "rate",
   "mileage",
-  "route",
-  "cargo",
 ];
+
+/** NS4 — Reserva: Para completar. */
+const DRAFT_OPERATE_IDS: readonly TripReadinessCheckId[] = ["route", "cargo"];
+
+/** NS4 — Programado: Para iniciar. */
+const SCHEDULED_START_IDS: readonly TripReadinessCheckId[] = [
+  "route",
+  "fleet",
+  "mileage",
+];
+
+/** NS4 — Programado: Para completar. */
+const SCHEDULED_OPERATE_IDS: readonly TripReadinessCheckId[] = ["cargo"];
 
 export interface TripReadinessRailProps {
   status: TripStatusType;
@@ -51,7 +64,7 @@ export interface TripReadinessRailProps {
   emphasis?: "primary" | "secondary";
   /**
    * F8 / D15: `card` = standalone «Reserva guardada» / «Viaje programado».
-   * `checklist` = solo grupos Para programar / Para completar (bajo «Qué falta»).
+   * `checklist` = solo grupos Para programar / Para iniciar / Para completar.
    */
   presentation?: "card" | "checklist";
 }
@@ -61,6 +74,16 @@ function chipLabel(item: TripReadinessItem): string {
     return copy.readiness.cargoNeedsPickup;
   }
   return READINESS_LABELS[item.id];
+}
+
+function pickItems(
+  items: readonly TripReadinessItem[],
+  ids: readonly TripReadinessCheckId[],
+): TripReadinessItem[] {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((item): item is TripReadinessItem => item != null);
 }
 
 function ReadinessChip({
@@ -74,21 +97,25 @@ function ReadinessChip({
   const stateLabel = item.done
     ? copy.readiness.done
     : copy.readiness.pending;
-  const clickable = Boolean(item.tab && onItemClick);
+  // NS5: solo pendientes clicables; listos no navegan.
+  const clickable = Boolean(!item.done && item.tab && onItemClick);
   const className = cn(
-    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
+    "inline-flex h-[26px] items-center gap-1.5 rounded-full border px-2.5 py-0 pl-2 text-xs font-medium",
     item.done
-      ? "border-success/30 bg-success-soft text-success-soft-foreground"
-      : "border-border bg-muted/60 text-muted-foreground",
-    clickable && "cursor-pointer hover:border-primary/40",
+      ? "border-border bg-card text-muted-foreground"
+      : "border-warning bg-warning-soft text-warning-soft-foreground",
+    clickable && "cursor-pointer hover:opacity-90",
   );
 
   const content = (
     <>
       {item.done ? (
-        <Check className="h-3.5 w-3.5" aria-hidden />
+        <Check className="h-3 w-3 text-success" aria-hidden />
       ) : (
-        <Circle className="h-3.5 w-3.5" aria-hidden />
+        <span
+          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border-[1.5px] border-current"
+          aria-hidden
+        />
       )}
       {label}
     </>
@@ -102,6 +129,8 @@ function ReadinessChip({
           className={className}
           onClick={() => onItemClick?.(item)}
           aria-label={`${label}: ${stateLabel}`}
+          data-testid={`trip-readiness-chip-${item.id}`}
+          data-ready="false"
         >
           {content}
         </button>
@@ -111,36 +140,63 @@ function ReadinessChip({
 
   return (
     <li>
-      <span className={className} aria-label={`${label}: ${stateLabel}`}>
+      <span
+        className={className}
+        aria-label={`${label}: ${stateLabel}`}
+        data-testid={`trip-readiness-chip-${item.id}`}
+        data-ready={item.done ? "true" : "false"}
+      >
         {content}
       </span>
     </li>
   );
 }
 
+function GroupHeading({
+  label,
+  hint,
+}: {
+  label: string;
+  hint?: string;
+}) {
+  return (
+    <h3 className="text-xs font-semibold text-foreground">
+      {label}
+      {hint ? (
+        <span className="font-normal text-muted-foreground">{` · ${hint}`}</span>
+      ) : null}
+    </h3>
+  );
+}
+
 function ReadinessChipGroups({
   isDraft,
-  scheduleItems,
+  primaryItems,
   operateItems,
   onItemClick,
 }: {
   isDraft: boolean;
-  scheduleItems: readonly TripReadinessItem[];
+  primaryItems: readonly TripReadinessItem[];
   operateItems: readonly TripReadinessItem[];
   onItemClick?: (item: TripReadinessItem) => void;
 }) {
+  const primaryLabel = isDraft
+    ? copy.readiness.scheduleGroup
+    : copy.readiness.startGroup;
+  const operateHint = isDraft
+    ? copy.readiness.operateHint
+    : copy.readiness.operateHintScheduled;
+
   return (
-    <>
-      {isDraft ? (
-        <section className="mt-3 first:mt-0">
-          <h3 className="text-xs font-semibold text-foreground">
-            {copy.readiness.scheduleGroup}
-          </h3>
+    <div className="flex flex-wrap gap-6">
+      {primaryItems.length > 0 ? (
+        <section className="flex min-w-0 flex-col gap-1.5">
+          <GroupHeading label={primaryLabel} />
           <ol
-            className="mt-2 flex flex-wrap gap-2"
-            aria-label={copy.readiness.scheduleGroup}
+            className="flex flex-wrap gap-2"
+            aria-label={primaryLabel}
           >
-            {scheduleItems.map((item) => (
+            {primaryItems.map((item) => (
               <ReadinessChip
                 key={item.id}
                 item={item}
@@ -151,24 +207,27 @@ function ReadinessChipGroups({
         </section>
       ) : null}
 
-      <section className="mt-3 first:mt-0">
-        <h3 className="text-xs font-semibold text-foreground">
-          {copy.readiness.operateGroup}
-        </h3>
-        <ol
-          className="mt-2 flex flex-wrap gap-2"
-          aria-label={copy.readiness.operateGroup}
-        >
-          {operateItems.map((item) => (
-            <ReadinessChip
-              key={item.id}
-              item={item}
-              onItemClick={onItemClick}
-            />
-          ))}
-        </ol>
-      </section>
-    </>
+      {operateItems.length > 0 ? (
+        <section className="flex min-w-0 flex-col gap-1.5">
+          <GroupHeading
+            label={copy.readiness.operateGroup}
+            hint={operateHint}
+          />
+          <ol
+            className="flex flex-wrap gap-2"
+            aria-label={`${copy.readiness.operateGroup} · ${operateHint}`}
+          >
+            {operateItems.map((item) => (
+              <ReadinessChip
+                key={item.id}
+                item={item}
+                onItemClick={onItemClick}
+              />
+            ))}
+          </ol>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
@@ -189,16 +248,21 @@ export function TripReadinessRail({
     return null;
   }
 
-  const visible = items.filter((item) => RAIL_IDS.includes(item.id));
-  const scheduleItems = visible.filter((item) => item.group === "schedule");
-  const operateItems = visible.filter((item) => item.group === "operate");
+  const primaryItems = pickItems(
+    items,
+    isDraft ? DRAFT_SCHEDULE_IDS : SCHEDULED_START_IDS,
+  );
+  const operateItems = pickItems(
+    items,
+    isDraft ? DRAFT_OPERATE_IDS : SCHEDULED_OPERATE_IDS,
+  );
 
   if (presentation === "checklist") {
     return (
       <div data-testid="trip-readiness-checklist">
         <ReadinessChipGroups
           isDraft={isDraft}
-          scheduleItems={scheduleItems}
+          primaryItems={primaryItems}
           operateItems={operateItems}
           onItemClick={onItemClick}
         />
@@ -206,6 +270,7 @@ export function TripReadinessRail({
     );
   }
 
+  const scheduleItems = pickItems(items, DRAFT_SCHEDULE_IDS);
   const missing = scheduleItems
     .filter((item) => !item.done)
     .map((item) => READINESS_LABELS[item.id]);
@@ -269,12 +334,14 @@ export function TripReadinessRail({
         </Button>
       ) : null}
 
-      <ReadinessChipGroups
-        isDraft={isDraft}
-        scheduleItems={scheduleItems}
-        operateItems={operateItems}
-        onItemClick={onItemClick}
-      />
+      <div className="mt-3">
+        <ReadinessChipGroups
+          isDraft={isDraft}
+          primaryItems={primaryItems}
+          operateItems={operateItems}
+          onItemClick={onItemClick}
+        />
+      </div>
     </div>
   );
 }

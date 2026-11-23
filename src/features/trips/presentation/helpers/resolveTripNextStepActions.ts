@@ -1,7 +1,8 @@
 /**
- * Consolida next-step above-the-fold del detalle (rediseño F1 · HB-G2-CTA).
+ * Consolida next-step above-the-fold del detalle (rediseño F1 · HB-G2-CTA · Enmienda NS).
  * Pura: status + readiness + flags → 1 primaria + ≤2 secundarias.
  * Programado / En ruta: primaria = open_operate (abre sheet); Facturar en header (D11).
+ * NS7: assign_fleet cuando Reserva tiene ruta y falta flota.
  */
 
 import { TripStatus, type TripStatusType } from "@features/trips/domain";
@@ -16,6 +17,7 @@ export type TripNextStepPhase =
 export type TripNextStepActionId =
   | "complete_route_cargo"
   | "confirm_reserve"
+  | "assign_fleet"
   | "open_operate"
   /** @deprecated Prefer `open_operate` (HB-G2-CTA). Kept for transitional callers. */
   | "go_to_tracking"
@@ -62,6 +64,11 @@ export type ResolveTripNextStepActionsInput = {
   readonly status: TripStatusType;
   readonly routeReady: boolean;
   readonly cargoReady: boolean;
+  /**
+   * NS7 — flota lista (unidad + conductor [+ remolque si aplica]).
+   * Default true para callers que aún no pasan el flag.
+   */
+  readonly fleetReady?: boolean;
   /** D57 — pendiente de ruta cuando `!routeReady`. */
   readonly draftRouteGap?: DraftRouteGapHint | null;
   /** Puede mutar/completar reserva (trips.update). */
@@ -110,6 +117,7 @@ export function resolveTripNextStepActions(
     status,
     routeReady,
     cargoReady,
+    fleetReady = true,
     draftRouteGap = null,
     canUpdateTrip,
     canInvoice,
@@ -118,6 +126,19 @@ export function resolveTripNextStepActions(
 
   if (status === TripStatus.DRAFT) {
     if (!canUpdateTrip) return null;
+
+    // NS7: ruta lista + sin flota → Asignar flota (primaria); Completar cargas outline si falta.
+    if (routeReady && !fleetReady) {
+      const secondaries: TripNextStepAction[] = [];
+      if (!cargoReady) {
+        secondaries.push({ id: "go_to_cargo", tab: "cargo" });
+      }
+      return {
+        phase: "draft_incomplete",
+        primary: { id: "assign_fleet" },
+        secondaries: takeSecondaries(secondaries),
+      };
+    }
 
     if (!routeReady || !cargoReady) {
       const primaryTab: TripNextStepTab = !routeReady ? "route" : "cargo";
@@ -129,7 +150,10 @@ export function resolveTripNextStepActions(
           : {}),
       };
       const secondaries: TripNextStepAction[] = [];
-      if (!routeReady && !cargoReady) {
+      // NS7: sin ruta + sin flota → outline Asignar flota (no Ir a Cargas).
+      if (!routeReady && !fleetReady) {
+        secondaries.push({ id: "assign_fleet" });
+      } else if (!routeReady && !cargoReady) {
         secondaries.push({ id: "go_to_cargo", tab: "cargo" });
       } else if (!routeReady) {
         secondaries.push({ id: "go_to_cargo", tab: "cargo" });

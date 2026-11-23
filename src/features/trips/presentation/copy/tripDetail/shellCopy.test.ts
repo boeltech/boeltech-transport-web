@@ -49,10 +49,14 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.action.registerCash).toBe("Registrar cobro");
   });
 
-  it("next-step F1: Qué sigue + Despachar… (abre sheet)", () => {
+  it("next-step F1 / NS: Siguiente paso + Qué sigue + Despachar…", () => {
     expect(shellCopy.nextStep.title).toBe("Qué sigue");
+    expect(shellCopy.nextStep.titleDraft).toBe("Siguiente paso");
     expect(shellCopy.nextStep.completeRouteCargo).toMatch(/ruta y cargas/i);
     expect(shellCopy.nextStep.confirmReserve).toBe("Confirmar reserva");
+    expect(shellCopy.nextStep.assignFleet).toBe("Asignar flota");
+    expect(shellCopy.nextStep.titleAssignFleet).toBe("Asigna unidad y conductor");
+    expect(shellCopy.nextStep.descriptionAssignFleet).toMatch(/flota asignada/i);
     expect(shellCopy.nextStep.goToTracking).toBe("Ir a Seguimiento");
     expect(shellCopy.nextStep.goToStart).toBe("Despachar…");
     expect(shellCopy.nextStep.openOperate).toBe("Despachar…");
@@ -61,6 +65,13 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
     expect(shellCopy.nextStep.openDraft).toBe("Abrir borrador");
     expect(shellCopy.nextStep.viewInvoices).toBe("Ver facturas");
     expect(shellCopy.nextStep.registerNote).toBe("Nota");
+    expect(shellCopy.readiness.startGroup).toBe("Para iniciar");
+    expect(shellCopy.readiness.operateHint).toBe(
+      "no bloquea confirmar ni iniciar",
+    );
+    expect(shellCopy.readiness.operateHintScheduled).toBe(
+      "las cargas no bloquean iniciar",
+    );
     expect(shellCopy.tab.operation).toBe("Resumen");
     expect(shellCopy.tab.billing).toBe("Facturación");
     expect(shellCopy.tab.billingSinCfdi).toBe("Cobro");
@@ -87,12 +98,9 @@ describe("shellCopy — léxico operativo (Capa 1 D8)", () => {
       "Se facturaron 2 de 4 porciones. Emite las restantes cuando corresponda.",
     );
     expect(shellCopy.nextStep.goToTracking).not.toMatch(/iniciar viaje/i);
-    expect(shellCopy.nextStep.whatMissing).toBe("Qué falta");
+    expect(shellCopy.nextStep.expensesInReview(1)).toBe("1 gasto en revisión");
     expect(shellCopy.nextStep.descriptionDraftIncomplete).toMatch(
       /llegada|tarifa|kilometraje/i,
-    );
-    expect(shellCopy.nextStep.descriptionDraftReadyFleetBlocked).toMatch(
-      /unidad|conductor/i,
     );
   });
 

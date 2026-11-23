@@ -11,7 +11,7 @@ const copy = tripDetailCopy.shell;
 
 const ITEMS: TripReadinessItem[] = [
   { id: "order", done: true, group: "schedule" },
-  { id: "fleet", done: true, group: "schedule" },
+  { id: "fleet", done: false, group: "schedule" },
   { id: "departure", done: true, group: "schedule", tab: "overview" },
   { id: "arrival", done: false, group: "schedule", tab: "overview" },
   { id: "rate", done: false, group: "schedule", tab: "costs" },
@@ -38,7 +38,7 @@ describe("TripReadinessRail", () => {
     );
   });
 
-  it("renders schedule and timbrar groups in draft", () => {
+  it("NS4: draft incluye Pedido y grupos schedule + operate con sufijo", () => {
     render(
       <TripReadinessRail
         status={TripStatus.DRAFT}
@@ -52,15 +52,12 @@ describe("TripReadinessRail", () => {
     expect(screen.getByTestId("trip-readiness-rail")).toBeInTheDocument();
     expect(screen.getByText(copy.readiness.title)).toBeInTheDocument();
     expect(screen.getByText(copy.readiness.scheduleGroup)).toBeInTheDocument();
-    expect(screen.getByText(copy.readiness.operateGroup)).toBeInTheDocument();
-    expect(screen.queryByText(copy.readiness.hint)).not.toBeInTheDocument();
-    expect(screen.queryByText(copy.readiness.operateHint)).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        copy.readiness.missingToSchedule("Acme", "CDMX → MTY", "Llegada, Tarifa"),
+      screen.getByLabelText(
+        `${copy.readiness.operateGroup} · ${copy.readiness.operateHint}`,
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByText(copy.readiness.order)).not.toBeInTheDocument();
+    expect(screen.getByText(copy.readiness.order)).toBeInTheDocument();
     expect(screen.getByText(copy.readiness.route)).toBeInTheDocument();
     expect(screen.getByText(copy.readiness.cargoNeedsPickup)).toBeInTheDocument();
     expect(
@@ -68,7 +65,7 @@ describe("TripReadinessRail", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders scheduled rail without schedule group and with route blocking start", () => {
+  it("NS4: scheduled usa Para iniciar (Paradas, Flota, Kilometraje) + Para completar", () => {
     const onGoToTracking = vi.fn();
     render(
       <TripReadinessRail
@@ -82,22 +79,21 @@ describe("TripReadinessRail", () => {
     );
 
     expect(screen.getByText(copy.readiness.titleScheduled)).toBeInTheDocument();
+    expect(screen.getByText(copy.readiness.startGroup)).toBeInTheDocument();
     expect(
-      screen.getByText(copy.readiness.missingToStart("Acme", "CDMX → MTY")),
+      screen.getByLabelText(
+        `${copy.readiness.operateGroup} · ${copy.readiness.operateHintScheduled}`,
+      ),
     ).toBeInTheDocument();
-    expect(screen.queryByText(copy.readiness.hintScheduled)).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(copy.readiness.operateHintScheduled),
-    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(copy.readiness.scheduleGroup),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(copy.readiness.arrival)).not.toBeInTheDocument();
+    expect(screen.queryByText(copy.readiness.order)).not.toBeInTheDocument();
     expect(screen.getByText(copy.readiness.route)).toBeInTheDocument();
+    expect(screen.getByText(copy.readiness.fleet)).toBeInTheDocument();
+    expect(screen.getByText(copy.readiness.mileage)).toBeInTheDocument();
     expect(screen.getByText(copy.readiness.cargoNeedsPickup)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: copy.readiness.goToTracking }),
-    ).toBeInTheDocument();
   });
 
   it("tells the operator they can start when scheduled and route is ready", () => {
@@ -136,7 +132,7 @@ describe("TripReadinessRail", () => {
     expect(onGoToTracking).toHaveBeenCalledOnce();
   });
 
-  it("calls onItemClick for paradas and tarifa", async () => {
+  it("NS5: pendiente clicable; listo no es botón", async () => {
     const user = userEvent.setup();
     const onItemClick = vi.fn();
     render(
@@ -144,26 +140,27 @@ describe("TripReadinessRail", () => {
         status={TripStatus.DRAFT}
         items={ITEMS}
         onItemClick={onItemClick}
+        presentation="checklist"
       />,
     );
 
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.readiness.route}: ${copy.readiness.pending}`,
-      }),
-    );
-    expect(onItemClick).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "route", tab: "route" }),
-    );
-
-    await user.click(
-      screen.getByRole("button", {
-        name: `${copy.readiness.rate}: ${copy.readiness.pending}`,
-      }),
-    );
+    const pendingRate = screen.getByRole("button", {
+      name: `${copy.readiness.rate}: ${copy.readiness.pending}`,
+    });
+    expect(pendingRate).toHaveAttribute("data-ready", "false");
+    await user.click(pendingRate);
     expect(onItemClick).toHaveBeenCalledWith(
       expect.objectContaining({ id: "rate", tab: "costs" }),
     );
+
+    const doneOrder = screen.getByTestId("trip-readiness-chip-order");
+    expect(doneOrder.tagName).toBe("SPAN");
+    expect(doneOrder).toHaveAttribute("data-ready", "true");
+    expect(
+      screen.queryByRole("button", {
+        name: `${copy.readiness.order}: ${copy.readiness.done}`,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("checklist presentation omits standalone card title (F8 / D15)", () => {

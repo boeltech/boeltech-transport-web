@@ -5,11 +5,12 @@ import { TripStatus } from "@features/trips/domain";
 import { resolveTripNextStepActions } from "./resolveTripNextStepActions";
 
 describe("resolveTripNextStepActions", () => {
-  it("Reserva incompleta: primaria Completar ruta/cargas; secundaria Ir a Cargas", () => {
+  it("Reserva incompleta (con flota): primaria Completar ruta/cargas; secundaria Ir a Cargas", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.DRAFT,
       routeReady: false,
       cargoReady: false,
+      fleetReady: true,
       canUpdateTrip: true,
       canInvoice: false,
     });
@@ -18,6 +19,57 @@ describe("resolveTripNextStepActions", () => {
       phase: "draft_incomplete",
       primary: { id: "complete_route_cargo", tab: "route" },
       secondaries: [{ id: "go_to_cargo", tab: "cargo" }],
+    });
+  });
+
+  it("NS7: ruta lista + sin flota → primaria assign_fleet; outline Completar cargas si falta", () => {
+    const plan = resolveTripNextStepActions({
+      status: TripStatus.DRAFT,
+      routeReady: true,
+      cargoReady: false,
+      fleetReady: false,
+      canUpdateTrip: true,
+      canInvoice: false,
+    });
+
+    expect(plan).toEqual({
+      phase: "draft_incomplete",
+      primary: { id: "assign_fleet" },
+      secondaries: [{ id: "go_to_cargo", tab: "cargo" }],
+    });
+  });
+
+  it("NS7: ruta+cargas listas + sin flota → solo assign_fleet", () => {
+    const plan = resolveTripNextStepActions({
+      status: TripStatus.DRAFT,
+      routeReady: true,
+      cargoReady: true,
+      fleetReady: false,
+      canUpdateTrip: true,
+      canInvoice: false,
+    });
+
+    expect(plan).toEqual({
+      phase: "draft_incomplete",
+      primary: { id: "assign_fleet" },
+      secondaries: [],
+    });
+  });
+
+  it("NS7: sin ruta + sin flota → primaria completar ruta; outline assign_fleet", () => {
+    const plan = resolveTripNextStepActions({
+      status: TripStatus.DRAFT,
+      routeReady: false,
+      cargoReady: false,
+      fleetReady: false,
+      canUpdateTrip: true,
+      canInvoice: false,
+    });
+
+    expect(plan).toEqual({
+      phase: "draft_incomplete",
+      primary: { id: "complete_route_cargo", tab: "route" },
+      secondaries: [{ id: "assign_fleet" }],
     });
   });
 
@@ -53,11 +105,12 @@ describe("resolveTripNextStepActions", () => {
     expect(plan?.secondaries).toEqual([{ id: "go_to_route", tab: "route" }]);
   });
 
-  it("Reserva lista: primaria Confirmar; ≤2 secundarias ajustar ruta/cargas", () => {
+  it("Reserva lista (con flota): primaria Confirmar; ≤2 secundarias ajustar ruta/cargas", () => {
     const plan = resolveTripNextStepActions({
       status: TripStatus.DRAFT,
       routeReady: true,
       cargoReady: true,
+      fleetReady: true,
       canUpdateTrip: true,
       canInvoice: true,
     });

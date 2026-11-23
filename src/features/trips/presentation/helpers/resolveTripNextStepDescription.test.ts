@@ -13,23 +13,20 @@ describe("resolveTripNextStepDescription (F8 / F9)", () => {
     expect(copy.descriptionDraftIncomplete).toMatch(/confirmar/i);
   });
 
-  it("draft ready without fleet uses fleet-blocked copy", () => {
+  it("NS7: draft_ready siempre usa descriptionDraftReady (flota → assign_fleet)", () => {
     expect(
       resolveTripNextStepDescription({
         phase: "draft_ready",
         fleetReady: false,
       }),
-    ).toBe(copy.descriptionDraftReadyFleetBlocked);
-    expect(copy.descriptionDraftReadyFleetBlocked).toMatch(/unidad|conductor/i);
-  });
-
-  it("draft ready with fleet mentions deferred fields", () => {
+    ).toBe(copy.descriptionDraftReady);
     expect(
       resolveTripNextStepDescription({
         phase: "draft_ready",
         fleetReady: true,
       }),
     ).toBe(copy.descriptionDraftReady);
+    expect(copy.descriptionAssignFleet).toMatch(/flota asignada/i);
   });
 
   it("scheduled A: create eleva → facturar flete + iniciar Seguimiento", () => {

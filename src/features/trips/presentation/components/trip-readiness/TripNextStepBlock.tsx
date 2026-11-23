@@ -1,26 +1,8 @@
-import { useState, type ReactNode } from "react";
-import {
-  ArrowRight,
-  Ban,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  MapPin,
-  Navigation,
-  Package,
-  Play,
-  Receipt,
-  RotateCcw,
-} from "lucide-react";
+import type { ReactNode } from "react";
+import { ArrowRight, FileText, Truck } from "lucide-react";
 
 import { TripStatus, type TripStatusType } from "@features/trips/domain";
 import { Button } from "@shared/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@shared/ui/collapsible";
 import { cn } from "@shared/lib/utils/cn";
 
 import { tripDetailCopy } from "../../copy";
@@ -33,6 +15,14 @@ import { TripReadinessRail } from "./TripReadinessRail";
 
 const copy = tripDetailCopy.shell.nextStep;
 
+export type TripNextStepAlsoFooter = {
+  /** Gastos en revisión (enlace a Costos). 0 = omitir cláusula. */
+  readonly expensesInReviewCount?: number;
+  /** Fecha ya formateada para «hasta el …»; null/omit = omitir cláusula (NS9 gap). */
+  readonly lateExpensesUntilLabel?: string | null;
+  readonly onGoToCosts?: () => void;
+};
+
 export type TripNextStepBlockProps = {
   plan: TripNextStepPlan;
   /** Slot de la primaria cuando es Confirmar reserva (dialog + mutación). */
@@ -41,6 +31,8 @@ export type TripNextStepBlockProps = {
   onInvoice?: () => void;
   /** HB-G2-CTA: abre sheet de fase (Despachar / llegada / salida…). */
   onOpenOperate?: () => void;
+  /** NS7: abre Sheet de flota (`?tab=overview&assignFleet=1`). */
+  onAssignFleet?: () => void;
   /** D18: abrir detalle de un borrador (fuera de Qué sigue en F3d-4). */
   onOpenDraft?: (invoiceId: string) => void;
   /** D18′: varios borradores → sheet de elección (wiring en detalle). */
@@ -75,12 +67,14 @@ export type TripNextStepBlockProps = {
    */
   primaryDemoted?: boolean;
   /**
-   * F8 / D15: inventario Para programar / Para completar bajo «Qué falta».
-   * D3: abierto por defecto en draft / scheduled.
+   * F8 / D15 / NS2: inventario Para programar / Para iniciar / Para completar
+   * siempre visible bajo el divisor en draft / scheduled.
    */
   readinessStatus?: TripStatusType;
   readinessItems?: readonly TripReadinessItem[];
   onReadinessItemClick?: (item: TripReadinessItem) => void;
+  /** NS9 — pie Completado («También: …»). */
+  alsoFooter?: TripNextStepAlsoFooter | null;
   className?: string;
 };
 
@@ -116,6 +110,8 @@ function primaryLabel(
 ): string {
   const { primary, secondaries, phase } = plan;
   switch (primary.id) {
+    case "assign_fleet":
+      return copy.assignFleet;
     case "complete_route_cargo":
       if (primary.tab === "cargo") return copy.completeCargo;
       if (primary.routeGap === "origin") return copy.completeOrigin;
@@ -157,9 +153,14 @@ function secondaryLabel(
   phase: TripNextStepPlan["phase"],
   operateCtaPreferred?: string | null,
 ): string {
+  if (action.id === "assign_fleet") return copy.assignFleet;
   if (phase === "draft_ready") {
     if (action.id === "go_to_route") return copy.adjustRoute;
     if (action.id === "go_to_cargo") return copy.adjustCargo;
+  }
+  // NS7: outline Completar cargas junto a Asignar flota.
+  if (action.id === "go_to_cargo" && phase === "draft_incomplete") {
+    return copy.completeCargo;
   }
   if (action.id === "go_to_route") return copy.goToRoute;
   if (action.id === "go_to_cargo") return copy.goToCargo;
@@ -179,6 +180,10 @@ function secondaryLabel(
   );
 }
 
+/**
+ * NS6 / RP-3 acotado: Truck (flota / Despachar), FileText (Facturar / borrador).
+ * Primaria En ruta (open_operate) y el resto: sin ícono.
+ */
 function ActionIcon({
   action,
   phase,
@@ -188,39 +193,18 @@ function ActionIcon({
 }) {
   const iconClass = "mr-1.5 h-4 w-4";
   switch (action.id) {
-    case "complete_route_cargo":
-      // D-QS1: cargo → Package; route gaps → MapPin
-      if (action.tab === "cargo") {
-        return <Package className={iconClass} aria-hidden />;
-      }
-      return <MapPin className={iconClass} aria-hidden />;
-    case "go_to_route":
-      return <MapPin className={iconClass} aria-hidden />;
-    case "go_to_cargo":
-      return <Package className={iconClass} aria-hidden />;
-    case "confirm_reserve":
-      return <CheckCircle2 className={iconClass} aria-hidden />;
+    case "assign_fleet":
+      return <Truck className={iconClass} aria-hidden />;
     case "open_operate":
     case "go_to_tracking":
-      // D-QS4: scheduled → Play (alinea StartTripSheet); in_progress → Navigation
       if (phase === "scheduled") {
-        return <Play className={iconClass} aria-hidden />;
+        return <Truck className={iconClass} aria-hidden />;
       }
-      return <Navigation className={iconClass} aria-hidden />;
-    case "invoice":
-    case "view_invoices":
-      return <Receipt className={iconClass} aria-hidden />;
-    case "open_draft":
-      return <FileText className={iconClass} aria-hidden />;
-    case "register_note":
-      // RP-3: «Nota» ghost sin ícono.
       return null;
-    case "declare_false_trip":
-      return <Ban className={iconClass} aria-hidden />;
-    case "cancel_trip":
-      return <Ban className={iconClass} aria-hidden />;
-    case "plan_return":
-      return <RotateCcw className={iconClass} aria-hidden />;
+    case "invoice":
+    case "open_draft":
+    case "view_invoices":
+      return <FileText className={iconClass} aria-hidden />;
     default:
       return null;
   }
@@ -232,6 +216,7 @@ function runAction(
     onNavigateTab: TripNextStepBlockProps["onNavigateTab"];
     onInvoice?: () => void;
     onOpenOperate?: () => void;
+    onAssignFleet?: () => void;
     onOpenDraft?: (invoiceId: string) => void;
     onViewInvoices?: () => void;
     onRegisterNote?: () => void;
@@ -240,6 +225,10 @@ function runAction(
     onPlanReturn?: () => void;
   },
 ): void {
+  if (action.id === "assign_fleet") {
+    handlers.onAssignFleet?.();
+    return;
+  }
   if (action.id === "invoice") {
     handlers.onInvoice?.();
     return;
@@ -277,7 +266,7 @@ function runAction(
   }
 }
 
-function showWhatMissing(
+function showChecklist(
   status: TripStatusType | undefined,
   items: readonly TripReadinessItem[] | undefined,
 ): boolean {
@@ -285,9 +274,111 @@ function showWhatMissing(
   return status === TripStatus.DRAFT || status === TripStatus.SCHEDULED;
 }
 
+function resolveCardTitle(
+  phase: TripNextStepPlan["phase"],
+  late: boolean,
+  lateDelayLabel: string | null | undefined,
+): string {
+  const base =
+    phase === "draft_incomplete" || phase === "draft_ready"
+      ? copy.titleDraft
+      : copy.title;
+  const delayChip = lateDelayLabel?.trim();
+  if (late && delayChip) {
+    return `${base} · ${delayChip}`;
+  }
+  return base;
+}
+
+function resolveHeadings(
+  plan: TripNextStepPlan,
+  operatePrimaryLabel?: string | null,
+  operateCtaLabel?: string | null,
+): { contextualHeading: string; ctaText: string } {
+  const { primary, secondaries, phase } = plan;
+
+  if (primary.id === "assign_fleet") {
+    return {
+      contextualHeading: copy.titleAssignFleet,
+      ctaText: copy.assignFleet,
+    };
+  }
+
+  if (primary.id === "confirm_reserve") {
+    return {
+      contextualHeading: copy.confirmReserve,
+      ctaText: copy.confirmReserve,
+    };
+  }
+
+  // NS7: sin ruta + sin flota — título «Completar ruta y cargas», CTA «Completar ruta».
+  if (
+    primary.id === "complete_route_cargo" &&
+    secondaries.some((s) => s.id === "assign_fleet")
+  ) {
+    return {
+      contextualHeading: copy.completeRouteCargo,
+      ctaText: copy.completeRoute,
+    };
+  }
+
+  return {
+    contextualHeading: primaryLabel(plan, operatePrimaryLabel),
+    ctaText: primaryLabel(plan, operateCtaLabel ?? operatePrimaryLabel),
+  };
+}
+
+function AlsoFooter({ footer }: { footer: TripNextStepAlsoFooter }) {
+  const count = footer.expensesInReviewCount ?? 0;
+  const lateLabel = footer.lateExpensesUntilLabel?.trim() || null;
+  const parts: ReactNode[] = [];
+
+  if (count > 0) {
+    const label = copy.expensesInReview(count);
+    parts.push(
+      footer.onGoToCosts ? (
+        <button
+          key="expenses"
+          type="button"
+          className="font-medium text-primary-700 underline-offset-2 hover:underline"
+          onClick={footer.onGoToCosts}
+          data-testid="trip-next-step-also-costs"
+        >
+          {label}
+        </button>
+      ) : (
+        <span key="expenses">{label}</span>
+      ),
+    );
+  }
+
+  if (lateLabel) {
+    parts.push(
+      <span key="late">{copy.lateExpensesUntil(lateLabel)}</span>,
+    );
+  }
+
+  if (parts.length === 0) return null;
+
+  return (
+    <p
+      className="mt-3 border-t border-primary-200 pt-3 text-xs text-muted-foreground"
+      data-testid="trip-next-step-also-footer"
+    >
+      <span className="mr-1 font-medium text-foreground">{copy.alsoPrefix}</span>
+      {parts.map((part, index) => (
+        <span key={index}>
+          {index > 0 ? <span className="mx-1">·</span> : null}
+          {part}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 /**
  * Consolidador above-the-fold: 1 CTA default + ≤2 outline.
- * F1: «Qué sigue»; open_operate abre sheet (HB-G2-CTA); Qué falta abierto en draft/scheduled.
+ * Enmienda NS: «Siguiente paso» / «Qué sigue»; chips siempre visibles; NS7 flota.
  */
 export function TripNextStepBlock({
   plan,
@@ -295,6 +386,7 @@ export function TripNextStepBlock({
   onNavigateTab,
   onInvoice,
   onOpenOperate,
+  onAssignFleet,
   onOpenDraft,
   onViewInvoices,
   onRegisterNote,
@@ -310,22 +402,25 @@ export function TripNextStepBlock({
   readinessStatus,
   readinessItems,
   onReadinessItemClick,
+  alsoFooter = null,
   className,
 }: TripNextStepBlockProps) {
   const { primary, secondaries, phase } = plan;
-  const includeWhatMissing = showWhatMissing(readinessStatus, readinessItems);
-  const [whatMissingOpen, setWhatMissingOpen] = useState(includeWhatMissing);
+  const includeChecklist = showChecklist(readinessStatus, readinessItems);
   const bodyDescription =
     description ??
-    (primary.id === "declare_false_trip" || primary.id === "cancel_trip"
-      ? copy.descriptionOriginOutcome
-      : primary.id === "plan_return"
-        ? copy.descriptionReturnReplan
-        : phaseDescription(phase));
+    (primary.id === "assign_fleet"
+      ? copy.descriptionAssignFleet
+      : primary.id === "declare_false_trip" || primary.id === "cancel_trip"
+        ? copy.descriptionOriginOutcome
+        : primary.id === "plan_return"
+          ? copy.descriptionReturnReplan
+          : phaseDescription(phase));
   const handlers = {
     onNavigateTab,
     onInvoice,
     onOpenOperate,
+    onAssignFleet,
     onDeclareFalseTrip,
     onCancelTrip,
     onPlanReturn,
@@ -334,20 +429,12 @@ export function TripNextStepBlock({
     onRegisterNote,
   };
 
-  const delayChip = lateDelayLabel?.trim();
-  const titleText =
-    late && delayChip
-      ? `${copy.title} · ${delayChip}`
-      : copy.title;
-
-  const contextualHeading =
-    primary.id === "confirm_reserve"
-      ? copy.confirmReserve
-      : primaryLabel(plan, operatePrimaryLabel);
-  const ctaText =
-    primary.id === "confirm_reserve"
-      ? copy.confirmReserve
-      : primaryLabel(plan, operateCtaLabel ?? operatePrimaryLabel);
+  const titleText = resolveCardTitle(phase, late, lateDelayLabel);
+  const { contextualHeading, ctaText } = resolveHeadings(
+    plan,
+    operatePrimaryLabel,
+    operateCtaLabel,
+  );
 
   const primaryNode =
     primary.id === "confirm_reserve" && confirmReserveSlot ? (
@@ -361,10 +448,16 @@ export function TripNextStepBlock({
         data-demoted={primaryDemoted ? "true" : undefined}
         onClick={() => runAction(primary, handlers)}
       >
-        {/* RP-3: CTA primario sin ícono. */}
+        <ActionIcon action={primary} phase={phase} />
         {ctaText}
       </Button>
     );
+
+  const showAlso =
+    phase === "completed" &&
+    alsoFooter &&
+    ((alsoFooter.expensesInReviewCount ?? 0) > 0 ||
+      Boolean(alsoFooter.lateExpensesUntilLabel?.trim()));
 
   return (
     <section
@@ -372,19 +465,19 @@ export function TripNextStepBlock({
         "rounded-xl border px-4 py-3",
         late
           ? "border-warning/40 bg-warning/10"
-          : "border-primary/25 bg-primary/5",
+          : "border-primary-200 bg-primary-50",
         className,
       )}
       data-testid="trip-next-step-block"
       aria-labelledby="trip-next-step-title"
     >
-      <div className="flex flex-wrap items-start gap-3">
+      <div className="flex flex-wrap items-center gap-3.5">
         <div
           className={cn(
-            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
             late
-              ? "bg-warning/20 text-warning"
-              : "bg-primary/15 text-primary",
+              ? "border-warning/40 bg-card text-warning"
+              : "border-primary-200 bg-card text-primary-700",
           )}
           aria-hidden
         >
@@ -395,7 +488,7 @@ export function TripNextStepBlock({
             id="trip-next-step-title"
             className={cn(
               "text-xs font-semibold",
-              late ? "text-warning" : "text-primary",
+              late ? "text-warning" : "text-primary-700",
             )}
           >
             {titleText}
@@ -403,7 +496,7 @@ export function TripNextStepBlock({
           <p className="mt-0.5 text-sm font-semibold text-foreground">
             {contextualHeading}
           </p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
             {bodyDescription}
           </p>
         </div>
@@ -439,39 +532,21 @@ export function TripNextStepBlock({
         </div>
       </div>
 
-      {includeWhatMissing && readinessStatus && readinessItems ? (
-        <Collapsible
-          open={whatMissingOpen}
-          onOpenChange={setWhatMissingOpen}
-          className="mt-3 border-t border-border/60 pt-2"
+      {includeChecklist && readinessStatus && readinessItems ? (
+        <div
+          className="mt-3 border-t border-primary-200 pt-3"
+          data-testid="trip-next-step-checklist"
         >
-          <CollapsibleTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1 px-1 text-xs text-muted-foreground"
-              data-testid="trip-next-step-what-missing"
-              aria-expanded={whatMissingOpen}
-            >
-              {whatMissingOpen ? (
-                <ChevronDown className="h-3.5 w-3.5" aria-hidden />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-              )}
-              {copy.whatMissing}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-2">
-            <TripReadinessRail
-              status={readinessStatus}
-              items={readinessItems}
-              presentation="checklist"
-              onItemClick={onReadinessItemClick}
-            />
-          </CollapsibleContent>
-        </Collapsible>
+          <TripReadinessRail
+            status={readinessStatus}
+            items={readinessItems}
+            presentation="checklist"
+            onItemClick={onReadinessItemClick}
+          />
+        </div>
       ) : null}
+
+      {showAlso && alsoFooter ? <AlsoFooter footer={alsoFooter} /> : null}
     </section>
   );
 }
