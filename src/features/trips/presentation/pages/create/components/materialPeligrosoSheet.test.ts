@@ -32,7 +32,7 @@ describe("material peligroso en el sheet de mercancía", () => {
       'Puede ser o no ser material peligroso. Si no lo es, la Carta Porte lleva MaterialPeligroso="No".',
     );
     expect(materialPeligrosoSheetHint("declare_optional", true)).toBe(
-      'La Carta Porte llevará MaterialPeligroso="Sí". Capture la clave y el embalaje.',
+      'La Carta Porte llevará MaterialPeligroso="Sí". Captura la clave y el embalaje.',
     );
     expect(materialPeligrosoSheetHint("declare_required_si", false)).toBe(
       hint.hazmatRequired,
