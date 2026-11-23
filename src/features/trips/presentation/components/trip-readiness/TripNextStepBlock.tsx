@@ -295,7 +295,7 @@ function resolveHeadings(
   operatePrimaryLabel?: string | null,
   operateCtaLabel?: string | null,
 ): { contextualHeading: string; ctaText: string } {
-  const { primary, secondaries, phase } = plan;
+  const { primary, secondaries } = plan;
 
   if (primary.id === "assign_fleet") {
     return {
