@@ -191,6 +191,11 @@ function makeTripWithTrailers(): Trip {
     status: TripStatus.DRAFT,
     vehicleId: VEHICLE_SR_ID,
     driverId: DRIVER_ID,
+    scheduledDeparture: new Date("2030-01-15T20:00:00.000Z"),
+    scheduledArrival: null,
+    actualDeparture: null,
+    actualArrival: null,
+    mileage: { start: 1000, end: null },
     costs: {
       baseRate: 0,
       fuelCost: 0,
