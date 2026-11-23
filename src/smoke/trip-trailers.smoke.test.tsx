@@ -16,6 +16,7 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { TripStatus, type Trip } from "@features/trips/domain";
+import { tripInvoicingFixture } from "@features/trips/test/tripInvoicingFixture";
 import type { AssignableVehicleItem } from "@features/vehicles/domain";
 import { TripTrailerAssignmentFields } from "@features/trips/presentation/pages/create/components/TripTrailerAssignmentFields";
 import { TripDetailOperationTab } from "@features/trips/presentation/components/trip-operation";
@@ -186,29 +187,10 @@ function TrailerFieldsHarness({
 function makeTripWithTrailers(): Trip {
   return {
     id: "trip-smoke-trailers-1",
-    tenantId: "tenant-1",
     tripCode: "VJ-TRL-001",
     status: TripStatus.DRAFT,
     vehicleId: VEHICLE_SR_ID,
     driverId: DRIVER_ID,
-    clientId: null,
-    originBranchId: null,
-    scheduledDeparture: new Date("2030-01-15T20:00:00.000Z"),
-    scheduledArrival: null,
-    actualDeparture: null,
-    actualArrival: null,
-    mileage: { start: 1000, end: null },
-    originCity: "QRO",
-    originState: null,
-    destinationCity: "CDMX",
-    destinationState: null,
-    cargo: {
-      description: null,
-      weight: null,
-      volume: null,
-      units: null,
-      value: null,
-    },
     costs: {
       baseRate: 0,
       fuelCost: 0,
@@ -216,35 +198,7 @@ function makeTripWithTrailers(): Trip {
       otherCosts: 0,
       totalCost: 0,
     },
-    invoicing: {
-      hasActiveInvoice: false,
-      hasActivePrimaryInvoice: false,
-      hasActivePrincipalInvoice: false,
-      primaryTransportInvoiceId: null,
-      canGenerateInvoice: false,
-      canGenerateAccessoryInvoice: false,
-      canGenerateFalseTripInvoice: false,
-      hasActiveSplit: false,
-      splitLegsInvoiced: 0,
-      splitLegsTotal: 0,
-      canGenerateSplitShareInvoice: false,
-      cartaPorteAttached: false,
-      invoiceId: null,
-      invoiceFolio: null,
-      invoiceCfdiUuid: null,
-      invoiceStatus: null,
-      accessoryInvoices: [],
-      blockReason: null,
-    },
-    detailedCosts: null,
-    profitability: null,
-    notes: null,
-    cancellationReason: null,
-    cfdiDocumentIntent: "ingreso",
-    createdAt: new Date("2026-08-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-08-01T00:00:00.000Z"),
-    createdBy: null,
-    updatedBy: null,
+    invoicing: tripInvoicingFixture(),
     vehicle: {
       id: VEHICLE_SR_ID,
       unitNumber: "U-SR",
