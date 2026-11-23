@@ -17,3 +17,14 @@ export {
   useHelpPhraseForScreen,
   type HelpPhraseForScreen,
 } from "./useHelpPhraseForScreen";
+export { usePublishHelpScreenExtras } from "./usePublishHelpScreenExtras";
+export {
+  useMergedHelpScreen,
+  useFusedHelpScreen,
+} from "./useMergedHelpScreen";
+export {
+  publishHelpScreenExtras,
+  getHelpScreenExtrasSnapshot,
+  resetHelpScreenExtrasStoreForTests,
+  type HelpScreenExtras,
+} from "./helpScreenExtrasStore";

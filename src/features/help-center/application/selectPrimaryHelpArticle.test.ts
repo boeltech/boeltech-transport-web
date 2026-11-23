@@ -1038,4 +1038,210 @@ describe("selectPrimaryHelpArticle", () => {
       ).toEqual(["registrar-anticipo-operador"]);
     });
   });
+
+  /**
+   * Corte B §H.1 / PRD §I — screens status/tab; sort_order igualados (viajes 50 · B2 90).
+   * Primario = max score, luego min sortOrder (selectPrimary).
+   */
+  describe("corte B · §H.1 status/tab (TB-5..8 / TB-7)", () => {
+    const uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+    const trip = `/trips/${uuid}`;
+
+    const H_TRIP_OPS: HelpArticle[] = [
+      article({
+        id: "reservar-viaje",
+        sortOrder: 50,
+        group: "operacion",
+        screens: ["/trips", "/trips/new"],
+      }),
+      article({
+        id: "confirmar-reserva",
+        sortOrder: 50,
+        group: "operacion",
+        screens: [
+          "/trips/:id?status=draft",
+          "/trips/:id?status=draft&tab=route",
+          "/trips/:id?status=draft&tab=cargo",
+          "/trips/:id?status=draft&tab=overview",
+          "/trips/:id?status=draft&tab=tracking",
+        ],
+      }),
+      article({
+        id: "seguir-viaje",
+        sortOrder: 50,
+        group: "operacion",
+        screens: [
+          "/trips",
+          "/trips/:id?status=scheduled",
+          "/trips/:id?status=in_progress",
+          "/trips/:id?status=scheduled&tab=tracking",
+          "/trips/:id?status=scheduled&tab=overview",
+          "/trips/:id?status=scheduled&tab=route",
+          "/trips/:id?status=scheduled&tab=cargo",
+          "/trips/:id?status=in_progress&tab=tracking",
+        ],
+      }),
+      article({
+        id: "ajustar-viaje-en-ruta",
+        sortOrder: 50,
+        group: "operacion",
+        screens: [
+          "/trips/:id?status=in_progress&tab=route",
+          "/trips/:id?status=in_progress&tab=cargo",
+          "/trips/:id?status=in_progress&tab=overview",
+        ],
+      }),
+      article({
+        id: "registrar-gasto-viaje",
+        sortOrder: 50,
+        group: "operacion",
+        screens: ["/trips/:id?tab=costs"],
+      }),
+      article({
+        id: "corregir-anular-cfdi",
+        sortOrder: 50,
+        group: "operacion",
+        screens: [
+          "/trips/:id?tab=billing",
+          "/trips/:id?status=cancelled",
+          "/invoices/:id",
+        ],
+      }),
+      article({
+        id: "generar-orden-viaje",
+        sortOrder: 50,
+        group: "operacion",
+        screens: ["/trips/:id?status=completed", "/trips/:id"],
+      }),
+      article({
+        id: "datos-carta-porte-viaje",
+        sortOrder: 50,
+        group: "operacion",
+        screens: ["/trips/:id"],
+      }),
+      article({
+        id: "planear-retorno-viaje",
+        sortOrder: 50,
+        group: "operacion",
+        screens: [],
+      }),
+    ];
+
+    const H_FACTURAS: HelpArticle[] = [
+      article({
+        id: "enviar-factura",
+        sortOrder: 90,
+        group: "facturacion",
+        screens: ["/finance/invoices", "/invoices/:id", "/finance/dispatch"],
+      }),
+      article({
+        id: "cobrar-a-credito",
+        sortOrder: 90,
+        group: "cobranza",
+        screens: ["/finance/payments", "/finance/invoices", "/invoices/:id"],
+      }),
+    ];
+
+    it("CB-I1: ?tab=costs → registrar-gasto-viaje", () => {
+      expect(primaryForPath(`${trip}?tab=costs`, H_TRIP_OPS)).toBe(
+        "registrar-gasto-viaje",
+      );
+    });
+
+    it("CB-I2: ?tab=billing → corregir-anular-cfdi", () => {
+      expect(primaryForPath(`${trip}?tab=billing`, H_TRIP_OPS)).toBe(
+        "corregir-anular-cfdi",
+      );
+    });
+
+    it("CB-I3: ?tab=tracking sin status → respaldo bare (orden/CP)", () => {
+      const ids = listForScreen(`${trip}?tab=tracking`, H_TRIP_OPS);
+      expect(ids).toEqual(
+        expect.arrayContaining([
+          "generar-orden-viaje",
+          "datos-carta-porte-viaje",
+        ]),
+      );
+      expect(ids).not.toContain("seguir-viaje");
+      expect(primaryForPath(`${trip}?tab=tracking`, H_TRIP_OPS)).toMatch(
+        /generar-orden-viaje|datos-carta-porte-viaje/,
+      );
+    });
+
+    it("CB-I4: ?status=draft → confirmar-reserva", () => {
+      expect(primaryForPath(`${trip}?status=draft`, H_TRIP_OPS)).toBe(
+        "confirmar-reserva",
+      );
+      expect(listForScreen(`${trip}?status=draft`, H_TRIP_OPS)).toEqual([
+        "confirmar-reserva",
+      ]);
+    });
+
+    it.each([
+      ["CB-I5a", `${trip}?status=scheduled`],
+      ["CB-I5b", `${trip}?status=in_progress`],
+      ["CB-I5c", `${trip}?status=scheduled&tab=tracking`],
+      ["CB-I5d", `${trip}?status=in_progress&tab=tracking`],
+    ] as const)("%s → seguir-viaje", (_id, screen) => {
+      expect(primaryForPath(screen, H_TRIP_OPS)).toBe("seguir-viaje");
+      expect(listForScreen(screen, H_TRIP_OPS)).toEqual(["seguir-viaje"]);
+    });
+
+    it.each([
+      ["CB-I6a", `${trip}?status=in_progress&tab=route`],
+      ["CB-I6b", `${trip}?status=in_progress&tab=cargo`],
+      ["CB-I6c", `${trip}?status=in_progress&tab=overview`],
+    ] as const)("%s → ajustar-viaje-en-ruta", (_id, screen) => {
+      expect(primaryForPath(screen, H_TRIP_OPS)).toBe("ajustar-viaje-en-ruta");
+    });
+
+    it("CB-I7a: ?status=completed → generar-orden-viaje", () => {
+      expect(primaryForPath(`${trip}?status=completed`, H_TRIP_OPS)).toBe(
+        "generar-orden-viaje",
+      );
+    });
+
+    it("CB-I7b: ?status=cancelled → corregir-anular-cfdi", () => {
+      expect(primaryForPath(`${trip}?status=cancelled`, H_TRIP_OPS)).toBe(
+        "corregir-anular-cfdi",
+      );
+    });
+
+    it("CB-I9: /finance/invoices → enviar-factura (sort igualado 90; id ASC)", () => {
+      // Empate de score: selectPrimary usa min sortOrder; con sort igualado
+      // desempata por orden de aparición / id estable del fixture → documentar.
+      expect(primaryForPath("/finance/invoices", H_FACTURAS)).toBe(
+        "enviar-factura",
+      );
+    });
+
+    it("CB-I10: /finance/payments → cobrar-a-credito", () => {
+      expect(primaryForPath("/finance/payments", H_FACTURAS)).toBe(
+        "cobrar-a-credito",
+      );
+    });
+
+    it("CB-I11: Análisis /trips/new — regresión corte A", () => {
+      const H_U08_EQ = U08_ARTICLES.map((a) => {
+        if (
+          a.id === "consultar-tendencia" ||
+          a.id === "ver-rentabilidad" ||
+          a.id === "revisar-gasto-viaje"
+        ) {
+          return { ...a, sortOrder: 145 };
+        }
+        return a;
+      });
+      expect(
+        primaryForPath("/finance/analysis?view=margin", H_U08_EQ),
+      ).toBe("ver-rentabilidad");
+      expect(primaryForPath("/trips/new", H_TRIP_OPS)).toBe("reservar-viaje");
+    });
+
+    it("CB-TIE-2: draft+tracking → confirmar", () => {
+      expect(
+        primaryForPath(`${trip}?status=draft&tab=tracking`, H_TRIP_OPS),
+      ).toBe("confirmar-reserva");
+    });
+  });
 });

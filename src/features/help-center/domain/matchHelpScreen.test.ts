@@ -1,7 +1,8 @@
 /**
  * Parity twin: boeltech-transport-api/src/modules/help-center/domain/matchHelpScreen.ts
  *
- * Mirror cases: PRD §G + N1, N3, N4 + A5 (R-SPEC / R-VIEW / R-LIST).
+ * Mirror cases: PRD §G + N1, N3, N4 + A5 (R-SPEC / R-VIEW / R-LIST)
+ * + plan-tec-corte-b §H.1 / §H.2 (TB-5..8 / TB-7).
  * Where §H asks for equalized sort_order, the matcher filter is independent of
  * sort — residual ordering is the caller's job (repo SQL / selectPrimary).
  */
@@ -19,6 +20,7 @@ type Fixture = {
 };
 
 const UUID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+const TRIP = `/trips/${UUID}`;
 
 /** Competing articles for §G / §H with sort_order equalized where it matters. */
 const ARTICLES: Fixture[] = [
@@ -128,14 +130,68 @@ const ARTICLES: Fixture[] = [
     screens: ["/trips", "/trips/new"],
     sortOrder: 50,
   },
+  // Corte B — viajes status/tab (sort_order equalized = 50)
+  {
+    id: "confirmar-reserva",
+    screens: [
+      "/trips/:id?status=draft",
+      "/trips/:id?status=draft&tab=route",
+      "/trips/:id?status=draft&tab=cargo",
+      "/trips/:id?status=draft&tab=overview",
+      "/trips/:id?status=draft&tab=tracking",
+    ],
+    sortOrder: 50,
+  },
   {
     id: "seguir-viaje",
+    screens: [
+      "/trips",
+      "/trips/:id?status=scheduled",
+      "/trips/:id?status=in_progress",
+      "/trips/:id?status=scheduled&tab=tracking",
+      "/trips/:id?status=scheduled&tab=overview",
+      "/trips/:id?status=scheduled&tab=route",
+      "/trips/:id?status=scheduled&tab=cargo",
+      "/trips/:id?status=in_progress&tab=tracking",
+    ],
+    sortOrder: 50,
+  },
+  {
+    id: "ajustar-viaje-en-ruta",
+    screens: [
+      "/trips/:id?status=in_progress&tab=route",
+      "/trips/:id?status=in_progress&tab=cargo",
+      "/trips/:id?status=in_progress&tab=overview",
+    ],
+    sortOrder: 50,
+  },
+  {
+    id: "registrar-gasto-viaje",
+    screens: ["/trips/:id?tab=costs"],
+    sortOrder: 50,
+  },
+  {
+    id: "corregir-anular-cfdi",
+    screens: [
+      "/trips/:id?tab=billing",
+      "/trips/:id?status=cancelled",
+      "/invoices/:id",
+    ],
+    sortOrder: 50,
+  },
+  {
+    id: "generar-orden-viaje",
+    screens: ["/trips/:id?status=completed", "/trips/:id"],
+    sortOrder: 50,
+  },
+  {
+    id: "datos-carta-porte-viaje",
     screens: ["/trips/:id"],
     sortOrder: 50,
   },
   {
-    id: "confirmar-reserva",
-    screens: ["/trips/:id"],
+    id: "planear-retorno-viaje",
+    screens: [],
     sortOrder: 50,
   },
   {
@@ -143,10 +199,54 @@ const ARTICLES: Fixture[] = [
     screens: ["/finance/dispatch/period", "/finance/dispatch/:id"],
     sortOrder: 100,
   },
+  // Facturas / cobranza (TB-1 · TB-4) — sort equalized for CB-I9
+  {
+    id: "enviar-factura",
+    screens: ["/finance/invoices", "/invoices/:id", "/finance/dispatch"],
+    sortOrder: 90,
+  },
+  {
+    id: "cobrar-a-credito",
+    screens: ["/finance/payments", "/finance/invoices", "/invoices/:id"],
+    sortOrder: 90,
+  },
+  // Portales — pool aparte en CB-I8 (roles = composición del pool)
+  {
+    id: "portal-cliente",
+    screens: [
+      "/dashboard",
+      "/trips",
+      "/trips/:id",
+      "/finance/invoices",
+      "/invoices/:id",
+    ],
+    sortOrder: 50,
+  },
+  {
+    id: "portal-conductor",
+    screens: ["/dashboard", "/trips", "/trips/:id"],
+    sortOrder: 50,
+  },
 ];
 
-function winners(screen: string): string[] {
-  return filterArticlesByMaxScreenScore(screen, ARTICLES).map((a) => a.id);
+function winners(screen: string, pool: readonly Fixture[] = ARTICLES): string[] {
+  return filterArticlesByMaxScreenScore(screen, pool).map((a) => a.id);
+}
+
+function tripOpsPool(): Fixture[] {
+  return ARTICLES.filter((a) =>
+    [
+      "confirmar-reserva",
+      "seguir-viaje",
+      "ajustar-viaje-en-ruta",
+      "registrar-gasto-viaje",
+      "corregir-anular-cfdi",
+      "generar-orden-viaje",
+      "datos-carta-porte-viaje",
+      "planear-retorno-viaje",
+      "reservar-viaje",
+    ].includes(a.id),
+  );
 }
 
 describe("matchHelpScreen (legacy boolean)", () => {
@@ -307,11 +407,173 @@ describe("filterArticlesByMaxScreenScore — PRD §G + N1/N3/N4 + A5", () => {
     expect(winners("/trips/new")).not.toContain("confirmar-reserva");
   });
 
-  it("UUID detail still opens the ficha/detail article (§H.9)", () => {
-    expect(winners(`/vehicles/${UUID}`)).toEqual(["corregir-ficha-flota"]);
-    expect(winners(`/clients/${UUID}`)).toEqual(["ficha-cliente"]);
-    expect(winners(`/trips/${UUID}`)).toEqual(
-      expect.arrayContaining(["seguir-viaje", "confirmar-reserva"]),
+  it("UUID detail bare → respaldo orden/CP (TB-7), no operativos", () => {
+    const ids = winners(TRIP, tripOpsPool());
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "generar-orden-viaje",
+        "datos-carta-porte-viaje",
+      ]),
     );
+    expect(ids).not.toContain("seguir-viaje");
+    expect(ids).not.toContain("confirmar-reserva");
+    expect(ids).not.toContain("ajustar-viaje-en-ruta");
+  });
+});
+
+describe("filterArticlesByMaxScreenScore — corte B §H.1 (TB-7)", () => {
+  const pool = tripOpsPool();
+
+  it("CB-I1: ?tab=costs → registrar-gasto-viaje", () => {
+    expect(winners(`${TRIP}?tab=costs`, pool)).toEqual([
+      "registrar-gasto-viaje",
+    ]);
+  });
+
+  it("CB-I2: ?tab=billing → corregir-anular-cfdi", () => {
+    expect(winners(`${TRIP}?tab=billing`, pool)).toEqual([
+      "corregir-anular-cfdi",
+    ]);
+  });
+
+  it("CB-I3: ?tab=tracking sin status → respaldo bare (no seguir)", () => {
+    const ids = winners(`${TRIP}?tab=tracking`, pool);
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "generar-orden-viaje",
+        "datos-carta-porte-viaje",
+      ]),
+    );
+    expect(ids).not.toContain("seguir-viaje");
+  });
+
+  it("CB-I4: ?status=draft → solo confirmar-reserva", () => {
+    expect(winners(`${TRIP}?status=draft`, pool)).toEqual([
+      "confirmar-reserva",
+    ]);
+  });
+
+  it.each([
+    ["CB-I5a", `${TRIP}?status=scheduled`],
+    ["CB-I5b", `${TRIP}?status=in_progress`],
+  ] as const)("%s → solo seguir-viaje", (_id, screen) => {
+    expect(winners(screen, pool)).toEqual(["seguir-viaje"]);
+  });
+
+  it.each([
+    ["CB-I5c", `${TRIP}?status=scheduled&tab=tracking`],
+    ["CB-I5d", `${TRIP}?status=in_progress&tab=tracking`],
+  ] as const)("%s → solo seguir-viaje", (_id, screen) => {
+    expect(winners(screen, pool)).toEqual(["seguir-viaje"]);
+  });
+
+  it.each([
+    ["CB-I6a", `${TRIP}?status=in_progress&tab=route`],
+    ["CB-I6b", `${TRIP}?status=in_progress&tab=cargo`],
+    ["CB-I6c", `${TRIP}?status=in_progress&tab=overview`],
+  ] as const)("%s → solo ajustar-viaje-en-ruta", (_id, screen) => {
+    expect(winners(screen, pool)).toEqual(["ajustar-viaje-en-ruta"]);
+  });
+
+  it("CB-I7a: ?status=completed → generar-orden-viaje (sin operativos/retorno)", () => {
+    const ids = winners(`${TRIP}?status=completed`, pool);
+    expect(ids).toEqual(["generar-orden-viaje"]);
+    expect(ids).not.toContain("seguir-viaje");
+    expect(ids).not.toContain("confirmar-reserva");
+    expect(ids).not.toContain("ajustar-viaje-en-ruta");
+    expect(ids).not.toContain("planear-retorno-viaje");
+  });
+
+  it("CB-I7b: ?status=cancelled → corregir-anular-cfdi", () => {
+    const ids = winners(`${TRIP}?status=cancelled`, pool);
+    expect(ids).toEqual(["corregir-anular-cfdi"]);
+    expect(ids).not.toContain("seguir-viaje");
+    expect(ids).not.toContain("planear-retorno-viaje");
+  });
+
+  it("CB-I8: portal pool → portal-* (roles = composición del pool)", () => {
+    const portals = ARTICLES.filter((a) => a.id.startsWith("portal-"));
+    expect(winners("/dashboard", portals)).toEqual(
+      expect.arrayContaining(["portal-cliente", "portal-conductor"]),
+    );
+    expect(winners(TRIP, portals)).toEqual(
+      expect.arrayContaining(["portal-cliente", "portal-conductor"]),
+    );
+  });
+
+  it("CB-I9: /finance/invoices → enviar+cobrar empatan path (sort = caller)", () => {
+    const finance = ARTICLES.filter((a) =>
+      ["enviar-factura", "cobrar-a-credito"].includes(a.id),
+    );
+    expect(winners("/finance/invoices", finance).sort()).toEqual([
+      "cobrar-a-credito",
+      "enviar-factura",
+    ]);
+  });
+
+  it("CB-I10: /finance/payments → cobrar-a-credito", () => {
+    const finance = ARTICLES.filter((a) =>
+      ["enviar-factura", "cobrar-a-credito"].includes(a.id),
+    );
+    expect(winners("/finance/payments", finance)).toEqual([
+      "cobrar-a-credito",
+    ]);
+  });
+
+  it("CB-I11: Análisis view /trips/new — regresión corte A", () => {
+    expect(winners("/finance/analysis?view=margin")).toEqual([
+      "ver-rentabilidad",
+    ]);
+    expect(winners("/trips/new")).toEqual(["reservar-viaje"]);
+  });
+});
+
+describe("filterArticlesByMaxScreenScore — corte B §H.2 empates", () => {
+  const pool = tripOpsPool();
+
+  it("CB-TIE-1: inyector quita status → ?tab=costs → gasto", () => {
+    expect(winners(`${TRIP}?tab=costs`, pool)).toEqual([
+      "registrar-gasto-viaje",
+    ]);
+  });
+
+  it("CB-TIE-2: ?status=draft&tab=tracking → confirmar (121)", () => {
+    expect(
+      scoreHelpScreen(`${TRIP}?status=draft&tab=tracking`, [
+        "/trips/:id?status=draft&tab=tracking",
+      ]),
+    ).toBe(121);
+    expect(winners(`${TRIP}?status=draft&tab=tracking`, pool)).toEqual([
+      "confirmar-reserva",
+    ]);
+  });
+
+  it("CB-TIE-3: ?tab=tracking sin status → respaldo bare", () => {
+    const ids = winners(`${TRIP}?tab=tracking`, pool);
+    expect(ids).not.toContain("seguir-viaje");
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "generar-orden-viaje",
+        "datos-carta-porte-viaje",
+      ]),
+    );
+  });
+
+  it("CB-TIE-4: ?status=completed — operativos sin bare no entran", () => {
+    expect(winners(`${TRIP}?status=completed`, pool)).toEqual([
+      "generar-orden-viaje",
+    ]);
+  });
+
+  it("CB-TIE-5: cancelled + planear-retorno en pool → retorno no max", () => {
+    const ids = winners(`${TRIP}?status=cancelled`, pool);
+    expect(ids).toEqual(["corregir-anular-cfdi"]);
+    expect(ids).not.toContain("planear-retorno-viaje");
+  });
+
+  it("CB-TIE-6: draft+billing (solo tab tras inyector) → corregir", () => {
+    expect(winners(`${TRIP}?tab=billing`, pool)).toEqual([
+      "corregir-anular-cfdi",
+    ]);
   });
 });

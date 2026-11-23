@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { selectPrimaryHelpArticle } from "./selectPrimaryHelpArticle";
+import { useFusedHelpScreen } from "./useMergedHelpScreen";
 import { useHelpArticles } from "./useHelpArticles";
 
 export type HelpPhraseForScreen = {
@@ -11,15 +12,16 @@ export type HelpPhraseForScreen = {
 /**
  * Phrase del artículo primario para la pantalla actual (TEC Ola A §4.2).
  * Fuente: `GET /help/articles?screen=` — no hardcodear phrase en features dueñas.
- * `screen` = `pathname + search` cuando la vista depende de query (p. ej. Análisis `?view=`).
+ * `screen` se fusiona con extras opacos (corte B `status=`) antes del GET.
  */
 export function useHelpPhraseForScreen(
   screen: string,
   options?: { enabled?: boolean },
 ): HelpPhraseForScreen | null {
-  const enabled = options?.enabled ?? Boolean(screen);
+  const fusedScreen = useFusedHelpScreen(screen);
+  const enabled = options?.enabled ?? Boolean(fusedScreen);
   const { data: articles } = useHelpArticles(
-    { screen },
+    { screen: fusedScreen },
     { enabled },
   );
 

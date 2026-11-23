@@ -19,6 +19,7 @@ import { buildSupportMailto } from "@widgets/header/lib/buildSupportMailto";
 import {
   useHelpArticle,
   useHelpArticles,
+  useMergedHelpScreen,
   useOpenTicketCount,
 } from "../../application";
 import { trackHelpSearchPerformed } from "../../application/trackHelpEvent";
@@ -46,8 +47,11 @@ export const HelpPanel = memo(function HelpPanel({
 }: HelpPanelProps) {
   const location = useLocation();
   const { user } = useAuth();
-  /** Runtime screen for API match: pathname + search (ADR-0100 addendum / corte A). */
-  const currentScreen = `${location.pathname}${location.search}`;
+  /**
+   * Runtime screen for API match: pathname + search + opaque extras
+   * (ADR-0100 addendum / corte A–B). Extras never write to the URL.
+   */
+  const currentScreen = useMergedHelpScreen();
   const ticketsEnabled = config.help.ticketsEnabled;
 
   const [search, setSearch] = useState("");

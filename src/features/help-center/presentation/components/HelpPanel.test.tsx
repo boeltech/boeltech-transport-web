@@ -46,15 +46,22 @@ vi.mock("@widgets/header/lib/buildSupportMailto", () => ({
   buildSupportMailto: () => "mailto:support@test.com",
 }));
 
-vi.mock("../../application", () => ({
-  useHelpArticles: (...args: unknown[]) => mockUseHelpArticles(...args),
-  useHelpArticle: (...args: unknown[]) => mockUseHelpArticle(...args),
-  useOpenTicketCount: (...args: unknown[]) => mockUseOpenTicketCount(...args),
-  useCreateHelpTicket: () => ({
-    mutateAsync: vi.fn(),
-    isPending: false,
-  }),
-}));
+vi.mock("../../application", async () => {
+  const { useLocation } = await import("react-router-dom");
+  return {
+    useHelpArticles: (...args: unknown[]) => mockUseHelpArticles(...args),
+    useHelpArticle: (...args: unknown[]) => mockUseHelpArticle(...args),
+    useOpenTicketCount: (...args: unknown[]) => mockUseOpenTicketCount(...args),
+    useMergedHelpScreen: () => {
+      const location = useLocation();
+      return `${location.pathname}${location.search}`;
+    },
+    useCreateHelpTicket: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
+  };
+});
 
 vi.mock("../../application/trackHelpEvent", () => ({
   trackHelpSearchPerformed: vi.fn(),

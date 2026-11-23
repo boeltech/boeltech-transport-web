@@ -156,6 +156,7 @@ import {
   shouldFetchTripTimeline,
   shouldShowShellOpenIncidentBanner,
 } from "./tripDetailQueryGating";
+import { usePublishTripHelpScreenExtras } from "./usePublishTripHelpScreenExtras";
 import { buildTripRouteDetailView } from "./tripDetailRouteData";
 import { buildPostCancelFiscalAlertLines } from "../helpers/buildPostCancelFiscalAlertLines";
 import { isFleetFiscalAttentionMutation } from "../helpers/fiscalAttentionMutationCopy";
@@ -374,6 +375,12 @@ export function TripDetailPage() {
       : isLeanTripPortal && activeTab === "costs"
         ? "overview"
         : activeTab;
+
+  usePublishTripHelpScreenExtras({
+    tripStatus: trip?.status,
+    activeTab: resolvedActiveTab,
+    tripLoaded: Boolean(trip),
+  });
 
   const timelineEnabled = shouldFetchTripTimeline(
     resolvedActiveTab,

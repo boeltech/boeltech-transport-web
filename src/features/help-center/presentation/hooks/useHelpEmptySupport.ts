@@ -15,7 +15,7 @@ export type HelpEmptySupport = {
 /**
  * Phrase + CTA «Ver ayuda» para empty states de producto (TEC §4.2).
  * Solo habilitar en empties «sin datos» (no filtros / error).
- * `screen` = `pathname + search` cuando la vista depende de query (p. ej. Análisis).
+ * `screen` se fusiona con extras opacos vía {@link useHelpPhraseForScreen}.
  */
 export function useHelpEmptySupport(
   screen: string,
