@@ -36,6 +36,8 @@ export function consumeFreshLoginSession(): boolean {
 /** Limpia tokens tenant legado si el modo ya no los persiste. */
 function purgePersistedTokensIfNeeded(): void {
   if (persistsAuthTokens()) return;
+  // Node Vitest (and SSR) have no Web Storage; skip purge there.
+  if (typeof localStorage === "undefined") return;
   localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
 }
