@@ -6,9 +6,12 @@
  *
  * Requiere data router (`createBrowserRouter` / `createMemoryRouter`).
  * Doc: `.agents/skills/design-system/SKILL.md` § Formularios largos.
+ *
+ * `allowLeave()` escribe un ref síncrono además del state, para que
+ * `allowLeave()` + `navigate()` en el mismo tick no dispare el diálogo.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useBlocker, type Blocker } from "react-router-dom";
 
 export const UNSAVED_CHANGES_COPY = {
@@ -38,26 +41,32 @@ export function useUnsavedChangesGuard({
   isDirty,
   enabled = true,
 }: UseUnsavedChangesGuardOptions): UseUnsavedChangesGuardResult {
+  const forceAllowRef = useRef(false);
   const [forceAllow, setForceAllow] = useState(false);
-  const shouldBlock = Boolean(enabled && isDirty && !forceAllow);
 
-  const blocker = useBlocker(shouldBlock);
+  const blocker = useBlocker(
+    () => Boolean(enabled && isDirty && !forceAllowRef.current),
+  );
+
+  const shouldBlockUnload = Boolean(enabled && isDirty && !forceAllow);
 
   useEffect(() => {
-    if (!shouldBlock) return;
+    if (!shouldBlockUnload) return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [shouldBlock]);
+  }, [shouldBlockUnload]);
 
   const allowLeave = useCallback(() => {
+    forceAllowRef.current = true;
     setForceAllow(true);
   }, []);
 
   const resetAllowLeave = useCallback(() => {
+    forceAllowRef.current = false;
     setForceAllow(false);
   }, []);
 

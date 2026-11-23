@@ -233,14 +233,19 @@ export function WithoutInvoiceCollectionForm({
   const candidates = candidatesQuery.data?.data ?? EMPTY_CANDIDATES;
 
   const premarkedKey = premarkedTripIds.join(",");
+  /** Solo re-init selección en cambio de cliente/premarcados, no en refetch. */
+  const selectionScopeKey = `${clientId}|${premarkedKey}`;
+  const initializedSelectionScopeRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!candidates.length) return;
+    if (initializedSelectionScopeRef.current === selectionScopeKey) return;
+    initializedSelectionScopeRef.current = selectionScopeKey;
     const allIds = candidates.map((c) => c.tripId);
     setSelectedIds(resolvePremarkedIds(premarkedTripIds, allIds));
     setEdited(false);
     setDisabledTrips(new Set());
-    // premarkedKey estabiliza arrays nuevos con el mismo contenido.
-  }, [candidatesQuery.dataUpdatedAt, premarkedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectionScopeKey, candidates, premarkedTripIds]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(buildSchema("cash")) as Resolver<FormValues>,
@@ -346,9 +351,10 @@ export function WithoutInvoiceCollectionForm({
     form.formState.isDirty ||
     edited ||
     (typeof amount === "number" && amount > 0);
-  const { blocker, allowLeave } = useUnsavedChangesGuard({
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
     isDirty: isDirty && !form.formState.isSubmitSuccessful,
   });
+  const wasSubmittingRef = useRef(false);
 
   const createMutation = useCreateOperationalReceiptBatch(clientId, {
     onSuccess: (batch) => {
@@ -357,6 +363,7 @@ export function WithoutInvoiceCollectionForm({
         readCobrosTodayTray(),
         buildWithoutInvoiceCobrosTodayEntry(batch, receiverRfc),
       );
+      // Defensa: el canónico es allowLeave() antes de mutate (onSubmit).
       allowLeave();
       const landingHref = resolveOperationalReceiptBatchCreateSuccessHref(
         from ?? undefined,
@@ -478,6 +485,23 @@ export function WithoutInvoiceCollectionForm({
     },
   });
 
+  useEffect(() => {
+    if (createMutation.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      if (createMutation.isError) {
+        resetAllowLeave();
+      }
+    }
+  }, [
+    createMutation.isPending,
+    createMutation.isError,
+    resetAllowLeave,
+  ]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return candidates;
@@ -569,6 +593,8 @@ export function WithoutInvoiceCollectionForm({
     const pendingById = new Map(
       candidates.map((c) => [c.tripId, c.pendingAmount]),
     );
+    // Canónico: allowLeave antes de mutate (evita falso positivo dirty al navegar).
+    allowLeave();
     createMutation.mutate({
       amount: values.amount,
       paymentInstrument: values.paymentInstrument,
@@ -729,7 +755,7 @@ export function WithoutInvoiceCollectionForm({
     selectedIds,
   ]);
 
-  // ── Aside: «Al registrar» + «Saldo del cliente» (H1) ──────────────────
+  // ── Aside: «Al registrar» + «Saldo de los elegidos» (H1) ──────────────
   const asideContent = useMemo(() => {
     const amountNum = typeof amount === "number" && amount > 0 ? amount : 0;
     const remaining = Math.max(0, selectedPending - amountNum);
@@ -752,7 +778,7 @@ export function WithoutInvoiceCollectionForm({
           </ul>
         </div>
 
-        {/* «Saldo del cliente» */}
+        {/* «Saldo de los elegidos» */}
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold">{registerCollectionCopy.balanceCard.title}</h3>
           <dl className="space-y-1.5 text-sm">

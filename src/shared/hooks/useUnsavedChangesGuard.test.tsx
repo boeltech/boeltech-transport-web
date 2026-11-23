@@ -121,6 +121,87 @@ describe("useUnsavedChangesGuard", () => {
     expect(await screen.findByText("away-page")).toBeInTheDocument();
   });
 
+  it("allowLeave + navigate same-tick does not show the dialog", async () => {
+    const user = userEvent.setup();
+
+    function SameTickProbe() {
+      const navigate = useNavigate();
+      const { blocker, allowLeave } = useUnsavedChangesGuard({ isDirty: true });
+      return (
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              allowLeave();
+              navigate("/away");
+            }}
+          >
+            leave-same-tick
+          </button>
+          <UnsavedChangesDialog blocker={blocker} />
+        </div>
+      );
+    }
+
+    const router = createMemoryRouter(
+      [
+        { path: "/", element: <SameTickProbe /> },
+        { path: "/away", element: <div>away-page</div> },
+      ],
+      { initialEntries: ["/"] },
+    );
+    render(<RouterProvider router={router} />);
+
+    await user.click(screen.getByRole("button", { name: "leave-same-tick" }));
+    expect(await screen.findByText("away-page")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("alertdialog", { name: UNSAVED_CHANGES_COPY.title }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("resetAllowLeave re-enables the dialog after allowLeave", async () => {
+    const user = userEvent.setup();
+
+    function ResetProbe() {
+      const navigate = useNavigate();
+      const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
+        isDirty: true,
+      });
+      return (
+        <div>
+          <button type="button" onClick={() => allowLeave()}>
+            allow-leave
+          </button>
+          <button type="button" onClick={() => resetAllowLeave()}>
+            reset-allow
+          </button>
+          <button type="button" onClick={() => navigate("/away")}>
+            leave
+          </button>
+          <UnsavedChangesDialog blocker={blocker} />
+        </div>
+      );
+    }
+
+    const router = createMemoryRouter(
+      [
+        { path: "/", element: <ResetProbe /> },
+        { path: "/away", element: <div>away-page</div> },
+      ],
+      { initialEntries: ["/"] },
+    );
+    render(<RouterProvider router={router} />);
+
+    await user.click(screen.getByRole("button", { name: "allow-leave" }));
+    await user.click(screen.getByRole("button", { name: "reset-allow" }));
+    await user.click(screen.getByRole("button", { name: "leave" }));
+    expect(
+      await screen.findByRole("alertdialog", {
+        name: UNSAVED_CHANGES_COPY.title,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("registers beforeunload while dirty", () => {
     renderProbe(true);
     expect(window.addEventListener).toHaveBeenCalledWith(

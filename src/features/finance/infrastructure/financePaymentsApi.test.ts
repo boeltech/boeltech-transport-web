@@ -7,8 +7,9 @@ import {
   mapRepStatusItem,
 } from "./financePaymentsApi";
 
-const { getMock } = vi.hoisted(() => ({
+const { getMock, postMock } = vi.hoisted(() => ({
   getMock: vi.fn(),
+  postMock: vi.fn(),
 }));
 
 vi.mock("@shared/api", async (importOriginal) => {
@@ -17,6 +18,7 @@ vi.mock("@shared/api", async (importOriginal) => {
     ...actual,
     apiClient: {
       get: getMock,
+      post: postMock,
     },
   };
 });
@@ -310,5 +312,77 @@ describe("mapRepExceptionItem / getRepExceptions", () => {
       "/finance/payments/rep-exceptions?page=1&limit=25&receiver_rfc=XAXX010101000",
     );
     expect(result.pagination.total).toBe(0);
+  });
+});
+
+describe("registerPayment", () => {
+  beforeEach(() => {
+    postMock.mockReset();
+  });
+
+  it("incluye idempotency_key en el body cuando viene en el payload", async () => {
+    postMock.mockResolvedValue({
+      data: {
+        id: "pay-1",
+        invoice_id: "inv-1",
+        amount: 1000,
+        currency: "MXN",
+        exchange_rate: 1,
+        amount_mxn: 1000,
+        payment_date: "2026-11-23",
+        payment_time: "12:00:00",
+        payment_form: "03",
+        created_at: "2026-11-23T18:00:00.000Z",
+        rep_status: "pending",
+      },
+    });
+
+    await financePaymentsApi.registerPayment({
+      receiverRfc: "XAXX010101000",
+      amount: 1000,
+      paymentDate: "2026-11-23",
+      paymentForm: "03",
+      idempotencyKey: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      allocations: [{ ingressInvoiceId: "inv-1", amount: 1000 }],
+    });
+
+    expect(postMock).toHaveBeenCalledWith(
+      "/finance/payments",
+      expect.objectContaining({
+        receiver_rfc: "XAXX010101000",
+        amount: 1000,
+        idempotency_key: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+        allocations: [{ ingress_invoice_id: "inv-1", amount: 1000 }],
+      }),
+    );
+  });
+
+  it("omite idempotency_key si no viene en el payload", async () => {
+    postMock.mockResolvedValue({
+      data: {
+        id: "pay-2",
+        invoice_id: "inv-1",
+        amount: 500,
+        currency: "MXN",
+        exchange_rate: 1,
+        amount_mxn: 500,
+        payment_date: "2026-11-23",
+        payment_time: "12:00:00",
+        payment_form: "03",
+        created_at: "2026-11-23T18:00:00.000Z",
+        rep_status: "pending",
+      },
+    });
+
+    await financePaymentsApi.registerPayment({
+      receiverRfc: "XAXX010101000",
+      amount: 500,
+      paymentDate: "2026-11-23",
+      paymentForm: "03",
+      allocations: [{ ingressInvoiceId: "inv-1", amount: 500 }],
+    });
+
+    const body = postMock.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty("idempotency_key");
   });
 });

@@ -198,20 +198,32 @@ export function WithInvoiceCollectionForm({
   const [edited, setEdited] = useState(false);
   const [lineErrors, setLineErrors] = useState<Record<string, string>>({});
   const [excessAlert, setExcessAlert] = useState<string | null>(null);
+  const [balanceAlert, setBalanceAlert] = useState<string | null>(null);
   const [chainRepairOpen, setChainRepairOpen] = useState(false);
   const [chainRepairLabels, setChainRepairLabels] = useState<string[]>([]);
   const [chainRepairError, setChainRepairError] = useState<string | null>(null);
   const [pendingPayload, setPendingPayload] =
     useState<RegisterFinancePaymentPayload | null>(null);
   const snapshotRef = useRef<FinanceInvoiceListItem[]>([]);
-
+  /** Estable hasta éxito / remount — no rotar en error ni chain-repair. */
+  const idempotencyKeyRef = useRef(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}`,
+  );
   const premarkedKey = premarkedInvoiceIds.join(",");
+  /** Solo re-init selección en cambio de cliente/premarcados, no en refetch. */
+  const selectionScopeKey = `${clientId ?? ""}|${receiverRfc ?? ""}|${premarkedKey}`;
+  const initializedSelectionScopeRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!invoices.length) return;
+    if (initializedSelectionScopeRef.current === selectionScopeKey) return;
+    initializedSelectionScopeRef.current = selectionScopeKey;
     const allIds = invoices.map((i) => i.id);
     setSelectedIds(resolvePremarkedIds(premarkedInvoiceIds, allIds));
     setEdited(false);
-  }, [invoicesQuery.dataUpdatedAt, premarkedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectionScopeKey, invoices, premarkedInvoiceIds]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
@@ -329,7 +341,7 @@ export function WithInvoiceCollectionForm({
     return rows;
   }, [selectedInvoices, amounts]);
 
-  // ── Aside: «Al registrar» + «Saldo del cliente» (H1, H5) ─────────────
+  // ── Aside: «Al registrar» + «Saldo de los elegidos» (H1, H5) ─────────
   const asideContent = useMemo(() => {
     const effectItems: { icon: "check" | "warning"; text: string; detail?: string }[] = [];
 
@@ -390,7 +402,7 @@ export function WithInvoiceCollectionForm({
           )}
         </div>
 
-        {/* «Saldo del cliente» */}
+        {/* «Saldo de los elegidos» */}
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <h3 className="mb-3 text-sm font-semibold">{copy.balanceCard.title}</h3>
           <dl className="space-y-1.5 text-sm">
@@ -441,9 +453,10 @@ export function WithInvoiceCollectionForm({
     form.formState.isDirty ||
     edited ||
     (typeof amount === "number" && amount > 0);
-  const { blocker, allowLeave } = useUnsavedChangesGuard({
+  const { blocker, allowLeave, resetAllowLeave } = useUnsavedChangesGuard({
     isDirty,
   });
+  const wasSubmittingRef = useRef(false);
 
   const registerMutation = useRegisterFinancePayment({
     onSuccess: (data, variables) => {
@@ -454,6 +467,7 @@ export function WithInvoiceCollectionForm({
           buildCobrosFollowThrough(data, variables, snapshot),
         );
       }
+      // Defensa: el canónico es allowLeave() antes de mutate (submitPayload).
       allowLeave();
       toast({
         title: copy.toast.successTitle,
@@ -465,6 +479,23 @@ export function WithInvoiceCollectionForm({
     },
   });
 
+  useEffect(() => {
+    if (registerMutation.isPending) {
+      wasSubmittingRef.current = true;
+      return;
+    }
+    if (wasSubmittingRef.current) {
+      wasSubmittingRef.current = false;
+      if (registerMutation.isError) {
+        resetAllowLeave();
+      }
+    }
+  }, [
+    registerMutation.isPending,
+    registerMutation.isError,
+    resetAllowLeave,
+  ]);
+
   const handleMutationError = useCallback(
     (err: Error, fromChainDialog: boolean) => {
       if (err instanceof ApiError && err.code === "CHAIN_REORDER_REQUIRED") {
@@ -473,10 +504,25 @@ export function WithInvoiceCollectionForm({
         setChainRepairOpen(true);
         return;
       }
+      if (
+        err instanceof ApiError &&
+        (err.code === "ALLOCATION_EXCEEDS_BALANCE" ||
+          err.code === "PAYMENT_EXCEEDS_BALANCE")
+      ) {
+        setBalanceAlert(copy.balanceChangedAlert);
+        void invoicesQuery.refetch();
+        if (fromChainDialog) {
+          setChainRepairError(copy.balanceChangedAlert);
+        }
+        return;
+      }
       const message =
         err instanceof ApiError && err.code === "REP_CURRENCY_NOT_SUPPORTED"
           ? "Solo se admiten cobros y complementos de pago (REP) en MXN."
-          : getErrorMessage(err);
+          : err instanceof ApiError &&
+              err.code === "PAYMENT_IDEMPOTENCY_CONFLICT"
+            ? copy.paymentIdempotencyConflict
+            : getErrorMessage(err);
       if (fromChainDialog) {
         setChainRepairError(message);
         return;
@@ -487,7 +533,7 @@ export function WithInvoiceCollectionForm({
         description: message,
       });
     },
-    [toast],
+    [invoicesQuery, toast],
   );
 
   const summaryMessages = useMemo(() => {
@@ -547,6 +593,7 @@ export function WithInvoiceCollectionForm({
       reference: values.reference?.trim() || undefined,
       notes: values.note?.trim() || undefined,
       allocations: positiveLines,
+      idempotencyKey: idempotencyKeyRef.current,
       confirmChainRepair,
     };
   };
@@ -557,6 +604,8 @@ export function WithInvoiceCollectionForm({
   ) => {
     snapshotRef.current = selectedInvoices;
     setPendingPayload(payload);
+    // Canónico: allowLeave antes de mutate (evita falso positivo dirty al navegar).
+    allowLeave();
     registerMutation.mutate(payload, {
       onError: (err) => handleMutationError(err, fromChainDialog),
     });
@@ -564,6 +613,7 @@ export function WithInvoiceCollectionForm({
 
   const onSubmit = form.handleSubmit((values) => {
     setLineErrors({});
+    setBalanceAlert(null);
     if (liveExcess > MXN_EPS) {
       setExcessAlert(
         copy.excessAlert(
@@ -890,6 +940,11 @@ export function WithInvoiceCollectionForm({
                 <AlertDescription>{copy.truncatedOpenPpd}</AlertDescription>
               </Alert>
             ) : null}
+            {balanceAlert ? (
+              <Alert variant="warning">
+                <AlertDescription>{balanceAlert}</AlertDescription>
+              </Alert>
+            ) : null}
             {excessAlert ? (
               <Alert variant="destructive">
                 <AlertDescription>{excessAlert}</AlertDescription>
@@ -999,17 +1054,10 @@ export function WithInvoiceCollectionForm({
         errorMessage={chainRepairError}
         onConfirm={() => {
           setChainRepairError(null);
-          if (!pendingPayload) {
-            const payload = buildPayload(true);
-            if (payload) submitPayload(payload, true);
-            return;
-          }
-          registerMutation.mutate(
-            { ...pendingPayload, confirmChainRepair: true },
-            {
-              onError: (err) => handleMutationError(err, true),
-            },
-          );
+          const payload = pendingPayload
+            ? { ...pendingPayload, confirmChainRepair: true }
+            : buildPayload(true);
+          if (payload) submitPayload(payload, true);
         }}
       />
     </>

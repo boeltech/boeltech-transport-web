@@ -47,6 +47,11 @@ export interface RegisterFinancePaymentPayload {
   reference?: string;
   notes?: string;
   confirmChainRepair?: boolean;
+  /**
+   * UUID estable por intento de captura (retry / chain-repair / doble click).
+   * Hit 200 / create 201 / conflict 409 `PAYMENT_IDEMPOTENCY_CONFLICT`.
+   */
+  idempotencyKey?: string;
   allocations: FinancePaymentAllocationPayload[];
 }
 
@@ -440,6 +445,9 @@ export const financePaymentsApi = {
     };
     if (payload.confirmChainRepair) {
       body.confirm_chain_repair = true;
+    }
+    if (payload.idempotencyKey) {
+      body.idempotency_key = payload.idempotencyKey;
     }
     const response = await apiClient.post<{ data: unknown }>(
       "/finance/payments",

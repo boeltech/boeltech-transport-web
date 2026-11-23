@@ -51,11 +51,18 @@ export const registerCollectionCopy = {
     partialLeftDetail: "Sigue en Pago parcial.",
   },
   balanceCard: {
-    title: "Saldo del cliente",
-    dueToday: "Por cobrar hoy",
+    /** Saldo de documentos elegidos en «Qué cubre» — no AR total del cliente. */
+    title: "Saldo de los elegidos",
+    dueToday: "Pendiente",
     thisCollection: "Este cobro",
-    remaining: "Queda por cobrar",
+    remaining: "Queda por cubrir",
   },
+  /** Paridad sin factura (`OPERATIONAL_RECEIPT_BATCH_BALANCE_CHANGED`). */
+  balanceChangedAlert:
+    "Los saldos cambiaron mientras capturabas. Ya los actualizamos; revisa el reparto antes de registrar.",
+  /** 409 cuando la misma key se reutilizó con fingerprint distinto. */
+  paymentIdempotencyConflict:
+    "Este intento de cobro ya se usó con otros datos. Cierra y vuelve a abrir Registrar cobro.",
   columns: {
     invoice: "Factura",
     issued: "Emisión",
