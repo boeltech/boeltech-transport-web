@@ -4,7 +4,7 @@
  * C9: forceOpen + tono warning/destructive.
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { Card, CardContent } from "@shared/ui/card";
@@ -41,15 +41,9 @@ export function CargoOptionalSection({
   tone = "default",
   children,
 }: CargoOptionalSectionProps) {
-  const [open, setOpen] = useState(defaultOpen || forceOpen);
-
-  useEffect(() => {
-    if (defaultOpen) setOpen(true);
-  }, [defaultOpen]);
-
-  useEffect(() => {
-    if (forceOpen) setOpen(true);
-  }, [forceOpen]);
+  /** null = aún no hay toggle del usuario; se sigue `defaultOpen`. */
+  const [userOpen, setUserOpen] = useState<boolean | null>(null);
+  const open = forceOpen || (userOpen ?? defaultOpen);
 
   return (
     <Card
@@ -58,7 +52,7 @@ export function CargoOptionalSection({
         tone === "destructive" && "border-destructive/60 bg-destructive/5",
       )}
     >
-      <Collapsible open={open} onOpenChange={setOpen}>
+      <Collapsible open={open} onOpenChange={setUserOpen}>
         {/* C5: título + resumen 1 línea visibles también con la sección abierta. */}
         <CollapsibleTrigger
           className={cn(
