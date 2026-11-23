@@ -148,8 +148,8 @@ export function FleetPanel({
               <Link
                 to={fleetHistoryPath(selectedVehicleId)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400",
-                  "hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50",
+                  "inline-flex items-center gap-1.5 text-xs font-medium text-success",
+                  "hover:text-success/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success/50",
                 )}
                 data-testid="fleet-panel-history-link"
               >

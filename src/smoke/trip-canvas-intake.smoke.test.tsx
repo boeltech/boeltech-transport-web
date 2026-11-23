@@ -24,7 +24,6 @@ import { TripDetailRouteTab } from "@features/trips/presentation/components/trip
 import { TripEditRedirect } from "@features/trips/presentation/pages/TripEditRedirect";
 import { buildCreateTripInputFromWizardValues } from "@features/trips/presentation/pages/create/wizardToCreateTripInput";
 import type { TripWizardFormValues } from "@features/trips/presentation/pages/create/components/validation";
-import type { CreateStopInput } from "@features/trips/domain";
 import type { StopFormData } from "@features/trips/presentation/pages/create/components/stopDialogAddressMapper";
 
 const mocks = vi.hoisted(() => ({
@@ -32,7 +31,7 @@ const mocks = vi.hoisted(() => ({
   mutateAsyncReplace: vi.fn(),
   mutateSchedule: vi.fn(),
   mutateAsyncUpdateTrip: vi.fn(),
-  lastKeepBillingCollapsed: undefined as boolean | undefined,
+  captureKeepBillingCollapsed: vi.fn(),
   toast: vi.fn(),
   scheduleOptions: undefined as
     | {
@@ -195,7 +194,7 @@ function MockStopConfirmSheet(props: {
   keepBillingCollapsed?: boolean;
   onSubmit: (data: StopFormData) => void;
 }) {
-  mocks.lastKeepBillingCollapsed = props.keepBillingCollapsed;
+  mocks.captureKeepBillingCollapsed(props.keepBillingCollapsed);
   if (!props.open) return null;
   return (
     <button
@@ -282,7 +281,7 @@ function TestProviders({
 describe("ADR-0078 trip canvas intake smoke", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.lastKeepBillingCollapsed = undefined;
+    mocks.captureKeepBillingCollapsed.mockClear();
     mocks.mutateAsyncReplace.mockResolvedValue(undefined);
   });
 
@@ -505,7 +504,7 @@ describe("ADR-0078 trip canvas intake smoke", () => {
     await user.click(
       screen.getByRole("button", { name: routeCopy.action.completeAddress }),
     );
-    expect(mocks.lastKeepBillingCollapsed).toBe(true);
+    expect(mocks.captureKeepBillingCollapsed).toHaveBeenCalledWith(true);
     await user.click(screen.getByRole("button", { name: "submit-stop-no-rfc" }));
 
     // D-R / F9: no PUT hasta ambos extremos; el origen queda en draft del composer.

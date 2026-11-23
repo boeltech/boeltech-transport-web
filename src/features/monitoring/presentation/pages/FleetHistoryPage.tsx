@@ -234,7 +234,7 @@ export function FleetHistoryPage() {
             onPresetChange={handlePeriodChange}
           />
           {historyQuery.data?.sampled ? (
-            <p className="text-[11px] text-amber-400/90">
+            <p className="text-[11px] text-warning">
               {copy.sampledNote(
                 historyQuery.data.pointCount,
                 historyQuery.data.rawPointCount,

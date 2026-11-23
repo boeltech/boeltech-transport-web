@@ -60,10 +60,10 @@ export function TimeScrubber({
           if (next) onSelectSeq(next.seq);
         }}
         className={cn(
-          "h-2 w-full cursor-pointer appearance-none rounded-full bg-zinc-700 accent-emerald-500",
+          "h-2 w-full cursor-pointer appearance-none rounded-full bg-zinc-700 accent-success",
           "[&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5",
           "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full",
-          "[&::-webkit-slider-thumb]:bg-emerald-400",
+          "[&::-webkit-slider-thumb]:bg-success",
         )}
         data-testid="history-scrubber-input"
       />

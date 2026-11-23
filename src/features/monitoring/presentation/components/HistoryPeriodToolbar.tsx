@@ -83,7 +83,7 @@ export function HistoryPeriodToolbar({
             className={cn(
               "h-7 px-2.5 text-[11px]",
               preset === key
-                ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                ? "bg-success text-success-foreground hover:bg-success/90"
                 : "border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10",
             )}
             onClick={() => {
@@ -102,7 +102,7 @@ export function HistoryPeriodToolbar({
           className={cn(
             "h-7 px-2.5 text-[11px]",
             preset === "custom"
-              ? "bg-emerald-600 text-white hover:bg-emerald-500"
+              ? "bg-success text-success-foreground hover:bg-success/90"
               : "border-white/15 bg-white/5 text-zinc-200 hover:bg-white/10",
           )}
           onClick={() => {
@@ -149,7 +149,7 @@ export function HistoryPeriodToolbar({
           <Button
             type="button"
             size="sm"
-            className="h-7 bg-emerald-600 text-xs hover:bg-emerald-500"
+            className="h-7 bg-success text-xs text-success-foreground hover:bg-success/90"
             onClick={applyCustom}
             data-testid="history-custom-apply"
           >
