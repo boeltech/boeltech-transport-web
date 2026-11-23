@@ -1,21 +1,12 @@
 /**
- * CargoMovementSheet - Sheet lateral para agregar/editar mercancías
- * Clean Architecture - Presentation Layer (paso 3 del wizard de viajes)
+ * CargoMovementSheet - Sheet lateral para agregar/editar cargas
+ * Clean Architecture - Presentation Layer (wizard + tab Cargas del detalle)
  *
- * Patrón UI: Sheet lateral derecho en dos niveles. Arriba, lo obligatorio para
- * mover la mercancía (qué se transporta y cuánto). Debajo, lo que solo aplica a
- * veces: requisitos que exige el catálogo del producto, seguro, entregas y notas.
- * Las secciones opcionales se abren solas cuando la mercancía ya trae datos.
+ * F1: shell Operate, copy «carga», Qué/Cuánto, plegables, hazmat, pie.
+ * F2: Dónde va (C6/C7) + error→sección (C9). POST pickup si falta → tab.
  *
- * Validación: `useForm(tripCargoSchema)` con `zodResolver`. La SoT de obligatoriedad
- * CP3.1 vive en `tripCargoSchema.superRefine` (`validation.ts`) y refleja la matriz
- * `docs/carta-porte-3.1/matriz-reglas-cp31-por-capas.md` (atributos del nodo
- * `Mercancia`: BienesTransp, Descripcion, Cantidad, ClaveUnidad, PesoEnKg,
- * MaterialPeligroso + Embalaje/CveMaterialPeligroso cuando aplique + datos sectoriales).
- *
- * Estado fuera del schema: `deliveryAssignments` (entregas posteriores en otras
- * paradas) se modela aparte porque no son atributos del nodo `Mercancia` sino del
- * modelo operativo de movimientos; se integran al payload en el `onSubmit`.
+ * Validación: `useForm(tripCargoSchema)` con `zodResolver`. SoT CP3.1 en
+ * `tripCargoSchema.superRefine`. `deliveryAssignments` fuera del schema.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,41 +23,37 @@ import {
   SheetTitle,
 } from "@shared/ui/sheet";
 import { Button } from "@shared/ui/button";
-import { Input } from "@shared/ui/input";
 import { Label } from "@shared/ui/label";
 import { Checkbox } from "@shared/ui/checkbox";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
-import {
-  FieldInlineError,
-  FormFieldShell,
   FormValidationSummary,
   RHFMoneyField,
   RHFTextField,
   RHFTextareaField,
 } from "@shared/ui/form";
 import { Alert, AlertDescription, AlertTitle } from "@shared/ui/alert";
-import {
-  AlertTriangle,
-  MessageSquare,
-  Plus,
-  ShieldCheck,
-  Trash2,
-  Truck,
-} from "lucide-react";
+import { MessageSquare, ShieldCheck, MapPin } from "lucide-react";
 import {
   CargoMovementSheetPickupContext,
   CargoMovementSheetProductSection,
   CargoMovementSheetQuantityWeightSection,
   CargoOptionalSection,
   CargoProductRequirementsSection,
+  CargoWhereSection,
+  focusFieldIdForCargoSheetSection,
+  resolveCargoSheetErrorSection,
+  type CargoSheetErrorSection,
 } from "./cargo-movement";
+import {
+  TRACKING_SHEET_BODY_CLASS,
+  CARGO_SHEET_CONTENT_CLASS,
+  TRACKING_SHEET_FOOTER_CLASS,
+  TRACKING_SHEET_HEADER_CLASS,
+  TRACKING_SHEET_PRIMARY_BUTTON_CLASS,
+} from "../../../components/trip-tracking/trackingSheetLayout";
+import { TrackingSheetConfirmEffects } from "../../../components/trip-tracking/TrackingSheetConfirmEffects";
 import { useOverlayMutationFeedback, useToast } from "@shared/hooks";
+import { cn } from "@shared/lib/utils/cn";
 
 import {
   getMissingSectorRequiredFields,
@@ -118,6 +105,8 @@ export interface CargoSheetDeliveryStop {
   clientName?: string;
 }
 
+export type CargoSheetTripPhase = "draft_or_scheduled" | "in_progress";
+
 export interface CargoMovementSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -130,7 +119,7 @@ export interface CargoMovementSheetProps {
   availablePickupStops?: CargoSheetPickupStop[];
   /** Cambia la parada de recogida en alta sin cerrar el sheet. */
   onPickupStopChange?: (stop: CargoSheetPickupStop) => void;
-  /** Paradas `delivery` posteriores donde puede asignarse esta mercancía. */
+  /** Paradas `delivery` posteriores donde puede asignarse esta carga. */
   availableDeliveryStops: CargoSheetDeliveryStop[];
   /** Si es edición, los valores iniciales; si es alta, `null`. */
   initialValues: TripCargoFormValues | null;
@@ -140,7 +129,7 @@ export interface CargoMovementSheetProps {
   vehicleCapacityKg: number | null;
   /** Peso de las demás cargas (excluyendo la actual si está editando). */
   baselineWeightKg: number;
-  /** Mercancías ya registradas en la parada activa. */
+  /** Cargas ya registradas en la parada activa. */
   stopCargoCount: number;
   /**
    * Cuando es true, la sección de entregas es solo lectura (p. ej. edit en
@@ -157,6 +146,21 @@ export interface CargoMovementSheetProps {
    * Por defecto usa el copy del sheet de wizard.
    */
   submitErrorTitle?: string;
+  /** Fase del viaje — regla bajo el título (C3). Default: reserva. */
+  tripPhase?: CargoSheetTripPhase;
+  /** Número económico de la unidad para la fila resumen. */
+  vehicleUnitNumber?: string | null;
+  /**
+   * D-PRD-3: bloque «Al confirmar» solo en append mid-trip.
+   * La viñeta fiscal se añade si `confirmEffectsIncludeFiscal`.
+   */
+  showConfirmEffects?: boolean;
+  confirmEffectsIncludeFiscal?: boolean;
+  /**
+   * C6 / D-PRD-2: editar una carga sin movimiento de recogida.
+   * Abre «Dónde va» arriba, en ámbar; al guardar el tab hace POST pickup.
+   */
+  missingPickupMovement?: boolean;
   /** Se llama con los valores validados Zod. Puede ser async (detalle → API). */
   onSubmit: (
     values: TripCargoFormValues,
@@ -302,6 +306,11 @@ function CargoMovementSheetSession({
   deliveriesReadOnly = false,
   allowAddDelivery: allowAddDeliveryProp,
   submitErrorTitle,
+  tripPhase = "draft_or_scheduled",
+  vehicleUnitNumber = null,
+  showConfirmEffects = false,
+  confirmEffectsIncludeFiscal = false,
+  missingPickupMovement = false,
   onSubmit,
   onSubmittingChange,
 }: Omit<CargoMovementSheetProps, "open"> & {
@@ -311,6 +320,9 @@ function CargoMovementSheetSession({
     allowAddDeliveryProp ?? !deliveriesReadOnly;
   /** F5d-c: ≥2 descargas disponibles → delivery obligatorio (F5a 1 unload intacto). */
   const requiresDeliveryAssignment = availableDeliveryStops.length >= 2;
+  /** C7.1: una sola descarga → fila solo lectura (sin editores ni Agregar). */
+  const singleUnloadReadOnly =
+    availableDeliveryStops.length === 1 && !requiresDeliveryAssignment;
   const { error: showErrorToast, toast } = useToast();
   const { submissionError, showOverlayError, clearOverlayError } =
     useOverlayMutationFeedback({
@@ -330,6 +342,9 @@ function CargoMovementSheetSession({
   const [deliveryCoverageError, setDeliveryCoverageError] = useState<
     string | null
   >(null);
+  const [errorSection, setErrorSection] = useState<CargoSheetErrorSection | null>(
+    null,
+  );
 
   const setSubmitting = useCallback(
     (next: boolean) => {
@@ -417,10 +432,12 @@ function CargoMovementSheetSession({
   // ============================================================================
 
   const satProductCode = useWatch({ control, name: "satProductCode" });
-  /** Sufijo de Cantidad: clave corta (c_ClaveUnidad), no el nombre largo del catálogo. */
   const satUnitCode = useWatch({ control, name: "satUnitCode" }) ?? "";
+  const satUnitNameWatch = useWatch({ control, name: "satUnitName" });
+  const descriptionWatch = useWatch({ control, name: "description" });
   const isInsured = useWatch({ control, name: "isInsured" });
   const insurerName = useWatch({ control, name: "aseguraCarga" });
+  const polizaWatch = useWatch({ control, name: "polizaCarga" });
   const notesValue = useWatch({ control, name: "notes" });
   const specialInstructionsValue = useWatch({
     control,
@@ -505,8 +522,12 @@ function CargoMovementSheetSession({
     return hasAnyFlag || hasAnyValue;
   }, [sectorRequirements, sectorValues]);
 
-  /** El bloque de clave y embalaje sale cuando la mercancía va declarada como peligrosa. */
-  const showRequirementsSection = hasSectorData || !!hazardousMaterial;
+  /** Requisitos siempre visibles (plegable); se abre con datos / hazmat / sector. */
+  const requirementsDefaultOpen =
+    hasSectorData ||
+    !!hazardousMaterial ||
+    !!initialValues?.hazardousMaterial ||
+    catalogRequirement === "declare_required_si";
 
   const missingSectorFields = useMemo(() => {
     const [
@@ -797,6 +818,26 @@ function CargoMovementSheetSession({
     requiresDeliveryAssignment,
   ]);
 
+  const focusSectionField = useCallback(
+    (section: CargoSheetErrorSection, deliveryErr: string | null) => {
+      const fieldId = focusFieldIdForCargoSheetSection(section, {
+        missingPickup: missingPickupMovement,
+        hasDeliveryStopError: Boolean(deliveryErr),
+      });
+      requestAnimationFrame(() => {
+        const el = document.getElementById(fieldId);
+        if (el && "focus" in el && typeof el.focus === "function") {
+          (el as HTMLElement).focus();
+        }
+      });
+    },
+    [missingPickupMovement],
+  );
+
+  const openSectionForError = useCallback((section: CargoSheetErrorSection) => {
+    setErrorSection(section);
+  }, []);
+
   const buildResult = useCallback(
     (values: TripCargoFormValues): TripCargoFormValues => {
       const pickupMovement: CargoMovementFormValues = {
@@ -860,23 +901,32 @@ function CargoMovementSheetSession({
     ) => {
       if (isSubmitting) return;
       if (hasIncompleteDeliveries()) {
-        setDeliveryStopError(sheet.validation.deliveryStopRequired);
+        const msg = sheet.validation.deliveryStopRequired;
+        setDeliveryStopError(msg);
+        openSectionForError("donde_va");
+        focusSectionField("donde_va", msg);
         setShowSummary(true);
         return;
       }
       if (hasMissingRequiredDelivery()) {
-        setDeliveryStopError(sheet.validation.deliveryAssignmentRequired);
+        const msg = sheet.validation.deliveryAssignmentRequired;
+        setDeliveryStopError(msg);
+        openSectionForError("donde_va");
+        focusSectionField("donde_va", msg);
         setShowSummary(true);
         return;
       }
       const overMessage = resolveOverAllocationMessage();
       if (overMessage) {
         setDeliveryCoverageError(overMessage);
+        openSectionForError("donde_va");
+        focusSectionField("donde_va", null);
         setShowSummary(true);
         return;
       }
       setDeliveryStopError(null);
       setDeliveryCoverageError(null);
+      setErrorSection(null);
       clearOverlayError();
       setSubmitting(true);
       try {
@@ -906,11 +956,13 @@ function CargoMovementSheetSession({
       buildResult,
       clearOverlayError,
       editingIndex,
+      focusSectionField,
       hasIncompleteDeliveries,
       hasMissingRequiredDelivery,
       isSubmitting,
       onOpenChange,
       onSubmit,
+      openSectionForError,
       pickupStopIndex,
       reset,
       resolveOverAllocationMessage,
@@ -919,11 +971,26 @@ function CargoMovementSheetSession({
     ],
   );
 
-  const applyDeliveryValidationOnInvalid = () => {
+  const applyDeliveryValidationOnInvalid = (
+    formErrors: Record<string, unknown>,
+  ) => {
+    let nextDeliveryError: string | null = null;
     if (hasIncompleteDeliveries()) {
-      setDeliveryStopError(sheet.validation.deliveryStopRequired);
+      nextDeliveryError = sheet.validation.deliveryStopRequired;
+      setDeliveryStopError(nextDeliveryError);
     } else if (hasMissingRequiredDelivery()) {
-      setDeliveryStopError(sheet.validation.deliveryAssignmentRequired);
+      nextDeliveryError = sheet.validation.deliveryAssignmentRequired;
+      setDeliveryStopError(nextDeliveryError);
+    }
+    const section = resolveCargoSheetErrorSection({
+      formErrors,
+      deliveryStopError: nextDeliveryError,
+      deliveryCoverageError,
+      missingPickup: missingPickupMovement,
+    });
+    if (section) {
+      openSectionForError(section);
+      focusSectionField(section, nextDeliveryError);
     }
     setShowSummary(true);
   };
@@ -932,16 +999,22 @@ function CargoMovementSheetSession({
     async (values) => {
       await runValidatedSubmit(values);
     },
-    applyDeliveryValidationOnInvalid,
+    (errors) =>
+      applyDeliveryValidationOnInvalid(
+        errors as Record<string, unknown>,
+      ),
   );
 
-  /** Guarda la mercancía y deja el sheet listo para la siguiente de la misma parada. */
+  /** Guarda la carga y deja el sheet listo para la siguiente de la misma parada. */
   const handleAddAnother = () => {
     void handleSubmit(
       async (values) => {
         await runValidatedSubmit(values, { keepOpen: true });
       },
-      applyDeliveryValidationOnInvalid,
+      (errors) =>
+        applyDeliveryValidationOnInvalid(
+          errors as Record<string, unknown>,
+        ),
     )();
   };
 
@@ -978,6 +1051,192 @@ function CargoMovementSheetSession({
   const hasNotes =
     Boolean(notesValue?.trim()) || Boolean(specialInstructionsValue?.trim());
 
+  const pickupLugar =
+    pickupStop?.locationName?.trim() ||
+    pickupStop?.address?.trim() ||
+    "";
+  const pickupN = pickupStop ? pickupStop.index + 1 : 0;
+
+  const headerContextLine =
+    editingIndex !== null
+      ? sheet.context.editSummary(
+          (descriptionWatch || initialValues?.description || "Carga").trim(),
+          String(unitsWatch ?? initialValues?.units ?? "—"),
+          (satUnitNameWatch || satUnitCode || initialValues?.satUnitName || "uds").trim(),
+          String(
+            typeof weightInKgWatch === "number"
+              ? weightInKgWatch
+              : (initialValues?.weightInKg ?? "—"),
+          ),
+        )
+      : pickupStop
+        ? sheet.context.seCargaEn(pickupN, pickupLugar)
+        : null;
+
+  const phaseRuleText =
+    tripPhase === "in_progress"
+      ? sheet.phaseRule.inProgress
+      : editingIndex !== null
+        ? sheet.phaseRule.draftOrScheduled.edit
+        : sheet.phaseRule.draftOrScheduled.create;
+
+  const pickupStopCount = availablePickupStops?.length ?? (pickupStop ? 1 : 0);
+  const canChoosePickup =
+    Boolean(onPickupStopChange) && pickupStopCount > 1;
+
+  const firstDeliveryStop =
+    explicitDeliveries.length > 0
+      ? availableDeliveryStops.find(
+          (s) => s.index === explicitDeliveries[0]!.stopIndex,
+        )
+      : availableDeliveryStops.length === 1
+        ? availableDeliveryStops[0]
+        : undefined;
+
+  const whereSummary = (() => {
+    if (missingPickupMovement || !pickupStop) {
+      return sheet.sectionSummary.whereMissingPickup;
+    }
+    if (explicitDeliveries.length > 1) {
+      return sheet.sectionSummary.whereMulti(
+        pickupN,
+        pickupLugar,
+        explicitDeliveries.length,
+      );
+    }
+    if (firstDeliveryStop) {
+      const deliveryLugar =
+        firstDeliveryStop.locationName?.trim() ||
+        firstDeliveryStop.address.trim();
+      return sheet.sectionSummary.whereOk(
+        pickupN,
+        pickupLugar,
+        firstDeliveryStop.index + 1,
+        deliveryLugar,
+      );
+    }
+    return sheet.sectionSummary.deliveriesNone;
+  })();
+
+  const whereTone =
+    errorSection === "donde_va"
+      ? "destructive"
+      : missingPickupMovement
+        ? "warning"
+        : "default";
+
+  const showWhereSection =
+    Boolean(pickupStop) ||
+    availableDeliveryStops.length > 0 ||
+    missingPickupMovement ||
+    canChoosePickup;
+
+  const whereBeforeProduct =
+    editingIndex !== null && missingPickupMovement;
+
+  const whereDefaultOpen =
+    missingPickupMovement ||
+    deliveriesReadOnly ||
+    !allowAddDelivery ||
+    requiresDeliveryAssignment ||
+    canChoosePickup ||
+    initialDeliveryAssignments(initialValues).length > 0;
+
+  const pickupRowLabel = pickupStop
+    ? `${pickupStop.index + 1} · ${
+        pickupStop.locationName?.trim() ||
+        pickupStop.address.trim() ||
+        pickupStop.city
+      }`
+    : "";
+
+  const assignedMeterLabel = (() => {
+    if (
+      deliveryCoverage.status !== "ok" &&
+      deliveryCoverage.status !== "under" &&
+      deliveryCoverage.status !== "over"
+    ) {
+      return null;
+    }
+    const unitLabel = (satUnitNameWatch || satUnitCode || "uds").trim();
+    const cargoUnits =
+      typeof unitsWatch === "number" && unitsWatch > 0 ? unitsWatch : 0;
+    const cargoWeight =
+      typeof weightInKgWatch === "number" && weightInKgWatch > 0
+        ? weightInKgWatch
+        : 0;
+    return sheet.format.assignedMeter(
+      String(deliveryCoverage.allocatedUnits),
+      String(cargoUnits),
+      unitLabel,
+      Math.round(deliveryCoverage.allocatedWeight).toLocaleString("es-MX"),
+      Math.round(cargoWeight).toLocaleString("es-MX"),
+    );
+  })();
+
+  const assignedMeterPct = (() => {
+    if (
+      deliveryCoverage.status !== "ok" &&
+      deliveryCoverage.status !== "under" &&
+      deliveryCoverage.status !== "over"
+    ) {
+      return 0;
+    }
+    const cargoUnits =
+      typeof unitsWatch === "number" && unitsWatch > 0 ? unitsWatch : null;
+    const cargoWeight =
+      typeof weightInKgWatch === "number" && weightInKgWatch > 0
+        ? weightInKgWatch
+        : null;
+    if (cargoUnits != null && cargoUnits > 0) {
+      return Math.min(
+        100,
+        Math.round((deliveryCoverage.allocatedUnits / cargoUnits) * 100),
+      );
+    }
+    if (cargoWeight != null && cargoWeight > 0) {
+      return Math.min(
+        100,
+        Math.round((deliveryCoverage.allocatedWeight / cargoWeight) * 100),
+      );
+    }
+    return 0;
+  })();
+
+  const requirementsSummary = hazardousMaterial
+    ? sheet.label.isHazmat
+    : hasSectorData
+      ? sheet.hint.requirements
+      : sheet.sectionSummary.requirementsNone;
+
+  const confirmEffectItems = useMemo(() => {
+    if (!showConfirmEffects || !pickupStop) return [] as string[];
+    const delivery =
+      firstDeliveryStop ??
+      (availableDeliveryStops.length > 0 ? availableDeliveryStops[0] : null);
+    if (!delivery) return [] as string[];
+    const items = [
+      sheet.effects.routeLine(
+        pickupN,
+        pickupLugar,
+        delivery.index + 1,
+        delivery.locationName?.trim() || delivery.address.trim(),
+      ),
+    ];
+    if (confirmEffectsIncludeFiscal) {
+      items.push(sheet.effects.fiscalLine);
+    }
+    return items;
+  }, [
+    availableDeliveryStops,
+    confirmEffectsIncludeFiscal,
+    firstDeliveryStop,
+    pickupLugar,
+    pickupN,
+    pickupStop,
+    showConfirmEffects,
+  ]);
+
   // ============================================================================
   // Render
   // ============================================================================
@@ -985,102 +1244,171 @@ function CargoMovementSheetSession({
   return (
       <SheetContent
         side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
+        className={cn(CARGO_SHEET_CONTENT_CLASS, "gap-0 p-0")}
+        onFocusOutside={(e) => e.preventDefault()}
       >
-        <SheetHeader className="shrink-0 space-y-2 border-b px-6 py-4">
+        <SheetHeader
+          className={cn(
+            TRACKING_SHEET_HEADER_CLASS,
+            "space-y-1.5 border-b px-6 py-4",
+          )}
+        >
+          {headerContextLine ? (
+            <p className="min-w-0 truncate text-xs text-muted-foreground">
+              {headerContextLine}
+            </p>
+          ) : null}
           <SheetTitle className="pr-8">
             {editingIndex !== null ? sheet.title.edit : sheet.title.create}
           </SheetTitle>
-          <SheetDescription className="sr-only">
-            {sheet.description}
+          <SheetDescription className="text-xs text-muted-foreground">
+            {phaseRuleText}
           </SheetDescription>
-          <CargoMovementSheetPickupContext
-            pickupStop={pickupStop}
-            availablePickupStops={availablePickupStops}
-            onPickupStopChange={onPickupStopChange}
-            stopCargoCount={stopCargoCount}
-            availableKg={availableKg}
-          />
         </SheetHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-6">
-          <CargoMovementSheetProductSection
-            control={control}
-            setValue={setValue}
-            getValues={getValues}
-          />
-
-          <CargoMovementSheetQuantityWeightSection
-            control={control}
-            satUnitCode={satUnitCode}
-            wouldExceedCapacity={wouldExceedCapacity}
-            isNearCapacityProjection={isNearCapacityProjection}
-            vehicleCapacityKg={vehicleCapacityKg ?? undefined}
-            projectedWeight={projectedWeight}
+        <div className={cn(TRACKING_SHEET_BODY_CLASS, "px-6")}>
+          <CargoMovementSheetPickupContext
+            stopCargoCount={stopCargoCount}
             availableKg={availableKg}
-            formatWeight={formatWeight}
+            vehicleUnitNumber={vehicleUnitNumber}
           />
 
-          {/* Interruptor según la marca SAT del producto (0 / 0,1 / 1 / sin marca). */}
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3">
-              <Checkbox
-                id="cargo-hazmat-checkbox"
-                checked={!!hazardousMaterial}
-                disabled={hazmatSwitchDisabled}
-                onCheckedChange={(checked) => handleHazmatChange(!!checked)}
-                aria-invalid={Boolean(hazmatErrorMessage) || undefined}
-                aria-describedby={hazmatDescribedBy}
+          {(() => {
+            const productBlock = (
+              <CargoMovementSheetProductSection
+                control={control}
+                setValue={setValue}
+                getValues={getValues}
+                className={
+                  errorSection === "producto"
+                    ? "border-destructive/60 bg-destructive/5"
+                    : undefined
+                }
               />
-              <Label
-                htmlFor="cargo-hazmat-checkbox"
-                className="flex cursor-pointer items-center gap-2"
+            );
+            const quantityBlock = (
+              <CargoMovementSheetQuantityWeightSection
+                control={control}
+                setValue={setValue}
+                wouldExceedCapacity={wouldExceedCapacity}
+                isNearCapacityProjection={isNearCapacityProjection}
+                vehicleCapacityKg={vehicleCapacityKg ?? undefined}
+                vehicleUnitNumber={vehicleUnitNumber}
+                projectedWeight={projectedWeight}
+                availableKg={availableKg}
+                formatWeight={formatWeight}
+                className={
+                  errorSection === "cantidades"
+                    ? "border-destructive/60 bg-destructive/5"
+                    : undefined
+                }
+              />
+            );
+            const whereBlock = showWhereSection ? (
+              <CargoOptionalSection
+                title={sheet.section.where}
+                icon={<MapPin className="h-4 w-4" />}
+                summary={whereSummary}
+                defaultOpen={whereDefaultOpen}
+                forceOpen={
+                  missingPickupMovement || errorSection === "donde_va"
+                }
+                tone={whereTone}
               >
-                <AlertTriangle className="h-4 w-4 text-warning" />
-                {sheet.label.isHazmat}
-              </Label>
-            </div>
-            {catalogHint && catalogRequirement !== "unknown" && (
-              <p
-                id="cargo-hazmat-catalog-hint"
-                className="text-xs text-muted-foreground"
-              >
-                {catalogHint}
-              </p>
-            )}
-            {catalogHint && catalogRequirement === "unknown" && (
-              <Alert variant="warning">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription id="cargo-hazmat-catalog-hint">
-                  {catalogHint}
-                </AlertDescription>
-              </Alert>
-            )}
-            <FieldInlineError
-              fieldId="cargo-hazmat-checkbox"
-              message={hazmatErrorMessage}
-            />
-          </div>
+                <CargoWhereSection
+                  pickupStop={pickupStop}
+                  availablePickupStops={availablePickupStops}
+                  onPickupStopChange={onPickupStopChange}
+                  canChoosePickup={canChoosePickup}
+                  missingPickupMovement={missingPickupMovement}
+                  pickupRowLabel={pickupRowLabel}
+                  availableDeliveryStops={availableDeliveryStops}
+                  deliveryAssignments={deliveryAssignments}
+                  deliveriesReadOnly={deliveriesReadOnly}
+                  allowAddDelivery={allowAddDelivery}
+                  singleUnloadReadOnly={singleUnloadReadOnly}
+                  requiresDeliveryAssignment={requiresDeliveryAssignment}
+                  isSubmitting={isSubmitting}
+                  deliveryStopError={deliveryStopError}
+                  underAllocatedRemainderLine={underAllocatedRemainderLine}
+                  overAllocatedRemainderLine={overAllocatedRemainderLine}
+                  deliveryCoverageStatus={deliveryCoverage.status}
+                  assignedMeterLabel={assignedMeterLabel}
+                  assignedMeterPct={assignedMeterPct}
+                  unitsLabel={(satUnitNameWatch || satUnitCode || "uds").trim()}
+                  cargoUnits={
+                    typeof unitsWatch === "number" ? unitsWatch : undefined
+                  }
+                  cargoWeightKg={
+                    typeof weightInKgWatch === "number"
+                      ? weightInKgWatch
+                      : undefined
+                  }
+                  formatWeight={formatWeight}
+                  onAddDelivery={handleAddDelivery}
+                  onUpdateDelivery={handleUpdateDelivery}
+                  onRemoveDelivery={handleRemoveDelivery}
+                />
+              </CargoOptionalSection>
+            ) : null;
 
-          {showRequirementsSection && (
+            return whereBeforeProduct ? (
+              <>
+                {whereBlock}
+                {productBlock}
+                {quantityBlock}
+              </>
+            ) : (
+              <>
+                {productBlock}
+                {quantityBlock}
+                {whereBlock}
+              </>
+            );
+          })()}
+
+          {/* ========== REQUISITOS (C8: hazmat primero) ========== */}
+          <CargoOptionalSection
+            title={sheet.section.requirements}
+            summary={requirementsSummary}
+            defaultOpen={requirementsDefaultOpen}
+            forceOpen={
+              // C5/C8: se abre sola cuando el catálogo exige hazmat (defaultOpen
+              // solo aplica al montar; el fetch del catálogo llega después).
+              requirementsDefaultOpen || errorSection === "requisitos"
+            }
+            tone={errorSection === "requisitos" ? "destructive" : "default"}
+          >
             <CargoProductRequirementsSection
               control={control}
               sectorRequirements={sectorRequirements}
               missingSectorFields={missingSectorFields}
               showHazmatFields={!!hazardousMaterial}
+              hazardousMaterial={!!hazardousMaterial}
+              hazmatSwitchDisabled={hazmatSwitchDisabled}
+              onHazmatChange={handleHazmatChange}
+              hazmatErrorMessage={hazmatErrorMessage}
+              hazmatDescribedBy={hazmatDescribedBy}
+              catalogHint={catalogHint}
+              catalogRequirementUnknown={catalogRequirement === "unknown"}
             />
-          )}
+          </CargoOptionalSection>
 
-          {/* ========== SECCIÓN OPCIONAL: SEGURO ========== */}
+          {/* ========== SEGURO ========== */}
           <CargoOptionalSection
             title={sheet.section.insurance}
             icon={<ShieldCheck className="h-4 w-4" />}
             summary={
               isInsured
-                ? sheet.sectionSummary.insuranceOn(insurerName || undefined)
+                ? sheet.sectionSummary.insuranceOn(
+                    insurerName || undefined,
+                    polizaWatch || undefined,
+                  )
                 : sheet.sectionSummary.insuranceOff
             }
             defaultOpen={!!initialValues?.isInsured}
+            forceOpen={errorSection === "seguro"}
+            tone={errorSection === "seguro" ? "destructive" : "default"}
           >
             <Controller
               control={control}
@@ -1142,279 +1470,7 @@ function CargoMovementSheetSession({
             )}
           </CargoOptionalSection>
 
-          {/* ========== SECCIÓN OPCIONAL: ENTREGAS ========== */}
-          {availableDeliveryStops.length > 0 && (
-            <CargoOptionalSection
-              title={sheet.section.deliveries}
-              icon={<Truck className="h-4 w-4" />}
-              summary={
-                deliveryAssignments.length > 0
-                  ? sheet.sectionSummary.deliveriesAssigned(
-                      deliveryAssignments.length,
-                    )
-                  : sheet.sectionSummary.deliveriesNone
-              }
-              defaultOpen={
-                deliveriesReadOnly ||
-                !allowAddDelivery ||
-                requiresDeliveryAssignment ||
-                initialDeliveryAssignments(initialValues).length > 0
-              }
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <p className="text-xs text-muted-foreground sm:max-w-md">
-                  {deliveriesReadOnly
-                    ? sheet.hint.deliveriesReadOnly
-                    : requiresDeliveryAssignment
-                      ? sheet.hint.deliveriesMultiUnload
-                      : allowAddDelivery
-                        ? sheet.hint.deliveries
-                        : sheet.hint.deliveriesSingleUnload}
-                </p>
-                {!deliveriesReadOnly && allowAddDelivery ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isSubmitting}
-                    onClick={handleAddDelivery}
-                  >
-                    <Plus className="mr-1 h-3.5 w-3.5" />
-                    {sheet.action.addDelivery}
-                  </Button>
-                ) : null}
-              </div>
-
-              {deliveryCoverage.status === "under" &&
-              underAllocatedRemainderLine ? (
-                <Alert variant="warning">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>{sheet.alert.underAllocatedTitle}</AlertTitle>
-                  <AlertDescription>
-                    {sheet.alert.underAllocatedBody(underAllocatedRemainderLine)}
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-
-              {deliveryCoverage.status === "over" &&
-              overAllocatedRemainderLine ? (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>{sheet.alert.overAllocatedTitle}</AlertTitle>
-                  <AlertDescription>
-                    {sheet.alert.overAllocatedBody(overAllocatedRemainderLine)}
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-
-              {deliveryAssignments.length === 0 ? (
-                <div className="rounded-lg border border-dashed py-3 text-center text-xs text-muted-foreground">
-                  {requiresDeliveryAssignment
-                    ? sheet.state.noDeliveriesMultiUnload
-                    : allowAddDelivery
-                      ? sheet.state.noDeliveries
-                      : sheet.state.noDeliveriesSingleUnload}
-                </div>
-              ) : deliveriesReadOnly ? (
-                <ul className="space-y-2">
-                  {deliveryAssignments.map((delivery, idx) => {
-                    const stop = availableDeliveryStops.find(
-                      (s) => s.index === delivery.stopIndex,
-                    );
-                    const stopLabel = stop
-                      ? sheet.format.deliveryStopOption(
-                          stop.index,
-                          stop.locationName || "",
-                          stop.address,
-                          stop.city,
-                        )
-                      : sheet.placeholder.deliveryStop;
-                    const facts = [
-                      delivery.weight != null && delivery.weight > 0
-                        ? formatWeight(delivery.weight)
-                        : null,
-                      delivery.units != null && delivery.units > 0
-                        ? `${delivery.units} uds`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ");
-                    return (
-                      <li
-                        key={`${delivery.stopIndex}-${idx}`}
-                        className="min-w-0 rounded-lg border bg-muted/20 px-3 py-2 text-sm"
-                      >
-                        <p
-                          className="min-w-0 truncate font-medium leading-snug"
-                          title={stopLabel}
-                        >
-                          {stopLabel}
-                        </p>
-                        {facts ? (
-                          <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                            {facts}
-                          </p>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <div className="min-w-0 space-y-2">
-                  {deliveryAssignments.map((delivery, idx) => {
-                    const selectedDeliveryStop =
-                      delivery.stopIndex >= 0
-                        ? availableDeliveryStops.find(
-                            (s) => s.index === delivery.stopIndex,
-                          )
-                        : undefined;
-                    const selectedDeliveryLabel = selectedDeliveryStop
-                      ? sheet.format.deliveryStopOption(
-                          selectedDeliveryStop.index,
-                          selectedDeliveryStop.locationName || "",
-                          selectedDeliveryStop.address,
-                          selectedDeliveryStop.city,
-                        )
-                      : undefined;
-                    return (
-                      <div
-                        key={idx}
-                        className="flex min-w-0 items-start gap-2 rounded-lg border p-3"
-                      >
-                        <div className="min-w-0 flex-1 space-y-3">
-                          <FormFieldShell
-                            fieldId={`cargo-delivery-stop-${idx}`}
-                            label={sheet.label.deliveryStop}
-                            className="min-w-0"
-                            errorMessage={
-                              delivery.stopIndex < 0 && deliveryStopError
-                                ? deliveryStopError
-                                : undefined
-                            }
-                          >
-                            <Select
-                              value={
-                                delivery.stopIndex >= 0
-                                  ? String(delivery.stopIndex)
-                                  : ""
-                              }
-                              onValueChange={(val) =>
-                                handleUpdateDelivery(
-                                  idx,
-                                  "stopIndex",
-                                  Number(val),
-                                )
-                              }
-                              disabled={isSubmitting}
-                            >
-                              <SelectTrigger
-                                id={`cargo-delivery-stop-${idx}`}
-                                className="h-9"
-                                title={selectedDeliveryLabel}
-                                error={
-                                  delivery.stopIndex < 0 &&
-                                  Boolean(deliveryStopError)
-                                }
-                                aria-invalid={
-                                  delivery.stopIndex < 0 &&
-                                  Boolean(deliveryStopError)
-                                    ? true
-                                    : undefined
-                                }
-                                aria-describedby={
-                                  delivery.stopIndex < 0 && deliveryStopError
-                                    ? `cargo-delivery-stop-${idx}-error`
-                                    : undefined
-                                }
-                              >
-                                <SelectValue
-                                  placeholder={sheet.placeholder.deliveryStop}
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableDeliveryStops.map((s) => (
-                                  <SelectItem
-                                    key={s.index}
-                                    value={String(s.index)}
-                                  >
-                                    {sheet.format.deliveryStopOption(
-                                      s.index,
-                                      s.locationName || "",
-                                      s.address,
-                                      s.city,
-                                    )}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormFieldShell>
-                          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-                            <FormFieldShell
-                              fieldId={`cargo-delivery-weight-${idx}`}
-                              label={sheet.label.deliveryWeight}
-                              className="min-w-0"
-                            >
-                              <Input
-                                id={`cargo-delivery-weight-${idx}`}
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                disabled={isSubmitting}
-                                value={delivery.weight ?? ""}
-                                onChange={(e) =>
-                                  handleUpdateDelivery(
-                                    idx,
-                                    "weight",
-                                    e.target.value
-                                      ? Number(e.target.value)
-                                      : undefined,
-                                  )
-                                }
-                              />
-                            </FormFieldShell>
-                            <FormFieldShell
-                              fieldId={`cargo-delivery-units-${idx}`}
-                              label={sheet.label.deliveryUnits}
-                              className="min-w-0"
-                            >
-                              <Input
-                                id={`cargo-delivery-units-${idx}`}
-                                type="number"
-                                min="0"
-                                disabled={isSubmitting}
-                                value={delivery.units ?? ""}
-                                onChange={(e) =>
-                                  handleUpdateDelivery(
-                                    idx,
-                                    "units",
-                                    e.target.value
-                                      ? Number(e.target.value)
-                                      : undefined,
-                                  )
-                                }
-                              />
-                            </FormFieldShell>
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          disabled={isSubmitting}
-                          className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
-                          onClick={() => handleRemoveDelivery(idx)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CargoOptionalSection>
-          )}
-
-          {/* ========== SECCIÓN OPCIONAL: NOTAS ========== */}
+          {/* ========== NOTAS ========== */}
           <CargoOptionalSection
             title={sheet.section.notes}
             icon={<MessageSquare className="h-4 w-4" />}
@@ -1427,6 +1483,8 @@ function CargoMovementSheetSession({
               Boolean(initialValues?.notes?.trim()) ||
               Boolean(initialValues?.specialInstructions?.trim())
             }
+            forceOpen={errorSection === "notas"}
+            tone={errorSection === "notas" ? "destructive" : "default"}
           >
             <RHFTextareaField
               control={control}
@@ -1443,6 +1501,13 @@ function CargoMovementSheetSession({
               placeholder={sheet.placeholder.specialInstructions}
             />
           </CargoOptionalSection>
+
+          {confirmEffectItems.length > 0 ? (
+            <TrackingSheetConfirmEffects
+              title={sheet.effects.title}
+              items={confirmEffectItems}
+            />
+          ) : null}
 
           {/* ========== VALIDATION SUMMARY ========== */}
           {isSummaryVisible && (
@@ -1463,10 +1528,16 @@ function CargoMovementSheetSession({
           ) : null}
         </div>
 
-        <SheetFooter className="shrink-0 gap-2 border-t bg-background px-6 py-4">
+        <SheetFooter
+          className={cn(
+            TRACKING_SHEET_FOOTER_CLASS,
+            "bg-background px-6 pb-4 sm:flex-wrap sm:gap-2 sm:space-x-0",
+          )}
+        >
           <Button
             type="button"
             variant="outline"
+            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
             disabled={isSubmitting}
             onClick={() => onOpenChange(false)}
           >
@@ -1476,6 +1547,7 @@ function CargoMovementSheetSession({
             <Button
               type="button"
               variant="secondary"
+              className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
               disabled={isSubmitting}
               onClick={handleAddAnother}
             >
@@ -1484,6 +1556,7 @@ function CargoMovementSheetSession({
           )}
           <Button
             type="button"
+            className={TRACKING_SHEET_PRIMARY_BUTTON_CLASS}
             disabled={isSubmitting}
             onClick={() => void submitSheet()}
           >

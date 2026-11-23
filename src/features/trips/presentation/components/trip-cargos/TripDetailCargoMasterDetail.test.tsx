@@ -340,7 +340,7 @@ describe("TripDetailCargoMasterDetail — under-allocated deliveries (F7)", () =
     ).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes("Puede guardar y completar después"),
+        content.includes("Puedes guardar y completar después"),
       ),
     ).toBeInTheDocument();
     expect(
@@ -369,7 +369,7 @@ describe("TripDetailCargoMasterDetail — under-allocated deliveries (F7)", () =
     expect(
       screen.getByText((content) =>
         content.includes(
-          "En ruta no se puede corregir la mercancía existente; solo puedes agregar cargas nuevas",
+          "En ruta no se puede corregir la carga existente; solo puedes agregar cargas nuevas",
         ),
       ),
     ).toBeInTheDocument();
@@ -380,7 +380,7 @@ describe("TripDetailCargoMasterDetail — under-allocated deliveries (F7)", () =
     ).toBeInTheDocument();
     expect(
       screen.queryByText((content) =>
-        content.includes("Puede guardar y completar después"),
+        content.includes("Puedes guardar y completar después"),
       ),
     ).not.toBeInTheDocument();
     expect(

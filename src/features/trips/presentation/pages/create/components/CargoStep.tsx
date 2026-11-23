@@ -641,6 +641,8 @@ export function CargoStep({
             ? getCargosForStop(activePickupStop.index).length
             : 0
         }
+        tripPhase="draft_or_scheduled"
+        vehicleUnitNumber={vehicle?.unitNumber ?? null}
         onSubmit={handleSubmitFromSheet}
       />
     </div>

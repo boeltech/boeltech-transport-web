@@ -3,10 +3,7 @@ import { Package } from "lucide-react";
 
 import { FormFieldShell, RHFTextField, getFieldErrorAriaProps } from "@shared/ui/form";
 import { FormSectionCard } from "@shared/ui/form-section-card";
-import {
-  ProductoServicioCPSearch,
-  UnidadMedidaSearch,
-} from "@features/catalogs";
+import { ProductoServicioCPSearch } from "@features/catalogs";
 import { extractCargoRegulatoryFlags } from "../cargoRegulatory";
 import { wizardCopy } from "../../../../copy";
 
@@ -18,17 +15,21 @@ export interface CargoMovementSheetProductSectionProps {
   control: Control<TripCargoFormValues>;
   setValue: UseFormSetValue<TripCargoFormValues>;
   getValues: UseFormGetValues<TripCargoFormValues>;
+  /** C9: borde destructive cuando la sección tiene el primer error. */
+  className?: string;
 }
 
 export function CargoMovementSheetProductSection({
   control,
   setValue,
   getValues,
+  className,
 }: CargoMovementSheetProductSectionProps) {
   return (
     <FormSectionCard
       title={sheet.section.product}
       icon={<Package className="h-4 w-4" />}
+      className={className}
       contentClassName="space-y-4"
     >
       <Controller
@@ -83,38 +84,6 @@ export function CargoMovementSheetProductSection({
         required
         placeholder={sheet.placeholder.description}
         description={sheet.hint.description}
-      />
-
-      <Controller
-        control={control}
-        name="satUnitCode"
-        render={({ field, fieldState }) => {
-          const errorMessage = fieldState.error?.message;
-          return (
-            <FormFieldShell
-              fieldId="cargo-sat-unit"
-              label={sheet.label.unit}
-              required
-              description={sheet.hint.unit}
-              errorMessage={errorMessage}
-            >
-              <UnidadMedidaSearch
-                id="cargo-sat-unit"
-                value={field.value || null}
-                error={Boolean(fieldState.error)}
-                {...getFieldErrorAriaProps("cargo-sat-unit", errorMessage)}
-                onSelect={(item) => {
-                  setValue("satUnitCode", item.code, { shouldDirty: true });
-                  setValue("satUnitName", item.name, { shouldDirty: true });
-                }}
-                onClear={() => {
-                  setValue("satUnitCode", "", { shouldDirty: true });
-                  setValue("satUnitName", "", { shouldDirty: true });
-                }}
-              />
-            </FormFieldShell>
-          );
-        }}
       />
     </FormSectionCard>
   );

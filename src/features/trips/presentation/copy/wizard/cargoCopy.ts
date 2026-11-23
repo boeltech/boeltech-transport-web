@@ -1,11 +1,9 @@
 /**
  * Namespace: trips.copy.wizard.cargo.*
  *
- * Léxico operativo: el objeto que el usuario registra siempre es «mercancía»
- * (nunca «carga», reservada para la operación de la parada). Voz de usted, sin
- * mayúsculas de alarma y sin vocabulario fiscal o técnico en superficie.
- * La marca de material peligroso es la excepción: el texto lo fija el pedido
- * y nombra el atributo de la Carta Porte.
+ * Sheet (`cargo.sheet`): léxico «carga» + tuteo (pedido 2026-11-23).
+ * El resto del paso Cargas del alta aún dice «mercancía» (deuda diferida).
+ * La marca de material peligroso nombra el atributo de la Carta Porte.
  */
 
 /** Marca SAT `1`. También es el aviso si intentan apagar el interruptor. */
@@ -163,18 +161,41 @@ export const cargoCopy = {
   },
   sheet: {
     title: {
-      create: "Agregar mercancía",
-      edit: "Editar mercancía",
+      create: "Agregar carga",
+      edit: "Editar carga",
     },
     description:
-      "Registro de una mercancía: qué se transporta, cuánto, y opcionalmente seguro, entregas y notas.",
+      "Registro de una carga: qué se transporta, cuánto, y opcionalmente seguro, entregas y notas.",
+    phaseRule: {
+      draftOrScheduled: {
+        create:
+          "En reserva puedes agregar, corregir o eliminar cargas. Recogida y entrega se registran en Seguimiento.",
+        edit: "En reserva puedes corregir todo. Recogida y entrega se registran en Seguimiento.",
+      },
+      inProgress:
+        "En ruta solo puedes agregar cargas. Para corregir o eliminar, el viaje debe estar en reserva o programado.",
+    },
     context: {
+      /** @deprecated Preferir `seCargaEn`. */
       stopPrefix: "Se carga en",
+      seCargaEn: (n: number, lugar: string) => `Se carga en ${n} · ${lugar}`,
+      editSummary: (
+        description: string,
+        cantidad: string,
+        unidad: string,
+        peso: string,
+      ) => `${description} · ${cantidad} ${unidad} · ${peso} kg`,
       registeredHere: (count: number) =>
         count === 1
-          ? "1 mercancía registrada aquí"
-          : `${count} mercancías registradas aquí`,
-      noneRegisteredHere: "Sin mercancías registradas aquí",
+          ? "1 carga registrada aquí"
+          : `${count} cargas registradas aquí`,
+      noneRegisteredHere: "Sin cargas registradas aquí",
+      summaryStopLabel: "En esta parada",
+      unitLabel: (economico?: string | null) =>
+        economico?.trim() ? `Unidad ${economico.trim()}` : "Unidad",
+      unitUnassigned: "Sin asignar",
+      availableKg: (x: string) => `Quedan ${x} kg en la unidad`,
+      /** @deprecated Preferir `availableKg`. */
       available: (formatted: string) => `Quedan ${formatted} en la unidad`,
       overCapacity: (formatted: string) =>
         `La unidad ya va excedida por ${formatted}`,
@@ -182,14 +203,28 @@ export const cargoCopy = {
     section: {
       product: "Qué se transporta",
       quantity: "Cuánto se transporta",
+      where: "Dónde va",
       requirements: "Requisitos del producto",
-      insurance: "Seguro de la mercancía",
-      deliveries: "Entregas en la ruta",
+      insurance: "Seguro de la carga",
+      /** @deprecated Preferir `where`. */
+      deliveries: "Dónde va",
       notes: "Notas para la operación",
     },
     sectionSummary: {
-      insuranceOn: (insurer?: string) =>
-        insurer ? `Asegurada con ${insurer}` : "Asegurada",
+      whereOk: (pickupN: number, pickupLugar: string, deliveryN: number, deliveryLugar: string) =>
+        `Recoge ${pickupN} · ${pickupLugar} → Entrega ${deliveryN} · ${deliveryLugar}`,
+      whereMulti: (pickupN: number, pickupLugar: string, deliveryCount: number) =>
+        `Recoge ${pickupN} · ${pickupLugar} → ${deliveryCount} entregas`,
+      whereMissingPickup:
+        "Falta la recogida: elígela para que la carga salga en el viaje",
+      requirementsNone: "El producto no exige datos extra",
+      requirementsNoHazmat: "Sin material peligroso",
+      insuranceOn: (insurer?: string, policy?: string) =>
+        insurer
+          ? `Asegurada con ${insurer}`
+          : policy
+            ? `Asegurada · póliza ${policy}`
+            : "Asegurada",
       insuranceOff: "Sin seguro declarado",
       deliveriesAssigned: (count: number) =>
         count === 1 ? "1 entrega asignada" : `${count} entregas asignadas`,
@@ -199,22 +234,22 @@ export const cargoCopy = {
     },
     label: {
       product: "Producto transportado",
-      description: "Descripción de la mercancía",
+      description: "Descripción de la carga",
       unit: "Unidad de medida",
       units: "Cantidad",
       weight: "Peso total (kg)",
-      isInsured: "Esta mercancía está asegurada",
+      isInsured: "Esta carga está asegurada",
       declaredValue: "Valor declarado (MXN)",
       insurer: "Aseguradora",
       policy: "Número de póliza",
-      isHazmat: "Esta mercancía es material peligroso",
+      isHazmat: "Esta carga es material peligroso",
       hazmatCode: "Clave del material peligroso",
       packagingType: "Tipo de embalaje",
       packagingDescription: "Descripción del embalaje",
       notes: "Notas",
       specialInstructions: "Instrucciones especiales",
       expiryDate: "Fecha de caducidad",
-      pickupStop: "Parada de recogida",
+      pickupStop: "Recoge en",
       deliveryStop: "Parada de entrega",
       deliveryWeight: "Peso a entregar (kg)",
       deliveryUnits: "Cantidad a entregar",
@@ -225,42 +260,54 @@ export const cargoCopy = {
       declaredValue: "0.00",
       insurer: "Ej.: Qualitas",
       policy: "Ej.: CARGA-123456",
-      packagingType: "Seleccione el tipo de embalaje",
+      packagingType: "Selecciona el tipo de embalaje",
       packagingDescription: "Ej.: bidones de 20 L, tanque de 1000 L…",
-      description: "Se completa al elegir el producto; puede ajustarla",
-      pickupStop: "Seleccione la parada de recogida…",
-      deliveryStop: "Seleccione la parada…",
-      notes: "Observaciones sobre esta mercancía…",
+      description: "Se completa al elegir el producto; ajústala si necesitas más detalle.",
+      pickupStop: "Selecciona la parada de recogida…",
+      deliveryStop: "Selecciona la parada…",
+      notes: "Observaciones sobre esta carga…",
       specialInstructions: "Manejo especial, temperatura, fragilidad…",
     },
     hint: {
-      product: "Búsquelo por nombre o por clave en el catálogo de mercancías.",
+      product: "Búscalo por nombre o por clave del catálogo del SAT.",
       description:
-        "Se completa al elegir el producto; ajústela si necesita más detalle operativo.",
+        "Se completa al elegir el producto; ajústala si necesitas más detalle.",
       unit: "Se conserva tal cual en los documentos del viaje.",
+      capacityNoVehicle:
+        "Sin unidad asignada: la ocupación se calcula al asignar flota.",
+      /** Unidad en el viaje pero sin capacidad conocida en catálogo. */
+      capacityNoCapacityKnown:
+        "Unidad asignada: captura el peso; la ocupación se calcula cuando la unidad tenga capacidad en el catálogo.",
+      capacityMeter: (
+        proyectado: string,
+        capacidad: string,
+        pct: number,
+        x: string,
+      ) =>
+        `${proyectado} de ${capacidad} kg · ${pct.toFixed(0)} % ocupado · Quedan ${x} kg`,
       insurance:
-        "Capture la aseguradora y la póliza que cubren esta mercancía en el viaje.",
+        "Captura la aseguradora y la póliza que cubren esta carga en el viaje.",
       hazmatRequired: MATERIAL_PELIGROSO_SIEMPRE,
       materialPeligrosoOmit:
         "Esta clave no declara material peligroso. El atributo no va en la Carta Porte.",
       materialPeligrosoOptionalOff:
         'Puede ser o no ser material peligroso. Si no lo es, la Carta Porte lleva MaterialPeligroso="No".',
       materialPeligrosoOptionalOn:
-        'La Carta Porte llevará MaterialPeligroso="Sí". Capture la clave y el embalaje.',
+        'La Carta Porte llevará MaterialPeligroso="Sí". Captura la clave y el embalaje.',
       materialPeligrosoUnknown:
         "Esta clave todavía no tiene la marca de material peligroso en el catálogo. No se podrá timbrar hasta que el catálogo la tenga.",
       pickupStop:
-        "Elige en qué parada de recogida sale esta mercancía cuando el viaje tiene más de una.",
+        "Elige en qué parada de recogida sale esta carga cuando el viaje tiene más de una.",
       requirements: "El producto elegido exige estos datos.",
       requirementsOptional:
         "Estos datos no son obligatorios para el producto elegido.",
       deliveries:
-        "Indique en qué paradas se descarga esta mercancía. Si la entrega es parcial, capture el peso o la cantidad de cada punto y asigne el remanente a otra descarga.",
+        "Indica en qué paradas se descarga esta carga. Si la entrega es parcial, captura el peso o la cantidad de cada punto y asigna el remanente a otra descarga.",
       /** F5d-c / PRD: ≥2 descargas — tono obligatorio (sin «más adelante»). */
       deliveriesMultiUnload:
-        "Con varias descargas, selecciona dónde se entrega esta mercancía. Si la entrega es parcial, captura el peso o la cantidad de cada punto.",
+        "Con varias descargas, selecciona dónde se entrega esta carga. Si la entrega es parcial, captura el peso o la cantidad de cada punto.",
       deliveriesReadOnly:
-        "Las entregas de esta mercancía no se pueden cambiar aquí. Defínalas al dar de alta la carga.",
+        "Las entregas de esta carga no se pueden cambiar aquí. Defínelas al dar de alta la carga.",
       /**
        * Edit/create con 1 sola descarga: CTA «Agregar entrega» oculto (CEO).
        * F5: entrega asumida y materializada por API al guardar / al listar.
@@ -269,23 +316,27 @@ export const cargoCopy = {
         "Solo hay una descarga (destino): la entrega se registra ahí al guardar. Para más entregas, agrega otra descarga en Ruta.",
       /** F7: hint dinámico con remanente explícito (D-F7-4). */
       deliveriesRemainder: (remainderLine: string) =>
-        `Quedan ${remainderLine} sin asignar a una entrega. Puede guardar y completar después.`,
+        `Quedan ${remainderLine} sin asignar a una entrega. Puedes guardar y completar después.`,
       pendingFields: "Datos pendientes:",
     },
+    badge: {
+      assignOnSave: "Se asigna al guardar",
+      uniquePickup: "Única parada de carga",
+    },
     alert: {
-      underAllocatedTitle: "Falta asignar el resto de la mercancía",
+      underAllocatedTitle: "Falta asignar el resto de la carga",
       underAllocatedBody: (remainderLine: string) =>
-        `Faltan ${remainderLine} por asignar a una entrega. Puede guardar y completar después.`,
-      overAllocatedTitle: "Las entregas superan el total de la mercancía",
+        `Faltan ${remainderLine} por asignar a una entrega. Puedes guardar y completar después.`,
+      overAllocatedTitle: "Las entregas superan el total de la carga",
       overAllocatedBody: (remainderLine: string) =>
-        `Sobran ${remainderLine} respecto al total. Ajuste peso o cantidad antes de guardar.`,
+        `Sobran ${remainderLine} respecto al total. Ajusta peso o cantidad antes de guardar.`,
     },
     state: {
       noDeliveries:
-        "Sin entregas asignadas. Puede asignarlas ahora o más adelante.",
+        "Sin entregas asignadas. Puedes asignarlas ahora o más adelante.",
       /** F5d-c: empty hard con ≥2 unloads (sin tono diferible). */
       noDeliveriesMultiUnload:
-        "Con varias descargas, selecciona dónde se entrega esta mercancía.",
+        "Con varias descargas, selecciona dónde se entrega esta carga.",
       /** Empty state cuando CTA oculto (1 unload): no pedirle al operador que asigne. */
       noDeliveriesSingleUnload:
         "La entrega se registrará en el destino al guardar.",
@@ -293,47 +344,70 @@ export const cargoCopy = {
     action: {
       cancel: "Cancelar",
       save: "Guardar cambios",
-      add: "Agregar mercancía",
+      add: "Agregar carga",
       addAnother: "Guardar y agregar otra",
       addDelivery: "Agregar entrega",
+      editSection: "Editar",
+      changeProduct: "Cambiar",
       showAllProductFields: "Agregar más datos de este producto",
       hideExtraProductFields: "Ocultar datos adicionales",
     },
     validation: {
-      missingRequiredTitle: "Faltan datos para guardar la mercancía",
+      missingRequiredTitle: "Faltan datos para guardar la carga",
       deliveryStopRequired: "Selecciona la parada de cada entrega agregada",
       /** F5d-c hard: ≥2 unloads sin ninguna entrega. */
       deliveryAssignmentRequired:
-        "Con varias descargas, selecciona dónde se entrega esta mercancía.",
+        "Con varias descargas, selecciona dónde se entrega esta carga.",
       deliveryWeightExceeded: (
         deliveryWeight: number,
         cargoWeight: number,
       ) =>
-        `El peso de las entregas (${deliveryWeight.toLocaleString("es-MX")} kg) supera el de la mercancía (${cargoWeight.toLocaleString("es-MX")} kg)`,
+        `El peso de las entregas (${deliveryWeight.toLocaleString("es-MX")} kg) supera el de la carga (${cargoWeight.toLocaleString("es-MX")} kg)`,
       deliveryUnitsExceeded: (deliveryUnits: number, cargoUnits: number) =>
-        `Las unidades de las entregas (${deliveryUnits.toLocaleString("es-MX")}) superan las de la mercancía (${cargoUnits.toLocaleString("es-MX")})`,
+        `Las unidades de las entregas (${deliveryUnits.toLocaleString("es-MX")}) superan las de la carga (${cargoUnits.toLocaleString("es-MX")})`,
     },
     toast: {
       hazmatRequiredTitle: "No se puede desmarcar",
       hazmatRequiredBody: MATERIAL_PELIGROSO_SIEMPRE,
-      addedTitle: "Mercancía agregada",
+      addedTitle: "Carga agregada",
       addedBody: (description: string) =>
         `«${description}» quedó registrada en esta parada.`,
-      saveErrorTitle: "No se pudo guardar la mercancía",
+      saveErrorTitle: "No se pudo guardar la carga",
       saveErrorSeeInline: "Revisa el mensaje detallado en el formulario.",
     },
+    effects: {
+      title: "Al confirmar",
+      routeLine: (
+        pickupN: number,
+        pickupLugar: string,
+        deliveryN: number,
+        deliveryLugar: string,
+      ) =>
+        `Se recoge en ${pickupN} · ${pickupLugar} y se entrega en ${deliveryN} · ${deliveryLugar}.`,
+      fiscalLine:
+        "El viaje ya tiene Atención fiscal por el cambio de ruta: esta carga entra en la misma sustitución.",
+    },
     format: {
+      /** Label corto Operate: `n · {lugar}` (C7 / VIS ancla). */
       deliveryStopOption: (
         index: number,
         locationName: string,
         address: string,
-        city: string,
-      ) => `Parada ${index + 1} · ${locationName || address} (${city})`,
+        _city?: string,
+      ) => `${index + 1} · ${locationName || address}`,
+      assignedMeter: (
+        u: string,
+        U: string,
+        unidad: string,
+        w: string,
+        W: string,
+      ) => `Asignado ${u} de ${U} ${unidad} · ${w} de ${W} kg`,
       capacityProjection: (
         projected: string,
         capacity: string,
         percentage: number,
-      ) => `Con esta mercancía: ${projected} de ${capacity} (${percentage.toFixed(0)} %)`,
+      ) =>
+        `${projected} de ${capacity} (${percentage.toFixed(0)} %)`,
       availableWeight: (formatted: string) =>
         `Quedan ${formatted} disponibles en la unidad.`,
       overCapacityWeight: (formatted: string) =>

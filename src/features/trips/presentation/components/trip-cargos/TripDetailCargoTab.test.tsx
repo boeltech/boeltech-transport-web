@@ -550,6 +550,50 @@ describe("TripDetailCargoTab", () => {
     );
   });
 
+  it("C6: POSTs pickup when editing cargo without pickup movement (T-SC2)", async () => {
+    const user = userEvent.setup();
+    const cargoWithoutPickup: TripCargo = {
+      ...sampleCargo,
+      id: "cargo-no-pickup",
+      movements: [],
+    };
+
+    render(
+      <MemoryRouter>
+        <TripDetailCargoTab
+          tripId="trip-1"
+          tripStatus={TripStatus.DRAFT}
+          cargos={[cargoWithoutPickup]}
+          orderedStops={[pickupStop]}
+          pickupStops={[pickupStop]}
+          isLoading={false}
+          isError={false}
+          canEditStructural
+          onRetry={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: copy.action.editCargo }),
+    );
+    await user.click(screen.getByTestId("sheet-submit-edit"));
+
+    await waitFor(() => {
+      expect(mutateAddMovementAsync).toHaveBeenCalledTimes(1);
+    });
+    expect(mutateAddMovementAsync).toHaveBeenCalledWith({
+      cargoId: "cargo-no-pickup",
+      data: {
+        stopId: "st-1",
+        stopIndex: 0,
+        movementType: "pickup",
+      },
+    });
+    expect(mutateReassignAsync).not.toHaveBeenCalled();
+    expect(mutateUpdateAsync).toHaveBeenCalledTimes(1);
+  });
+
   it("passes pickup options in edit and PATCHes reassign before PUT update", async () => {
     const user = userEvent.setup();
     const waypointPickup = {

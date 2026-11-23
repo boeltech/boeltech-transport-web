@@ -127,6 +127,36 @@ function mockCatalogMark(requirement: MaterialPeligrosoCatalogRequirement) {
   });
 }
 
+/** C8: hazmat vive dentro de Requisitos plegado — abre la sección si hace falta. */
+async function ensureRequirementsOpen(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  // C5/C8: marca 1 / sector pueden abrir sola tras el fetch del catálogo.
+  try {
+    await screen.findByRole(
+      "checkbox",
+      { name: sheet.label.isHazmat },
+      { timeout: 2000 },
+    );
+    return;
+  } catch {
+    // sigue a apertura manual
+  }
+
+  const trigger = screen.getByText(sheet.section.requirements).closest("button");
+  expect(trigger).toBeTruthy();
+  if (trigger?.getAttribute("data-state") === "open") {
+    expect(
+      await screen.findByRole("checkbox", { name: sheet.label.isHazmat }),
+    ).toBeInTheDocument();
+    return;
+  }
+  await user.click(trigger!);
+  expect(
+    await screen.findByRole("checkbox", { name: sheet.label.isHazmat }),
+  ).toBeInTheDocument();
+}
+
 describe("CargoMovementSheet", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -294,7 +324,7 @@ describe("CargoMovementSheet", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides Agregar entrega when allowAddDelivery is false (edit gate ≥2 unload)", () => {
+  it("C7.1: 1 descarga = fila solo lectura + hint; sin Agregar entrega", () => {
     render(
       <CargoMovementSheet
         open
@@ -314,16 +344,16 @@ describe("CargoMovementSheet", () => {
     expect(
       screen.queryByRole("button", { name: sheet.action.addDelivery }),
     ).not.toBeInTheDocument();
-    // Hint: entrega asumida y materializada (F5); CTA oculto (1 descarga).
     expect(
       screen.getByText(sheet.hint.deliveriesSingleUnload),
     ).toBeInTheDocument();
     expect(sheet.hint.deliveriesSingleUnload).toMatch(/registra/i);
-    // Reassign de entregas existentes sigue editable (peso de la fila).
-    expect(screen.getByDisplayValue("500")).toBeInTheDocument();
+    // Fila muted (puede repetirse en resumen whereOk); sin inputs editables.
+    expect(screen.getAllByText(/2 · Descarga/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByDisplayValue("500")).not.toBeInTheDocument();
   });
 
-  it("shows single-unload empty copy when CTA is hidden and no deliveries yet (F5)", () => {
+  it("C7.1: 1 descarga sin assignment muestra destino en fila muted", () => {
     render(
       <CargoMovementSheet
         open
@@ -343,19 +373,28 @@ describe("CargoMovementSheet", () => {
       />,
     );
 
+    expect(screen.getAllByText(/2 · Descarga/).length).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getByText(sheet.state.noDeliveriesSingleUnload),
-    ).toBeInTheDocument();
+      screen.queryByText(sheet.state.noDeliveriesSingleUnload),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(sheet.state.noDeliveries)).not.toBeInTheDocument();
   });
 
-  it("shows Agregar entrega when allowAddDelivery is true", () => {
+  it("shows Agregar entrega when allowAddDelivery and ≥2 descargas (C7)", () => {
     render(
       <CargoMovementSheet
         open
         onOpenChange={vi.fn()}
         pickupStop={pickupStop}
-        availableDeliveryStops={deliveryStops}
+        availableDeliveryStops={[
+          ...deliveryStops,
+          {
+            index: 2,
+            address: "Cliente 2",
+            city: "Santa Catarina",
+            locationName: "Descarga 2",
+          },
+        ]}
         initialValues={validCargo}
         editingIndex={0}
         allowAddDelivery
@@ -455,15 +494,31 @@ describe("CargoMovementSheet", () => {
   it("blocks submit when a delivery row has no stop selected", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
+    const multiUnloadStops: CargoSheetDeliveryStop[] = [
+      deliveryStops[0]!,
+      {
+        index: 2,
+        address: "Cliente 2",
+        city: "Guadalupe",
+        locationName: "Descarga 2",
+      },
+    ];
 
     render(
       <CargoMovementSheet
         open
         onOpenChange={vi.fn()}
         pickupStop={pickupStop}
-        availableDeliveryStops={deliveryStops}
-        initialValues={validCargo}
+        availableDeliveryStops={multiUnloadStops}
+        initialValues={{
+          ...validCargo,
+          movements: [
+            { stopIndex: 0, movementType: "pickup" },
+            { stopIndex: 1, movementType: "delivery", weight: 500, units: 5 },
+          ],
+        }}
         editingIndex={null}
+        allowAddDelivery
         vehicleCapacityKg={null}
         baselineWeightKg={0}
         stopCargoCount={0}
@@ -484,7 +539,7 @@ describe("CargoMovementSheet", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("shows short satUnitCode beside Cantidad even when satUnitName is long (XPB)", async () => {
+  it("keeps Unidad · Cantidad · Peso in one row and preserves long satUnitName on submit (C2)", async () => {
     const user = userEvent.setup();
     const longUnitName =
       "Botella, protegida o no, de vidrio, de cualquier capacidad, con tapa de rosca o tapón a presión";
@@ -492,7 +547,7 @@ describe("CargoMovementSheet", () => {
       ...validCargo,
       satUnitCode: "XPB",
       satUnitName: longUnitName,
-      // Sin qty en delivery: el test muta peso/uds de la mercancía; F7 bloquea exceso.
+      // Sin qty en delivery: el test muta peso/uds de la carga; F7 bloquea exceso.
       movements: [
         { stopIndex: 0, movementType: "pickup" },
         { stopIndex: 1, movementType: "delivery" },
@@ -515,28 +570,27 @@ describe("CargoMovementSheet", () => {
       />,
     );
 
-    const unitsSuffix = screen.getByTestId("cargo-units-suffix");
-    expect(unitsSuffix).toHaveTextContent("XPB");
-    expect(unitsSuffix).not.toHaveTextContent(longUnitName);
+    expect(screen.getByTestId("unit-search")).toBeInTheDocument();
     expect(screen.queryByText(longUnitName)).not.toBeInTheDocument();
-
-    const weightSpacer = screen.getByTestId("cargo-weight-suffix-spacer");
-    expect(weightSpacer).toHaveTextContent("XPB");
-    expect(weightSpacer).not.toHaveTextContent(longUnitName);
+    expect(document.querySelector(".sm\\:max-w-xl")).toBeTruthy();
 
     const unitsInput = screen.getByRole("spinbutton", {
       name: (_content, element) => element.id === "cargo-units",
     });
-    const weightInput = screen.getByRole("spinbutton", {
+    const weightInput = screen.getByRole("textbox", {
       name: (_content, element) => element.id === "cargo-weight-kg",
     });
-    expect(unitsInput).toHaveClass("min-w-[4.5rem]");
-    expect(weightInput).toHaveClass("min-w-[4.5rem]");
+    expect(unitsInput).toHaveClass("font-mono");
+    expect(weightInput).toHaveClass("font-mono");
+    expect(weightInput).toHaveValue("1,000.00");
 
     fireEvent.change(unitsInput, { target: { value: "12" } });
-    fireEvent.change(weightInput, { target: { value: "250" } });
     expect(unitsInput).toHaveValue(12);
-    expect(weightInput).toHaveValue(250);
+
+    await user.clear(weightInput);
+    await user.type(weightInput, "250");
+    await user.tab();
+    expect(weightInput).toHaveValue("250.00");
 
     await user.click(screen.getByRole("button", { name: sheet.action.add }));
 
@@ -546,8 +600,11 @@ describe("CargoMovementSheet", () => {
     const submitted = onSubmit.mock.calls[0][0] as TripCargoFormValues;
     expect(submitted.satUnitCode).toBe("XPB");
     expect(submitted.satUnitName).toBe(longUnitName);
+    expect(submitted.units).toBe(12);
+    expect(submitted.weightInKg).toBe(250);
   });
-  it("falls back to unidades when satUnitCode is empty", () => {
+
+  it("shows capacity hint without vehicle and keeps unit search in Cuánto (C4)", () => {
     render(
       <CargoMovementSheet
         open
@@ -567,12 +624,39 @@ describe("CargoMovementSheet", () => {
       />,
     );
 
-    expect(screen.getByTestId("cargo-units-suffix")).toHaveTextContent(
-      "unidades",
+    expect(screen.getByTestId("unit-search")).toBeInTheDocument();
+    expect(
+      screen.getByText(sheet.hint.capacityNoVehicle),
+    ).toBeInTheDocument();
+  });
+
+  it("does not say «sin unidad» when fleet unit is assigned without capacity (V5-P2-5)", () => {
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          satUnitCode: "",
+          satUnitName: "",
+        }}
+        editingIndex={null}
+        vehicleCapacityKg={null}
+        vehicleUnitNumber="U-002"
+        baselineWeightKg={0}
+        stopCargoCount={0}
+        onSubmit={vi.fn()}
+      />,
     );
-    expect(screen.getByTestId("cargo-weight-suffix-spacer")).toHaveTextContent(
-      "unidades",
-    );
+
+    expect(
+      screen.getByText(sheet.hint.capacityNoCapacityKnown),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(sheet.hint.capacityNoVehicle),
+    ).not.toBeInTheDocument();
   });
 
   it("apaga y no guarda material peligroso cuando la marca es 0", async () => {
@@ -602,6 +686,7 @@ describe("CargoMovementSheet", () => {
       />,
     );
 
+    await ensureRequirementsOpen(user);
     expect(
       await screen.findByText(sheet.hint.materialPeligrosoOmit),
     ).toBeInTheDocument();
@@ -643,6 +728,7 @@ describe("CargoMovementSheet", () => {
       />,
     );
 
+    await ensureRequirementsOpen(user);
     expect(
       await screen.findByText(sheet.hint.materialPeligrosoOptionalOff),
     ).toBeInTheDocument();
@@ -692,6 +778,7 @@ describe("CargoMovementSheet", () => {
       />,
     );
 
+    await ensureRequirementsOpen(user);
     expect(await screen.findByText(sheet.hint.hazmatRequired)).toBeInTheDocument();
     const hazmat = screen.getByRole("checkbox", { name: sheet.label.isHazmat });
     expect(hazmat).toBeChecked();
@@ -733,6 +820,7 @@ describe("CargoMovementSheet", () => {
       />,
     );
 
+    await ensureRequirementsOpen(user);
     expect(
       await screen.findByText(sheet.hint.materialPeligrosoUnknown),
     ).toBeInTheDocument();
@@ -775,6 +863,7 @@ describe("CargoMovementSheet", () => {
       />,
     );
 
+    await ensureRequirementsOpen(user);
     await user.click(
       screen.getByRole("button", { name: "Elegir clave de prueba" }),
     );
@@ -792,15 +881,26 @@ describe("CargoMovementSheet", () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     const onOpenChange = vi.fn();
+    // C7: medidor + alert under solo con ≥2 descargas (1 unload = fila muted).
+    const multiUnloadStops: CargoSheetDeliveryStop[] = [
+      deliveryStops[0]!,
+      {
+        index: 2,
+        address: "Cliente 2",
+        city: "Guadalupe",
+        locationName: "Descarga 2",
+      },
+    ];
 
     render(
       <CargoMovementSheet
         open
         onOpenChange={onOpenChange}
         pickupStop={pickupStop}
-        availableDeliveryStops={deliveryStops}
+        availableDeliveryStops={multiUnloadStops}
         initialValues={validCargo}
         editingIndex={0}
+        allowAddDelivery
         vehicleCapacityKg={null}
         baselineWeightKg={0}
         stopCargoCount={1}
@@ -914,13 +1014,22 @@ describe("CargoMovementSheet", () => {
   it("F7: blocks Guardar when deliveries exceed cargo totals", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const multiUnloadStops: CargoSheetDeliveryStop[] = [
+      deliveryStops[0]!,
+      {
+        index: 2,
+        address: "Cliente 2",
+        city: "Guadalupe",
+        locationName: "Descarga 2",
+      },
+    ];
 
     render(
       <CargoMovementSheet
         open
         onOpenChange={vi.fn()}
         pickupStop={pickupStop}
-        availableDeliveryStops={deliveryStops}
+        availableDeliveryStops={multiUnloadStops}
         initialValues={{
           ...validCargo,
           movements: [
@@ -934,6 +1043,7 @@ describe("CargoMovementSheet", () => {
           ],
         }}
         editingIndex={0}
+        allowAddDelivery
         vehicleCapacityKg={null}
         baselineWeightKg={0}
         stopCargoCount={1}
@@ -967,6 +1077,12 @@ describe("CargoMovementSheet", () => {
       locationName: longLocation,
       clientName: "Movimientos Industriales",
     };
+    const otherStop: CargoSheetDeliveryStop = {
+      index: 2,
+      address: "Otro",
+      city: "Apodaca",
+      locationName: "Descarga 2",
+    };
     const longLabel = sheet.format.deliveryStopOption(
       longStop.index,
       longStop.locationName || "",
@@ -979,7 +1095,7 @@ describe("CargoMovementSheet", () => {
         open
         onOpenChange={vi.fn()}
         pickupStop={pickupStop}
-        availableDeliveryStops={[longStop]}
+        availableDeliveryStops={[otherStop, longStop]}
         initialValues={{
           ...validCargo,
           movements: [
@@ -993,6 +1109,7 @@ describe("CargoMovementSheet", () => {
           ],
         }}
         editingIndex={0}
+        allowAddDelivery
         vehicleCapacityKg={null}
         baselineWeightKg={0}
         stopCargoCount={1}
@@ -1005,16 +1122,6 @@ describe("CargoMovementSheet", () => {
     });
     expect(trigger).toHaveAttribute("title", longLabel);
     expect(trigger.className).toMatch(/min-w-0/);
-    expect(trigger.className).toMatch(/overflow-hidden/);
-
-    const deliveryCard = trigger.closest(".rounded-lg.border");
-    expect(deliveryCard).toBeTruthy();
-    expect(deliveryCard?.className).toMatch(/min-w-0/);
-    const fieldColumn = deliveryCard?.querySelector(".min-w-0.flex-1");
-    expect(fieldColumn).toBeTruthy();
-    expect(
-      deliveryCard?.querySelector(".grid.min-w-0"),
-    ).toBeTruthy();
   });
 
   it("truncates read-only delivery stop labels with full title", () => {
@@ -1065,7 +1172,78 @@ describe("CargoMovementSheet", () => {
     expect(labelEl).toHaveAttribute("title", longLabel);
   });
 
-  it("contains long pickup stop Select labels with title (chooser mode)", () => {
+  it("C6: missing pickup opens Dónde va first with amber badge assign-on-save (D-PRD-2)", () => {
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          movements: [],
+        }}
+        editingIndex={0}
+        missingPickupMovement
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={1}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(sheet.sectionSummary.whereMissingPickup),
+    ).toBeInTheDocument();
+    expect(screen.getByText(sheet.badge.assignOnSave)).toBeInTheDocument();
+    expect(screen.getByText(sheet.section.where)).toBeInTheDocument();
+    // D-PRD-2: Dónde va aparece antes que Qué se transporta en el DOM.
+    const whereEl = screen.getByText(sheet.section.where);
+    const productEl = screen.getByText(sheet.section.product);
+    expect(
+      whereEl.compareDocumentPosition(productEl) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("C9: invalid submit opens product section and shows summary above footer", async () => {
+    const user = userEvent.setup();
+    render(
+      <CargoMovementSheet
+        open
+        onOpenChange={vi.fn()}
+        pickupStop={pickupStop}
+        availableDeliveryStops={deliveryStops}
+        initialValues={{
+          ...validCargo,
+          satProductCode: "",
+          description: "",
+          movements: [{ stopIndex: 0, movementType: "pickup" }],
+        }}
+        editingIndex={null}
+        vehicleCapacityKg={null}
+        baselineWeightKg={0}
+        stopCargoCount={0}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: sheet.action.add }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(sheet.validation.missingRequiredTitle),
+      ).toBeInTheDocument();
+    });
+    // Summary queda en el cuerpo, antes del pie (Cancelar).
+    const summary = screen.getByText(sheet.validation.missingRequiredTitle);
+    const cancel = screen.getByRole("button", { name: sheet.action.cancel });
+    expect(
+      summary.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows pickup chooser inside Dónde va when multiple pickups (C6)", () => {
     const longPickup: CargoSheetPickupStop = {
       index: 0,
       address: "Planta Norte",
@@ -1080,12 +1258,6 @@ describe("CargoMovementSheet", () => {
       city: "Apodaca",
       locationName: "Bodega Sur",
     };
-    const longLabel = sheet.format.deliveryStopOption(
-      longPickup.index,
-      longPickup.locationName || "",
-      longPickup.address,
-      longPickup.city,
-    );
 
     render(
       <CargoMovementSheet
@@ -1104,14 +1276,15 @@ describe("CargoMovementSheet", () => {
       />,
     );
 
+    expect(screen.getByText(sheet.section.where)).toBeInTheDocument();
     const trigger = screen.getByRole("combobox", {
       name: sheet.label.pickupStop,
     });
-    expect(trigger).toHaveAttribute("title", longLabel);
-    expect(trigger.className).toMatch(/min-w-0/);
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).toHaveAttribute("id", "cargo-pickup-stop");
   });
 
-  it("truncates read-only pickup context with full title", () => {
+  it("shows C3 header edit summary and stop summary row (no dense pickup box)", () => {
     const longPickup: CargoSheetPickupStop = {
       index: 0,
       address: "Calle Muy Larga 1000",
@@ -1132,19 +1305,22 @@ describe("CargoMovementSheet", () => {
         vehicleCapacityKg={null}
         baselineWeightKg={0}
         stopCargoCount={1}
+        vehicleUnitNumber={null}
         onSubmit={vi.fn()}
       />,
     );
 
-    const readOnly = screen.getByTitle(
-      [
-        `${sheet.context.stopPrefix} ${wizardCopy.cargo.format.stopFallback(longPickup.index)}`,
-        longPickup.locationName,
-        longPickup.clientName,
-      ].join(" · "),
-    );
-    expect(readOnly.className).toMatch(/truncate/);
-    expect(readOnly.className).toMatch(/min-w-0/);
+    expect(screen.getByText(sheet.title.edit)).toBeInTheDocument();
+    expect(
+      screen.getByText(sheet.phaseRule.draftOrScheduled.edit),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(sheet.context.registeredHere(1), { exact: false }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(sheet.context.unitUnassigned)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: sheet.label.pickupStop }),
+    ).not.toBeInTheDocument();
   });
 
   it("aplica la marca del GET aunque StrictMode cancele la primera hidratación", async () => {
@@ -1193,6 +1369,7 @@ describe("CargoMovementSheet", () => {
       </StrictMode>,
     );
 
+    await ensureRequirementsOpen(user);
     await user.click(
       screen.getByRole("button", { name: "Elegir clave de prueba" }),
     );

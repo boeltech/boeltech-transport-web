@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, Package, Plus, RefreshCw } from "lucide-react";
 
@@ -111,6 +111,11 @@ export interface TripDetailCargoTabProps {
   invoiceStatus?: string | null;
   /** Unidad asignada — capacidad advisory (loadCapacity t→kg). */
   vehicleId?: string | null;
+  /**
+   * D44 — avisa al shell cuando el Sheet de carga está abierto
+   * (Qué sigue → outline).
+   */
+  onEditingChange?: (editing: boolean) => void;
   onRetry: () => void;
   onCargosChanged?: () => void;
 }
@@ -166,6 +171,7 @@ export function TripDetailCargoTab({
   hasActivePrimaryInvoice = false,
   invoiceStatus = null,
   vehicleId = null,
+  onEditingChange,
   onRetry,
   onCargosChanged,
 }: TripDetailCargoTabProps) {
@@ -185,6 +191,11 @@ export function TripDetailCargoTab({
   );
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingCargoId, setEditingCargoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    onEditingChange?.(sheetOpen);
+    return () => onEditingChange?.(false);
+  }, [onEditingChange, sheetOpen]);
   /** Pickup elegido en alta cuando el viaje tiene varias recogidas. */
   const [createPickupStopId, setCreatePickupStopId] = useState<string | null>(
     null,
@@ -361,16 +372,32 @@ export function TripDetailCargoTab({
           (pickupSheetStop
             ? orderedStops[pickupSheetStop.index] ?? null
             : null);
+        const existingPickupMovement = editingCargo?.movements?.find(
+          (movement) => movement.movementType === "pickup",
+        );
         const pickupChanged =
           nextPickup != null &&
           originalPickup != null &&
           nextPickup.id !== originalPickup.id;
 
-        if (pickupChanged) {
-          const pickupMovement = editingCargo?.movements?.find(
-            (movement) => movement.movementType === "pickup",
+        // T-SC2 / C6: sin movimiento de recogida → POST pickup (endpoint existente).
+        if (!existingPickupMovement && nextPickup) {
+          const nextIndex = orderedStops.findIndex(
+            (stop) => stop.id === nextPickup.id,
           );
-          if (!pickupMovement?.id) {
+          if (nextIndex < 0) {
+            throw new Error(copy.toast.cargoStopUnresolved);
+          }
+          await addCargoMovement.mutateAsync({
+            cargoId: editingCargoId,
+            data: {
+              stopId: nextPickup.id,
+              stopIndex: nextIndex,
+              movementType: "pickup",
+            },
+          });
+        } else if (pickupChanged) {
+          if (!existingPickupMovement?.id) {
             throw new Error(copy.toast.cargoPickupMovementMissing);
           }
           const nextIndex = orderedStops.findIndex(
@@ -381,7 +408,7 @@ export function TripDetailCargoTab({
           }
           await reassignMovementStop.mutateAsync({
             cargoId: editingCargoId,
-            movementId: pickupMovement.id,
+            movementId: existingPickupMovement.id,
             data: { stopId: nextPickup.id, stopIndex: nextIndex },
           });
         }
@@ -518,6 +545,14 @@ export function TripDetailCargoTab({
           editingCargo ? tripCargoToFormValues(editingCargo) : null
         }
         editingIndex={editingCargoId ? 0 : null}
+        missingPickupMovement={
+          editingCargoId != null &&
+          !(
+            editingCargo?.movements?.some(
+              (movement) => movement.movementType === "pickup",
+            ) ?? false
+          )
+        }
         deliveriesReadOnly={
           editingCargoId != null &&
           Boolean(
@@ -536,6 +571,22 @@ export function TripDetailCargoTab({
         vehicleCapacityKg={vehicleCapacityKg}
         baselineWeightKg={baselineWeightKg}
         stopCargoCount={cargosAtActivePickup.length}
+        tripPhase={
+          tripStatus === TripStatus.IN_PROGRESS
+            ? "in_progress"
+            : "draft_or_scheduled"
+        }
+        vehicleUnitNumber={vehicle?.unitNumber ?? null}
+        showConfirmEffects={
+          canAppendCargo &&
+          !canEditStructural &&
+          editingCargoId == null
+        }
+        confirmEffectsIncludeFiscal={shouldWarnFiscalAttentionOnCargoAppend({
+          cfdiEmissionIntent,
+          hasActivePrimaryInvoice,
+          invoiceStatus,
+        })}
         submitErrorTitle={
           editingCargoId
             ? copy.toast.cargoUpdateError

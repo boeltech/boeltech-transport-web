@@ -2,6 +2,13 @@
 export const TRACKING_SHEET_CONTENT_CLASS =
   "flex h-full w-full flex-col overflow-hidden sm:max-w-md";
 
+/**
+ * Sheet de carga (alta + tab Cargas): mismo patrón Operate que tracking,
+ * más ancho (~576 px) para fila Cuánto ×3 + pie C10 (C2′).
+ */
+export const CARGO_SHEET_CONTENT_CLASS =
+  "flex h-full w-full flex-col overflow-hidden sm:max-w-xl";
+
 /** Confirmación densa (alerta + efectos + CTA largo): un poco más de aire que `max-w-md`. */
 export const TRACKING_SHEET_CONFIRM_CONTENT_CLASS =
   "flex h-full w-full flex-col overflow-hidden sm:max-w-lg";

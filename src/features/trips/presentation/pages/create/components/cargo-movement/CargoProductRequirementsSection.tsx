@@ -1,24 +1,23 @@
 /**
- * Requisitos que el catálogo del producto exige para esta mercancía.
- *
- * Sustituye a las secciones separadas de material peligroso y datos sectoriales:
- * solo se renderiza cuando algo es exigible y, dentro, solo los campos marcados
- * como obligatorios por `sectorRequirements`. El resto queda tras un enlace
- * secundario para casos en que el usuario quiera capturarlos de todos modos.
- *
- * La fuente de obligatoriedad sigue siendo `@boeltech/cfdi-domain`
- * (`extractCargoRegulatoryFlags` / `getMissingSectorRequiredFields`); aquí solo
- * se decide qué mostrar.
+ * Requisitos del producto (C8): hazmat como primer control, luego clave/embalaje
+ * y campos sectoriales. El padre lo envuelve en `CargoOptionalSection`.
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Controller, type Control } from "react-hook-form";
-import { ClipboardList } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 import { Button } from "@shared/ui/button";
+import { Checkbox } from "@shared/ui/checkbox";
 import { Input } from "@shared/ui/input";
-import { FormFieldShell, RHFTextField, getFieldErrorAriaProps } from "@shared/ui/form";
-import { FormSectionCard } from "@shared/ui/form-section-card";
+import { Label } from "@shared/ui/label";
+import { Alert, AlertDescription } from "@shared/ui/alert";
+import {
+  FieldInlineError,
+  FormFieldShell,
+  RHFTextField,
+  getFieldErrorAriaProps,
+} from "@shared/ui/form";
 import {
   MaterialPeligrosoSearch,
   TipoEmbalajeSelect,
@@ -43,8 +42,17 @@ export interface CargoProductRequirementsSectionProps {
   sectorRequirements?: CargoSectorRequirements;
   /** Exigidos y aún vacíos (calculado con el paquete de dominio). */
   missingSectorFields: Array<keyof CargoSectorRequirements>;
-  /** La mercancía está declarada como material peligroso. */
+  /** La carga está declarada como material peligroso. */
   showHazmatFields: boolean;
+  hazardousMaterial: boolean;
+  hazmatSwitchDisabled: boolean;
+  onHazmatChange: (checked: boolean) => void;
+  hazmatErrorMessage?: string;
+  hazmatDescribedBy?: string;
+  catalogHint: string | null;
+  catalogRequirementUnknown: boolean;
+  /** Contenido extra debajo del hazmat (p. ej. badges F2). */
+  leadingSlot?: ReactNode;
 }
 
 export function CargoProductRequirementsSection({
@@ -52,6 +60,13 @@ export function CargoProductRequirementsSection({
   sectorRequirements,
   missingSectorFields,
   showHazmatFields,
+  hazardousMaterial,
+  hazmatSwitchDisabled,
+  onHazmatChange,
+  hazmatErrorMessage,
+  hazmatDescribedBy,
+  catalogHint,
+  catalogRequirementUnknown,
 }: CargoProductRequirementsSectionProps) {
   const [showOptionalFields, setShowOptionalFields] = useState(false);
 
@@ -62,16 +77,47 @@ export function CargoProductRequirementsSection({
     : requiredFields;
 
   return (
-    <FormSectionCard
-      title={sheet.section.requirements}
-      description={
-        requiredFields.length > 0 || showHazmatFields
-          ? sheet.hint.requirements
-          : sheet.hint.requirementsOptional
-      }
-      icon={<ClipboardList className="h-4 w-4" />}
-      contentClassName="space-y-4"
-    >
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Checkbox
+            id="cargo-hazmat-checkbox"
+            checked={hazardousMaterial}
+            disabled={hazmatSwitchDisabled}
+            onCheckedChange={(checked) => onHazmatChange(!!checked)}
+            aria-invalid={Boolean(hazmatErrorMessage) || undefined}
+            aria-describedby={hazmatDescribedBy}
+          />
+          <Label
+            htmlFor="cargo-hazmat-checkbox"
+            className="flex cursor-pointer items-center gap-2"
+          >
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            {sheet.label.isHazmat}
+          </Label>
+        </div>
+        {catalogHint && !catalogRequirementUnknown && (
+          <p
+            id="cargo-hazmat-catalog-hint"
+            className="text-xs text-muted-foreground"
+          >
+            {catalogHint}
+          </p>
+        )}
+        {catalogHint && catalogRequirementUnknown && (
+          <Alert variant="warning">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription id="cargo-hazmat-catalog-hint">
+              {catalogHint}
+            </AlertDescription>
+          </Alert>
+        )}
+        <FieldInlineError
+          fieldId="cargo-hazmat-checkbox"
+          message={hazmatErrorMessage}
+        />
+      </div>
+
       {showHazmatFields && (
         <div className="space-y-4">
           <Controller
@@ -80,21 +126,24 @@ export function CargoProductRequirementsSection({
             render={({ field, fieldState }) => {
               const errorMessage = fieldState.error?.message;
               return (
-              <FormFieldShell
-                fieldId="cargo-hazmat-code"
-                label={sheet.label.hazmatCode}
-                required
-                errorMessage={errorMessage}
-              >
-                <MaterialPeligrosoSearch
-                  id="cargo-hazmat-code"
-                  value={field.value || null}
-                  error={Boolean(fieldState.error)}
-                  {...getFieldErrorAriaProps("cargo-hazmat-code", errorMessage)}
-                  onSelect={(item) => field.onChange(item.code)}
-                  onClear={() => field.onChange("")}
-                />
-              </FormFieldShell>
+                <FormFieldShell
+                  fieldId="cargo-hazmat-code"
+                  label={sheet.label.hazmatCode}
+                  required
+                  errorMessage={errorMessage}
+                >
+                  <MaterialPeligrosoSearch
+                    id="cargo-hazmat-code"
+                    value={field.value || null}
+                    error={Boolean(fieldState.error)}
+                    {...getFieldErrorAriaProps(
+                      "cargo-hazmat-code",
+                      errorMessage,
+                    )}
+                    onSelect={(item) => field.onChange(item.code)}
+                    onClear={() => field.onChange("")}
+                  />
+                </FormFieldShell>
               );
             }}
           />
@@ -106,24 +155,24 @@ export function CargoProductRequirementsSection({
               render={({ field, fieldState }) => {
                 const errorMessage = fieldState.error?.message;
                 return (
-                <FormFieldShell
-                  fieldId="cargo-packaging-type"
-                  label={sheet.label.packagingType}
-                  required
-                  errorMessage={errorMessage}
-                >
-                  <TipoEmbalajeSelect
-                    triggerId="cargo-packaging-type"
-                    value={field.value || ""}
-                    onValueChange={(value) => field.onChange(value)}
-                    placeholder={sheet.placeholder.packagingType}
-                    error={Boolean(fieldState.error)}
-                    {...getFieldErrorAriaProps(
-                      "cargo-packaging-type",
-                      errorMessage,
-                    )}
-                  />
-                </FormFieldShell>
+                  <FormFieldShell
+                    fieldId="cargo-packaging-type"
+                    label={sheet.label.packagingType}
+                    required
+                    errorMessage={errorMessage}
+                  >
+                    <TipoEmbalajeSelect
+                      triggerId="cargo-packaging-type"
+                      value={field.value || ""}
+                      onValueChange={(value) => field.onChange(value)}
+                      placeholder={sheet.placeholder.packagingType}
+                      error={Boolean(fieldState.error)}
+                      {...getFieldErrorAriaProps(
+                        "cargo-packaging-type",
+                        errorMessage,
+                      )}
+                    />
+                  </FormFieldShell>
                 );
               }}
             />
@@ -209,6 +258,6 @@ export function CargoProductRequirementsSection({
             : sheet.action.showAllProductFields}
         </Button>
       )}
-    </FormSectionCard>
+    </div>
   );
 }
