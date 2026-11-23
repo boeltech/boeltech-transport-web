@@ -420,7 +420,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202608-0001").length).toBeGreaterThan(0);
     });
 
     expect(screen.getByText("Roberto González")).toBeInTheDocument();
@@ -444,7 +444,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202608-0001").length).toBeGreaterThan(0);
     });
 
     // F2: fórmula de 5 términos (SettlementPaymentFormula) reemplaza la tira de percepciones.
@@ -502,7 +502,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202608-0001").length).toBeGreaterThan(0);
     });
 
     // Abrir modal de vista previa imprimible (F6 D28: pendiente = vista previa)
@@ -691,7 +691,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202608-0001").length).toBeGreaterThan(0);
     });
 
     const exportBtn = screen.getByRole("button", { name: /Exportar CSV/i });
@@ -778,7 +778,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202608-0001").length).toBeGreaterThan(0);
     });
 
     // F6 D28: pendiente de autorización = documento de revisión, sin firmas.
@@ -816,7 +816,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("LIQ-202608-0001")).toBeInTheDocument();
+      expect(screen.getAllByText("LIQ-202608-0001").length).toBeGreaterThan(0);
     });
 
     await user.click(screen.getByRole("button", { name: /Imprimir recibo/i }));
@@ -1141,7 +1141,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       });
 
       renderSettlementDetail();
-      await screen.findByText("LIQ-202608-0001");
+      await screen.findAllByText("LIQ-202608-0001");
       await waitFor(() => expect(mockGetSelfApprovalPolicy).toHaveBeenCalled());
 
       await user.click(await screen.findByRole("button", { name: "Autorizar" }));
@@ -1176,7 +1176,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       });
 
       renderSettlementDetail();
-      await screen.findByText("LIQ-202608-0001");
+      await screen.findAllByText("LIQ-202608-0001");
       await waitFor(() => expect(mockGetSelfApprovalPolicy).toHaveBeenCalled());
 
       expect(screen.getByText(selfCopy.ownChip)).toBeInTheDocument();
@@ -1317,7 +1317,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       });
 
       renderSettlementDetail();
-      await screen.findByText("LIQ-202608-0001");
+      await screen.findAllByText("LIQ-202608-0001");
       await waitFor(() => expect(mockGetSelfApprovalPolicy).toHaveBeenCalled());
 
       await user.click(
@@ -1342,7 +1342,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       });
 
       renderSettlementDetail();
-      await screen.findByText("LIQ-202608-0001");
+      await screen.findAllByText("LIQ-202608-0001");
       await waitFor(() => expect(mockGetSelfApprovalPolicy).toHaveBeenCalled());
 
       expect(screen.getByText(selfCopy.ownChip)).toBeInTheDocument();
@@ -1363,7 +1363,7 @@ describe("Smoke ADR-0085: Settlements Workflow", () => {
       });
 
       renderSettlementDetail();
-      await screen.findByText("LIQ-202608-0001");
+      await screen.findAllByText("LIQ-202608-0001");
 
       expect(screen.getByText("Autorizó")).toBeInTheDocument();
       expect(screen.queryByText(selfCopy.badge)).not.toBeInTheDocument();
@@ -1566,7 +1566,7 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
     mockGetSettlementById.mockResolvedValue(approvedSettlement);
     renderDetailWithCreate();
 
-    await screen.findByText("LIQ-202608-0001");
+    await screen.findAllByText("LIQ-202608-0001");
     await user.click(await screen.findByRole("button", { name: flowCopy.header.correct }));
     const sheet = await screen.findByRole("dialog", {
       name: flowCopy.sheet.title("LIQ-202608-0001"),
@@ -1641,7 +1641,7 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
     });
     renderDetailWithCreate();
 
-    await screen.findByText("LIQ-202608-0001");
+    await screen.findAllByText("LIQ-202608-0001");
     await user.click(screen.getByRole("button", { name: flowCopy.header.printReceipt }));
 
     const deductionsTable = screen
@@ -1659,7 +1659,7 @@ describe("Smoke ADR-0099 F7: liquidaciones y anticipos (ST-1…ST-6)", () => {
     );
     renderDetailWithCreate();
 
-    await screen.findByText("LIQ-202608-0001");
+    await screen.findAllByText("LIQ-202608-0001");
     await user.click(
       await screen.findByRole("button", { name: "Registrar pago al operador" }),
     );

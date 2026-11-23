@@ -131,7 +131,12 @@ describe("smoke ADR-0079 trip false-trip", () => {
     await user.click(cta);
     expect(mockNavigate).toHaveBeenCalledWith(
       `/invoices/new?trip_id=${TRIP_ID}&scope=false_trip`,
-      { state: { from: `/trips/${TRIP_ID}` } },
+      {
+        state: {
+          from: `/trips/${TRIP_ID}`,
+          fromLabel: "VJ-FALSO-001",
+        },
+      },
     );
   });
 
@@ -163,8 +168,7 @@ describe("smoke ADR-0079 trip false-trip", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("post-timbrado: menú Facturación residual abre factura existente sin create", async () => {
-    const user = userEvent.setup();
+  it("post-timbrado: headerMenu sin Facturar ni overflow (ver factura → tab)", () => {
     render(
       <TestProviders>
         <TripInvoiceActions
@@ -186,26 +190,20 @@ describe("smoke ADR-0079 trip false-trip", () => {
       </TestProviders>,
     );
 
-    await user.click(
-      screen.getByRole("button", {
+    // D5 / D-HF1: overflow fiscal vive en tab Facturación, no en menú header.
+    expect(
+      screen.queryByTestId("trip-header-facturar"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
         name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
       }),
-    );
-
+    ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("menuitem", {
+      screen.queryByRole("button", {
         name: tripFiscalCopy.invoiceActions.generateFalseTrip,
       }),
     ).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.viewPrimary,
-      }),
-    );
-    expect(mockNavigate).toHaveBeenCalledWith("/invoices/inv-falso-1", {
-      state: { from: `/trips/${TRIP_ID}` },
-    });
   });
 
   it("editor false_trip vacío: sin flete y CTA agregar concepto", () => {

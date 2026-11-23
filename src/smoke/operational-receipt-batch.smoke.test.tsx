@@ -378,7 +378,8 @@ describe("smoke: operational-receipt-batch", () => {
     expect(
       await screen.findByRole("heading", { name: copy.page.title }),
     ).toBeInTheDocument();
-    expect(screen.getByText(copy.page.disclaimer)).toBeInTheDocument();
+    // Disclaimer retired from the form shell; zone «Pago del cliente» is the anchor.
+    expect(screen.getByText(copy.page.zonePayment)).toBeInTheDocument();
     expect(screen.getByText("V-001")).toBeInTheDocument();
     expect(screen.getByText("V-002")).toBeInTheDocument();
 

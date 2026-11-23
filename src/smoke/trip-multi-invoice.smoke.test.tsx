@@ -120,39 +120,30 @@ describe("smoke ADR-0068 trip multi-invoice", () => {
     mockNavigate.mockReset();
   });
 
-  it("muestra CTA accesoria y navega a create con scope=accessory", async () => {
-    const user = userEvent.setup();
+  it("solo accessory: headerMenu sin Facturar ni overflow (accesoria → tab)", () => {
     render(
       <TestProviders>
         <TripInvoiceActions trip={makeTrip()} presentation="headerMenu" />
       </TestProviders>,
     );
 
-    // Accessory-only no eleva «Facturar»; vive en el menú tipado (D24).
+    // D5 / D-HF1: accessory-only no eleva Facturar; create vive en tab Facturación.
+    expect(
+      screen.queryByTestId("trip-header-facturar"),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
         name: tripFiscalCopy.invoiceActions.generatePrimary,
       }),
     ).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", {
+    expect(
+      screen.queryByRole("button", {
         name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
       }),
-    );
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateAccessory,
-      }),
-    );
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/invoices/new?trip_id=${TRIP_ID}&scope=accessory`,
-      { state: { from: `/trips/${TRIP_ID}` } },
-    );
+    ).not.toBeInTheDocument();
   });
 
-  it("no muestra CTA accesoria sin canGenerateAccessoryInvoice", async () => {
-    const user = userEvent.setup();
+  it("sin canGenerateAccessoryInvoice: headerMenu vacío (ver → tab)", () => {
     render(
       <TestProviders>
         <TripInvoiceActions
@@ -180,13 +171,16 @@ describe("smoke ADR-0068 trip multi-invoice", () => {
       </TestProviders>,
     );
 
-    await user.click(
-      screen.getByRole("button", {
+    expect(
+      screen.queryByTestId("trip-header-facturar"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
         name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
       }),
-    );
+    ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("menuitem", {
+      screen.queryByRole("button", {
         name: tripFiscalCopy.invoiceActions.generateAccessory,
       }),
     ).not.toBeInTheDocument();

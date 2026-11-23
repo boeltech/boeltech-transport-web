@@ -210,63 +210,91 @@ describe("smoke ADR-0081 trip revenue split", () => {
     mockNavigate.mockReset();
   });
 
-  it("headerMenu: CTAs 60/40 navegan a create con scope=split_share&leg_id (+ CP en cliente A)", async () => {
-    const user = userEvent.setup();
+  it("headerMenu con split activo: sin Facturar ni overflow (porciones → tab)", () => {
     render(
       <TestProviders>
         <TripInvoiceActions trip={makeSplitTrip()} presentation="headerMenu" />
       </TestProviders>,
     );
 
+    // D5 / D-HF1 + split activo: CTAs de porción viven en tab Facturación.
+    expect(
+      screen.queryByTestId("trip-header-facturar"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("inline: Facturar abre sheet 60/40 y navega con scope=split_share&leg_id (+ CP en A)", async () => {
+    const user = userEvent.setup();
+    render(
+      <TestProviders>
+        <TripInvoiceActions trip={makeSplitTrip()} presentation="inline" />
+      </TestProviders>,
+    );
+
     await user.click(
       screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
       }),
     );
 
-    const ctaA = await screen.findByRole("menuitem", {
-      name: tripFiscalCopy.invoiceActions.generateSplitShare(CLIENT_A),
+    // Accessible name = label + hint spans.
+    const ctaA = await screen.findByRole("button", {
+      name: new RegExp(
+        tripFiscalCopy.scopeDecisionSheet.optionSplitShare(CLIENT_A).replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&",
+        ),
+      ),
     });
-    const ctaB = screen.getByRole("menuitem", {
-      name: tripFiscalCopy.invoiceActions.generateSplitShare(CLIENT_B),
+    const ctaB = screen.getByRole("button", {
+      name: new RegExp(
+        tripFiscalCopy.scopeDecisionSheet.optionSplitShare(CLIENT_B).replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&",
+        ),
+      ),
     });
     expect(ctaA).toBeInTheDocument();
     expect(ctaB).toBeInTheDocument();
 
-    expect(
-      screen.queryByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generatePrimary,
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateFalseTrip,
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateAccessory,
-      }),
-    ).not.toBeInTheDocument();
-
     await user.click(ctaA);
     expect(mockNavigate).toHaveBeenCalledWith(expectedSplitHref(LEG_A, true), {
-      state: { from: `/trips/${TRIP_ID}` },
+      state: {
+        from: `/trips/${TRIP_ID}`,
+        fromLabel: "VJ-SPLIT-001",
+      },
     });
 
     mockNavigate.mockReset();
     await user.click(
       screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
+        name: tripFiscalCopy.invoiceActions.generatePrimary,
       }),
     );
     await user.click(
-      await screen.findByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateSplitShare(CLIENT_B),
+      await screen.findByRole("button", {
+        name: new RegExp(
+          tripFiscalCopy.scopeDecisionSheet
+            .optionSplitShare(CLIENT_B)
+            .replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        ),
       }),
     );
     expect(mockNavigate).toHaveBeenCalledWith(expectedSplitHref(LEG_B, false), {
-      state: { from: `/trips/${TRIP_ID}` },
+      state: {
+        from: `/trips/${TRIP_ID}`,
+        fromLabel: "VJ-SPLIT-001",
+      },
     });
   });
 
@@ -433,36 +461,31 @@ describe("smoke ADR-0081 trip revenue split", () => {
     );
   });
 
-  it("con split activo no ofrece CTA primary/false_trip; accessory solo si flag", async () => {
-    const user = userEvent.setup();
+  it("con split activo headerMenu vacío; accessory flag no reabre menú header", () => {
     const { rerender } = render(
       <TestProviders>
         <TripInvoiceActions trip={makeSplitTrip()} presentation="headerMenu" />
       </TestProviders>,
     );
 
-    await user.click(
-      screen.getByRole("button", {
-        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-      }),
-    );
     expect(
-      screen.queryByRole("menuitem", {
+      screen.queryByTestId("trip-header-facturar"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
         name: tripFiscalCopy.invoiceActions.generatePrimary,
       }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("menuitem", {
+      screen.queryByRole("button", {
         name: tripFiscalCopy.invoiceActions.generateFalseTrip,
       }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("menuitem", {
+      screen.queryByRole("button", {
         name: tripFiscalCopy.invoiceActions.generateAccessory,
       }),
     ).not.toBeInTheDocument();
-
-    await user.keyboard("{Escape}");
 
     rerender(
       <TestProviders>
@@ -484,20 +507,15 @@ describe("smoke ADR-0081 trip revenue split", () => {
       </TestProviders>,
     );
 
-    const menuTriggers = screen.getAllByRole("button", {
-      name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
-    });
-    await user.click(menuTriggers[0]!);
+    // Accesoria + porciones: overflow sigue en tab, no en header Select.
     expect(
-      await screen.findByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateAccessory,
-      }),
-    ).toBeInTheDocument();
+      screen.queryByTestId("trip-header-facturar"),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", {
-        name: tripFiscalCopy.invoiceActions.generateSplitShare(CLIENT_A),
+      screen.queryByRole("button", {
+        name: new RegExp(tripFiscalCopy.invoiceActions.menuLabel, "i"),
       }),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
   });
 
   it("Nueva factura split_share: CP visible y disabled (carrier checked; no toggle)", async () => {

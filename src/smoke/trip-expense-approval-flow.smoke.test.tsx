@@ -236,7 +236,7 @@ function renderCostsTab(
 }
 
 function rowFor(description: string): HTMLElement {
-  const row = screen.getByText(description).closest("div.py-3");
+  const row = screen.getByText(description).closest("tr");
   if (!(row instanceof HTMLElement)) throw new Error(`Fila no encontrada: ${description}`);
   return row;
 }
@@ -354,8 +354,9 @@ describe("smoke ADR-0099 AX-10 Costos con la misma función que la bandeja", () 
     ).not.toBeInTheDocument();
 
     const pending = within(rowFor("Gasto pendiente"));
+    // Hints live below the table (not inside the <tr>).
     expect(
-      pending.getByText(costsCopy.state.windowClosedRow(formatDate(closesAt.toISOString()))),
+      screen.getByText(costsCopy.state.windowClosedRow(formatDate(closesAt.toISOString()))),
     ).toBeInTheDocument();
     expect(pending.queryByRole("button", { name: costsCopy.action.edit })).not.toBeInTheDocument();
     expect(

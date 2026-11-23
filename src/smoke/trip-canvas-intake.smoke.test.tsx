@@ -492,22 +492,13 @@ describe("ADR-0078 trip canvas intake smoke", () => {
       screen.queryByText(routeCopy.action.openFullEdit),
     ).not.toBeInTheDocument();
 
+    // D-R / F9c: captura vía «Elegir lugar» → Confirmar; sin PUT de un solo extremo.
     await user.click(
-      screen.getByRole("button", { name: routeCopy.composer.labelHatchToggle }),
-    );
-    await user.type(
-      screen.getByLabelText(routeCopy.composer.labelPlaceholder, {
-        selector: "#trip-route-composer-origin-label",
-      }),
-      "Bodega Norte",
-    );
-    await user.click(
-      screen.getByRole("button", { name: routeCopy.action.completeAddress }),
+      screen.getAllByRole("button", { name: routeCopy.composer.choosePlace })[0]!,
     );
     expect(mocks.captureKeepBillingCollapsed).toHaveBeenCalledWith(true);
     await user.click(screen.getByRole("button", { name: "submit-stop-no-rfc" }));
 
-    // D-R / F9: no PUT hasta ambos extremos; el origen queda en draft del composer.
     expect(mocks.mutateAsyncReplace).not.toHaveBeenCalled();
     expect(mocks.mutateAsyncUpdateTrip).not.toHaveBeenCalled();
     expect(screen.getByText(routeCopy.composer.title)).toBeInTheDocument();

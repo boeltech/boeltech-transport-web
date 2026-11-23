@@ -387,7 +387,7 @@ describe("smoke: finance-cobros-rep-tracking", () => {
     };
 
     renderCobros();
-    await user.click(screen.getByRole("tab", { name: /Excepciones REP/i }));
+    await user.click(screen.getByRole("tab", { name: /REP sin timbrar/i }));
 
     expect(
       screen.getByText(REP_PAC_TIMEOUT_MANUAL_REVIEW_MESSAGE),
@@ -396,7 +396,7 @@ describe("smoke: finance-cobros-rep-tracking", () => {
       screen.queryByRole("button", { name: "Reintentar timbrado" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Ir a factura" }),
+      screen.getByRole("link", { name: /Abrir factura A-10/i }),
     ).toHaveAttribute("href", "/invoices/inv-1#invoice-payments");
   });
 

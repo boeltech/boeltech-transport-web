@@ -62,7 +62,14 @@ vi.mock("@features/trailers", async (importOriginal) => {
 
 vi.mock("@features/auth", () => ({
   useAuth: () => ({
-    user: { id: "user-1", role: "admin", email: "admin@test.com" },
+    user: {
+      id: "user-1",
+      role: "admin",
+      email: "admin@test.com",
+      getTenantName: () => "Test",
+      getFullName: () => "Admin Test",
+      getInitials: () => "AT",
+    },
     isAuthenticated: true,
   }),
 }));
@@ -209,6 +216,26 @@ function makeTripWithTrailers(): Trip {
       otherCosts: 0,
       totalCost: 0,
     },
+    invoicing: {
+      hasActiveInvoice: false,
+      hasActivePrimaryInvoice: false,
+      hasActivePrincipalInvoice: false,
+      primaryTransportInvoiceId: null,
+      canGenerateInvoice: false,
+      canGenerateAccessoryInvoice: false,
+      canGenerateFalseTripInvoice: false,
+      hasActiveSplit: false,
+      splitLegsInvoiced: 0,
+      splitLegsTotal: 0,
+      canGenerateSplitShareInvoice: false,
+      cartaPorteAttached: false,
+      invoiceId: null,
+      invoiceFolio: null,
+      invoiceCfdiUuid: null,
+      invoiceStatus: null,
+      accessoryInvoices: [],
+      blockReason: null,
+    },
     detailedCosts: null,
     profitability: null,
     notes: null,
@@ -284,7 +311,8 @@ describe("smoke ADR-0077 trip trailers", () => {
     );
     // Section label "Remolques" also appears in the card description ("…remolques…").
     expect(screen.getByText("Remolques")).toBeInTheDocument();
-    expect(screen.getByText("REM1234 · 1")).toBeInTheDocument();
+    // format.trailerLine = placa only; position is a separate rail label.
+    expect(screen.getByText("REM1234")).toBeInTheDocument();
   });
 
   it("VehicleForm cutover links to /trailers", () => {

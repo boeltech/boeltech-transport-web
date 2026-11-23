@@ -136,7 +136,6 @@ describe("credit exposure workflow smoke (OP-L0.9)", () => {
           }}
           paymentConfig={paymentConfig}
           PaymentIcon={CreditCard}
-          collectHref="/finance/payments?rfc=ACM010101AAA"
         />
       </TestProviders>,
     );
@@ -144,10 +143,10 @@ describe("credit exposure workflow smoke (OP-L0.9)", () => {
     expect(screen.getByText(creditExposureCopy.title)).toBeInTheDocument();
     expect(screen.getByText(creditExposureCopy.breakdown.invoiced)).toBeInTheDocument();
     expect(screen.getByText(creditExposureCopy.breakdown.unbilled)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: creditExposureCopy.collectCtaAria })).toHaveAttribute(
-      "href",
-      "/finance/payments?rfc=ACM010101AAA",
-    );
+    // C15: cobro vive en «Por cobrar»; CreditExposureCard ya no lleva CTA Cobrar.
+    expect(
+      screen.queryByRole("link", { name: creditExposureCopy.collectCtaAria }),
+    ).not.toBeInTheDocument();
     expect(mockUseClientCreditSummary).toHaveBeenCalledWith("client-1");
   });
 

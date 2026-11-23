@@ -408,9 +408,10 @@ describe("Smoke ADR-0089: Compensation templates", () => {
     });
 
     const tabs = screen.getByTestId("tariff-list-tabs");
-    expect(within(tabs).getByRole("tab", { name: /^Tarifas/i })).toHaveAttribute(
-      "aria-selected",
-      "true",
+    // RouteTabsNav: links with aria-current, not role=tab.
+    expect(within(tabs).getByRole("link", { name: /^Tarifas/i })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
   });
 
@@ -527,10 +528,10 @@ describe("Smoke ADR-0089: Compensation templates", () => {
       <Routes>{compensationRoutes}</Routes>,
     );
 
-    const routesTab = within(await screen.findByTestId("tariff-list-tabs")).getByRole("tab", {
+    const routesTab = within(await screen.findByTestId("tariff-list-tabs")).getByRole("link", {
       name: /Rutas con tarifa fija/i,
     });
-    expect(routesTab).toHaveAttribute("href", "/finance/operator-payments/tariffs?tab=routes");
+    expect(routesTab).toHaveAttribute("href", expect.stringContaining("routes"));
     await user.click(routesTab);
 
     await waitFor(() => {

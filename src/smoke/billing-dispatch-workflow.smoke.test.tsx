@@ -430,10 +430,12 @@ describe("billing-dispatch smoke (ADR-0082)", () => {
     const user = userEvent.setup();
     renderDetail();
 
+    // NL2: staff detail uses crumbs (Migas), not a «Volver a…» button.
     expect(
-      screen.getByRole("button", {
-        name: dispatchRunsCopy.detail.backToList,
-      }),
+      screen.getByRole("navigation", { name: "Migas" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Envíos|Correo del periodo/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(

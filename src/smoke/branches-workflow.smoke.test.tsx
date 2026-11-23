@@ -466,8 +466,12 @@ describe("branches workflow smoke", () => {
       ).toBeInTheDocument();
     });
 
+    // NL8: Eliminar vive en «Más», no como botón outline en el header.
     await user.click(
-      screen.getByRole("button", { name: branchesCopy.actions.delete }),
+      screen.getByRole("button", { name: branchesCopy.actions.moreAria }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: branchesCopy.actions.delete }),
     );
     const dialog = await screen.findByRole("dialog");
     await user.click(
@@ -495,9 +499,12 @@ describe("branches workflow smoke", () => {
       ).toBeInTheDocument();
     });
 
+    await user.click(
+      screen.getByRole("button", { name: branchesCopy.actions.moreAria }),
+    );
     expect(
-      screen.getByRole("button", { name: branchesCopy.actions.delete }),
-    ).toBeDisabled();
+      screen.getByRole("menuitem", { name: branchesCopy.actions.delete }),
+    ).toHaveAttribute("aria-disabled", "true");
     expect(mockDelete).not.toHaveBeenCalled();
   });
 

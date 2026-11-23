@@ -245,9 +245,10 @@ describe("smoke dashboard-inicio F3", () => {
           name: dashboardCopy.fleetAvailability.title,
         }),
       ).toBeInTheDocument();
+      // Scorecard section is named by aria-labelledby → title «Resumen del mes».
       expect(
         screen.getByRole("region", {
-          name: dashboardCopy.scorecard.ariaLabel,
+          name: dashboardCopy.scorecard.title,
         }),
       ).toBeInTheDocument();
       expect(
@@ -272,7 +273,7 @@ describe("smoke dashboard-inicio F3", () => {
       ).toBeInTheDocument();
       expect(
         screen.queryByRole("region", {
-          name: dashboardCopy.scorecard.ariaLabel,
+          name: dashboardCopy.scorecard.title,
         }),
       ).not.toBeInTheDocument();
       expect(
@@ -291,7 +292,7 @@ describe("smoke dashboard-inicio F3", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("region", {
-        name: dashboardCopy.scorecard.ariaLabel,
+        name: dashboardCopy.scorecard.title,
       }),
     ).toBeInTheDocument();
     expect(

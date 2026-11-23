@@ -70,7 +70,14 @@ vi.mock("@features/catalogs/application", async (importOriginal) => ({
 
 vi.mock("@features/auth", () => ({
   useAuth: () => ({
-    user: { id: "user-1", role: "dispatcher", email: "despacho@test.com" },
+    user: {
+      id: "user-1",
+      role: "dispatcher",
+      email: "despacho@test.com",
+      getTenantName: () => "Test",
+      getFullName: () => "Despacho Test",
+      getInitials: () => "DT",
+    },
     isAuthenticated: true,
   }),
 }));
@@ -327,21 +334,15 @@ describe("smoke: orden de viaje", () => {
         emissionCount: 1,
       }),
     );
-    const { fleetSnapshotViewFixture } = await import(
-      "@features/trips/test/tripFleetSnapshotFixture"
-    );
-    mockGetFleet.mockResolvedValue(fleetSnapshotViewFixture());
 
     renderOperationTab({ status: TripStatus.IN_PROGRESS });
 
     const orderCard = await screen.findByTestId("trip-order-card");
-    const fleetCard = await screen.findByTestId("trip-fleet-snapshot-card");
-
     expect(within(orderCard).getByText(orderCopy.title)).toHaveTextContent("Orden de viaje");
-    expect(within(fleetCard).getByText(fleetCopy.title)).toHaveTextContent(
-      "Datos para Carta Porte",
-    );
+    // Fleet card moved to Facturación; copy must stay distinct from Orden.
+    expect(fleetCopy.title).toBe("Datos para Carta Porte");
     expect(orderCopy.title).not.toBe(fleetCopy.title);
     expect(within(orderCard).queryByText(/Timbrar/i)).not.toBeInTheDocument();
+    expect(within(orderCard).queryByText(fleetCopy.title)).not.toBeInTheDocument();
   });
 });

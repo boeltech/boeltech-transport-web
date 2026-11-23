@@ -7,6 +7,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { createTestWrapper } from "@/test/renderWithProviders";
 import { grantPermissions } from "@/test/mocks/permissions";
+import { resetAuthMock, setMockAuthUser } from "@/test/mocks/auth";
 import { approvalsApi } from "@features/approvals/infrastructure/approvalsApi";
 import { useNavigationWithBadges } from "@widgets/sidebar/model/useNavigationWithBadges";
 
@@ -28,6 +29,10 @@ vi.mock("@shared/permissions", async (importOriginal) => ({
   ...(await import("@/test/mocks/permissions")).permissionsModuleMock(),
 }));
 
+vi.mock("@features/auth", async () =>
+  (await import("@/test/mocks/auth")).authModuleMock(),
+);
+
 const MINE_PER_TYPE = 1;
 const ALL_PER_TYPE = 3;
 
@@ -41,6 +46,8 @@ function countResponse(total: number) {
 describe("smoke approvals ADR-0099 AX-1 badge «Me toca»", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetAuthMock();
+    setMockAuthUser({ role: "manager" });
     grantPermissions("all", { role: "manager" });
     mockApiGet.mockImplementation(
       async (_url: string, config?: { params?: Record<string, string> }) => {

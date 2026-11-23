@@ -19,7 +19,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import type { UserRole } from "@shared/constants/roles";
 import { checkPermission, getPermissionsForRole } from "@shared/permissions/domain";
 import type { TripFleetSnapshotView } from "@features/trips/domain";
-import { TripDetailOperationTab } from "@features/trips/presentation/components/trip-operation";
+import { TripDetailBillingTab } from "@features/trips/presentation/components/trip-billing/TripDetailBillingTab";
 import { tripDetailCopy } from "@features/trips/presentation/copy";
 import {
   fleetSnapshotTripFixture,
@@ -58,7 +58,14 @@ vi.mock("@features/catalogs/application", async (importOriginal) => ({
 
 vi.mock("@features/auth", () => ({
   useAuth: () => ({
-    user: { id: "user-1", role: "manager", email: "gerente@test.com" },
+    user: {
+      id: "user-1",
+      role: "manager",
+      email: "gerente@test.com",
+      getTenantName: () => "Test",
+      getFullName: () => "Gerente Test",
+      getInitials: () => "GT",
+    },
     isAuthenticated: true,
   }),
 }));
@@ -107,7 +114,25 @@ function InvoiceDetailStub() {
   );
 }
 
-function renderOperationTab({ canSubstituteInvoice = false } = {}) {
+vi.mock("@features/trips/application", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@features/trips/application")>();
+  return {
+    ...actual,
+    useTripLinkedInvoices: () => ({ data: [], isLoading: false }),
+    useTripTimeline: () => ({ data: undefined, isLoading: false }),
+    useTripExpensesSummary: () => ({ data: undefined, isLoading: false }),
+    useOperationalCashReceipts: () => ({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }),
+  };
+});
+
+/** Card vive en tab Facturación (D7), no en Operación. */
+function renderBillingTab({ canSubstituteInvoice = false } = {}) {
   const queryClient = createTestQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
@@ -116,10 +141,8 @@ function renderOperationTab({ canSubstituteInvoice = false } = {}) {
           <Route
             path="/trips/:id"
             element={
-              <TripDetailOperationTab
+              <TripDetailBillingTab
                 trip={fleetSnapshotTripFixture()}
-                canEditStructural={false}
-                showMileage={false}
                 canSubstituteInvoice={canSubstituteInvoice}
               />
             }
@@ -180,7 +203,7 @@ describe("smoke: datos para Carta Porte por viaje", () => {
       auditLogId: "audit-1",
       message: "ok",
     });
-    renderOperationTab({ canSubstituteInvoice: true });
+    renderBillingTab({ canSubstituteInvoice: true });
 
     // Criterio 2
     const card = await screen.findByTestId("trip-fleet-snapshot-card");
@@ -244,7 +267,7 @@ describe("smoke: datos para Carta Porte por viaje", () => {
     async (role) => {
       grantRole(role);
       mockGet.mockResolvedValue(fleetSnapshotViewFixture());
-      renderOperationTab();
+      renderBillingTab();
 
       const card = await screen.findByTestId("trip-fleet-snapshot-card");
       expect(await within(card).findByText(cardCopy.diffBadge)).toBeInTheDocument();
@@ -294,7 +317,7 @@ describe("smoke: datos para Carta Porte por viaje", () => {
       auditLogId: "audit-2",
       message: "ok",
     });
-    renderOperationTab({ canSubstituteInvoice: true });
+    renderBillingTab({ canSubstituteInvoice: true });
 
     const card = await screen.findByTestId("trip-fleet-snapshot-card");
     await user.click(await within(card).findByRole("button", { name: cardCopy.action.refresh }));
