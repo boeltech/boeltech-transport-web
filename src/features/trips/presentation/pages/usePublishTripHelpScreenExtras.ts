@@ -15,9 +15,10 @@ export function usePublishTripHelpScreenExtras(input: {
   activeTab: TripDetailTabValue;
   tripLoaded: boolean;
 }): void {
+  const { tripStatus, activeTab, tripLoaded } = input;
   const extras = useMemo(
-    () => resolveTripHelpScreenExtras(input),
-    [input.tripStatus, input.activeTab, input.tripLoaded],
+    () => resolveTripHelpScreenExtras({ tripStatus, activeTab, tripLoaded }),
+    [tripStatus, activeTab, tripLoaded],
   );
   usePublishHelpScreenExtras(OWNER_ID, extras);
 }
