@@ -384,28 +384,32 @@ describe("CargoActionInline", () => {
     );
 
     expect(screen.getByText(CARGO_TRANSITION_COPY.deliver)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Entregar/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Entregar aquí/i }),
+    ).toBeInTheDocument();
   });
 
   it("L-D4′: Entregar/Recoger meta = outline (hub overridea a default)", () => {
     const { rerender } = render(
       <CargoActionInline action="deliver" onClick={() => undefined} />,
     );
-    expect(screen.getByRole("button", { name: /Entregar/i }).className).not.toMatch(
-      /bg-primary/,
-    );
+    expect(
+      screen.getByRole("button", { name: /Entregar aquí/i }).className,
+    ).not.toMatch(/bg-primary/);
 
     rerender(
       <CargoActionInline action="pickup" onClick={() => undefined} />,
     );
-    expect(screen.getByRole("button", { name: /Recoger/i }).className).not.toMatch(
-      /bg-primary/,
-    );
+    expect(
+      screen.getByRole("button", { name: /Recoger aquí/i }).className,
+    ).not.toMatch(/bg-primary/);
   });
 
-  it("F4c: label de entrega sigue «Entregar» (no «Recibir»)", () => {
+  it("F4c: label de entrega sigue «Entregar aquí» (no «Recibir»)", () => {
     render(<CargoActionInline action="deliver" onClick={() => undefined} />);
-    expect(screen.getByRole("button", { name: /^Entregar$/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Entregar aquí$/i }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Recibir/i })).not.toBeInTheDocument();
   });
 });
@@ -1022,7 +1026,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
     });
     expect(markPickup.className).toMatch(/bg-primary/);
     await user.click(markPickup);
-    expect(onCargoAction).toHaveBeenCalledWith("c1", "pickup");
+    expect(onCargoAction).toHaveBeenCalledWith("c1", "pickup", "m1");
   });
 
   it("cargo_blocked driver no dice Completa las cargas; avisa a patio (D11)", () => {
@@ -1195,7 +1199,7 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /Recoger/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Recoger aquí/i })).toBeDisabled();
   });
 
   it("dispara onCargoAction al usar CargoActionInline con parada activa", async () => {
@@ -1237,8 +1241,8 @@ describe("TripTrackingStopsCargosMasterDetail", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /Recoger/i }));
-    expect(onCargoAction).toHaveBeenCalledWith("c1", "pickup");
+    await user.click(screen.getByRole("button", { name: /Recoger aquí/i }));
+    expect(onCargoAction).toHaveBeenCalledWith("c1", "pickup", "m1");
   });
 
   it("dispara onDepartOrigin desde la parada objetivo", async () => {
@@ -1864,7 +1868,7 @@ describe("TripTrackingObjectiveHub compact (overflow PD5 / D5)", () => {
     expect(markPickup).toBeInTheDocument();
     expect(markPickup.className).toMatch(/bg-primary/);
     await user.click(markPickup);
-    expect(onCargoAction).toHaveBeenCalledWith("c1", "pickup");
+    expect(onCargoAction).toHaveBeenCalledWith("c1", "pickup", "m1");
 
     await user.click(
       screen.getByRole("button", { name: trackingCopy.action.moreActions }),
@@ -1952,7 +1956,7 @@ describe("TripTrackingObjectiveHub compact (overflow PD5 / D5)", () => {
     expect(pickupButtons[0]!.className).toMatch(/bg-primary/);
     expect(pickupButtons[1]!.className).not.toMatch(/bg-primary/);
     await user.click(pickupButtons[1]!);
-    expect(onCargoAction).toHaveBeenCalledWith("c2", "pickup");
+    expect(onCargoAction).toHaveBeenCalledWith("c2", "pickup", "m2");
   });
 
   it("muestra quick close disabled en ⋯ (sin_cfdi sin carga activa)", async () => {

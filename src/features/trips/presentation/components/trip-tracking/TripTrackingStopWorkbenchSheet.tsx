@@ -7,7 +7,6 @@ import {
 } from "@shared/ui/sheet";
 
 import type { CargoStatusType, TripCargo, TripStatusType, TripStop } from "@features/trips/domain";
-import type { CargoManualAction } from "../../utils/cargoStatusActions";
 import {
   TRACKING_SHEET_BODY_CLASS,
   TRACKING_SHEET_CONTENT_CLASS,
@@ -15,6 +14,10 @@ import {
 } from "./trackingSheetLayout";
 import type { TrackingItineraryRow } from "./trackingOperationalHelpers";
 import { TripTrackingStopOperationDetail } from "./TripTrackingStopOperationDetail";
+import type {
+  OnOperateCargoAction,
+  PendingOperateCargoAction,
+} from "./operateCargoActions";
 import { trackingCopy } from "./trackingCopy";
 
 export type TripTrackingStopWorkbenchSheetProps = {
@@ -25,11 +28,11 @@ export type TripTrackingStopWorkbenchSheetProps = {
   orderedStops: readonly TripStop[];
   cargos: readonly TripCargo[];
   tripInProgress: boolean;
-  pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
+  pendingCargoAction?: PendingOperateCargoAction | null;
   getCargoStatusVariant: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";
-  onCargoAction: (cargoId: string, action: CargoManualAction) => void;
+  onCargoAction: OnOperateCargoAction;
   canMutateCargo?: boolean;
 };
 

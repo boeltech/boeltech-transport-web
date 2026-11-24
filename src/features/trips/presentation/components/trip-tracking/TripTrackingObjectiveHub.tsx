@@ -54,6 +54,8 @@ import { canQuickCloseTrip } from "./canQuickCloseTrip";
 import {
   listOperatePendingCargoActions,
   resolveOperateCargoCtaLabel,
+  type OnOperateCargoAction,
+  type PendingOperateCargoAction,
 } from "./operateCargoActions";
 import {
   buildTrackingItineraryRows,
@@ -67,7 +69,6 @@ import {
 } from "./trackingNextAction";
 import { resolveDeclareFalseTripTransition } from "./transitionCopy";
 import { trackingCopy } from "./trackingCopy";
-import type { CargoManualAction } from "../../utils/cargoStatusActions";
 import type { TripScheduleTimes } from "../trip-route/tripRouteDetailHelpers";
 
 /**
@@ -112,8 +113,8 @@ export type TripTrackingObjectiveHubProps = {
    */
   onGoToCargos?: (stopId: string) => void;
   /** F3 / D6: mutar carga desde Operate (≤2 clics). */
-  onCargoAction?: (cargoId: string, action: CargoManualAction) => void;
-  pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
+  onCargoAction?: OnOperateCargoAction;
+  pendingCargoAction?: PendingOperateCargoAction | null;
   /** Evidencia — overflow Operate (PD5). */
   onRegisterNote?: () => void;
   onRegisterIncident?: () => void;
@@ -640,12 +641,16 @@ export function TripTrackingObjectiveHub({
                   pending={
                     pendingCargoAction?.cargoId ===
                       operateCargoItems[0]!.cargoId &&
-                    pendingCargoAction.action === operateCargoItems[0]!.action
+                    pendingCargoAction.action === operateCargoItems[0]!.action &&
+                    (pendingCargoAction.movementId == null ||
+                      pendingCargoAction.movementId ===
+                        operateCargoItems[0]!.movementId)
                   }
                   onClick={() =>
                     onCargoAction?.(
                       operateCargoItems[0]!.cargoId,
                       operateCargoItems[0]!.action,
+                      operateCargoItems[0]!.movementId,
                     )
                   }
                 />
@@ -674,10 +679,16 @@ export function TripTrackingObjectiveHub({
                         showTransition={compact && index === 0}
                         pending={
                           pendingCargoAction?.cargoId === item.cargoId &&
-                          pendingCargoAction.action === item.action
+                          pendingCargoAction.action === item.action &&
+                          (pendingCargoAction.movementId == null ||
+                            pendingCargoAction.movementId === item.movementId)
                         }
                         onClick={() =>
-                          onCargoAction?.(item.cargoId, item.action)
+                          onCargoAction?.(
+                            item.cargoId,
+                            item.action,
+                            item.movementId,
+                          )
                         }
                       />
                     </li>

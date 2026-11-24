@@ -27,8 +27,23 @@ import { trackingCopy } from "./trackingCopy";
 
 export type OperatePendingCargoAction = {
   cargoId: string;
+  /** Movement de la parada (complete canónico F3). */
+  movementId: string;
   description: string;
   action: Extract<CargoManualAction, "pickup" | "deliver">;
+};
+
+/** Callback Operate: pickup/deliver llevan `movementId` del link. */
+export type OnOperateCargoAction = (
+  cargoId: string,
+  action: CargoManualAction,
+  movementId?: string,
+) => void;
+
+export type PendingOperateCargoAction = {
+  cargoId: string;
+  action: CargoManualAction;
+  movementId?: string;
 };
 
 /** Mapa visita R7 para gate F4c (`pending` | `in_progress`). */
@@ -71,11 +86,20 @@ export function getCargoActionsForStopLink(
     stop,
   );
   const actions: CargoManualAction[] = [];
+  const movementPending = link.movement.completedAt == null;
 
-  if (link.movementType === "pickup" && allActions.includes("pickup")) {
+  if (
+    movementPending &&
+    link.movementType === "pickup" &&
+    allActions.includes("pickup")
+  ) {
     actions.push("pickup");
   }
-  if (link.movementType === "delivery" && allActions.includes("deliver")) {
+  if (
+    movementPending &&
+    link.movementType === "delivery" &&
+    allActions.includes("deliver")
+  ) {
     actions.push("deliver");
   }
   if (allActions.includes("return")) actions.push("return");
@@ -103,12 +127,15 @@ export function listOperatePendingCargoActions(
 
   for (const link of links) {
     if (link.movement.completedAt != null) continue;
+    const movementId = link.movement.id;
+    if (!movementId) continue;
     const available = getCargoActionsForStopLink(link, true, stop, {
       returnVisitMap,
     });
     if (link.movementType === "pickup" && available.includes("pickup")) {
       items.push({
         cargoId: link.cargo.id,
+        movementId,
         description: link.cargo.description,
         action: "pickup",
       });
@@ -116,6 +143,7 @@ export function listOperatePendingCargoActions(
     if (link.movementType === "delivery" && available.includes("deliver")) {
       items.push({
         cargoId: link.cargo.id,
+        movementId,
         description: link.cargo.description,
         action: "deliver",
       });

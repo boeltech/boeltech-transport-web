@@ -25,7 +25,6 @@ import {
   isCargoTerminal,
   resolveCargoActionTransitionHint,
   resolveCargoCtaLayout,
-  type CargoManualAction,
 } from "../../utils/cargoStatusActions";
 import { getStopCargoLinks } from "../../utils/stopCargoCorrelation";
 import {
@@ -37,7 +36,11 @@ import {
   hasStopType,
 } from "../trip-route/tripRouteDetailHelpers";
 import { CargoActionInline } from "./CargoActionInline";
-import { getCargoActionsForStopLink } from "./operateCargoActions";
+import {
+  getCargoActionsForStopLink,
+  type OnOperateCargoAction,
+  type PendingOperateCargoAction,
+} from "./operateCargoActions";
 import { PlanReturnDestinationLock } from "./PlanReturnSheet";
 import {
   resolveReturnedCargoBadge,
@@ -70,8 +73,8 @@ export type TripTrackingStopsTimelineProps = {
   trafficLight?: TrackingTrafficLight;
   /** Subtítulo artboard: ETA destino si aplica. */
   estimatedArrivalLabel?: string | null;
-  onCargoAction?: (cargoId: string, action: CargoManualAction) => void;
-  pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
+  onCargoAction?: OnOperateCargoAction;
+  pendingCargoAction?: PendingOperateCargoAction | null;
   canMutateCargo?: boolean;
   /** F3b: GET `return_replan_required` — CTA Planear retorno bajo carga `returned`. */
   returnReplanRequired?: boolean;
@@ -216,8 +219,8 @@ type TripTrackingStopsTimelineItemProps = {
   cargos: readonly TripCargo[];
   interactive: boolean;
   onSelect?: (stopId: string) => void;
-  onCargoAction?: (cargoId: string, action: CargoManualAction) => void;
-  pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
+  onCargoAction?: OnOperateCargoAction;
+  pendingCargoAction?: PendingOperateCargoAction | null;
   canMutateCargo: boolean;
   returnReplanRequired: boolean;
   onPlanReturn?: () => void;
@@ -432,8 +435,10 @@ function TripTrackingStopsTimelineItem({
                       link.cargo.status === CargoStatus.RETURNED &&
                       onPlanReturn != null;
                     const cargoFacts = trackingCopy.format.cargoFacts(
-                      link.cargo.weightInKg ?? link.cargo.weight,
-                      link.cargo.units,
+                      link.movement.weight ??
+                        link.cargo.weightInKg ??
+                        link.cargo.weight,
+                      link.movement.units ?? link.cargo.units,
                     );
                     return (
                       <li
@@ -505,6 +510,16 @@ function TripTrackingStopsTimelineItem({
                                     </Badge>
                                   );
                                 })()}
+                                {link.movement.completedAt != null ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] font-normal"
+                                  >
+                                    {link.movementType === "pickup"
+                                      ? cargoCopy.label.pickupCompleted
+                                      : cargoCopy.label.deliveryCompleted}
+                                  </Badge>
+                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -548,7 +563,11 @@ function TripTrackingStopsTimelineItem({
                                       pending={
                                         pendingCargoAction?.cargoId ===
                                           link.cargo.id &&
-                                        pendingCargoAction.action === action
+                                        pendingCargoAction.action === action &&
+                                        (pendingCargoAction.movementId ==
+                                          null ||
+                                          pendingCargoAction.movementId ===
+                                            link.movement.id)
                                       }
                                       disabled={!cargoActionsEnabled}
                                       title={
@@ -560,7 +579,11 @@ function TripTrackingStopsTimelineItem({
                                           : undefined
                                       }
                                       onClick={() =>
-                                        onCargoAction(link.cargo.id, action)
+                                        onCargoAction(
+                                          link.cargo.id,
+                                          action,
+                                          link.movement.id,
+                                        )
                                       }
                                     />
                                   );

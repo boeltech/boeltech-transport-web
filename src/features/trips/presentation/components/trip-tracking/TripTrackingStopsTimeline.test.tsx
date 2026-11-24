@@ -151,7 +151,9 @@ describe("TripTrackingStopsTimeline (F3c layout)", () => {
       screen.getAllByText(trackingCopy.section.cargosAtStop).length,
     ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Bebidas embotelladas")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Entregar/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Entregar aquí/i }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("CEDIS Torreón")).toBeInTheDocument();
     // Destino pendiente: sin bloque de cargas anidadas
     expect(
@@ -207,7 +209,7 @@ describe("TripTrackingStopsTimeline (F3c layout)", () => {
     expect(screen.getByText(longName)).toBeInTheDocument();
     expect(screen.queryByText(/Harina y p…/i)).not.toBeInTheDocument();
 
-    const deliver = screen.getByRole("button", { name: /Entregar/i });
+    const deliver = screen.getByRole("button", { name: /Entregar aquí/i });
     expect(deliver.className).not.toMatch(/bg-primary/);
     expect(screen.getByRole("button", { name: /Devolver/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Cancelar/i })).toBeInTheDocument();
@@ -290,13 +292,15 @@ describe("TripTrackingStopsTimeline (F3c layout)", () => {
 
     expect(screen.getByText(/Retorno/i)).toBeInTheDocument();
     expect(screen.getByText("Harina y productos de molinos")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Entregar/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Entregar aquí/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Devolver/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Cancelar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Recibir/i })).not.toBeInTheDocument();
   });
 
-  it("F4c CA-R14: in_transit compañera en R7 → 3 CTAs · label Entregar", () => {
+  it("F4c CA-R14: in_transit compañera en R7 → 3 CTAs · label Entregar aquí", () => {
     const pickup = stop({
       id: "origin",
       sequenceOrder: 1,
@@ -392,13 +396,17 @@ describe("TripTrackingStopsTimeline (F3c layout)", () => {
     );
 
     expect(screen.getByText("Abarrotes secos")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Entregar$/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Entregar aquí$/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Devolver/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Cancelar/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Recibir/i })).not.toBeInTheDocument();
     // returned card presente sin CTAs propios (solo los 3 de la compañera)
     expect(screen.getByText("Harina")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Entregar/i })).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: /Entregar aquí/i }),
+    ).toHaveLength(1);
   });
 
   it("R2: N=2 pendientes tienen separador por ítem (L-D7)", () => {
@@ -463,7 +471,7 @@ describe("TripTrackingStopsTimeline (F3c layout)", () => {
     }
     expect(screen.getByText("Caja A refrigerada")).toBeInTheDocument();
     expect(screen.getByText("Caja B seca")).toBeInTheDocument();
-    const delivers = screen.getAllByRole("button", { name: /Entregar/i });
+    const delivers = screen.getAllByRole("button", { name: /Entregar aquí/i });
     expect(delivers).toHaveLength(2);
     for (const btn of delivers) {
       expect(btn.className).not.toMatch(/bg-primary/);

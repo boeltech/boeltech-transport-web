@@ -21,7 +21,6 @@ import {
   isCargoTerminal,
   resolveCargoActionTransitionHint,
   resolveCargoCtaLayout,
-  type CargoManualAction,
 } from "../../utils/cargoStatusActions";
 import {
   getStopCargoLinks,
@@ -33,7 +32,11 @@ import {
 } from "../../utils/trackingCargoGating";
 import { isCargoHazmat } from "../trip-cargos/tripCargoDetailHelpers";
 import { CargoActionInline } from "./CargoActionInline";
-import { getCargoActionsForStopLink } from "./operateCargoActions";
+import {
+  getCargoActionsForStopLink,
+  type OnOperateCargoAction,
+  type PendingOperateCargoAction,
+} from "./operateCargoActions";
 import { resolveReturnStopVisitMap } from "./planReturnHelpers";
 import { TrackingEvidenceActions } from "./TrackingEvidenceActions";
 import type { TrackingItineraryRow } from "./trackingOperationalHelpers";
@@ -52,11 +55,11 @@ export type TripTrackingStopOperationDetailProps = {
   cargos: readonly TripCargo[];
   showHints: boolean;
   tripInProgress: boolean;
-  pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
+  pendingCargoAction?: PendingOperateCargoAction | null;
   getCargoStatusVariant: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";
-  onCargoAction: (cargoId: string, action: CargoManualAction) => void;
+  onCargoAction: OnOperateCargoAction;
   onRegisterNote?: (stop: TripStop) => void;
   onRegisterIncident?: (stop: TripStop) => void;
   canRegisterEvidence?: boolean;
@@ -175,8 +178,10 @@ export function TripTrackingStopOperationDetail({
               );
               const terminal = isCargoTerminal(link.cargo.status);
               const cargoFacts = trackingCopy.format.cargoFacts(
-                link.cargo.weightInKg ?? link.cargo.weight,
-                link.cargo.units,
+                link.movement.weight ??
+                  link.cargo.weightInKg ??
+                  link.cargo.weight,
+                link.movement.units ?? link.cargo.units,
               );
 
               const showCargoActions = !terminal && actions.length > 0;
@@ -265,7 +270,9 @@ export function TripTrackingStopOperationDetail({
                       {actions.map((action) => {
                         const isPending =
                           pendingCargoAction?.cargoId === link.cargo.id &&
-                          pendingCargoAction.action === action;
+                          pendingCargoAction.action === action &&
+                          (pendingCargoAction.movementId == null ||
+                            pendingCargoAction.movementId === link.movement.id);
                         const disabled = !cargoActionsEnabled;
                         const hint = resolveCargoActionTransitionHint(
                           action,
@@ -288,7 +295,13 @@ export function TripTrackingStopOperationDetail({
                                   : trackingCopy.hint.cargoActionRequiresArrival
                                 : undefined
                             }
-                            onClick={() => onCargoAction(link.cargo.id, action)}
+                            onClick={() =>
+                              onCargoAction(
+                                link.cargo.id,
+                                action,
+                                link.movement.id,
+                              )
+                            }
                           />
                         );
                       })}

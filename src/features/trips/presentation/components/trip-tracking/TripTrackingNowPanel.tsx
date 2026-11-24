@@ -8,12 +8,15 @@ import type {
 import { TripStatus } from "@features/trips/domain";
 import { cn } from "@shared/lib/utils/cn";
 
-import type { CargoManualAction } from "../../utils/cargoStatusActions";
 import type { TripScheduleTimes } from "../trip-route/tripRouteDetailHelpers";
 import {
   TripTrackingObjectiveHub,
   type TrackingContactInfo,
 } from "./TripTrackingObjectiveHub";
+import type {
+  OnOperateCargoAction,
+  PendingOperateCargoAction,
+} from "./operateCargoActions";
 import { trackingCopy } from "./trackingCopy";
 
 export type { TrackingContactInfo };
@@ -35,8 +38,8 @@ export type TripTrackingNowPanelProps = {
   onDeclareFalseTrip?: () => void;
   onGoToCargos?: (stopId: string) => void;
   /** F3 / D6: mutación de carga desde Operate. */
-  onCargoAction?: (cargoId: string, action: CargoManualAction) => void;
-  pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
+  onCargoAction?: OnOperateCargoAction;
+  pendingCargoAction?: PendingOperateCargoAction | null;
   /** Evidencia en overflow ⋯ (PD5). */
   onRegisterNote?: () => void;
   onRegisterIncident?: () => void;

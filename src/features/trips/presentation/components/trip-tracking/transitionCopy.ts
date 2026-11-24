@@ -30,7 +30,8 @@ export type StopTransitionAction = keyof typeof STOP_TRANSITION_COPY;
 
 export const CARGO_TRANSITION_COPY = {
   pickup: "La carga queda en tránsito",
-  deliver: "La carga queda entregada",
+  /** Operate-by-movement: entrega del movement de la parada, no del cargo entero. */
+  deliver: "Se registra la entrega en esta parada",
   /** Fallback; en UI preferir `resolveCargoActionTransitionHint`. */
   return: "Queda a bordo. Después planea el retorno al origen.",
   cancel: "La carga queda cancelada",

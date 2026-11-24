@@ -81,7 +81,12 @@ describe("listOperatePendingCargoActions", () => {
       TripStatus.IN_PROGRESS,
     );
     expect(items).toEqual([
-      { cargoId: "c1", description: "Zapatos", action: "pickup" },
+      {
+        cargoId: "c1",
+        movementId: "m1",
+        description: "Zapatos",
+        action: "pickup",
+      },
     ]);
   });
 
@@ -121,7 +126,14 @@ describe("resolveOperateCargoCtaLabel", () => {
   it("1 pickup → Marcar recogida", () => {
     expect(
       resolveOperateCargoCtaLabel(
-        [{ cargoId: "c1", description: "A", action: "pickup" }],
+        [
+          {
+            cargoId: "c1",
+            movementId: "m1",
+            description: "A",
+            action: "pickup",
+          },
+        ],
         "Bodega QRO",
       ),
     ).toBe(trackingCopy.action.markPickup);
@@ -131,8 +143,18 @@ describe("resolveOperateCargoCtaLabel", () => {
     expect(
       resolveOperateCargoCtaLabel(
         [
-          { cargoId: "c1", description: "A", action: "pickup" },
-          { cargoId: "c2", description: "B", action: "pickup" },
+          {
+            cargoId: "c1",
+            movementId: "m1",
+            description: "A",
+            action: "pickup",
+          },
+          {
+            cargoId: "c2",
+            movementId: "m2",
+            description: "B",
+            action: "pickup",
+          },
         ],
         "Bodega QRO",
       ),
@@ -262,6 +284,42 @@ describe("getCargoActionsForStopLink (F4c R7)", () => {
         returnVisitMap: map,
       }),
     ).toEqual(["deliver", "return", "cancel"]);
+  });
+
+  it("oculta pickup/deliver cuando movement.completedAt está set", () => {
+    const activeUnload = stop({
+      id: "s-done",
+      sequenceOrder: 2,
+      stopType: [StopType.DELIVERY, StopType.DESTINATION],
+      status: "in_progress",
+      locationName: "Cliente A",
+      actualArrival: new Date("2026-01-01T12:00:00Z"),
+    });
+    const completedDelivery = cargo({
+      id: "c-done",
+      status: CargoStatus.IN_TRANSIT,
+      movements: [
+        {
+          id: "m-done",
+          movementType: "delivery",
+          stopId: "s-done",
+          stopIndex: 1,
+          completedAt: new Date("2026-01-01T12:05:00Z"),
+          weight: 50,
+          units: 2,
+          notes: null,
+        },
+      ],
+    });
+    const link: StopCargoLink = {
+      cargo: completedDelivery,
+      movementType: "delivery",
+      movement: completedDelivery.movements![0]!,
+    };
+    expect(getCargoActionsForStopLink(link, true, activeUnload)).toEqual([
+      "return",
+      "cancel",
+    ]);
   });
 
   it("CA-R15: unload no-R7 in_transit → descarga normal intacta", () => {

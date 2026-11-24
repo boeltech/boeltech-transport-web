@@ -110,7 +110,9 @@ export {
   resolveOperateCargoCtaLabel,
 } from "./operateCargoActions";
 export type {
+  OnOperateCargoAction,
   OperatePendingCargoAction,
+  PendingOperateCargoAction,
   ReturnStopLabelMap,
   ReturnStopVisitMap,
 } from "./operateCargoActions";

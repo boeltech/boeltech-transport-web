@@ -32,7 +32,6 @@ import { useMediaQuery } from "@shared/hooks";
 
 import { formatStopTimelineLabel } from "../../uiHelpers";
 import type { TripScheduleTimes } from "../trip-route/tripRouteDetailHelpers";
-import type { CargoManualAction } from "../../utils/cargoStatusActions";
 import { getStopCargoLinks } from "../../utils/stopCargoCorrelation";
 import { Button } from "@shared/ui/button";
 import { CargoStateMachineLegend } from "./CargoStateMachineLegend";
@@ -40,6 +39,10 @@ import { StopStateMachineLegend } from "./StopStateMachineLegend";
 import { TripTrackingObjectiveHub } from "./TripTrackingObjectiveHub";
 import { TripTrackingProgressStrip } from "./TripTrackingProgressStrip";
 import { TripTrackingStopOperationDetail } from "./TripTrackingStopOperationDetail";
+import type {
+  OnOperateCargoAction,
+  PendingOperateCargoAction,
+} from "./operateCargoActions";
 import {
   buildTrackingItineraryRows,
   type TrackingItineraryRow,
@@ -62,8 +65,8 @@ export type TripTrackingStopsCargosMasterDetailProps = {
   actualDeparture?: Date | null;
   /** Semáforo operativo derivado (F1-B). */
   trafficLight?: TrackingTrafficLight;
-  pendingCargoAction?: { cargoId: string; action: CargoManualAction } | null;
-  onCargoAction: (cargoId: string, action: CargoManualAction) => void;
+  pendingCargoAction?: PendingOperateCargoAction | null;
+  onCargoAction: OnOperateCargoAction;
   getCargoStatusVariant: (
     status: CargoStatusType,
   ) => "default" | "secondary" | "destructive" | "outline";

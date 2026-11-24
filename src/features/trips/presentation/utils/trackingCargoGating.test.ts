@@ -105,9 +105,47 @@ describe("trackingCargoGating", () => {
       id: "c1",
       description: "Harina",
       status: CargoStatus.IN_TRANSIT,
+      movements: [
+        {
+          id: "m1",
+          cargoId: "c1",
+          stopId: "origin",
+          stopIndex: 0,
+          movementType: "pickup",
+          weight: null,
+          units: null,
+          completedAt: new Date("2026-06-01T10:05:00Z"),
+          notes: null,
+        },
+      ],
     });
     expect(hasUnresolvedCargoAtStop(origin, [picked], route)).toBe(false);
     expect(validateCargoBeforeDeparture(origin, [picked], route)).toBeNull();
+  });
+
+  it("keeps pickup unresolved until movement completedAt (operate-by-movement)", () => {
+    const route = [origin];
+    const inTransitWithoutCompleted = cargo({
+      id: "c1",
+      description: "Harina",
+      status: CargoStatus.IN_TRANSIT,
+      movements: [
+        {
+          id: "m1",
+          cargoId: "c1",
+          stopId: "origin",
+          stopIndex: 0,
+          movementType: "pickup",
+          weight: null,
+          units: null,
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    });
+    expect(
+      hasUnresolvedCargoAtStop(origin, [inTransitWithoutCompleted], route),
+    ).toBe(true);
   });
 
   it("requires visit active to operate cargo", () => {

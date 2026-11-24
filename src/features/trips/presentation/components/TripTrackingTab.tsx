@@ -32,6 +32,7 @@ import {
   type TripCargo,
 } from "@features/trips/domain";
 import {
+  useCompleteTripCargoMovement,
   useSyncTripDetailOnTimelineEvents,
   useTripTimeline,
   useUpdateCargo,
@@ -184,6 +185,7 @@ export function TripTrackingTab({
   const [pendingCargoAction, setPendingCargoAction] = useState<{
     cargoId: string;
     action: CargoManualAction;
+    movementId?: string;
   } | null>(null);
   const [refreshTickMs, setRefreshTickMs] = useState(() => Date.now());
   const { toast } = useToast();
@@ -234,11 +236,7 @@ export function TripTrackingTab({
         pendingCargoAction?.cargoId === variables.cargoId
           ? pendingCargoAction.action
           : null;
-      if (action === "pickup") {
-        toast({ title: tripDetailCopy.cargo.toast.pickup, variant: "success" });
-      } else if (action === "deliver") {
-        toast({ title: tripDetailCopy.cargo.toast.delivered, variant: "success" });
-      } else if (action === "return") {
+      if (action === "return") {
         toast({ title: tripDetailCopy.cargo.toast.returned, variant: "success" });
       } else if (action === "cancel") {
         toast({ title: tripDetailCopy.cargo.toast.cancelled, variant: "success" });
@@ -247,17 +245,54 @@ export function TripTrackingTab({
       onCargosChanged?.();
     },
     onError: (error) => {
+      const fallback =
+        pendingCargoAction?.action === "return"
+          ? tripDetailCopy.cargo.toast.returnError
+          : pendingCargoAction?.action === "cancel"
+            ? tripDetailCopy.cargo.toast.cancelError
+            : tripDetailCopy.cargo.toast.deliverError;
+      showTripDetailErrorToast(toast, error, fallback);
+      setPendingCargoAction(null);
+    },
+  });
+
+  const completeCargoMovementMutation = useCompleteTripCargoMovement(tripId, {
+    onSuccess: () => {
+      toast({
+        title: tripDetailCopy.cargo.toast.movementCompleted,
+        variant: "success",
+      });
+      setPendingCargoAction(null);
+      onCargosChanged?.();
+    },
+    onError: (error) => {
       showTripDetailErrorToast(
         toast,
         error,
-        tripDetailCopy.cargo.toast.deliverError,
+        tripDetailCopy.cargo.toast.movementError,
       );
       setPendingCargoAction(null);
     },
   });
 
-  const handleCargoAction = (cargoId: string, action: CargoManualAction) => {
+  const handleCargoAction = (
+    cargoId: string,
+    action: CargoManualAction,
+    movementId?: string,
+  ) => {
     if (!canMutateCargo) return;
+    if (action === "pickup" || action === "deliver") {
+      if (!movementId) {
+        toast({
+          title: tripDetailCopy.cargo.toast.movementError,
+          variant: "error",
+        });
+        return;
+      }
+      setPendingCargoAction({ cargoId, action, movementId });
+      completeCargoMovementMutation.mutate({ cargoId, movementId });
+      return;
+    }
     setPendingCargoAction({ cargoId, action });
     updateCargoMutation.mutate({
       cargoId,

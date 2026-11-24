@@ -23,14 +23,14 @@ const ACTION_META: Record<
   }
 > = {
   pickup: {
-    label: copy.action.pickup,
+    label: copy.action.completePickupHere,
     icon: Package,
     // L-D4′: por carga = outline; Qué sigue (hub) overridea a default.
     variant: "outline",
     transition: "pickup",
   },
   deliver: {
-    label: copy.action.deliver,
+    label: copy.action.completeDeliveryHere,
     icon: CheckCircle2,
     variant: "outline",
     transition: "deliver",

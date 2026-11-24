@@ -45,6 +45,7 @@ export function mapTripCargoToGatingLike(cargo: TripCargo): TripCargoGatingLike 
       movementType: movement.movementType,
       stopId: movement.stopId,
       stopIndex: movement.stopIndex,
+      completedAt: movement.completedAt,
     })),
   };
 }
