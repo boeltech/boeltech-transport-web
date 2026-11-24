@@ -8,6 +8,15 @@ on:
         required: false
         type: boolean
         default: false
+      hotfix:
+        description: "Camino hotfix E7b (CI obligatorio; exige bitácora hotfix_ref)"
+        required: false
+        type: boolean
+        default: false
+      hotfix_ref:
+        description: "Path bitácora pedidos/_despliegues/hotfix-….md (obligatorio si hotfix)"
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -30,6 +39,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate hotfix inputs
+        run: |
+          if [ "${{ inputs.hotfix }}" = "true" ] && [ "${{ inputs.skip_ci_check }}" = "true" ]; then
+            echo "::error::hotfix ∧ skip_ci_check: skip_ci_check es HB-G5, no es hotfix"
+            exit 1
+          fi
+          if [ "${{ inputs.hotfix }}" = "true" ]; then
+            REF="${{ inputs.hotfix_ref }}"
+            if [ -z "$REF" ]; then
+              echo "::error::hotfix=true exige hotfix_ref (path de bitácora pedidos/_despliegues/hotfix-….md)"
+              exit 1
+            fi
+            echo "Hotfix E7b: bitácora=$REF"
+          fi
+
       - name: Verify commit is on main
         run: |
           git fetch --no-tags origin main
@@ -38,8 +62,9 @@ jobs:
             exit 1
           fi
 
+      # Hotfix siempre espera CI (skip_ci_check incompatible; validado arriba).
       - name: Wait for green CI on this commit
-        if: ${{ !inputs.skip_ci_check }}
+        if: ${{ inputs.hotfix || !inputs.skip_ci_check }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
