@@ -1,4 +1,8 @@
-import type { AccountStatementItem } from "@features/finance/domain";
+import { isGenericRfc } from "@boeltech/cfdi-domain";
+import type {
+  AccountStatementItem,
+  AccountStatementTarget,
+} from "@features/finance/domain";
 
 /** Saldo con factura = total por cobrar − sin factura (merge F0b). */
 export function getAccountStatementInvoicedBalance(
@@ -33,4 +37,19 @@ export function accountStatementHasOperationalChannel(
     getAccountStatementOperationalBalance(row) > 0.009 ||
     (row.operationalTripCount ?? 0) > 0
   );
+}
+
+/**
+ * Cómo pedir el documento de un renglón de Cartera. Un RFC genérico lo
+ * comparten clientes distintos, así que se pide por cliente; sin cliente no
+ * hay documento (`null`).
+ */
+export function getAccountStatementTarget(
+  row: Pick<AccountStatementItem, "clientId" | "clientRfc" | "clientName">,
+): AccountStatementTarget | null {
+  const rfc = row.clientRfc.trim().toUpperCase();
+  if (rfc && !isGenericRfc(rfc)) return { clientRfc: rfc };
+  return row.clientId
+    ? { clientId: row.clientId, clientName: row.clientName }
+    : null;
 }

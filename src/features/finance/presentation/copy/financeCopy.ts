@@ -519,7 +519,6 @@ export const financeCopy = {
         `Más acciones de ${clientName}`,
       footerNote: (clients: number) =>
         `${clients === 1 ? "1 cliente con saldo" : `${clients} clientes con saldo`}`,
-      footerActionsHint: "«⋯»: Registrar cobro · Ver cliente",
       lastCollectionChannel: {
         with_invoice: "Con factura",
         without_invoice: "Sin factura",
@@ -533,7 +532,8 @@ export const financeCopy = {
         cutoff: (dateLabel: string) => `Al corte de hoy, ${dateLabel}`,
         includesTitle: "Qué incluye",
         includeInvoices: "Facturas con saldo",
-        includeInvoicesHint: "Folio, emisión, total, cobrado y saldo",
+        includeInvoicesHint:
+          "Folio y UUID, emisión, método, viajes, total, cobrado y saldo",
         includeOperational: "Viajes sin factura con saldo",
         includeOperationalHint: "Viaje, salida, ruta, tarifa, cobrado y saldo",
         summaryTitle: "Resumen",
@@ -542,8 +542,12 @@ export const financeCopy = {
         formatLabel: "Formato",
         formatPdf: "PDF",
         formatCsv: "CSV",
+        csvNote:
+          "CSV: un renglón por factura y por viaje, con las mismas columnas del PDF.",
         legend:
-          "Documento comercial de cobranza. No es CFDI. Los viajes sin factura van por tarifa, sin IVA.",
+          "Documento comercial de cobranza. No es un comprobante fiscal (CFDI). Los viajes sin factura aparecen con su tarifa, sin IVA.",
+        unavailable:
+          "Estas facturas usan un RFC genérico y no están ligadas a un viaje, así que no se sabe de qué cliente son. No se puede generar su estado de cuenta.",
         cancel: "Cancelar",
         download: "Descargar",
         successToast: "Se descargó el estado de cuenta.",

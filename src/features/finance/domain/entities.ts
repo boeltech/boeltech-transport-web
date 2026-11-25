@@ -46,6 +46,11 @@ export interface FinanceSummary {
   };
 }
 
+/** Cliente de un Estado de cuenta descargable: por RFC o por id, no ambos. */
+export type AccountStatementTarget =
+  | { clientRfc: string }
+  | { clientId: string; clientName: string };
+
 export interface AccountStatementItem {
   clientId?: string | null;
   clientRfc: string;
@@ -63,6 +68,8 @@ export interface AccountStatementItem {
   invoiceCount: number;
   /** Facturas PPD con saldo (mismo predicado que cola Cobros). */
   openInvoiceCount: number;
+  /** Facturas con saldo, PUE y PPD: las que lista el Estado de cuenta. */
+  invoicesWithBalanceCount: number;
   /** Viajes con saldo operativo pendiente. */
   operationalTripCount: number;
   overdueAmount: number;

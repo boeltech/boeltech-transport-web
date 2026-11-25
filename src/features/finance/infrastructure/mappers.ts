@@ -165,6 +165,10 @@ export function mapAccountStatementItem(
     operationalBalance: asNumber(raw.operational_balance),
     invoiceCount: asNumber(raw.invoice_count),
     openInvoiceCount: asNumber(raw.open_invoice_count),
+    // API anterior a la Enmienda EC: solo manda el conteo PPD.
+    invoicesWithBalanceCount: asNumber(
+      raw.invoices_with_balance_count ?? raw.open_invoice_count,
+    ),
     operationalTripCount: asNumber(raw.operational_trip_count),
     overdueAmount: asNumber(raw.overdue_amount),
     lastCollectionAt: asNullableString(raw.last_collection_at),

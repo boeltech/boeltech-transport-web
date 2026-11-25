@@ -4,14 +4,6 @@ import { useToast } from "@shared/hooks";
 import { getErrorMessage } from "@shared/api/interceptors/error-handler";
 import { Alert, AlertDescription } from "@shared/ui/alert";
 import { Button } from "@shared/ui/button";
-import { Label } from "@shared/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shared/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -30,9 +22,11 @@ import { financeCopy } from "../copy";
 import {
   getAccountStatementInvoicedBalance,
   getAccountStatementOperationalBalance,
+  getAccountStatementTarget,
 } from "../utils/accountStatementChannels";
 
-type StatementFormat = "pdf" | "csv";
+const FORMATS = ["pdf", "csv"] as const;
+type StatementFormat = (typeof FORMATS)[number];
 
 interface AccountStatementSheetProps {
   open: boolean;
@@ -52,7 +46,7 @@ function httpStatusOf(error: unknown): number | undefined {
 }
 
 /**
- * Hoja K9 — descarga unificada Estado de cuenta (PDF/CSV F0b).
+ * Hoja K9 / K11 — Estado de cuenta: PDF o CSV con detalle por factura y viaje.
  * Retira «Resumen (PDF)» y «Relación» de Operate.
  */
 export function AccountStatementSheet({
@@ -75,7 +69,7 @@ export function AccountStatementSheet({
           <SheetTitle>{row.clientName}</SheetTitle>
         </SheetHeader>
         <AccountStatementSheetBody
-          key={row.clientRfc || row.clientId || row.clientName}
+          key={row.clientId || row.clientRfc || row.clientName}
           row={row}
           onOpenChange={onOpenChange}
         />
@@ -135,103 +129,111 @@ function AccountStatementSheetBody({
   const operational = getAccountStatementOperationalBalance(row);
   const hasBalance = row.balanceDue > 0.009;
   const isPending = downloadPdf.isPending || downloadCsv.isPending;
+  const target = getAccountStatementTarget(row);
   const canDownload =
-    Boolean(row.clientRfc.trim()) && hasBalance && !downloadEmpty && !isPending;
+    target !== null && hasBalance && !downloadEmpty && !isPending;
   const todayLabel = formatDate(new Date().toISOString());
+  const formatLabels: Record<StatementFormat, string> = {
+    pdf: copy.formatPdf,
+    csv: copy.formatCsv,
+  };
+  const sections = [
+    {
+      title: copy.includeInvoices,
+      hint: copy.includeInvoicesHint,
+      count: row.invoicesWithBalanceCount,
+      amount: invoiced,
+    },
+    {
+      title: copy.includeOperational,
+      hint: copy.includeOperationalHint,
+      count: row.operationalTripCount,
+      amount: operational,
+    },
+  ];
 
   function handleDownload() {
-    const rfc = row.clientRfc.trim().toUpperCase();
-    if (!rfc) return;
+    if (!target) return;
     if (format === "pdf") {
-      downloadPdf.mutate(rfc);
+      downloadPdf.mutate(target);
       return;
     }
-    downloadCsv.mutate({ clientRfc: rfc });
+    downloadCsv.mutate({ target });
   }
 
   return (
     <div className="flex flex-1 flex-col gap-6 pt-2">
-      <div className="space-y-1 text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {row.clientRfc ? (
-          <p>
-            <span className="font-mono">{row.clientRfc}</span>
-            {" · "}
-            {copy.cutoff(todayLabel)}
-          </p>
+          <span className="font-mono">{row.clientRfc}</span>
         ) : (
-          <p>
-            {tableCopy.noRfcHint}
-            {" · "}
-            {copy.cutoff(todayLabel)}
-          </p>
+          tableCopy.noRfcHint
         )}
-      </div>
+        {" · "}
+        {copy.cutoff(todayLabel)}
+      </p>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         <h3 className="text-sm font-semibold">{copy.includesTitle}</h3>
-        <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-medium">{copy.includeInvoices}</p>
-              <p className="text-xs text-muted-foreground">
-                {copy.includeInvoicesHint}
+        <ul className="space-y-2">
+          {sections.map((section) => (
+            <li
+              key={section.title}
+              className="flex items-start justify-between gap-3 rounded-lg border border-border p-3 text-sm"
+            >
+              <div>
+                <p className="font-medium">{section.title}</p>
+                <p className="text-xs text-muted-foreground">{section.hint}</p>
+              </div>
+              <p className="shrink-0 font-mono tabular-nums">
+                {section.count} · {formatMxCurrency(section.amount)}
               </p>
-            </div>
-            <p className="shrink-0 tabular-nums text-muted-foreground">
-              {row.openInvoiceCount} · {formatMxCurrency(invoiced)}
-            </p>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-medium">{copy.includeOperational}</p>
-              <p className="text-xs text-muted-foreground">
-                {copy.includeOperationalHint}
-              </p>
-            </div>
-            <p className="shrink-0 tabular-nums text-muted-foreground">
-              {row.operationalTripCount} · {formatMxCurrency(operational)}
-            </p>
-          </div>
-        </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="space-y-2">
         <h3 className="text-sm font-semibold">{copy.summaryTitle}</h3>
-        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
+        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm [&_dd]:text-right [&_dd]:font-mono [&_dd]:tabular-nums">
           <dt className="text-muted-foreground">{copy.includeInvoices}</dt>
-          <dd className="tabular-nums">{formatMxCurrency(invoiced)}</dd>
+          <dd>{formatMxCurrency(invoiced)}</dd>
           <dt className="text-muted-foreground">{copy.includeOperational}</dt>
-          <dd className="tabular-nums">{formatMxCurrency(operational)}</dd>
+          <dd>{formatMxCurrency(operational)}</dd>
           <dt className="font-semibold text-foreground">{copy.totalReceivable}</dt>
-          <dd className="font-semibold tabular-nums">
-            {formatMxCurrency(row.balanceDue)}
-          </dd>
+          <dd className="font-semibold">{formatMxCurrency(row.balanceDue)}</dd>
           <dt className="text-muted-foreground">{copy.overdue}</dt>
-          <dd className="tabular-nums">{formatMxCurrency(row.overdueAmount)}</dd>
+          <dd>{formatMxCurrency(row.overdueAmount)}</dd>
         </dl>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="account-statement-format">{copy.formatLabel}</Label>
-        <Select
-          value={format}
-          onValueChange={(value) => {
-            if (value === "pdf" || value === "csv") setFormat(value);
-          }}
-        >
-          <SelectTrigger id="account-statement-format">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pdf">{copy.formatPdf}</SelectItem>
-            <SelectItem value="csv">{copy.formatCsv}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <fieldset className="space-y-2">
+        <legend className="mb-2 text-sm font-semibold">{copy.formatLabel}</legend>
+        {/* Control segmentado (DS: no son tabs). Radios nativos: flechas y foco. */}
+        <div className="inline-flex rounded-lg border bg-muted p-1">
+          {FORMATS.map((value) => (
+            <label
+              key={value}
+              className="cursor-pointer rounded-md px-4 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground has-[:checked]:bg-background has-[:checked]:text-foreground has-[:checked]:shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+            >
+              <input
+                type="radio"
+                name="account-statement-format"
+                value={value}
+                checked={format === value}
+                onChange={() => setFormat(value)}
+                className="sr-only"
+              />
+              {formatLabels[value]}
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">{copy.csvNote}</p>
+      </fieldset>
 
-      <Alert>
-        <AlertDescription>{copy.legend}</AlertDescription>
-      </Alert>
+      <p className="rounded-lg border border-dashed border-border bg-muted/50 p-3 text-xs text-muted-foreground">
+        {copy.legend}
+      </p>
 
       {downloadEmpty || !hasBalance ? (
         <Alert variant="destructive">
@@ -239,11 +241,9 @@ function AccountStatementSheetBody({
         </Alert>
       ) : null}
 
-      {!row.clientRfc.trim() ? (
+      {target === null ? (
         <Alert>
-          <AlertDescription>
-            Este cliente no tiene RFC; la descarga por RFC no está disponible.
-          </AlertDescription>
+          <AlertDescription>{copy.unavailable}</AlertDescription>
         </Alert>
       ) : null}
 

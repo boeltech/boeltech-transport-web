@@ -26,7 +26,6 @@ import {
   TableRow,
 } from "@shared/ui/table";
 import { EmptyState } from "@shared/ui/feedback-states";
-import { cn } from "@shared/lib/utils/cn";
 import { formatDate } from "@shared/utils/dateUtils";
 import { formatMxCurrency } from "@shared/utils/formatMxCurrency";
 import type { AccountStatementItem } from "@features/finance/domain";
@@ -94,7 +93,7 @@ function registerHref(row: AccountStatementItem): string {
 }
 
 export function FinanceAccountStatementSection({
-  rows,
+  rows: statementRows,
   isLoading = false,
   showCollectAction = false,
   canDownloadStatement = false,
@@ -106,6 +105,11 @@ export function FinanceAccountStatementSection({
   );
   const copy = financeCopy.summary.accountStatement;
   const showActions = showCollectAction || canDownloadStatement;
+  // La tabla y sus conteos son de clientes que deben algo (K13).
+  const rows = useMemo(
+    () => statementRows.filter((row) => row.balanceDue > 0.009),
+    [statementRows],
+  );
 
   const filterCounts = useMemo(() => {
     const searched = rows.filter((row) => matchesClientFilter(row, filterQuery));
@@ -252,14 +256,11 @@ export function FinanceAccountStatementSection({
                     const invoiced = getAccountStatementInvoicedBalance(row);
                     const operational =
                       getAccountStatementOperationalBalance(row);
+                    // Primero el id: varios clientes comparten el RFC genérico.
                     const rowKey =
-                      row.clientRfc ||
                       row.clientId ||
+                      row.clientRfc ||
                       `${row.clientName}-${row.balanceDue}`;
-                    const canOpenStatement =
-                      canDownloadStatement &&
-                      Boolean(row.clientRfc.trim()) &&
-                      row.balanceDue > 0.009;
                     const showCollect =
                       showCollectAction &&
                       (accountStatementHasInvoiceChannel(row) ||
@@ -296,7 +297,9 @@ export function FinanceAccountStatementSection({
                             <div>
                               <p>{formatMxCurrency(invoiced)}</p>
                               <p className="text-xs text-muted-foreground">
-                                {copy.invoiceCountUnder(row.openInvoiceCount)}
+                                {copy.invoiceCountUnder(
+                                  row.invoicesWithBalanceCount,
+                                )}
                               </p>
                             </div>
                           ) : (
@@ -348,7 +351,7 @@ export function FinanceAccountStatementSection({
                         {showActions ? (
                           <TableCell className="text-right">
                             <div className="flex flex-nowrap items-center justify-end gap-1">
-                              {canOpenStatement ? (
+                              {canDownloadStatement ? (
                                 <Button
                                   type="button"
                                   size="sm"
@@ -419,20 +422,15 @@ export function FinanceAccountStatementSection({
             </div>
           )}
           {!isLoading && filteredRows.length > 0 ? (
-            <div
-              className={cn(
-                "flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground",
-              )}
-            >
-              <span>{copy.footerNote(filteredRows.length)}</span>
-              <span>{copy.footerActionsHint}</span>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              {copy.footerNote(filteredRows.length)}
+            </p>
           ) : null}
         </CardContent>
       </Card>
       {selectedRow ? (
         <AccountStatementSheet
-          key={selectedRow.clientRfc || selectedRow.clientId || "row"}
+          key={selectedRow.clientId || selectedRow.clientRfc || "row"}
           open
           row={selectedRow}
           onOpenChange={(nextOpen) => {

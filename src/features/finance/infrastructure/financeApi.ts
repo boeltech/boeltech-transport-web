@@ -1,6 +1,7 @@
 import { apiClient } from "@shared/api";
 import type {
   AccountStatementItem,
+  AccountStatementTarget,
   PendingRelationCount,
   PendingRelationFileFormat,
   AgingByClientItem,
@@ -50,6 +51,27 @@ export function buildAccountStatementPdfFileName(clientRfc: string): string {
 export function buildAccountStatementCsvFileName(clientRfc: string): string {
   const rfc = clientRfc.trim().toUpperCase();
   return `estado-cuenta-${rfc}.csv`;
+}
+
+/** Query y nombre de archivo del Estado de cuenta de un cliente. */
+function accountStatementRequest(target: AccountStatementTarget): {
+  params: URLSearchParams;
+  fileKey: string;
+} {
+  const params = new URLSearchParams();
+  if ("clientRfc" in target) {
+    const rfc = target.clientRfc.trim().toUpperCase();
+    addOptionalParam(params, "client_rfc", rfc);
+    return { params, fileKey: rfc };
+  }
+  addOptionalParam(params, "client_id", target.clientId);
+  const slug = target.clientName
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return { params, fileKey: slug || "cliente" };
 }
 
 export interface AccountStatementDownloadOptions {
@@ -135,31 +157,28 @@ export const financeApi = {
   },
 
   /**
-   * PDF estado de cuenta por RFC.
-   * GET /finance/account-statement/pdf?client_rfc= — permiso finance.read.
-   * Proyección del mismo GET JSON; no recalcula saldos en cliente.
+   * PDF del Estado de cuenta de un cliente, con detalle por factura y viaje.
+   * GET /finance/account-statement/pdf?client_rfc= | client_id= — finance.read.
    */
-  downloadAccountStatementPdf: async (clientRfc: string): Promise<void> => {
-    const rfc = clientRfc.trim().toUpperCase();
-    const params = new URLSearchParams();
-    addOptionalParam(params, "client_rfc", rfc);
+  downloadAccountStatementPdf: async (
+    target: AccountStatementTarget,
+  ): Promise<void> => {
+    const { params, fileKey } = accountStatementRequest(target);
     await apiClient.downloadFile(
       `${FINANCE_BASE}/account-statement/pdf?${params.toString()}`,
-      buildAccountStatementPdfFileName(rfc),
+      buildAccountStatementPdfFileName(fileKey),
     );
   },
 
   /**
-   * CSV multi-canal por RFC.
-   * GET /finance/account-statement/csv?client_rfc=&include_invoices=&include_operational=
+   * CSV del mismo documento: un renglón por factura y por viaje.
+   * GET /finance/account-statement/csv?client_rfc= | client_id=
    */
   downloadAccountStatementCsv: async (
-    clientRfc: string,
+    target: AccountStatementTarget,
     options?: AccountStatementDownloadOptions,
   ): Promise<void> => {
-    const rfc = clientRfc.trim().toUpperCase();
-    const params = new URLSearchParams();
-    addOptionalParam(params, "client_rfc", rfc);
+    const { params, fileKey } = accountStatementRequest(target);
     if (options?.includeInvoices === false) {
       addOptionalParam(params, "include_invoices", "false");
     }
@@ -168,7 +187,7 @@ export const financeApi = {
     }
     await apiClient.downloadFile(
       `${FINANCE_BASE}/account-statement/csv?${params.toString()}`,
-      buildAccountStatementCsvFileName(rfc),
+      buildAccountStatementCsvFileName(fileKey),
     );
   },
 

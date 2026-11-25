@@ -6,15 +6,16 @@ import {
   financeApi,
   type AccountStatementDownloadOptions,
 } from "@features/finance/infrastructure";
+import type { AccountStatementTarget } from "../../domain";
 
 export interface DownloadAccountStatementCsvInput {
-  clientRfc: string;
+  target: AccountStatementTarget;
   options?: AccountStatementDownloadOptions;
 }
 
 /**
- * Descarga CSV del estado de cuenta por RFC (finance.read).
- * Contrato: GET /finance/account-statement/csv?client_rfc=
+ * Descarga CSV del estado de cuenta de un cliente (finance.read).
+ * Contrato: GET /finance/account-statement/csv?client_rfc= | client_id=
  */
 export function useDownloadAccountStatementCsv(
   options?: Omit<
@@ -23,8 +24,8 @@ export function useDownloadAccountStatementCsv(
   >,
 ) {
   return useMutation({
-    mutationFn: ({ clientRfc, options: downloadOptions }) =>
-      financeApi.downloadAccountStatementCsv(clientRfc, downloadOptions),
+    mutationFn: ({ target, options: downloadOptions }) =>
+      financeApi.downloadAccountStatementCsv(target, downloadOptions),
     ...options,
   });
 }

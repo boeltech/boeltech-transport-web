@@ -47,6 +47,7 @@ export type {
   FinanceSummary,
   ChannelMoneySnapshot,
   AccountStatementItem,
+  AccountStatementTarget,
   PendingRelationCount,
   PendingRelationFileFormat,
   ProfitabilityTripItem,

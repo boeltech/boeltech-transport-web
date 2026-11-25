@@ -37,6 +37,7 @@ function buildRow(
     operationalBalance: 0,
     invoiceCount: 1,
     openInvoiceCount: 0,
+    invoicesWithBalanceCount: 0,
     operationalTripCount: 0,
     overdueAmount: 0,
     lastCollectionAt: null,
@@ -287,6 +288,73 @@ describe("FinanceAccountStatementSection", () => {
 
     expect(
       screen.getByText(financeCopy.summary.accountStatement.filterEmpty.title),
+    ).toBeInTheDocument();
+  });
+
+  it("lista y cuenta solo clientes con saldo, sin leyenda del menú (K13)", () => {
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[
+          buildRow({
+            clientName: "Con saldo",
+            balanceDue: 3000,
+            openInvoiceCount: 1,
+            invoicesWithBalanceCount: 2,
+          }),
+          buildRow({
+            clientName: "Saldado",
+            clientRfc: "SAL010101AB1",
+            clientId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+            balanceDue: 0,
+          }),
+        ]}
+        showCollectAction
+      />,
+    );
+
+    expect(screen.queryByRole("row", { name: /Saldado/ })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(financeCopy.summary.accountStatement.footerNote(1)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(`^${financeCopy.summary.accountStatement.filters.all}\\s*1$`),
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/«⋯»/)).not.toBeInTheDocument();
+    // El menú se conserva (K7).
+    expect(
+      screen.getByRole("button", {
+        name: financeCopy.summary.accountStatement.moreActionsAria("Con saldo"),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(financeCopy.summary.accountStatement.invoiceCountUnder(2)),
+    ).toBeInTheDocument();
+  });
+
+  it("ofrece «Estado de cuenta» a un cliente sin RFC", () => {
+    renderSection(
+      <FinanceAccountStatementSection
+        rows={[
+          buildRow({
+            clientName: "Materiales Ortega",
+            clientRfc: "",
+            balanceDue: 18_300,
+            operationalBalance: 18_300,
+            operationalTripCount: 2,
+          }),
+        ]}
+        canDownloadStatement
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: financeCopy.summary.accountStatement.downloadActionAria(
+          "Materiales Ortega",
+        ),
+      }),
     ).toBeInTheDocument();
   });
 
